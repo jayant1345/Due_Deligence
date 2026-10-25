@@ -34,6 +34,69 @@ Engineered for seamless deployment on **Railway.app**, connected to **Railway Po
 
 ---
 
+## 👥 User Roles, Simple Credentials & WhatsApp Dispatch Workflow
+
+### 🔑 Default Credentials
+| Role | Portal / Interface | Username / Alias | Default Password | Access Level |
+|---|---|---|---|---|
+| **Super Admin / CA Partner** | Desktop CA Scrutiny Desk (`/portal`) | `admin` (or `admin@valuexca.com`) | `admin@123` | Full access: Assign tasks, audit evidence, enter UDIN, certify & generate bank reports |
+| **Field Verification Agent** | Mobile Field Agent PWA (`/pwa`) | `agent1` (or `agent.rajesh@valuexca.com`) | `agent1@123` | Mobile field access: View assigned tasks, capture GPS photos, upload borrower docs |
+
+---
+
+### 📲 End-to-End Operational Workflow
+
+```
+[1. Bank Loan Case Ingested / Created]
+               │
+               ▼
+[2. CA Admin Assigns Task to Field Agent on Desktop Desk]
+               │
+               ▼
+[3. Admin Clicks "Share via WhatsApp"]
+       ├── Dispatches WhatsApp message to Agent's Phone
+       ├── Includes Direct PWA Link (with Case ID)
+       └── Includes Simple Credentials (agent1 / agent1@123)
+               │
+               ▼
+[4. Field Agent Taps Link on Mobile Phone]
+       ├── Opens Field Agent Mobile PWA
+       ├── Logs in with agent1 / agent1@123
+       ├── Captures Geotagged Site Photos (150m Geofence Checked)
+       └── Uploads Borrower Documents (Electricity bill, Aadhaar, PAN)
+               │
+               ▼
+[5. Instant Zero-Lag Storage on Server]
+       ├── High-res photos watermarked with GPS & Timestamp
+       ├── Documents securely persisted in server storage
+       └── OpenRouter Gemini OCR runs in background
+               │
+               ▼
+[6. CA Desktop Scrutiny & Certification]
+       ├── CA checks inspection findings & OCR match on Desktop Desk
+       ├── Affixes ICAI Member No. & UDIN
+       └── Generates & Downloads Certified Bank Due Diligence PDF Report
+```
+
+#### WhatsApp Task Dispatch Message Format
+```text
+🏛️ VALUEX & CO. CHARTERED ACCOUNTANTS
+📋 New Physical Verification Task
+Case No: SBI-HL-2024-001 | Borrower: Rahul Sharma
+📍 Property: Flat 402, Shivalik Heights, Bodakdev, Ahmedabad
+
+📲 Field Agent Mobile PWA Link:
+https://<your-app-domain>/pwa?case=SBI-HL-2024-001
+
+🔑 Agent Credentials:
+• Username: agent1
+• Password: agent1@123
+
+👉 Action Required: Open link, login, capture live GPS-watermarked photos, upload verification docs, and submit.
+```
+
+---
+
 ## 🏗️ System Architecture
 
 ```text

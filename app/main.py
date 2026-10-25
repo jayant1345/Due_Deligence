@@ -18,32 +18,43 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Seed default admin user if database is empty
+    # Seed default simple users (admin / admin@123 and agent1 / agent1@123)
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(User).where(User.email == "admin@valuexca.com"))
-        admin = result.scalar_one_or_none()
-        if not admin:
-            default_admin = User(
-                email="admin@valuexca.com",
-                hashed_password=hash_password("Admin@123456"),
-                full_name="CA Rohan Parekh, FCA (Sr. Partner)",
+        # 1. Super Admin / CA Partner (admin / admin@123)
+        res_admin = await session.execute(select(User).where(User.email.in_(["admin", "admin@valuexca.com"])))
+        admin_user = res_admin.scalars().first()
+        if not admin_user:
+            admin_user = User(
+                email="admin",
+                hashed_password=hash_password("admin@123"),
+                full_name="CA Pranav N. Shah (Sr. Partner)",
                 phone="+91 98200 12345",
                 role=UserRole.SUPER_ADMIN,
                 is_active=True,
             )
-            session.add(default_admin)
+            session.add(admin_user)
+        else:
+            # Guarantee password is admin@123
+            admin_user.hashed_password = hash_password("admin@123")
 
-            # Also seed a sample field agent for immediate testing
-            sample_agent = User(
-                email="agent.rajesh@valuexca.com",
-                hashed_password=hash_password("Agent@123456"),
-                full_name="Rajesh Varma",
+        # 2. Field Agent (agent1 / agent1@123)
+        res_agent = await session.execute(select(User).where(User.email.in_(["agent1", "agent.rajesh@valuexca.com", "agent1@valuexca.com"])))
+        agent_user = res_agent.scalars().first()
+        if not agent_user:
+            agent_user = User(
+                email="agent1",
+                hashed_password=hash_password("agent1@123"),
+                full_name="Rajesh Varma (Field Agent 1)",
                 phone="+91 98111 22334",
                 role=UserRole.FIELD_AGENT,
                 is_active=True,
             )
-            session.add(sample_agent)
-            await session.commit()
+            session.add(agent_user)
+        else:
+            # Guarantee password is agent1@123
+            agent_user.hashed_password = hash_password("agent1@123")
+
+        await session.commit()
 
     yield
     # Shutdown
