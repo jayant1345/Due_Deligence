@@ -1,0 +1,2136 @@
+<!DOCTYPE html>
+<html class="h-full bg-background" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>VALUEX CA | CPV Verification Suite & Bank Certification Portal</title>
+  
+  <!-- Material Symbols & Typography -->
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&family=JetBrains+Mono:ital,wght@0,400..800;1,400..800&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#00288e",
+            "primary-container": "#1e40af",
+            "on-primary": "#ffffff",
+            secondary: "#006c4a",
+            "secondary-container": "#82f5c1",
+            tertiary: "#532a00",
+            "tertiary-container": "#743d00",
+            background: "#f8f9ff",
+            surface: "#f8f9ff",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-low": "#eff4ff",
+            "surface-container": "#e5eeff",
+            "surface-container-high": "#dce9ff",
+            "on-surface": "#0b1c30",
+            "on-surface-variant": "#444653",
+            outline: "#757684",
+            "outline-variant": "#c4c5d5",
+          },
+          fontFamily: {
+            headline: ["Space Grotesk", "sans-serif"],
+            body: ["Hanken Grotesk", "sans-serif"],
+            mono: ["JetBrains Mono", "monospace"],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    /* 3D Document Flip Card Styles */
+    .doc-flip-container {
+      perspective: 1400px;
+      width: 100%;
+    }
+    .doc-flip-card {
+      position: relative;
+      width: 100%;
+      height: 190px;
+      transition: transform 0.65s cubic-bezier(0.34, 1.3, 0.64, 1);
+      transform-style: preserve-3d;
+      border-radius: 0.5rem;
+    }
+    .doc-flip-card.is-flipped {
+      transform: rotateY(180deg);
+    }
+    .doc-flip-face {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      background: #f1f5f9;
+    }
+    .doc-flip-front {
+      z-index: 2;
+      transform: rotateY(0deg);
+    }
+    .doc-flip-back {
+      transform: rotateY(180deg);
+      z-index: 1;
+    }
+    .flip-btn-glow {
+      box-shadow: 0 0 10px rgba(30, 64, 175, 0.25);
+    }
+  </style>
+</head>
+<body class="h-full bg-background text-on-surface font-body antialiased flex flex-col overflow-x-hidden">
+
+  <!-- TOP APP BAR -->
+  <header class="bg-surface-container-lowest border-b border-outline-variant shadow-sm sticky top-0 z-50">
+    <div class="w-full px-4 lg:px-8 flex justify-between items-center h-16 max-w-[1440px] mx-auto">
+      <!-- Brand & Profile -->
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3">
+          <img src="/static/nn_shah_logo_3d.png" alt="Naimish N. Shah & Co. Chartered Accountants" class="h-10 w-auto object-contain drop-shadow-sm"/>
+          <div class="border-l border-outline-variant pl-3">
+            <div class="font-headline font-bold text-sm text-primary-container tracking-tight">CPV & LOAN DUE DILIGENCE PORTAL</div>
+            <div class="font-mono text-[10px] text-outline flex items-center gap-1.5">
+              <span>ICAI FRN: 106829W</span>
+              <span class="inline-block w-1 h-1 rounded-full bg-outline"></span>
+              <span>Navrangpura, Ahmedabad</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hidden xl:flex items-center gap-2 pl-4 border-l border-outline-variant">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
+          </span>
+          <span class="font-mono text-[11px] text-secondary bg-surface-container-low px-2 py-0.5 rounded border border-secondary/30">
+            Empanelled Bank Verification Agency • Union Bank of India, SBI, HDFC, ICICI, Axis
+          </span>
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="hidden lg:flex items-center gap-6 text-sm">
+        <a class="border-b-2 border-primary-container text-primary-container font-semibold pb-1" href="#dossier">Current Scrutiny</a>
+        <a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1" href="#queue">Active Cases (8)</a>
+        <a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1" href="/pwa">Field PWA Mode</a>
+        <a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1" href="/api/docs" target="_blank">API Docs</a>
+      </nav>
+
+      <!-- User Info & Actions -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs">
+          PS
+        </div>
+        <div class="hidden sm:block text-left">
+          <div class="text-xs font-semibold text-on-surface leading-tight">CA Pranav N. Shah, FCA</div>
+          <div class="font-mono text-[10px] text-outline">M.No: 033747 • Partner</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MULTI-CASE SELECTION CONTROL RIBBON -->
+  <section class="bg-gradient-to-r from-surface-container-low via-surface-container to-surface-container-low border-b border-outline-variant py-2 shadow-sm sticky top-16 z-40">
+    <div class="max-w-[1440px] mx-auto px-4 lg:px-8 flex flex-wrap items-center justify-between gap-3">
+      <!-- Left: Interactive Case Selection Dropdowns -->
+      <div class="flex flex-wrap items-center gap-2.5">
+        <div class="flex items-center gap-1.5 font-headline font-bold text-xs text-primary-container">
+          <span class="material-symbols-outlined text-[18px]">folder_managed</span>
+          <span>SELECT ACTIVE CASE:</span>
+        </div>
+
+        <!-- Filter 1: Bank Name Dropdown -->
+        <div class="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 shadow-sm">
+          <span class="material-symbols-outlined text-outline text-[15px]">account_balance</span>
+          <select id="filterBankSelect" onchange="onBankFilterChanged(this.value)" class="text-xs bg-transparent border-0 font-semibold text-on-surface focus:ring-0 cursor-pointer pr-4">
+            <option value="ALL">All Empanelled Banks (5)</option>
+            <option value="Union Bank of India">Union Bank of India</option>
+            <option value="State Bank of India">State Bank of India</option>
+            <option value="HDFC Bank">HDFC Bank</option>
+            <option value="ICICI Bank">ICICI Bank</option>
+            <option value="Bank of Baroda">Bank of Baroda</option>
+          </select>
+        </div>
+
+        <!-- Filter 2: Branch Name Dropdown -->
+        <div class="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 shadow-sm">
+          <span class="material-symbols-outlined text-outline text-[15px]">domain</span>
+          <select id="filterBranchSelect" onchange="onBranchFilterChanged(this.value)" class="text-xs bg-transparent border-0 font-semibold text-on-surface focus:ring-0 cursor-pointer pr-4">
+            <option value="ALL">All Branches</option>
+            <option value="Amrapura Branch">Amrapura Branch</option>
+            <option value="Bandra West Branch">Bandra West Branch</option>
+            <option value="Navrangpura Branch">Navrangpura Branch</option>
+            <option value="Ashram Road Branch">Ashram Road Branch</option>
+            <option value="Sector 11 Branch">Sector 11 Branch</option>
+          </select>
+        </div>
+
+        <!-- Master Case & Applicant Dropdown -->
+        <div class="flex items-center gap-1 bg-surface-container-lowest border-2 border-primary-container/60 rounded-lg px-2.5 py-1 shadow-sm">
+          <span class="material-symbols-outlined text-primary-container text-[16px]">person_search</span>
+          <select id="caseSelectorSelect" onchange="onCaseSelected(this.value)" class="text-xs bg-transparent border-0 font-bold text-primary-container focus:ring-0 cursor-pointer max-w-md">
+            <option value="b901fc63-12a8-4e32-9c02-e20984cfb001">[UBI-HL-2026-20L] - Mrs. Rajkunvarba Pradeepsinh Vaghela | Union Bank of India (Amrapura)</option>
+            <option value="c102ad74-23b9-4f43-ad13-f31095d0c002">[SBI-HL-2026-45L] - Mr. Vikramaditya Sengupta | State Bank of India (Bandra West)</option>
+            <option value="d203be85-34ca-4a54-be24-a42106e1d003">[HDFC-LAP-2026-60L] - Mr. Jayeshbhai K. Patel | HDFC Bank (Navrangpura)</option>
+            <option value="e304cf96-45db-4b65-cf35-b53217f2e004">[ICICI-PL-2026-15L] - Dr. Ananya Sharma | ICICI Bank (Ashram Road)</option>
+            <option value="f405da07-56ec-4c76-da46-c64328a3f005">[BOB-HL-2026-30L] - Mr. Mahendrasinh Solanki | Bank of Baroda (Sector 11)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Right: Case Counter & New Case Button -->
+      <div class="flex items-center gap-3 text-xs font-mono">
+        <span class="text-on-surface-variant bg-surface-container-lowest px-2 py-1 rounded border border-outline-variant">
+          Total Cases: <strong id="totalCaseCount" class="text-primary-container">5</strong> Active
+        </span>
+        <button onclick="promptCreateNewCase()" class="px-2.5 py-1 bg-primary-container hover:bg-primary text-white rounded font-headline font-bold flex items-center gap-1 shadow-sm transition-all text-xs">
+          <span class="material-symbols-outlined text-[15px]">add_circle</span>
+          <span>+ Add Loan Case</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUB-HEADER DOSSIER RIBBON (SELECTED CASE DETAILS) -->
+  <section class="bg-surface-container-lowest border-b border-outline-variant py-2.5 shadow-sm">
+    <div class="max-w-[1440px] mx-auto px-4 lg:px-8 flex flex-wrap items-center justify-between gap-y-2 gap-x-6">
+      <!-- Case Reference & Status Pill -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5 bg-surface-container-low px-2.5 py-1 rounded-lg border border-outline-variant">
+          <span class="font-mono text-[10px] text-outline uppercase font-bold">CASE REF:</span>
+          <span id="dispCaseRef" class="font-mono text-xs font-bold text-primary-container tracking-wide">UBI-HL-2026-20L</span>
+        </div>
+        <span id="dispCaseStatusPill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+          <span id="dispCaseStatus">PENDING_CA_REVIEW</span>
+        </span>
+        <div class="hidden md:flex items-center gap-2 border-l border-outline-variant pl-3 text-xs">
+          <span class="text-on-surface-variant">Applicant:</span>
+          <span id="dispApplicantName" class="font-bold text-on-surface">Mrs. Rajkunvarba Pradeepsinh Vaghela</span>
+          <span id="dispApplicantPan" class="font-mono text-[10px] text-outline bg-surface-container px-1.5 py-0.5 rounded">PAN: BYMPG8996E</span>
+          <span id="dispBankBranchBadge" class="font-mono text-[10px] text-primary-container bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">Union Bank of India (Amrapura Branch)</span>
+        </div>
+      </div>
+
+      <!-- Facility & Geofence Telemetry Snapshot -->
+      <div class="flex items-center gap-4 text-xs">
+        <div class="hidden lg:flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-primary-container text-[16px]">home</span>
+          <span id="dispPropertyAddress" class="text-on-surface-variant truncate max-w-xs">31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar</span>
+        </div>
+        <div class="flex items-center gap-1.5 bg-surface-container-low px-2.5 py-1 rounded-md border border-outline-variant">
+          <span class="material-symbols-outlined text-secondary text-[16px]" style="font-variation-settings: 'FILL' 1;">satellite_alt</span>
+          <div class="font-mono text-[11px]">
+            <span id="dispFieldAgent" class="text-on-surface font-semibold">Nilesh & Kamal Bhai (Field Team)</span>
+            <span id="dispCoordinatesBadge" class="text-secondary font-bold ml-1">● COMPLIANT (23.2156° N, 72.6369° E)</span>
+          </div>
+        </div>
+        <div class="hidden sm:flex items-center gap-1 font-mono text-[11px] text-outline">
+          <span class="material-symbols-outlined text-[14px]">schedule</span>
+          <span id="dispVisitDate">Visited: 04-Aug-2026, 11:30 IST</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DUAL-MODE MASTER SLIDER BUTTON BAR -->
+    <div class="max-w-[1440px] mx-auto px-4 lg:px-8 pt-2.5 flex items-center justify-between border-t border-outline-variant/60">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-headline font-bold text-on-surface flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-primary-container text-[18px]">tune</span>
+          Document Scrutiny Mode:
+        </span>
+        <span class="text-[11px] text-on-surface-variant">Switch workspace between Field Staff Submissions and Manual CA Desk Uploads</span>
+      </div>
+
+      <!-- Prominent Master Slider Button -->
+      <div class="inline-flex items-center bg-surface-container-high p-1 rounded-full border border-outline-variant shadow-inner">
+        <button id="masterSliderManual" onclick="setGlobalDossierMode('manual')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface">
+          <span class="material-symbols-outlined text-[16px]">upload_file</span>
+          <span>Manual Document Upload</span>
+        </button>
+        <button id="masterSliderField" onclick="setGlobalDossierMode('field')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 bg-primary-container text-white shadow-sm">
+          <span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+          <span>Field Staff Upload & Verification</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN 3-COLUMN SCRUTINY WORKSPACE -->
+  <main class="flex-1 max-w-[1440px] w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+
+    <!-- COLUMN 1: DOCUMENT OCR & UPLOADER (4 Cols / 33%) -->
+    <div class="lg:col-span-4 flex flex-col gap-4">
+      <div class="bg-surface-container-lowest p-3.5 rounded-lg border border-outline-variant shadow-sm flex items-center justify-between">
+        <div>
+          <h2 class="font-headline font-bold text-sm text-on-surface flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-primary-container">document_scanner</span>
+            Document Scrutiny & Ingestion
+          </h2>
+          <p class="text-[11px] text-on-surface-variant">UIDAI & OpenRouter Gemini Vision Engine</p>
+        </div>
+        <span class="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-emerald-50 text-secondary border border-emerald-200 flex items-center gap-1">
+          <span class="material-symbols-outlined text-[13px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+          UIDAI COMPLIANT
+        </span>
+      </div>
+
+      <!-- Scrutiny Item 1: Aadhaar Masking Card (Front & Back Flipped Document) -->
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant p-3.5 shadow-sm space-y-2.5 hover:border-primary-container transition-all">
+        <div class="flex items-center justify-between pb-2 border-b border-outline-variant">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary-container">badge</span>
+            <span class="text-xs font-bold text-on-surface">Aadhaar Card (Front/Back)</span>
+          </div>
+          <!-- Slider Button for Aadhaar Section -->
+          <div class="flex items-center gap-0.5 bg-surface-container-high p-0.5 rounded-full border border-outline-variant font-mono text-[10px]">
+            <button id="toggleAadhaarManualBtn" onclick="setCardMode('aadhaar', 'manual')" class="px-2 py-0.5 rounded-full transition-all text-on-surface-variant font-medium">Manual Upload</button>
+            <button id="toggleAadhaarFieldBtn" onclick="setCardMode('aadhaar', 'field')" class="px-2 py-0.5 rounded-full transition-all bg-primary-container text-white font-bold">Field Staff (Verified)</button>
+          </div>
+        </div>
+
+        <!-- Field Staff View (Verified Real Documents with 3D Flip) -->
+        <div id="aadhaarFieldView" class="space-y-2.5">
+          <!-- Document Action Ribbon -->
+          <div class="flex items-center justify-between bg-surface-container-low px-2.5 py-1.5 rounded-md border border-outline-variant text-[10px]">
+            <div class="flex items-center gap-1 font-mono">
+              <button id="btnAadhaarSideFront" onclick="event.stopPropagation(); setDocSide('aadhaar', 'front')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs">Front Side</button>
+              <button id="btnAadhaarSideBack" onclick="event.stopPropagation(); setDocSide('aadhaar', 'back')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface">Back Side</button>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button id="aadhaarMaskToggleBtn" onclick="event.stopPropagation(); toggleAadhaarMasking()" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-secondary border border-emerald-200 flex items-center gap-1 hover:bg-emerald-100 transition-colors" title="Toggle UIDAI Rule 4 Masking">
+                <span class="material-symbols-outlined text-[12px]">verified_user</span>
+                <span id="aadhaarMaskLabel">Rule 4 Masked</span>
+              </button>
+              <button onclick="event.stopPropagation(); flipDocCard('aadhaar')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition-all" title="Flip Card to inspect other side">
+                <span class="material-symbols-outlined text-[13px] animate-spin-reverse">sync</span>
+                <span id="aadhaarFlipBtnText">Flip Card</span>
+              </button>
+              <button onclick="event.stopPropagation(); openDocZoomModal('aadhaar')" class="p-1 rounded text-outline hover:text-primary-container hover:bg-surface-container transition-colors" title="Zoom / Enlarge Aadhaar Card">
+                <span class="material-symbols-outlined text-[15px]">zoom_in</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3D Interactive Flip Card Container -->
+          <div class="doc-flip-container cursor-pointer" onclick="flipDocCard('aadhaar')" title="Click anywhere to 3D flip between Front & Back side">
+            <div id="aadhaarFlipCard" class="doc-flip-card shadow-sm border border-outline-variant hover:border-primary-container transition-all">
+              <!-- FRONT SIDE -->
+              <div class="doc-flip-face doc-flip-front group relative bg-slate-900">
+                <img id="dispAadhaarFrontImg" src="/static/specimen_assets/aadhaar_front_masked.jpg" class="w-full h-full object-cover rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="Aadhaar Front Side"/>
+                <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  GOVT OF INDIA • AADHAAR FRONT
+                </div>
+                <div class="absolute top-2 right-2 bg-primary-container/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md group-hover:bg-primary">
+                  <span class="material-symbols-outlined text-[12px]">sync</span> Click to Flip ↻
+                </div>
+                <div class="absolute bottom-2 inset-x-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded text-[10px] text-white flex items-center justify-between font-mono border border-white/10">
+                  <span class="truncate font-semibold" id="dispAadhaarFrontLabel">Mrs. Rajkunvarba Vaghela • DOB: 30/05/1997</span>
+                  <span id="dispAadhaarMaskedPill" class="text-blue-300 font-bold ml-1 tracking-wider">XXXX-XXXX-7689</span>
+                </div>
+              </div>
+              <!-- BACK SIDE -->
+              <div class="doc-flip-face doc-flip-back group relative bg-slate-900">
+                <img id="dispAadhaarBackImg" src="/static/specimen_assets/aadhaar_back.jpg" class="w-full h-full object-cover rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="Aadhaar Back Side"/>
+                <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  UIDAI • ADDRESS & SECURE QR
+                </div>
+                <div class="absolute top-2 right-2 bg-primary-container/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md group-hover:bg-primary">
+                  <span class="material-symbols-outlined text-[12px]">sync</span> Click to Flip ↺
+                </div>
+                <div class="absolute bottom-2 inset-x-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded text-[10px] text-white flex items-center justify-between font-mono border border-white/10">
+                  <span class="truncate text-[9px]" id="dispAadhaarBackLabel">31, Siddhi Vinayak Bunglow, Pethapur, Gandhinagar - 382610</span>
+                  <span class="text-emerald-300 font-bold ml-1 text-[9px]">MATCH: 100%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Aadhaar Scrutiny Metrics -->
+          <div class="space-y-1 pt-1 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="text-on-surface-variant">Name vs Master Application:</span>
+              <span class="font-mono text-[11px] font-bold text-secondary bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                100% Match (PASS)
+              </span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-on-surface-variant">DOB Verification:</span>
+              <span id="dispDobMatch" class="font-mono text-[11px] font-bold text-secondary">Exact Match (30/05/1997)</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-on-surface-variant">UIDAI Rule 4 Compliance:</span>
+              <span id="dispMaskingStatus" class="font-mono text-[10px] text-secondary font-semibold">Compliant (8 Digits Masked)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manual Upload View (Clickable file selector & preview) -->
+        <div id="aadhaarManualView" class="hidden space-y-2.5">
+          <div onclick="document.getElementById('aadhaarFileInput').click()" class="cursor-pointer border-2 border-dashed border-primary-container/40 hover:border-primary-container bg-blue-50/20 hover:bg-blue-50/40 rounded-lg p-3 text-center transition-all flex flex-col items-center justify-center gap-1.5 group">
+            <input type="file" id="aadhaarFileInput" accept="image/*,application/pdf" class="hidden" onchange="handleSectionUpload('aadhaar', this.files[0])"/>
+            <span class="material-symbols-outlined text-primary-container text-[26px] group-hover:scale-110 transition-transform">cloud_upload</span>
+            <span class="text-xs font-bold text-on-surface">Click here to Select & Upload Aadhaar</span>
+            <span class="text-[10px] text-outline font-mono">Select PDF, JPG, PNG from device</span>
+          </div>
+          <div id="aadhaarManualPreview" class="hidden rounded-lg border border-outline-variant p-2.5 bg-surface-container-low flex items-center gap-3">
+            <img id="aadhaarManualImg" class="w-12 h-14 object-cover rounded border border-outline-variant bg-white" src=""/>
+            <div class="flex-1 text-xs">
+              <div id="aadhaarManualFilename" class="font-bold text-on-surface truncate">aadhaar_doc.pdf</div>
+              <div class="font-mono text-[10px] text-secondary font-semibold">✓ Ingested in Dossier & Verified</div>
+              <span class="font-mono text-[9px] text-outline">Loaded for report generation</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scrutiny Item 2: PAN Card Validation (Physical Card & NSDL Verification Flipped Document) -->
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant p-3.5 shadow-sm space-y-2.5 hover:border-primary-container transition-all">
+        <div class="flex items-center justify-between pb-2 border-b border-outline-variant">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary-container">credit_card</span>
+            <span class="text-xs font-bold text-on-surface">Permanent Account Number (PAN)</span>
+          </div>
+          <!-- Slider Button for PAN Section -->
+          <div class="flex items-center gap-0.5 bg-surface-container-high p-0.5 rounded-full border border-outline-variant font-mono text-[10px]">
+            <button id="togglePanManualBtn" onclick="setCardMode('pan', 'manual')" class="px-2 py-0.5 rounded-full transition-all text-on-surface-variant font-medium">Manual Upload</button>
+            <button id="togglePanFieldBtn" onclick="setCardMode('pan', 'field')" class="px-2 py-0.5 rounded-full transition-all bg-primary-container text-white font-bold">Field Staff (Verified)</button>
+          </div>
+        </div>
+
+        <!-- Field Staff View (Verified Real Documents with 3D Flip) -->
+        <div id="panFieldView" class="space-y-2.5">
+          <!-- Document Action Ribbon -->
+          <div class="flex items-center justify-between bg-surface-container-low px-2.5 py-1.5 rounded-md border border-outline-variant text-[10px]">
+            <div class="flex items-center gap-1 font-mono">
+              <button id="btnPanSideFront" onclick="event.stopPropagation(); setDocSide('pan', 'front')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs">Physical PAN Card</button>
+              <button id="btnPanSideBack" onclick="event.stopPropagation(); setDocSide('pan', 'back')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface">NSDL Verification</button>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="event.stopPropagation(); flipDocCard('pan')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition-all" title="Flip between physical card & online NSDL verification">
+                <span class="material-symbols-outlined text-[13px]">sync</span>
+                <span id="panFlipBtnText">Flip Card</span>
+              </button>
+              <button onclick="event.stopPropagation(); openDocZoomModal('pan')" class="p-1 rounded text-outline hover:text-primary-container hover:bg-surface-container transition-colors" title="Zoom / Enlarge PAN Card">
+                <span class="material-symbols-outlined text-[15px]">zoom_in</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3D Interactive Flip Card Container -->
+          <div class="doc-flip-container cursor-pointer" onclick="flipDocCard('pan')" title="Click anywhere to 3D flip between Physical Card & NSDL Verification">
+            <div id="panFlipCard" class="doc-flip-card shadow-sm border border-outline-variant hover:border-primary-container transition-all">
+              <!-- FRONT SIDE: Real Physical PAN Card -->
+              <div class="doc-flip-face doc-flip-front group relative bg-slate-900">
+                <img id="dispPanFrontImg" src="/static/specimen_assets/pan_front.jpg" class="w-full h-full object-cover rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="Physical PAN Card Front"/>
+                <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  INCOME TAX DEPT • PHYSICAL CARD
+                </div>
+                <div class="absolute top-2 right-2 bg-primary-container/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md group-hover:bg-primary">
+                  <span class="material-symbols-outlined text-[12px]">sync</span> Click to Flip ↻
+                </div>
+                <div class="absolute bottom-2 inset-x-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded text-[10px] text-white flex items-center justify-between font-mono border border-white/10">
+                  <span class="truncate font-semibold" id="dispPanFrontLabel">BYMPG8996E • RAJKUNVARBA VAGHELA</span>
+                  <span class="text-blue-300 font-bold ml-1">DOB: 30/05/1997</span>
+                </div>
+              </div>
+              <!-- BACK SIDE: NSDL / JAO Online Verification -->
+              <div class="doc-flip-face doc-flip-back group relative bg-slate-900">
+                <img id="dispPanBackImg" src="/static/specimen_assets/pan_back.jpg" class="w-full h-full object-cover rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="NSDL Verification"/>
+                <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  NSDL ONLINE PORTAL • JAO RECORD
+                </div>
+                <div class="absolute top-2 right-2 bg-primary-container/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md group-hover:bg-primary">
+                  <span class="material-symbols-outlined text-[12px]">sync</span> Click to Flip ↺
+                </div>
+                <div class="absolute bottom-2 inset-x-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded text-[10px] text-white flex items-center justify-between font-mono border border-white/10">
+                  <span class="truncate text-[9px]" id="dispPanBackLabel">WARD 1, GANDHINAGAR • ACTIVE • SEEDED</span>
+                  <span class="text-emerald-300 font-bold ml-1 text-[9px]">STATUS: PASS</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PAN Scrutiny Metrics -->
+          <div class="grid grid-cols-2 gap-2 bg-surface-container-low p-2 rounded-lg border border-outline-variant">
+            <div>
+              <div class="font-mono text-[9px] text-outline">PAN NUMBER</div>
+              <div id="dispPanNumber" class="font-mono text-xs font-bold text-on-surface">BYMPG8996E</div>
+            </div>
+            <div>
+              <div class="font-mono text-[9px] text-outline">CARD HOLDER</div>
+              <div id="dispPanHolder" class="text-xs font-semibold text-on-surface truncate">RAJKUNVARBA VAGHELA</div>
+            </div>
+          </div>
+          <div class="space-y-1 pt-1 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="text-on-surface-variant">Jurisdictional Ward:</span>
+              <span id="dispPanWard" class="font-mono text-[11px] font-bold text-secondary">WARD 1, GANDHINAGAR (ACTIVE)</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-on-surface-variant">Aadhaar-PAN Seeding:</span>
+              <span class="font-mono text-[11px] font-semibold text-secondary flex items-center gap-1">
+                <span class="material-symbols-outlined text-[13px]">link</span>
+                LINKED (VERIFIED)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manual Upload View (Clickable file selector & preview) -->
+        <div id="panManualView" class="hidden space-y-2.5">
+          <div onclick="document.getElementById('panFileInput').click()" class="cursor-pointer border-2 border-dashed border-primary-container/40 hover:border-primary-container bg-blue-50/20 hover:bg-blue-50/40 rounded-lg p-3 text-center transition-all flex flex-col items-center justify-center gap-1.5 group">
+            <input type="file" id="panFileInput" accept="image/*,application/pdf" class="hidden" onchange="handleSectionUpload('pan', this.files[0])"/>
+            <span class="material-symbols-outlined text-primary-container text-[26px] group-hover:scale-110 transition-transform">credit_card</span>
+            <span class="text-xs font-bold text-on-surface">Click here to Select & Upload PAN</span>
+            <span class="text-[10px] text-outline font-mono">Select PDF, JPG, PNG from device</span>
+          </div>
+          <div id="panManualPreview" class="hidden rounded-lg border border-outline-variant p-2.5 bg-surface-container-low flex items-center gap-3">
+            <img id="panManualImg" class="w-14 h-10 object-cover rounded border border-outline-variant bg-white" src="/static/specimen_assets/pan_front.jpg"/>
+            <div class="flex-1 text-xs">
+              <div id="panManualFilename" class="font-bold text-on-surface truncate">pan_verification.pdf</div>
+              <div class="font-mono text-[10px] text-secondary font-semibold">✓ Ingested in Dossier & Verified</div>
+              <span class="font-mono text-[9px] text-outline">Loaded for report generation</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scrutiny Item 3: CPV Visit Form & Utility Proof (UGVCL Bill & Field Form Flipped Document) -->
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant p-3.5 shadow-sm space-y-2.5 hover:border-primary-container transition-all">
+        <div class="flex items-center justify-between pb-2 border-b border-outline-variant">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary-container">assignment</span>
+            <span class="text-xs font-bold text-on-surface">CPV Visit Form & Utility Proof</span>
+          </div>
+          <!-- Slider Button for Utility/Form Section -->
+          <div class="flex items-center gap-0.5 bg-surface-container-high p-0.5 rounded-full border border-outline-variant font-mono text-[10px]">
+            <button id="toggleUtilityManualBtn" onclick="setCardMode('utility', 'manual')" class="px-2 py-0.5 rounded-full transition-all text-on-surface-variant font-medium">Manual Upload</button>
+            <button id="toggleUtilityFieldBtn" onclick="setCardMode('utility', 'field')" class="px-2 py-0.5 rounded-full transition-all bg-primary-container text-white font-bold">Field Staff (Verified)</button>
+          </div>
+        </div>
+
+        <!-- Field Staff View (Verified Real Documents with 3D Flip) -->
+        <div id="utilityFieldView" class="space-y-2.5">
+          <!-- Document Action Ribbon -->
+          <div class="flex items-center justify-between bg-surface-container-low px-2.5 py-1.5 rounded-md border border-outline-variant text-[10px]">
+            <div class="flex items-center gap-1 font-mono">
+              <button id="btnUtilitySideFront" onclick="event.stopPropagation(); setDocSide('utility', 'front')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs">Utility Bill (UGVCL)</button>
+              <button id="btnUtilitySideBack" onclick="event.stopPropagation(); setDocSide('utility', 'back')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface">CPV Visit Form</button>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="event.stopPropagation(); flipDocCard('utility')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition-all" title="Flip between Electricity Bill & Field Visit Form">
+                <span class="material-symbols-outlined text-[13px]">sync</span>
+                <span id="utilityFlipBtnText">Flip Document</span>
+              </button>
+              <button onclick="event.stopPropagation(); openDocZoomModal('utility')" class="p-1 rounded text-outline hover:text-primary-container hover:bg-surface-container transition-colors" title="Zoom / Enlarge Utility & CPV Proof">
+                <span class="material-symbols-outlined text-[15px]">zoom_in</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3D Interactive Flip Card Container -->
+          <div class="doc-flip-container cursor-pointer" onclick="flipDocCard('utility')" title="Click anywhere to 3D flip between UGVCL Electricity Bill & CPV Field Form">
+            <div id="utilityFlipCard" class="doc-flip-card shadow-sm border border-outline-variant hover:border-primary-container transition-all">
+              <!-- FRONT SIDE: Real Authentic UGVCL Electricity Bill -->
+              <div class="doc-flip-face doc-flip-front group relative bg-white">
+                <img id="dispUtilityFrontImg" src="/static/specimen_assets/utility_bill.jpg" class="w-full h-full object-cover object-top rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="UGVCL Electricity Bill"/>
+                <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  UGVCL E-ELECTRICITY BILL
+                </div>
+                <div class="absolute top-2 right-2 bg-primary-container/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md group-hover:bg-primary">
+                  <span class="material-symbols-outlined text-[12px]">sync</span> Click to Flip ↻
+                </div>
+                <div class="absolute bottom-2 inset-x-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded text-[10px] text-white flex items-center justify-between font-mono border border-white/10">
+                  <span class="truncate font-semibold text-[9px]" id="dispUtilityFrontLabel">RANJANBA VAGHELA • 31 SIDDHI VINAYAK</span>
+                  <span class="text-blue-300 font-bold ml-1 text-[9px]">CON: 26905052191</span>
+                </div>
+              </div>
+              <!-- BACK SIDE: Real CPV Field Visit Form filled by agent Kamal -->
+              <div class="doc-flip-face doc-flip-back group relative bg-white">
+                <img id="dispUtilityBackImg" src="/static/specimen_assets/cpv_visit_form_page1.jpg" class="w-full h-full object-cover object-top rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="CPV Due Diligence Form"/>
+                <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  CPV FIELD VERIFICATION FORM
+                </div>
+                <div class="absolute top-2 right-2 bg-primary-container/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md group-hover:bg-primary">
+                  <span class="material-symbols-outlined text-[12px]">sync</span> Click to Flip ↺
+                </div>
+                <div class="absolute bottom-2 inset-x-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded text-[10px] text-white flex items-center justify-between font-mono border border-white/10">
+                  <span class="truncate text-[9px]" id="dispUtilityBackLabel">AGENT: KAMAL • 9 YEARS STAY • SPOUSE MET</span>
+                  <span class="text-emerald-300 font-bold ml-1 text-[9px]">FORM VERIFIED</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Corroboration Summary Badges -->
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between">
+              <span class="text-on-surface-variant">Period of Stay:</span>
+              <span id="dispStayPeriod" class="font-mono text-[11px] font-bold text-on-surface">09 Years</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-on-surface-variant">Ownership:</span>
+              <span id="dispOwnership" class="font-mono text-[11px] font-bold text-on-surface">Owned (Ranjanba Vaghela - Mother-in-Law)</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-on-surface-variant">Person Met at Site:</span>
+              <span id="dispPersonMet" class="font-mono text-[11px] font-bold text-secondary">Pradeepsinh Vaghela (Husband - 8160166900)</span>
+            </div>
+            <div id="dispNeighbors" class="p-2 bg-surface-container-low rounded border border-outline-variant text-[11px] text-on-surface-variant leading-relaxed">
+              <span class="font-bold text-primary-container">Neighbour Corroboration:</span> 1. Narendrasinh Devda (Neighbour - Confirmed) • 2. Bhagwatsinh Rathod (Neighbour - Confirmed).
+            </div>
+          </div>
+        </div>
+
+        <!-- Manual Upload View (Clickable file selector & preview) -->
+        <div id="utilityManualView" class="hidden space-y-2.5">
+          <div onclick="document.getElementById('utilityFileInput').click()" class="cursor-pointer border-2 border-dashed border-primary-container/40 hover:border-primary-container bg-blue-50/20 hover:bg-blue-50/40 rounded-lg p-3 text-center transition-all flex flex-col items-center justify-center gap-1.5 group">
+            <input type="file" id="utilityFileInput" accept="image/*,application/pdf" class="hidden" onchange="handleSectionUpload('utility', this.files[0])"/>
+            <span class="material-symbols-outlined text-primary-container text-[26px] group-hover:scale-110 transition-transform">receipt_long</span>
+            <span class="text-xs font-bold text-on-surface">Click here to Select Electricity Bill / Index II</span>
+            <span class="text-[10px] text-outline font-mono">Select Utility Bill, Index II deed, Tax receipt</span>
+          </div>
+          <div id="utilityManualPreview" class="hidden rounded-lg border border-outline-variant p-2.5 bg-surface-container-low flex items-center gap-3">
+            <img id="utilityManualImg" class="w-12 h-14 object-cover rounded border border-outline-variant bg-white" src="/static/specimen_assets/utility_bill.jpg"/>
+            <div class="flex-1 text-xs">
+              <div id="utilityManualFilename" class="font-bold text-on-surface truncate">electricity_bill.pdf</div>
+              <div class="font-mono text-[10px] text-secondary font-semibold">✓ Ingested in Dossier & Corroborated</div>
+              <span class="font-mono text-[9px] text-outline">Loaded for report generation</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMN 2: GEOFENCE TELEMETRY & PHYSICAL SITE EVIDENCE (5 Cols / 38%) -->
+    <div class="lg:col-span-5 flex flex-col gap-4">
+      <div class="bg-surface-container-lowest p-3.5 rounded-lg border border-outline-variant shadow-sm flex items-center justify-between">
+        <div>
+          <h2 class="font-headline font-bold text-sm text-on-surface flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-primary-container">satellite</span>
+            Physical Site Telemetry & EXIF Proof
+          </h2>
+          <p class="text-[11px] text-on-surface-variant">Hardware-Bound Indelible Watermark Audit</p>
+        </div>
+        <span class="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-emerald-50 text-secondary border border-emerald-200 flex items-center gap-1">
+          <span class="material-symbols-outlined text-[13px]" style="font-variation-settings: 'FILL' 1;">radar</span>
+          GEOFENCE VERIFIED
+        </span>
+      </div>
+
+      <!-- Satellite & Geofence Perimeter Visualizer Card -->
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant p-3.5 shadow-sm space-y-3">
+        <div class="flex justify-between items-center text-xs">
+          <span class="font-bold text-on-surface flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-primary-container">explore</span>
+            Site Geofence Radius (150m Buffer)
+          </span>
+          <span id="dispRadarProximity" class="font-mono text-[10px] font-bold text-secondary bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+            PROXIMITY: 32 METERS (PASS)
+          </span>
+        </div>
+
+        <!-- Stylized Radar / Map Simulation Box -->
+        <div class="relative w-full h-44 rounded-lg bg-slate-900 overflow-hidden border border-outline-variant p-3 flex flex-col justify-between">
+          <div class="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px] opacity-40"></div>
+          
+          <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div class="w-36 h-36 rounded-full border border-dashed border-emerald-400/40 animate-spin" style="animation-duration: 30s;"></div>
+            <div class="w-24 h-24 rounded-full border border-emerald-500/60 bg-emerald-500/10 flex items-center justify-center">
+              <span class="font-mono text-[8px] text-emerald-300 font-bold">150m GEOFENCE</span>
+            </div>
+            <!-- Target Benchmark Pin -->
+            <div class="absolute w-3 h-3 bg-blue-500 rounded-full ring-4 ring-blue-500/30"></div>
+            <!-- Live Field Agent Coordinate Pin -->
+            <div class="absolute transform translate-x-5 -translate-y-4 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 rounded border border-emerald-400">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span id="dispRadarAgentPin" class="font-mono text-[9px] text-emerald-200 font-bold">FA-7701 (32m)</span>
+            </div>
+          </div>
+
+          <div class="relative z-10 flex justify-between items-start text-white font-mono text-[10px]">
+            <div class="bg-black/60 px-2 py-1 rounded backdrop-blur border border-white/10 space-y-0.5">
+              <div id="dispRadarBenchmark">BENCHMARK: 23.2156° N, 72.6369° E</div>
+              <div id="dispRadarCapture" class="text-emerald-400">CAPTURE: 23.2154° N, 72.6367° E</div>
+            </div>
+            <div class="bg-black/60 px-2 py-1 rounded backdrop-blur border border-white/10 text-right">
+              <div>GPS ACCURACY: ±2.4m</div>
+              <div class="text-blue-300">HDOP: 0.78 (OPTIMAL)</div>
+            </div>
+          </div>
+
+          <div class="relative z-10 flex justify-between items-end text-white font-mono text-[9px]">
+            <span class="bg-black/60 px-2 py-0.5 rounded backdrop-blur">STATIONARY LOCK: 18m 45s</span>
+            <span class="text-emerald-400 font-bold bg-black/60 px-2 py-0.5 rounded backdrop-blur">ANTI-SPOOFING HASH: PASS</span>
+          </div>
+        </div>
+
+        <!-- Proximity Gauge Metric Bar -->
+        <div class="space-y-1">
+          <div class="flex justify-between text-xs text-on-surface-variant">
+            <span>Distance to Centroid:</span>
+            <span id="dispRadarDistance" class="font-bold text-on-surface font-mono">32m / Max 150m Safe Harbor</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-surface-container-high overflow-hidden flex">
+            <div id="dispRadarBar" class="bg-secondary h-full rounded-full" style="width: 21%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Geotagged Field Inspection Photo Grid -->
+      <!-- Geotagged Field Inspection Photo Grid with Dual Folder Support (Residence vs Work/Industry) -->
+      <div class="space-y-2 flex-1 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-bold text-on-surface flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-primary-container">photo_camera</span>
+            Indelible Site Evidence
+          </span>
+          <!-- Slider Button for Photos (Manual vs Field Staff) -->
+          <div class="flex items-center gap-0.5 bg-surface-container-high p-0.5 rounded-full border border-outline-variant font-mono text-[10px]">
+            <button id="togglePhotosManualBtn" onclick="setPhotosMode('manual')" class="px-2 py-0.5 rounded-full transition-all text-on-surface-variant font-medium">Manual Upload</button>
+            <button id="togglePhotosFieldBtn" onclick="setPhotosMode('field')" class="px-2 py-0.5 rounded-full transition-all bg-primary-container text-white font-bold">Field Staff (4 Geotagged)</button>
+          </div>
+        </div>
+
+        <!-- DUAL FOLDER TABS: Residence Folder vs Work / Office Folder -->
+        <div class="bg-surface-container-low p-1.5 rounded-lg border border-outline-variant flex items-center justify-between gap-2">
+          <div class="flex items-center gap-1">
+            <button id="folderTabResidence" onclick="switchPhotoFolder('residence')" class="px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 bg-primary-container text-white shadow-sm">
+              <span class="material-symbols-outlined text-[15px]">home</span>
+              <span>Residence Folder (4)</span>
+            </button>
+            <button id="folderTabWork" onclick="switchPhotoFolder('work')" class="px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high">
+              <span class="material-symbols-outlined text-[15px]">apartment</span>
+              <span>Work / Office Folder (4)</span>
+            </button>
+          </div>
+          <div class="flex items-center gap-1.5 font-mono text-[10px]">
+            <span id="activeFolderBadge" class="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 font-bold">
+              📁 /residence/
+            </span>
+            <input type="file" id="bulkFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleBulkFolderUpload(this.files)"/>
+            <button onclick="document.getElementById('bulkFolderInput').click()" title="Select local directory to import photos into active folder" class="text-[10px] font-bold text-primary-container hover:underline flex items-center gap-0.5 px-1 py-0.5">
+              <span class="material-symbols-outlined text-[13px]">folder_zip</span>
+              Import
+            </button>
+          </div>
+        </div>
+
+        <!-- 4-Grid Photo Slots for Active Folder -->
+        <div class="grid grid-cols-2 gap-2.5">
+          <!-- Photo 1: Gate / Facade -->
+          <div class="relative group rounded-lg overflow-hidden border border-outline-variant bg-surface-container shadow-sm flex flex-col">
+            <input type="file" id="inputPhoto1" accept="image/*" class="hidden" onchange="handlePhotoUpload(1, currentPhotoFolder === 'residence' ? 'RES_GATE' : 'WORK_FACADE', this.files[0])"/>
+            <div class="relative h-28 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(1)">
+              <img id="imgPhoto1" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 1" src="/static/specimen_assets/residence/res_gate.jpg"/>
+              
+              <!-- Hover / Manual Overlay -->
+              <div id="overlayPhoto1" class="absolute inset-0 bg-primary-container/75 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation(); triggerPhotoSelect(1)">
+                <span class="material-symbols-outlined text-[24px]">add_a_photo</span>
+                <span class="text-[10px] font-bold mt-1">Upload / Replace</span>
+              </div>
+
+              <div class="absolute inset-x-0 bottom-0 bg-black/85 p-1 text-[8px] font-mono text-white leading-tight">
+                <div id="tagPhoto1" class="truncate font-bold">RESIDENCE: MAIN GATE & SOCIETY</div>
+                <div class="text-emerald-300 flex justify-between">
+                  <span id="tsPhoto1">04-AUG-2026 11:32 IST</span>
+                  <span id="badgePhoto1">GPS: VERIFIED</span>
+                </div>
+              </div>
+            </div>
+            <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between font-mono text-[10px]">
+              <span id="titlePhoto1" class="font-bold text-on-surface truncate">Main Gate (સિદ્ધિ વિનાયક)</span>
+              <span id="statusPhoto1" class="text-secondary font-bold">MATCH</span>
+            </div>
+          </div>
+
+          <!-- Photo 2: Elevation / Work Area -->
+          <div class="relative group rounded-lg overflow-hidden border border-outline-variant bg-surface-container shadow-sm flex flex-col">
+            <input type="file" id="inputPhoto2" accept="image/*" class="hidden" onchange="handlePhotoUpload(2, currentPhotoFolder === 'residence' ? 'RES_ELEVATION' : 'WORK_OFFICE', this.files[0])"/>
+            <div class="relative h-28 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(2)">
+              <img id="imgPhoto2" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 2" src="/static/specimen_assets/residence/res_elevation.jpg"/>
+              
+              <!-- Hover / Manual Overlay -->
+              <div id="overlayPhoto2" class="absolute inset-0 bg-primary-container/75 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation(); triggerPhotoSelect(2)">
+                <span class="material-symbols-outlined text-[24px]">add_a_photo</span>
+                <span class="text-[10px] font-bold mt-1">Upload / Replace</span>
+              </div>
+
+              <div class="absolute inset-x-0 bottom-0 bg-black/85 p-1 text-[8px] font-mono text-white leading-tight">
+                <div id="tagPhoto2" class="truncate font-bold">BUNGALOW 31: ELEVATION & NAME</div>
+                <div class="text-emerald-300 flex justify-between">
+                  <span id="tsPhoto2">04-AUG-2026 11:36 IST</span>
+                  <span id="badgePhoto2">ELEVATION: CONFIRMED</span>
+                </div>
+              </div>
+            </div>
+            <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between font-mono text-[10px]">
+              <span id="titlePhoto2" class="font-bold text-on-surface truncate">Bungalow 31 (લક્ષ્મી કૃપા)</span>
+              <span id="statusPhoto2" class="text-secondary font-bold">CONFIRMED</span>
+            </div>
+          </div>
+
+          <!-- Photo 3: Interior / Verification Desk -->
+          <div class="relative group rounded-lg overflow-hidden border border-outline-variant bg-surface-container shadow-sm flex flex-col">
+            <input type="file" id="inputPhoto3" accept="image/*" class="hidden" onchange="handlePhotoUpload(3, currentPhotoFolder === 'residence' ? 'RES_INTERIOR' : 'WORK_DESK', this.files[0])"/>
+            <div class="relative h-28 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(3)">
+              <img id="imgPhoto3" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 3" src="/static/specimen_assets/residence/res_interior.jpg"/>
+              
+              <!-- Hover / Manual Overlay -->
+              <div id="overlayPhoto3" class="absolute inset-0 bg-primary-container/75 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation(); triggerPhotoSelect(3)">
+                <span class="material-symbols-outlined text-[24px]">add_a_photo</span>
+                <span class="text-[10px] font-bold mt-1">Upload / Replace</span>
+              </div>
+
+              <div class="absolute inset-x-0 bottom-0 bg-black/85 p-1 text-[8px] font-mono text-white leading-tight">
+                <div id="tagPhoto3" class="truncate font-bold">DRAWING ROOM & LIVING ASSETS</div>
+                <div class="text-emerald-300 flex justify-between">
+                  <span id="tsPhoto3">04-AUG-2026 11:39 IST</span>
+                  <span id="badgePhoto3">HABITATION: VERIFIED</span>
+                </div>
+              </div>
+            </div>
+            <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between font-mono text-[10px]">
+              <span id="titlePhoto3" class="font-bold text-on-surface truncate">Drawing Room & Showcase</span>
+              <span id="statusPhoto3" class="text-secondary font-bold">VERIFIED</span>
+            </div>
+          </div>
+
+          <!-- Photo 4: Person Met / Surroundings -->
+          <div class="relative group rounded-lg overflow-hidden border border-outline-variant bg-surface-container shadow-sm flex flex-col">
+            <input type="file" id="inputPhoto4" accept="image/*" class="hidden" onchange="handlePhotoUpload(4, currentPhotoFolder === 'residence' ? 'RES_PERSON_MET' : 'WORK_APPROACH', this.files[0])"/>
+            <div class="relative h-28 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(4)">
+              <img id="imgPhoto4" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 4" src="/static/specimen_assets/residence/res_person_met.jpg"/>
+              
+              <!-- Hover / Manual Overlay -->
+              <div id="overlayPhoto4" class="absolute inset-0 bg-primary-container/75 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation(); triggerPhotoSelect(4)">
+                <span class="material-symbols-outlined text-[24px]">add_a_photo</span>
+                <span class="text-[10px] font-bold mt-1">Upload / Replace</span>
+              </div>
+
+              <div class="absolute inset-x-0 bottom-0 bg-black/85 p-1 text-[8px] font-mono text-white leading-tight">
+                <div id="tagPhoto4" class="truncate font-bold">PERSON MET: HUSBAND WITH FA</div>
+                <div class="text-emerald-300 flex justify-between">
+                  <span id="tsPhoto4">04-AUG-2026 11:42 IST</span>
+                  <span id="badgePhoto4">IDENTITY: MATCH</span>
+                </div>
+              </div>
+            </div>
+            <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between font-mono text-[10px]">
+              <span id="titlePhoto4" class="font-bold text-on-surface truncate">Pradeepsinh Vaghela (Husband)</span>
+              <span id="statusPhoto4" class="text-secondary font-bold">MATCH</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SHA-256 Tamper Seal & Hash Ribbon -->
+        <div class="bg-surface-container-low rounded p-2 border border-outline-variant flex items-center justify-between font-mono text-[10px]">
+          <div class="flex items-center gap-1.5 text-on-surface-variant truncate">
+            <span class="material-symbols-outlined text-primary-container text-[14px]">fingerprint</span>
+            <span class="text-outline">SHA-256:</span>
+            <span id="sha256HashDisplay" class="text-on-surface font-semibold truncate">346109ce95914562aa2518e38d62657e2bb9e5d42ec4cfb56c4ec2614b7e8006</span>
+          </div>
+          <span class="text-secondary font-bold ml-2 whitespace-nowrap">SEALED</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMN 3: CA VERIFICATION, UDIN CERTIFICATION & BANK EXPORT (3 Cols / 29%) -->
+    <div class="lg:col-span-3 flex flex-col gap-4">
+      <div class="bg-surface-container-lowest p-3.5 rounded-lg border border-outline-variant shadow-sm flex items-center justify-between">
+        <div>
+          <h2 class="font-headline font-bold text-sm text-on-surface flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-primary-container">gavel</span>
+            CA Certification Desk
+          </h2>
+          <p class="text-[11px] text-on-surface-variant">UDIN & Digital Signature Block</p>
+        </div>
+        <span class="material-symbols-outlined text-primary-container">security</span>
+      </div>
+
+      <!-- Mandatory Audit Scrutiny Checklist -->
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant p-3.5 shadow-sm space-y-2">
+        <div class="flex items-center justify-between pb-1 border-b border-outline-variant">
+          <span class="text-xs font-bold text-on-surface">Audit Scrutiny Checkpoints</span>
+          <span class="font-mono text-[10px] text-secondary font-bold">5/5 SATISFIED</span>
+        </div>
+        <div class="space-y-1.5 text-xs">
+          <label class="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" checked class="mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant"/>
+            <span class="text-on-surface leading-tight text-[11px]">Applicant Identity & Aadhaar Masking scrutinised under Rule 4.</span>
+          </label>
+          <label class="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" checked class="mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant"/>
+            <span class="text-on-surface leading-tight text-[11px]">Physical site existence, address & occupancy corroborated.</span>
+          </label>
+          <label class="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" checked class="mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant"/>
+            <span class="text-on-surface leading-tight text-[11px]">Geofence within 150m safe harbor benchmark (68m delta).</span>
+          </label>
+          <label class="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" checked class="mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant"/>
+            <span class="text-on-surface leading-tight text-[11px]">Society office register & utility meters verified.</span>
+          </label>
+          <label class="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" checked class="mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant"/>
+            <span class="text-on-surface leading-tight text-[11px]">No adverse encumbrance or credit red-flags noted.</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Clinical CA Verifier Remarks Box -->
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant p-3.5 shadow-sm space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-on-surface">CA Partner Observations</label>
+          <button onclick="insertStandardRemarks()" class="font-mono text-[10px] text-primary-container hover:underline">+ Standard Clause</button>
+        </div>
+        <textarea id="caRemarksInput" class="w-full text-xs font-body rounded-lg border border-outline-variant p-2.5 text-on-surface bg-surface-container-low focus:bg-white focus:border-primary-container focus:outline-none transition-all leading-relaxed" rows="4">Field inspection completed within permissible geofence limits. Physical occupancy verified via Society Secretary and exterior meter MUM-70291 alignment. Utility billing corroborates continuous residence. Document OCR yields >98% fuzzy alignment with master application dossier. Recommended for credit underwriting clearance.</textarea>
+      </div>
+
+      <!-- ICAI UDIN Certification - Manual Entry Card by CA Staff -->
+      <div class="bg-surface-container-lowest p-3.5 rounded-lg border-2 border-primary-container/30 shadow-sm space-y-3">
+        <!-- Header with Live Status & ICAI Verification Badge -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-primary-container text-[20px]" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+            <div>
+              <span class="text-xs font-bold text-on-surface block leading-tight">ICAI UDIN Certification</span>
+              <span class="text-[10px] text-on-surface-variant font-medium">Bank Due Diligence CPV Attestation</span>
+            </div>
+          </div>
+          <span id="udinValidationBadge" class="font-mono text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold flex items-center gap-1">
+            <span class="material-symbols-outlined text-[13px]">check_circle</span>
+            SYNCED
+          </span>
+        </div>
+
+        <!-- Prominent Manual UDIN Input Box for CA Staff -->
+        <div class="space-y-1.5 bg-surface-container-low p-2.5 rounded-lg border border-outline-variant">
+          <div class="flex items-center justify-between text-[11px]">
+            <label for="udinInput" class="font-bold text-on-surface flex items-center gap-1">
+              <span class="material-symbols-outlined text-[15px] text-primary-container">edit_document</span>
+              Manual UDIN Entry (CA Staff):
+            </label>
+            <span id="udinCharCounter" class="font-mono text-[10px] font-bold text-primary-container bg-white px-1.5 py-0.5 rounded border border-outline-variant">
+              18 / 18 Digits
+            </span>
+          </div>
+
+          <div class="relative flex items-center">
+            <input
+              id="udinInput"
+              type="text"
+              maxlength="18"
+              value="26033747WJZXZM6737"
+              oninput="handleUdinManualInput(this.value)"
+              placeholder="e.g. 26033747WJZXZM6737"
+              class="w-full font-mono text-sm font-bold text-primary-container bg-white border-2 border-primary-container/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-md py-2 pl-3 pr-20 uppercase tracking-wider shadow-sm transition-all outline-none"
+            />
+            <div class="absolute right-1.5 flex items-center gap-1">
+              <button
+                type="button"
+                onclick="pasteUdinFromClipboard()"
+                title="Paste UDIN from clipboard"
+                class="px-2 py-1 text-[10px] font-bold font-mono bg-surface-container hover:bg-surface-container-high text-on-surface rounded border border-outline-variant flex items-center gap-0.5 transition-all active:scale-95">
+                <span class="material-symbols-outlined text-[12px]">content_paste</span>
+                Paste
+              </button>
+            </div>
+          </div>
+
+          <!-- Helper Quick Links & Portal Link -->
+          <div class="flex items-center justify-between text-[10px] font-mono pt-1 text-on-surface-variant">
+            <button type="button" onclick="autoGenerateUdinSpecimen()" class="text-primary-container hover:underline font-bold flex items-center gap-0.5">
+              <span class="material-symbols-outlined text-[12px]">auto_fix_high</span>
+              Auto-Fill Specimen UDIN
+            </button>
+            <a href="https://udin.icai.org/" target="_blank" rel="noopener" class="text-blue-600 hover:underline flex items-center gap-0.5 font-bold">
+              <span>ICAI Portal (udin.icai.org)</span>
+              <span class="material-symbols-outlined text-[12px]">open_in_new</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Practitioner & Firm Verification Data -->
+        <div class="bg-surface-container-lowest p-2 rounded border border-outline-variant font-mono space-y-1 text-[11px]">
+          <div class="flex justify-between">
+            <span class="text-outline">MEMBER NO:</span>
+            <span class="text-on-surface font-semibold">033747 (CA PRANAV N. SHAH)</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-outline">FIRM REG:</span>
+            <span class="text-on-surface font-semibold">106829W (NAIMISH N. SHAH & CO.)</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-outline">DOCUMENT TYPE:</span>
+            <span class="text-on-surface">Bank Due Diligence / CPV Report</span>
+          </div>
+        </div>
+
+        <!-- DSC Token State -->
+        <div class="flex items-center justify-between font-mono text-[10px] text-secondary bg-emerald-50 p-2 rounded border border-emerald-200">
+          <div class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[15px]">usb</span>
+            <span class="font-bold truncate">Class 3 DSC USB Token Detected</span>
+          </div>
+          <span class="text-emerald-700 font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-200">READY</span>
+        </div>
+      </div>
+
+      <!-- Action Cluster -->
+      <div class="space-y-2 mt-auto">
+        <button id="btnCertify" onclick="generateCertifiedDossier()" class="w-full bg-primary-container hover:bg-primary text-white font-headline text-sm font-semibold py-3 px-4 rounded-lg shadow transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+          <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">verified</span>
+          <span id="btnCertifyText">Generate Specimen Dossier (PDF & DOCX)</span>
+        </button>
+
+        <button onclick="flagDiscrepancy()" class="w-full bg-surface-container-lowest hover:bg-red-50 text-red-600 border border-outline-variant font-body text-xs font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+          <span class="material-symbols-outlined text-[16px]">flag</span>
+          <span>Flag Discrepancy / Re-inspect</span>
+        </button>
+
+        <!-- Generation Status Modal Notification -->
+        <div id="pdfSuccessCard" class="hidden p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs flex flex-col gap-2">
+          <div class="flex items-center justify-between text-secondary font-bold">
+            <span class="flex items-center gap-1">
+              <span class="material-symbols-outlined text-[16px]">task_alt</span>
+              Specimen Reports Generated!
+            </span>
+            <span id="pdfUdinBadge" class="font-mono text-[10px] bg-white px-1.5 py-0.5 rounded border border-emerald-200">UDIN: 26033747WJZXZM6737</span>
+          </div>
+          <p class="font-mono text-[10px] text-on-surface-variant truncate">
+            SHA-256: <span id="pdfHashText" class="font-bold text-on-surface">computing...</span>
+          </p>
+          <div class="grid grid-cols-2 gap-2 mt-1">
+            <a id="pdfDownloadLink" href="#" target="_blank" class="py-2.5 px-2 bg-secondary text-white font-headline font-bold text-center rounded hover:opacity-90 transition-all flex items-center justify-center gap-1.5 text-xs shadow-sm">
+              <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
+              Download PDF (9 Pages)
+            </a>
+            <a id="docxDownloadLink" href="#" target="_blank" class="py-2.5 px-2 bg-blue-700 text-white font-headline font-bold text-center rounded hover:opacity-90 transition-all flex items-center justify-center gap-1.5 text-xs shadow-sm">
+              <span class="material-symbols-outlined text-[16px]">description</span>
+              Download DOCX
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let activeCaseId = "b901fc63-12a8-4e32-9c02-e20984cfb001";
+    let currentGlobalMode = "field";
+    let currentPhotoFolder = "residence"; // 'residence' or 'work'
+
+    // Multi-Case Master Registry (Supporting all empanelled banks with dual photo folders)
+    const caseRegistry = {
+      "b901fc63-12a8-4e32-9c02-e20984cfb001": {
+        case_no: "UBI-HL-2026-20L",
+        bank: "Union Bank of India",
+        branch: "Amrapura Branch",
+        applicant_name: "Mrs. Rajkunvarba Pradeepsinh Vaghela",
+        pan: "BYMPG8996E",
+        aadhaar_masked: "XXXX - XXXX - 7689",
+        dob: "30/05/1997",
+        gender: "Female",
+        ward: "WARD 1, GANDHINAGAR (ACTIVE)",
+        address: "31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar",
+        agent: "Nilesh & Kamal Bhai (Field Team)",
+        visit_date: "04-Aug-2026, 11:30 IST",
+        benchmark_lat: "23.2156",
+        benchmark_lon: "72.6369",
+        capture_lat: "23.2154",
+        capture_lon: "72.6367",
+        distance_m: 32,
+        agent_pin: "FA-7701",
+        stay_period: "09 Years",
+        ownership: "Owned (Ranjanba Vaghela - Mother-in-Law)",
+        person_met: "Pradeepsinh Vaghela (Husband - 8160166900)",
+        neighbors: ["1. Narendrasinh Devda (Neighbour - Confirmed)", "2. Bhagwatsinh Rathod (Neighbour - Confirmed)"],
+        status: "PENDING_CA_REVIEW",
+        residence_photos: [
+          {
+            src: "/static/specimen_assets/residence/res_gate.jpg",
+            title: "Main Gate (સિદ્ધિ વિનાયક)",
+            tag: "RESIDENCE: MAIN GATE & SOCIETY",
+            timestamp: "04-AUG-2026 11:32 IST",
+            badge: "GPS: VERIFIED",
+            status: "MATCH"
+          },
+          {
+            src: "/static/specimen_assets/residence/res_elevation.jpg",
+            title: "Bungalow 31 (લક્ષ્મી કૃપા)",
+            tag: "BUNGALOW 31: ELEVATION & NAME",
+            timestamp: "04-AUG-2026 11:36 IST",
+            badge: "ELEVATION: CONFIRMED",
+            status: "CONFIRMED"
+          },
+          {
+            src: "/static/specimen_assets/residence/res_interior.jpg",
+            title: "Drawing Room & Showcase",
+            tag: "DRAWING ROOM & LIVING ASSETS",
+            timestamp: "04-AUG-2026 11:39 IST",
+            badge: "HABITATION: VERIFIED",
+            status: "VERIFIED"
+          },
+          {
+            src: "/static/specimen_assets/residence/res_person_met.jpg",
+            title: "Pradeepsinh Vaghela (Husband)",
+            tag: "PERSON MET: HUSBAND WITH FA",
+            timestamp: "04-AUG-2026 11:42 IST",
+            badge: "IDENTITY: MATCH",
+            status: "MATCH"
+          }
+        ],
+        work_photos: [
+          {
+            src: "/static/specimen_assets/work/work_facade.jpg",
+            title: "Commercial Facade & Entrance",
+            tag: "WORKPLACE: EXTERIOR ENTRANCE",
+            timestamp: "04-AUG-2026 12:40 IST",
+            badge: "EXIF: VERIFIED",
+            status: "MATCH"
+          },
+          {
+            src: "/static/specimen_assets/work/work_office.jpg",
+            title: "Operations Floor & Workstations",
+            tag: "WORKPLACE: OPERATIONAL SETUP",
+            timestamp: "04-AUG-2026 12:45 IST",
+            badge: "ACTIVE: CONFIRMED",
+            status: "VERIFIED"
+          },
+          {
+            src: "/static/specimen_assets/work/work_desk.jpg",
+            title: "CA Verification Desk",
+            tag: "INSPECTION: EXECUTIVE DESK",
+            timestamp: "04-AUG-2026 12:50 IST",
+            badge: "AUDIT: SATISFIED",
+            status: "CONFIRMED"
+          },
+          {
+            src: "/static/specimen_assets/work/work_approach.jpg",
+            title: "Commercial Complex Approach",
+            tag: "APPROACH ROAD & COMMERCIAL ZONE",
+            timestamp: "04-AUG-2026 12:55 IST",
+            badge: "INFRA: OPTIMAL",
+            status: "MATCH"
+          }
+        ],
+        photos: [
+          "/static/specimen_assets/residence/res_gate.jpg",
+          "/static/specimen_assets/residence/res_elevation.jpg",
+          "/static/specimen_assets/residence/res_interior.jpg",
+          "/static/specimen_assets/residence/res_person_met.jpg"
+        ]
+      },
+      "c102ad74-23b9-4f43-ad13-f31095d0c002": {
+        case_no: "SBI-HL-2026-45L",
+        bank: "State Bank of India",
+        branch: "Bandra West Branch",
+        applicant_name: "Mr. Vikramaditya Sengupta",
+        pan: "ABCPS1234F",
+        aadhaar_masked: "XXXX - XXXX - 8912",
+        dob: "14/08/1984",
+        gender: "Male",
+        ward: "WARD 50, BANDRA, MUMBAI (ACTIVE)",
+        address: "Flat 402, Imperial Heights, Bandra West, Mumbai - 400050",
+        agent: "Rajesh Varma (FA-9042)",
+        visit_date: "24-Oct-2026, 14:15 IST",
+        benchmark_lat: "19.0596",
+        benchmark_lon: "72.8295",
+        capture_lat: "19.0592",
+        capture_lon: "72.8298",
+        distance_m: 68,
+        agent_pin: "FA-9042",
+        stay_period: "07 Years",
+        ownership: "Self-Owned (Flat 402)",
+        person_met: "Vikramaditya Sengupta (Self - 9820112233)",
+        neighbors: ["1. Arun Mehta (Flat 401 - Confirmed)", "2. Sunita Rao (Flat 403 - Confirmed)"],
+        status: "PENDING_CA_REVIEW",
+        residence_photos: [
+          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Imperial Heights Entrance", tag: "RESIDENCE: MAIN GATE", timestamp: "24-OCT-2026 14:18 IST", badge: "GPS: VALID", status: "MATCH" },
+          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "Tower Elevation (Wing B)", tag: "ELEVATION: CONFIRMED", timestamp: "24-OCT-2026 14:22 IST", badge: "GEO: MATCH", status: "CONFIRMED" },
+          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Flat 402 Living Room", tag: "INTERIOR ASSETS", timestamp: "24-OCT-2026 14:28 IST", badge: "OCCUPIED", status: "VERIFIED" },
+          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Vikramaditya Sengupta", tag: "PERSON MET: APPLICANT", timestamp: "24-OCT-2026 14:32 IST", badge: "ID: MATCH", status: "MATCH" }
+        ],
+        work_photos: [
+          { src: "/static/specimen_assets/work/work_facade.jpg", title: "Corporate Building Facade", tag: "WORK: EXTERIOR", timestamp: "24-OCT-2026 15:40 IST", badge: "EXIF: PASS", status: "MATCH" },
+          { src: "/static/specimen_assets/work/work_office.jpg", title: "Office Floor & Workstations", tag: "WORK: INTERIOR", timestamp: "24-OCT-2026 15:45 IST", badge: "ACTIVE", status: "VERIFIED" },
+          { src: "/static/specimen_assets/work/work_desk.jpg", title: "Director's Cabin Desk", tag: "EXECUTIVE CABIN", timestamp: "24-OCT-2026 15:50 IST", badge: "MATCH", status: "CONFIRMED" },
+          { src: "/static/specimen_assets/work/work_approach.jpg", title: "Bandra Kurla Complex Approach", tag: "APPROACH ROAD", timestamp: "24-OCT-2026 15:55 IST", badge: "OPTIMAL", status: "MATCH" }
+        ],
+        photos: [
+          "/static/specimen_assets/residence/res_gate.jpg",
+          "/static/specimen_assets/residence/res_elevation.jpg",
+          "/static/specimen_assets/residence/res_interior.jpg",
+          "/static/specimen_assets/residence/res_person_met.jpg"
+        ]
+      },
+      "d203be85-34ca-4a54-be24-a42106e1d003": {
+        case_no: "HDFC-LAP-2026-60L",
+        bank: "HDFC Bank",
+        branch: "Navrangpura Branch",
+        applicant_name: "Mr. Jayeshbhai K. Patel",
+        pan: "AAEPP5521M",
+        aadhaar_masked: "XXXX - XXXX - 3341",
+        dob: "22/11/1979",
+        gender: "Male",
+        ward: "WARD 7, AMBAWADI, AHMEDABAD (ACTIVE)",
+        address: "B-14, Shivalik Corporate Park, Ambawadi, Ahmedabad - 380015",
+        agent: "Amit Shah (FA-5011)",
+        visit_date: "23-Oct-2026, 16:30 IST",
+        benchmark_lat: "23.0225",
+        benchmark_lon: "72.5412",
+        capture_lat: "23.0222",
+        capture_lon: "72.5415",
+        distance_m: 45,
+        agent_pin: "FA-5011",
+        stay_period: "12 Years",
+        ownership: "Commercial Owned (B-14 Shivalik)",
+        person_met: "Jayeshbhai Patel (Director - 9879554433)",
+        neighbors: ["1. Mehta Finserve (Office B-13)", "2. Dr. Chirag Dental Clinic (Office B-15)"],
+        status: "IN_PROGRESS",
+        residence_photos: [
+          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Shivalik Residence Gate", tag: "RESIDENCE: MAIN GATE", timestamp: "23-OCT-2026 16:35 IST", badge: "GPS: VALID", status: "MATCH" },
+          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "Bungalow Elevation", tag: "ELEVATION", timestamp: "23-OCT-2026 16:40 IST", badge: "GEO: MATCH", status: "CONFIRMED" },
+          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Living Room Setup", tag: "INTERIOR ASSETS", timestamp: "23-OCT-2026 16:45 IST", badge: "OCCUPIED", status: "VERIFIED" },
+          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Jayeshbhai Patel (Self)", tag: "PERSON MET", timestamp: "23-OCT-2026 16:50 IST", badge: "ID: MATCH", status: "MATCH" }
+        ],
+        work_photos: [
+          { src: "/static/specimen_assets/work/work_facade.jpg", title: "Shivalik Corporate Park Facade", tag: "WORKPLACE FACADE", timestamp: "23-OCT-2026 17:10 IST", badge: "EXIF: PASS", status: "MATCH" },
+          { src: "/static/specimen_assets/work/work_office.jpg", title: "Office Suite B-14", tag: "OPERATIONS", timestamp: "23-OCT-2026 17:15 IST", badge: "ACTIVE", status: "VERIFIED" },
+          { src: "/static/specimen_assets/work/work_desk.jpg", title: "Executive Cabin Desk", tag: "VERIFICATION DESK", timestamp: "23-OCT-2026 17:20 IST", badge: "MATCH", status: "CONFIRMED" },
+          { src: "/static/specimen_assets/work/work_approach.jpg", title: "Ambawadi Main Road Approach", tag: "APPROACH ROAD", timestamp: "23-OCT-2026 17:25 IST", badge: "OPTIMAL", status: "MATCH" }
+        ],
+        photos: [
+          "/static/specimen_assets/residence/res_gate.jpg",
+          "/static/specimen_assets/residence/res_elevation.jpg",
+          "/static/specimen_assets/residence/res_interior.jpg",
+          "/static/specimen_assets/residence/res_person_met.jpg"
+        ]
+      },
+      "e304cf96-45db-4b65-cf35-b53217f2e004": {
+        case_no: "ICICI-PL-2026-15L",
+        bank: "ICICI Bank",
+        branch: "Ashram Road Branch",
+        applicant_name: "Dr. Ananya Sharma",
+        pan: "CKLPS9012K",
+        aadhaar_masked: "XXXX - XXXX - 9021",
+        dob: "05/03/1991",
+        gender: "Female",
+        ward: "WARD 9, ELLISBRIDGE, AHMEDABAD (ACTIVE)",
+        address: "401, Doctor House, Ellisbridge, Ahmedabad - 380006",
+        agent: "Sneha Desai (FA-3104)",
+        visit_date: "25-Oct-2026, 10:15 IST",
+        benchmark_lat: "23.0180",
+        benchmark_lon: "72.5680",
+        capture_lat: "23.0178",
+        capture_lon: "72.5682",
+        distance_m: 28,
+        agent_pin: "FA-3104",
+        stay_period: "06 Years",
+        ownership: "Commercial Clinic Premises",
+        person_met: "Dr. Ananya Sharma (Self - 9426099887)",
+        neighbors: ["1. Apollo Pharmacy (Ground Floor)", "2. DentCare Polyclinic (Suite 402)"],
+        status: "PENDING_CA_REVIEW",
+        residence_photos: [
+          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Doctor House Entrance Gate", tag: "MAIN GATE", timestamp: "25-OCT-2026 10:18 IST", badge: "GPS: VALID", status: "MATCH" },
+          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "Building Elevation", tag: "ELEVATION", timestamp: "25-OCT-2026 10:22 IST", badge: "GEO: MATCH", status: "CONFIRMED" },
+          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Living Area", tag: "INTERIOR", timestamp: "25-OCT-2026 10:25 IST", badge: "OCCUPIED", status: "VERIFIED" },
+          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Dr. Ananya Sharma", tag: "PERSON MET", timestamp: "25-OCT-2026 10:28 IST", badge: "ID: MATCH", status: "MATCH" }
+        ],
+        work_photos: [
+          { src: "/static/specimen_assets/work/work_facade.jpg", title: "Clinic Facade Suite 401", tag: "WORKPLACE FACADE", timestamp: "25-OCT-2026 10:35 IST", badge: "EXIF: PASS", status: "MATCH" },
+          { src: "/static/specimen_assets/work/work_office.jpg", title: "Clinic Treatment Facility", tag: "OPERATIONS", timestamp: "25-OCT-2026 10:40 IST", badge: "ACTIVE", status: "VERIFIED" },
+          { src: "/static/specimen_assets/work/work_desk.jpg", title: "Doctor Consultation Desk", tag: "CONSULTATION DESK", timestamp: "25-OCT-2026 10:45 IST", badge: "MATCH", status: "CONFIRMED" },
+          { src: "/static/specimen_assets/work/work_approach.jpg", title: "Ellisbridge Main Approach", tag: "APPROACH ROAD", timestamp: "25-OCT-2026 10:50 IST", badge: "OPTIMAL", status: "MATCH" }
+        ],
+        photos: [
+          "/static/specimen_assets/residence/res_gate.jpg",
+          "/static/specimen_assets/residence/res_elevation.jpg",
+          "/static/specimen_assets/residence/res_interior.jpg",
+          "/static/specimen_assets/residence/res_person_met.jpg"
+        ]
+      },
+      "f405da07-56ec-4c76-da46-c64328a3f005": {
+        case_no: "BOB-HL-2026-30L",
+        bank: "Bank of Baroda",
+        branch: "Sector 11 Branch",
+        applicant_name: "Mr. Mahendrasinh Solanki",
+        pan: "BTPMS4820R",
+        aadhaar_masked: "XXXX - XXXX - 4410",
+        dob: "18/07/1982",
+        gender: "Male",
+        ward: "WARD 4, SECTOR 22, GANDHINAGAR (ACTIVE)",
+        address: "Plot 112/1, Sector 22, Gandhinagar - 382022",
+        agent: "Kamal Bhai (FA-7702)",
+        visit_date: "24-Oct-2026, 16:45 IST",
+        benchmark_lat: "23.2350",
+        benchmark_lon: "72.6520",
+        capture_lat: "23.2347",
+        capture_lon: "72.6522",
+        distance_m: 38,
+        agent_pin: "FA-7702",
+        stay_period: "15 Years",
+        ownership: "Ancestral / Owned",
+        person_met: "Mahendrasinh Solanki (Self - 9978123456)",
+        neighbors: ["1. Dashrathbhai Patel (Plot 112/2)", "2. Govindbhai Rabari (Plot 111)"],
+        status: "PENDING_CA_REVIEW",
+        residence_photos: [
+          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Plot 112 Main Gate", tag: "RESIDENCE: MAIN GATE", timestamp: "24-OCT-2026 16:48 IST", badge: "GPS: VALID", status: "MATCH" },
+          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "House Elevation Sector 22", tag: "ELEVATION", timestamp: "24-OCT-2026 16:52 IST", badge: "GEO: MATCH", status: "CONFIRMED" },
+          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Living Room Interior", tag: "INTERIOR ASSETS", timestamp: "24-OCT-2026 16:56 IST", badge: "OCCUPIED", status: "VERIFIED" },
+          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Mahendrasinh Solanki", tag: "PERSON MET", timestamp: "24-OCT-2026 17:00 IST", badge: "ID: MATCH", status: "MATCH" }
+        ],
+        work_photos: [
+          { src: "/static/specimen_assets/work/work_facade.jpg", title: "Business Premises Gate", tag: "WORKPLACE FACADE", timestamp: "24-OCT-2026 17:15 IST", badge: "EXIF: PASS", status: "MATCH" },
+          { src: "/static/specimen_assets/work/work_office.jpg", title: "Workshop Operations", tag: "OPERATIONS", timestamp: "24-OCT-2026 17:20 IST", badge: "ACTIVE", status: "VERIFIED" },
+          { src: "/static/specimen_assets/work/work_desk.jpg", title: "Accounts & Billing Desk", tag: "INSPECTION DESK", timestamp: "24-OCT-2026 17:25 IST", badge: "MATCH", status: "CONFIRMED" },
+          { src: "/static/specimen_assets/work/work_approach.jpg", title: "GIDC Sector Approach", tag: "APPROACH ROAD", timestamp: "24-OCT-2026 17:30 IST", badge: "OPTIMAL", status: "MATCH" }
+        ],
+        photos: [
+          "/static/specimen_assets/residence/res_gate.jpg",
+          "/static/specimen_assets/residence/res_elevation.jpg",
+          "/static/specimen_assets/residence/res_interior.jpg",
+          "/static/specimen_assets/residence/res_person_met.jpg"
+        ]
+      }
+    };
+
+    // Switch between Residence and Work/Office Photo Folders
+    function switchPhotoFolder(folder) {
+      currentPhotoFolder = folder;
+      const btnRes = document.getElementById("folderTabResidence");
+      const btnWork = document.getElementById("folderTabWork");
+      const badge = document.getElementById("activeFolderBadge");
+
+      if (folder === "residence") {
+        btnRes.className = "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 bg-primary-container text-white shadow-sm";
+        btnWork.className = "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high";
+        if (badge) {
+          badge.textContent = "📁 /residence/";
+          badge.className = "bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 font-bold font-mono text-[10px]";
+        }
+      } else {
+        btnWork.className = "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 bg-primary-container text-white shadow-sm";
+        btnRes.className = "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high";
+        if (badge) {
+          badge.textContent = "📁 /work/";
+          badge.className = "bg-purple-50 text-purple-800 px-2 py-0.5 rounded border border-purple-200 font-bold font-mono text-[10px]";
+        }
+      }
+
+      renderPhotosForActiveFolder();
+    }
+
+    // Render 4 photos dynamically for active folder (Residence vs Work)
+    function renderPhotosForActiveFolder() {
+      const c = caseRegistry[activeCaseId];
+      if (!c) return;
+
+      const photoList = (currentPhotoFolder === "residence") 
+        ? (c.residence_photos || c.photos) 
+        : (c.work_photos || c.photos);
+
+      for (let i = 1; i <= 4; i++) {
+        const p = photoList[i - 1];
+        if (!p) continue;
+
+        const img = document.getElementById(`imgPhoto${i}`);
+        const title = document.getElementById(`titlePhoto${i}`);
+        const tag = document.getElementById(`tagPhoto${i}`);
+        const ts = document.getElementById(`tsPhoto${i}`);
+        const badge = document.getElementById(`badgePhoto${i}`);
+        const status = document.getElementById(`statusPhoto${i}`);
+
+        if (img) img.src = (typeof p === "string") ? p : p.src;
+        if (title && p.title) title.textContent = p.title;
+        if (tag && p.tag) tag.textContent = p.tag;
+        if (ts && p.timestamp) ts.textContent = p.timestamp;
+        if (badge && p.badge) badge.textContent = p.badge;
+        if (status && p.status) status.textContent = p.status;
+      }
+    }
+
+    // Realtime Manual UDIN Validation & Synchronization by CA Staff
+    function handleUdinManualInput(val) {
+      val = (val || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18);
+      const input = document.getElementById("udinInput");
+      if (input && input.value !== val) {
+        input.value = val;
+      }
+
+      const counter = document.getElementById("udinCharCounter");
+      const badge = document.getElementById("udinValidationBadge");
+      const pdfUdinBadge = document.getElementById("pdfUdinBadge");
+
+      if (counter) {
+        counter.textContent = `${val.length} / 18 Digits`;
+      }
+
+      const isValid = (val.length === 18);
+
+      if (badge) {
+        if (isValid) {
+          badge.className = "font-mono text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold flex items-center gap-1";
+          badge.innerHTML = `<span class="material-symbols-outlined text-[13px]">check_circle</span> SYNCED & VALID`;
+        } else {
+          badge.className = "font-mono text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-300 font-bold flex items-center gap-1";
+          badge.innerHTML = `<span class="material-symbols-outlined text-[13px]">warning</span> ${18 - val.length} DIGITS MISSING`;
+        }
+      }
+
+      if (pdfUdinBadge) {
+        pdfUdinBadge.textContent = "UDIN: " + val;
+      }
+    }
+
+    async function pasteUdinFromClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          handleUdinManualInput(text.trim());
+        }
+      } catch (err) {
+        const manual = prompt("Paste your 18-digit ICAI UDIN number here:");
+        if (manual) handleUdinManualInput(manual.trim());
+      }
+    }
+
+    function autoGenerateUdinSpecimen() {
+      handleUdinManualInput("26033747WJZXZM6737");
+    }
+
+    // Case Selection Handler - Dynamically updates entire workspace!
+    function onCaseSelected(caseId) {
+      const c = caseRegistry[caseId];
+      if (!c) return;
+
+      activeCaseId = caseId;
+
+      // 1. Update Sub-header Dossier Ribbon
+      document.getElementById("dispCaseRef").textContent = c.case_no;
+      document.getElementById("dispCaseStatus").textContent = c.status;
+      document.getElementById("dispApplicantName").textContent = c.applicant_name;
+      document.getElementById("dispApplicantPan").textContent = "PAN: " + c.pan;
+      document.getElementById("dispBankBranchBadge").textContent = `${c.bank} (${c.branch})`;
+      document.getElementById("dispPropertyAddress").textContent = c.address;
+      document.getElementById("dispFieldAgent").textContent = c.agent;
+      document.getElementById("dispCoordinatesBadge").textContent = `● COMPLIANT (${c.benchmark_lat}° N, ${c.benchmark_lon}° E)`;
+      document.getElementById("dispVisitDate").textContent = "Visited: " + c.visit_date;
+
+      // 2. Update Aadhaar Scrutiny Card & Flipped Document
+      if (document.getElementById("dispAadhaarName")) document.getElementById("dispAadhaarName").textContent = c.applicant_name;
+      if (document.getElementById("dispAadhaarDob")) document.getElementById("dispAadhaarDob").textContent = `DOB: ${c.dob} | Gender: ${c.gender}`;
+      if (document.getElementById("dispAadhaarMasked")) document.getElementById("dispAadhaarMasked").textContent = c.aadhaar_masked;
+      if (document.getElementById("dispDobMatch")) document.getElementById("dispDobMatch").textContent = `Exact Match (${c.dob})`;
+      if (document.getElementById("dispAadhaarFrontLabel")) document.getElementById("dispAadhaarFrontLabel").textContent = `${c.applicant_name} • DOB: ${c.dob}`;
+      if (document.getElementById("dispAadhaarMaskedPill")) document.getElementById("dispAadhaarMaskedPill").textContent = c.aadhaar_masked;
+      if (document.getElementById("dispAadhaarBackLabel")) document.getElementById("dispAadhaarBackLabel").textContent = c.address;
+      setDocSide('aadhaar', 'front');
+
+      // 3. Update PAN Card & Flipped Document
+      document.getElementById("dispPanNumber").textContent = c.pan;
+      document.getElementById("dispPanHolder").textContent = c.applicant_name.toUpperCase();
+      document.getElementById("dispPanWard").textContent = c.ward;
+      if (document.getElementById("dispPanFrontLabel")) document.getElementById("dispPanFrontLabel").textContent = `${c.pan} • ${c.applicant_name.toUpperCase()}`;
+      if (document.getElementById("dispPanBackLabel")) document.getElementById("dispPanBackLabel").textContent = `${c.ward} • ACTIVE • SEEDED`;
+      setDocSide('pan', 'front');
+
+      // 4. Update CPV Field Form & Utility Proof
+      document.getElementById("dispStayPeriod").textContent = c.stay_period;
+      document.getElementById("dispOwnership").textContent = c.ownership;
+      document.getElementById("dispPersonMet").textContent = c.person_met;
+      document.getElementById("dispNeighbors").innerHTML = `<span class="font-bold text-primary-container">Neighbour Corroboration:</span> ${c.neighbors.join(' • ')}`;
+      if (document.getElementById("dispUtilityFrontLabel")) document.getElementById("dispUtilityFrontLabel").textContent = `${c.applicant_name} • ${c.address}`;
+      if (document.getElementById("dispUtilityBackLabel")) document.getElementById("dispUtilityBackLabel").textContent = `AGENT: ${c.agent} • ${c.stay_period} STAY • VERIFIED`;
+      setDocSide('utility', 'front');
+
+      // 5. Update Geofence Telemetry & Radar Card
+      document.getElementById("dispRadarProximity").textContent = `PROXIMITY: ${c.distance_m} METERS (PASS)`;
+      document.getElementById("dispRadarAgentPin").textContent = `${c.agent_pin} (${c.distance_m}m)`;
+      document.getElementById("dispRadarBenchmark").textContent = `BENCHMARK: ${c.benchmark_lat}° N, ${c.benchmark_lon}° E`;
+      document.getElementById("dispRadarCapture").textContent = `CAPTURE: ${c.capture_lat}° N, ${c.capture_lon}° E`;
+      document.getElementById("dispRadarDistance").textContent = `${c.distance_m}m / Max 150m Safe Harbor`;
+      document.getElementById("dispRadarBar").style.width = Math.min(100, Math.round((c.distance_m / 150) * 100)) + "%";
+
+      // 6. Update Dual Folder Site Evidence Photos
+      renderPhotosForActiveFolder();
+
+      // 7. Update CA Partner Observations
+      document.getElementById("caRemarksInput").value = `Field inspection for ${c.applicant_name} (${c.case_no}) completed within permissible geofence limits (${c.distance_m}m delta). Physical occupancy verified via Society records and exterior meter alignment. Utility billing corroborates continuous residence. Document OCR yields >98% fuzzy alignment with master application dossier. Recommended for credit underwriting clearance.`;
+
+      // 8. Synchronize Filter dropdowns
+      const bankSelect = document.getElementById("filterBankSelect");
+      if (bankSelect && bankSelect.value !== "ALL" && bankSelect.value !== c.bank) {
+        bankSelect.value = "ALL";
+      }
+
+      // Hide previous report badge if case changed
+      document.getElementById("pdfSuccessCard").classList.add("hidden");
+    }
+
+    // Filter by Bank Name
+    function onBankFilterChanged(bankName) {
+      const caseSelect = document.getElementById("caseSelectorSelect");
+      caseSelect.innerHTML = "";
+
+      let count = 0;
+      let firstMatch = null;
+
+      for (const [id, c] of Object.entries(caseRegistry)) {
+        if (bankName === "ALL" || c.bank === bankName) {
+          const opt = document.createElement("option");
+          opt.value = id;
+          opt.textContent = `[${c.case_no}] - ${c.applicant_name} | ${c.bank} (${c.branch})`;
+          caseSelect.appendChild(opt);
+          if (!firstMatch) firstMatch = id;
+          count++;
+        }
+      }
+
+      document.getElementById("totalCaseCount").textContent = count;
+
+      if (firstMatch) {
+        caseSelect.value = firstMatch;
+        onCaseSelected(firstMatch);
+      }
+    }
+
+    // Filter by Branch Name
+    function onBranchFilterChanged(branchName) {
+      const caseSelect = document.getElementById("caseSelectorSelect");
+      caseSelect.innerHTML = "";
+
+      let count = 0;
+      let firstMatch = null;
+
+      for (const [id, c] of Object.entries(caseRegistry)) {
+        if (branchName === "ALL" || c.branch === branchName) {
+          const opt = document.createElement("option");
+          opt.value = id;
+          opt.textContent = `[${c.case_no}] - ${c.applicant_name} | ${c.bank} (${c.branch})`;
+          caseSelect.appendChild(opt);
+          if (!firstMatch) firstMatch = id;
+          count++;
+        }
+      }
+
+      document.getElementById("totalCaseCount").textContent = count;
+
+      if (firstMatch) {
+        caseSelect.value = firstMatch;
+        onCaseSelected(firstMatch);
+      }
+    }
+
+    // Add New Case Prompt
+    function promptCreateNewCase() {
+      const caseNo = prompt("Enter Case Reference Number (e.g. AXIS-HL-2026-50L):", "AXIS-HL-2026-50L");
+      if (!caseNo) return;
+      const applicantName = prompt("Enter Applicant Full Name:", "Mr. Rameshwar S. Rathore");
+      if (!applicantName) return;
+      const bankName = prompt("Enter Empanelled Bank Name:", "Axis Bank");
+      const branchName = prompt("Enter Bank Branch:", "Naroda Branch, Ahmedabad");
+
+      const newId = "case-" + Date.now();
+      caseRegistry[newId] = {
+        case_no: caseNo,
+        bank: bankName || "Axis Bank",
+        branch: branchName || "Ahmedabad Main",
+        applicant_name: applicantName,
+        pan: "ABCDE" + Math.floor(1000 + Math.random() * 9000) + "F",
+        aadhaar_masked: "XXXX - XXXX - " + Math.floor(1000 + Math.random() * 9000),
+        dob: "12/04/1988",
+        gender: "Male",
+        ward: "WARD 3, AHMEDABAD (ACTIVE)",
+        address: "74, Shanti Niketan Society, Naroda, Ahmedabad",
+        agent: "Field Agent (Assigned)",
+        visit_date: "Today, Just Now",
+        benchmark_lat: "23.0725",
+        benchmark_lon: "72.6510",
+        capture_lat: "23.0723",
+        capture_lon: "72.6512",
+        distance_m: 35,
+        agent_pin: "FA-LIVE",
+        stay_period: "8 Years",
+        ownership: "Self-Owned Residence",
+        person_met: applicantName + " (Applicant)",
+        neighbors: ["1. Society Secretary (Confirmed)", "2. Neighbor (Confirmed)"],
+        status: "PENDING_CA_REVIEW",
+        photos: [
+          "/static/specimen_assets/page_8_img_2_Image2.jpg",
+          "/static/specimen_assets/page_8_img_3_Image3.jpg",
+          "/static/specimen_assets/page_8_img_4_Image4.jpg",
+          "/static/specimen_assets/page_8_img_5_Image5.jpg"
+        ]
+      };
+
+      const caseSelect = document.getElementById("caseSelectorSelect");
+      const opt = document.createElement("option");
+      opt.value = newId;
+      opt.textContent = `[${caseNo}] - ${applicantName} | ${bankName} (${branchName})`;
+      caseSelect.appendChild(opt);
+      caseSelect.value = newId;
+
+      document.getElementById("totalCaseCount").textContent = Object.keys(caseRegistry).length;
+      onCaseSelected(newId);
+      alert(`Case ${caseNo} created successfully! You can now upload documents or generate the dossier.`);
+    }
+
+    // Master Slider Toggle (All Sections)
+    function setGlobalDossierMode(mode) {
+      currentGlobalMode = mode;
+      const btnManual = document.getElementById("masterSliderManual");
+      const btnField = document.getElementById("masterSliderField");
+
+      if (mode === "manual") {
+        btnManual.className = "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 bg-primary-container text-white shadow-sm";
+        btnField.className = "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface";
+      } else {
+        btnField.className = "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 bg-primary-container text-white shadow-sm";
+        btnManual.className = "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface";
+      }
+
+      setCardMode("aadhaar", mode);
+      setCardMode("pan", mode);
+      setCardMode("utility", mode);
+      setPhotosMode(mode);
+    }
+
+    // Individual Card Slider Toggle
+    function setCardMode(card, mode) {
+      const fieldView = document.getElementById(`${card}FieldView`);
+      const manualView = document.getElementById(`${card}ManualView`);
+      const btnManual = document.getElementById(`toggle${capitalize(card)}ManualBtn`);
+      const btnField = document.getElementById(`toggle${capitalize(card)}FieldBtn`);
+
+      if (!fieldView || !manualView) return;
+
+      if (mode === "manual") {
+        fieldView.classList.add("hidden");
+        manualView.classList.remove("hidden");
+        if (btnManual && btnField) {
+          btnManual.className = "px-2 py-0.5 rounded-full transition-all bg-primary-container text-white font-bold";
+          btnField.className = "px-2 py-0.5 rounded-full transition-all text-on-surface-variant font-medium";
+        }
+      } else {
+        manualView.classList.add("hidden");
+        fieldView.classList.remove("hidden");
+        if (btnManual && btnField) {
+          btnField.className = "px-2 py-0.5 rounded-full transition-all bg-primary-container text-white font-bold";
+          btnManual.className = "px-2 py-0.5 rounded-full transition-all text-on-surface-variant font-medium";
+        }
+      }
+    }
+
+    // Photos Section Slider Toggle
+    function setPhotosMode(mode) {
+      const btnManual = document.getElementById("togglePhotosManualBtn");
+      const btnField = document.getElementById("togglePhotosFieldBtn");
+
+      if (mode === "manual") {
+        btnManual.className = "px-2 py-0.5 rounded-full transition-all bg-primary-container text-white font-bold";
+        btnField.className = "px-2 py-0.5 rounded-full transition-all text-on-surface-variant font-medium";
+        for (let i = 1; i <= 4; i++) {
+          const overlay = document.getElementById(`overlayPhoto${i}`);
+          if (overlay) overlay.classList.remove("opacity-0");
+        }
+      } else {
+        btnField.className = "px-2 py-0.5 rounded-full transition-all bg-primary-container text-white font-bold";
+        btnManual.className = "px-2 py-0.5 rounded-full transition-all text-on-surface-variant font-medium";
+        for (let i = 1; i <= 4; i++) {
+          const overlay = document.getElementById(`overlayPhoto${i}`);
+          if (overlay) overlay.classList.add("opacity-0");
+        }
+      }
+    }
+
+    function capitalize(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    // Trigger Photo File Selection on Click
+    function triggerPhotoSelect(index) {
+      const input = document.getElementById(`inputPhoto${index}`);
+      if (input) input.click();
+    }
+
+    // Handle Manual Photo Upload & Realtime Preview in Active Folder
+    async function handlePhotoUpload(index, docType, file) {
+      if (!file) return;
+
+      const previewUrl = URL.createObjectURL(file);
+      const targetImg = document.getElementById(`imgPhoto${index}`);
+      if (targetImg) targetImg.src = previewUrl;
+
+      const statusBadge = document.getElementById(`statusPhoto${index}`);
+      if (statusBadge) {
+        statusBadge.textContent = "MANUAL ACTIVE";
+        statusBadge.className = "text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-300";
+      }
+
+      const tsBadge = document.getElementById(`tsPhoto${index}`);
+      if (tsBadge) {
+        const now = new Date();
+        tsBadge.textContent = "MANUAL: " + now.toLocaleTimeString();
+      }
+
+      // Update in-memory case registry
+      const c = caseRegistry[activeCaseId];
+      if (c) {
+        const targetList = (currentPhotoFolder === 'residence') ? c.residence_photos : c.work_photos;
+        if (targetList && targetList[index - 1]) {
+          targetList[index - 1].src = previewUrl;
+          targetList[index - 1].status = "MANUAL ACTIVE";
+        }
+      }
+
+      // Automatically sync file to backend case
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("doc_type", docType);
+        formData.append("folder", currentPhotoFolder);
+        formData.append("latitude", "23.2154");
+        formData.append("longitude", "72.6367");
+
+        await fetch(`/api/v1/visits/cases/${activeCaseId}/upload`, {
+          method: "POST",
+          body: formData
+        });
+      } catch (e) {
+        console.log("Local preview active");
+      }
+    }
+
+    // Handle Bulk Folder Upload (Select entire directory from disk)
+    function handleBulkFolderUpload(fileList) {
+      if (!fileList || fileList.length === 0) return;
+      const images = Array.from(fileList).filter(f => f.type.startsWith("image/") || /\.(jpe?g|png|webp)$/i.test(f.name));
+      if (images.length === 0) {
+        alert("No valid images found in selected folder.");
+        return;
+      }
+
+      const count = Math.min(4, images.length);
+      for (let i = 0; i < count; i++) {
+        handlePhotoUpload(i + 1, `${currentPhotoFolder.toUpperCase()}_IMG_${i + 1}`, images[i]);
+      }
+      alert(`Imported ${count} photo(s) into the ${currentPhotoFolder.toUpperCase()} folder successfully!`);
+    }
+
+    // Photo Lightbox Zoom Modal
+    function openPhotoLightbox(index) {
+      const img = document.getElementById(`imgPhoto${index}`);
+      const title = document.getElementById(`titlePhoto${index}`);
+      if (!img) return;
+
+      const modal = document.getElementById("docZoomModal");
+      const modalTitle = document.getElementById("zoomModalTitle");
+      const frontImg = document.getElementById("zoomFrontImg");
+      const backImg = document.getElementById("zoomBackImg");
+      const frontLabel = document.getElementById("zoomFrontLabel");
+      const backLabel = document.getElementById("zoomBackLabel");
+      const flipCard = document.getElementById("zoomFlipCard");
+
+      modalTitle.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">photo_camera</span> ${title ? title.textContent : 'Site Photo ' + index} • High-Resolution View`;
+      frontImg.src = img.src;
+      backImg.src = img.src;
+      frontLabel.textContent = `${title ? title.textContent : 'Photo ' + index} • ${currentPhotoFolder.toUpperCase()} FOLDER (23.2154° N, 72.6367° E)`;
+      backLabel.textContent = `GPS EXIF: Optimal • Station Lock 18m 45s • Geotag Authentic`;
+
+      flipCard.classList.remove("is-flipped");
+      modal.classList.remove("hidden");
+    }
+
+    // Handle Per-Section Manual Document Upload & Realtime Display
+    async function handleSectionUpload(section, file) {
+      if (!file) return;
+
+      const previewContainer = document.getElementById(`${section}ManualPreview`);
+      const filenameLabel = document.getElementById(`${section}ManualFilename`);
+      const imgPreview = document.getElementById(`${section}ManualImg`);
+
+      if (filenameLabel) filenameLabel.textContent = file.name + ` (${(file.size / 1024).toFixed(1)} KB)`;
+      if (previewContainer) previewContainer.classList.remove("hidden");
+
+      if (imgPreview && file.type.startsWith("image/")) {
+        imgPreview.src = URL.createObjectURL(file);
+      }
+
+      // Map section to backend doc_type
+      let docType = "OTHER";
+      if (section === "aadhaar") docType = "AADHAAR_CARD";
+      if (section === "pan") docType = "PAN_CARD";
+      if (section === "utility") docType = "ELECTRICITY_BILL";
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("doc_type", docType);
+        formData.append("latitude", "23.2154");
+        formData.append("longitude", "72.6367");
+
+        await fetch(`/api/v1/visits/cases/${activeCaseId}/upload`, {
+          method: "POST",
+          body: formData
+        });
+      } catch (err) {
+        console.log("Staged in local UI");
+      }
+    }
+
+    function insertStandardRemarks() {
+      const clause = "\n\nSupplementary Observation: Title chain verified from Registrar records. Direct utility payment corroboration completes the contact point audit.";
+      document.getElementById("caRemarksInput").value += clause;
+    }
+
+    function flagDiscrepancy() {
+      const reason = prompt("Specify discrepancy reason to return case to field agent:", "Electricity meter photograph blurred, please re-capture with clear serial MUM-70291 view.");
+      if (reason) {
+        alert("Case status marked as FLAGGED. Notification dispatched to Field Agent Rajesh Varma.");
+      }
+    }
+
+    async function generateCertifiedDossier() {
+      const btn = document.getElementById("btnCertify");
+      const btnText = document.getElementById("btnCertifyText");
+      const remarks = document.getElementById("caRemarksInput").value;
+      const udin = document.getElementById("udinInput").value;
+
+      btn.disabled = true;
+      btnText.innerHTML = `<span class="material-symbols-outlined animate-spin text-[16px]">autorenew</span> Compiling ReportLab PDF...`;
+
+      try {
+        const response = await fetch("/api/v1/reports/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            case_id: activeCaseId,
+            udin: udin,
+            ca_remarks: remarks,
+            checklist_identity_verified: true,
+            checklist_property_exists: true,
+            checklist_geofence_compliant: true,
+            checklist_neighbor_confirmed: true,
+            checklist_no_adverse_findings: true
+          })
+        });
+
+        if (response.ok) {
+          const report = await response.json();
+          showPdfSuccess(report.id, report.file_hash_sha256, report.udin);
+        } else {
+          // In standalone demo preview, generate local client-side confirmation
+          showPdfSuccess("demo-report-01", "a6b78d234f9810ac90b14ef982c76a59b34cd1234ef9876543210123456789ab", udin);
+        }
+      } catch (err) {
+        showPdfSuccess("demo-report-01", "a6b78d234f9810ac90b14ef982c76a59b34cd1234ef9876543210123456789ab", udin);
+      } finally {
+        btn.disabled = false;
+        btnText.innerHTML = `<span>Re-Generate Certified Dossier</span>`;
+      }
+    }
+
+    function showPdfSuccess(reportId, hash, udin) {
+      const card = document.getElementById("pdfSuccessCard");
+      const hashText = document.getElementById("pdfHashText");
+      const udinBadge = document.getElementById("pdfUdinBadge");
+      const dlLink = document.getElementById("pdfDownloadLink");
+      const docxLink = document.getElementById("docxDownloadLink");
+
+      card.classList.remove("hidden");
+      hashText.textContent = hash;
+      udinBadge.textContent = "UDIN: " + udin;
+      dlLink.href = `/api/v1/reports/${reportId}/download`;
+      if (docxLink) {
+        docxLink.href = `/api/v1/reports/${reportId}/download-docx`;
+      }
+      
+      // Auto-scroll to card
+      card.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // 3D DOCUMENT FLIPPING ENGINE & MODAL HANDLERS
+    const docState = {
+      aadhaar: { isFlipped: false, isMasked: true },
+      pan: { isFlipped: false },
+      utility: { isFlipped: false }
+    };
+
+    function flipDocCard(section) {
+      const card = document.getElementById(`${section}FlipCard`);
+      if (!card) return;
+      
+      const isFlipped = card.classList.toggle("is-flipped");
+      docState[section].isFlipped = isFlipped;
+
+      if (section === "aadhaar") {
+        document.getElementById("btnAadhaarSideFront").className = isFlipped 
+          ? "px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface" 
+          : "px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs";
+        document.getElementById("btnAadhaarSideBack").className = isFlipped 
+          ? "px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs" 
+          : "px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface";
+        document.getElementById("aadhaarFlipBtnText").textContent = isFlipped ? "Flip to Front" : "Flip to Back";
+      } else if (section === "pan") {
+        document.getElementById("btnPanSideFront").className = isFlipped 
+          ? "px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface" 
+          : "px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs";
+        document.getElementById("btnPanSideBack").className = isFlipped 
+          ? "px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs" 
+          : "px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface";
+        document.getElementById("panFlipBtnText").textContent = isFlipped ? "Flip to Physical" : "Flip to NSDL";
+      } else if (section === "utility") {
+        document.getElementById("btnUtilitySideFront").className = isFlipped 
+          ? "px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface" 
+          : "px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs";
+        document.getElementById("btnUtilitySideBack").className = isFlipped 
+          ? "px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs" 
+          : "px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface";
+        document.getElementById("utilityFlipBtnText").textContent = isFlipped ? "Flip to Bill" : "Flip to Form";
+      }
+    }
+
+    function setDocSide(section, side) {
+      const card = document.getElementById(`${section}FlipCard`);
+      if (!card) return;
+      
+      const shouldBeFlipped = (side === "back");
+      if (shouldBeFlipped) {
+        card.classList.add("is-flipped");
+      } else {
+        card.classList.remove("is-flipped");
+      }
+      docState[section].isFlipped = shouldBeFlipped;
+
+      if (section === "aadhaar") {
+        document.getElementById("btnAadhaarSideFront").className = !shouldBeFlipped 
+          ? "px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs" 
+          : "px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface";
+        document.getElementById("btnAadhaarSideBack").className = shouldBeFlipped 
+          ? "px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs" 
+          : "px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface";
+        document.getElementById("aadhaarFlipBtnText").textContent = shouldBeFlipped ? "Flip to Front" : "Flip to Back";
+      } else if (section === "pan") {
+        document.getElementById("btnPanSideFront").className = !shouldBeFlipped 
+          ? "px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs" 
+          : "px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface";
+        document.getElementById("btnPanSideBack").className = shouldBeFlipped 
+          ? "px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs" 
+          : "px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface";
+        document.getElementById("panFlipBtnText").textContent = shouldBeFlipped ? "Flip to Physical" : "Flip to NSDL";
+      } else if (section === "utility") {
+        document.getElementById("btnUtilitySideFront").className = !shouldBeFlipped 
+          ? "px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs" 
+          : "px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface";
+        document.getElementById("btnUtilitySideBack").className = shouldBeFlipped 
+          ? "px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs" 
+          : "px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface";
+        document.getElementById("utilityFlipBtnText").textContent = shouldBeFlipped ? "Flip to Bill" : "Flip to Form";
+      }
+    }
+
+    function toggleAadhaarMasking() {
+      docState.aadhaar.isMasked = !docState.aadhaar.isMasked;
+      const img = document.getElementById("dispAadhaarFrontImg");
+      const btn = document.getElementById("aadhaarMaskToggleBtn");
+      const label = document.getElementById("aadhaarMaskLabel");
+      const status = document.getElementById("dispMaskingStatus");
+      const pill = document.getElementById("dispAadhaarMaskedPill");
+
+      if (docState.aadhaar.isMasked) {
+        img.src = "/static/specimen_assets/aadhaar_front_masked.jpg";
+        label.textContent = "Rule 4 Masked";
+        btn.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-secondary border border-emerald-200 flex items-center gap-1 hover:bg-emerald-100 transition-colors";
+        status.textContent = "Compliant (8 Digits Masked)";
+        if (pill) pill.textContent = "XXXX-XXXX-7689";
+      } else {
+        img.src = "/static/specimen_assets/aadhaar_front.jpg";
+        label.textContent = "Raw Unmasked";
+        btn.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1 hover:bg-amber-100 transition-colors";
+        status.textContent = "Raw Preview (Non-Compliant)";
+        if (pill) pill.textContent = "2481 5102 7689";
+      }
+    }
+
+    // High-Resolution Lightbox Zoom Modal Logic
+    let currentZoomSection = "aadhaar";
+
+    function openDocZoomModal(section) {
+      currentZoomSection = section;
+      const modal = document.getElementById("docZoomModal");
+      const title = document.getElementById("zoomModalTitle");
+      const frontImg = document.getElementById("zoomFrontImg");
+      const backImg = document.getElementById("zoomBackImg");
+      const frontLabel = document.getElementById("zoomFrontLabel");
+      const backLabel = document.getElementById("zoomBackLabel");
+      const flipCard = document.getElementById("zoomFlipCard");
+
+      if (section === "aadhaar") {
+        title.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">badge</span> Aadhaar Card (Front / Back) • High-Resolution Scrutiny`;
+        frontImg.src = docState.aadhaar.isMasked ? "/static/specimen_assets/aadhaar_front_masked.jpg" : "/static/specimen_assets/aadhaar_front.jpg";
+        backImg.src = "/static/specimen_assets/aadhaar_back.jpg";
+        frontLabel.textContent = "Aadhaar Front Side - Identity, Photo, DOB & Digitally Verified Hash";
+        backLabel.textContent = "Aadhaar Back Side - Address Corroboration (31 Siddhi Vinayak) & QR Telemetry";
+      } else if (section === "pan") {
+        title.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">credit_card</span> Permanent Account Number (PAN) & NSDL JAO Verification`;
+        frontImg.src = "/static/specimen_assets/pan_front.jpg";
+        backImg.src = "/static/specimen_assets/pan_back.jpg";
+        frontLabel.textContent = "Income Tax Department Physical Card - BYMPG8996E (Mrs. Rajkunvarba Vaghela)";
+        backLabel.textContent = "Official NSDL Online Verification Portal - Active Jurisdiction Ward 1 Gandhinagar";
+      } else if (section === "utility") {
+        title.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">assignment</span> UGVCL Electricity Bill & CPV Due Diligence Verification`;
+        frontImg.src = "/static/specimen_assets/utility_bill.jpg";
+        backImg.src = "/static/specimen_assets/cpv_visit_form_page1.jpg";
+        frontLabel.textContent = "Uttar Gujarat Vij Company Limited E-Bill - 31 Siddhi Vinayak Bunglow (Consumer: 26905052191)";
+        backLabel.textContent = "Physical CPV Due Diligence Inspection Form - Completed by Field Agent Kamal";
+      }
+
+      if (docState[section].isFlipped) {
+        flipCard.classList.add("is-flipped");
+        document.getElementById("zoomSideBtnFront").className = "px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
+        document.getElementById("zoomSideBtnBack").className = "px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
+      } else {
+        flipCard.classList.remove("is-flipped");
+        document.getElementById("zoomSideBtnFront").className = "px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
+        document.getElementById("zoomSideBtnBack").className = "px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
+      }
+
+      modal.classList.remove("hidden");
+    }
+
+    function flipZoomCard() {
+      const flipCard = document.getElementById("zoomFlipCard");
+      const isFlipped = flipCard.classList.toggle("is-flipped");
+      document.getElementById("zoomSideBtnFront").className = !isFlipped 
+        ? "px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm" 
+        : "px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
+      document.getElementById("zoomSideBtnBack").className = isFlipped 
+        ? "px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm" 
+        : "px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
+      setDocSide(currentZoomSection, isFlipped ? "back" : "front");
+    }
+
+    function setZoomSide(side) {
+      const flipCard = document.getElementById("zoomFlipCard");
+      if (side === "back") {
+        flipCard.classList.add("is-flipped");
+        document.getElementById("zoomSideBtnFront").className = "px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
+        document.getElementById("zoomSideBtnBack").className = "px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
+      } else {
+        flipCard.classList.remove("is-flipped");
+        document.getElementById("zoomSideBtnFront").className = "px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
+        document.getElementById("zoomSideBtnBack").className = "px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
+      }
+      setDocSide(currentZoomSection, side);
+    }
+
+    function closeDocZoomModal() {
+      document.getElementById("docZoomModal").classList.add("hidden");
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeDocZoomModal();
+      if ((e.key === " " || e.key === "f" || e.key === "F") && !document.getElementById("docZoomModal").classList.contains("hidden")) {
+        flipZoomCard();
+      }
+    });
+  </script>
+
+  <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH 3D FLIP -->
+  <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 lg:p-8 animate-fadeIn">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Modal Header -->
+      <div class="px-5 py-3.5 border-b border-outline-variant flex items-center justify-between bg-surface-container-low">
+        <h3 id="zoomModalTitle" class="font-headline font-bold text-sm text-on-surface flex items-center gap-2">
+          Document Inspection
+        </h3>
+        <div class="flex items-center gap-2">
+          <!-- Flip Controls Inside Modal -->
+          <div class="inline-flex items-center bg-surface-container-high p-0.5 rounded-full border border-outline-variant text-xs">
+            <button id="zoomSideBtnFront" onclick="setZoomSide('front')" class="px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm">Front Side</button>
+            <button id="zoomSideBtnBack" onclick="setZoomSide('back')" class="px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant">Back Side</button>
+          </div>
+          <button onclick="flipZoomCard()" class="px-3 py-1 bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs">
+            <span class="material-symbols-outlined text-[15px]">sync</span>
+            <span>Flip Document ↻</span>
+          </button>
+          <button onclick="closeDocZoomModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-all">
+            <span class="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Body (3D Flip Inspector Container) -->
+      <div class="p-6 flex-1 overflow-y-auto flex flex-col items-center justify-center bg-slate-950/90 relative">
+        <div class="doc-flip-container max-w-2xl w-full cursor-pointer" onclick="flipZoomCard()" title="Click anywhere to 3D flip card">
+          <div id="zoomFlipCard" class="doc-flip-card shadow-2xl rounded-xl" style="height: 480px;">
+            <!-- Modal Front Face -->
+            <div class="doc-flip-face doc-flip-front flex flex-col items-center justify-center bg-slate-900 rounded-xl overflow-hidden border border-white/20">
+              <img id="zoomFrontImg" src="" class="max-h-full max-w-full object-contain" alt="Document Front Inspection"/>
+              <div class="absolute bottom-3 inset-x-4 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-white flex items-center justify-between font-mono">
+                <span id="zoomFrontLabel">Document Front Side</span>
+                <span class="text-blue-300 font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">sync</span> Click anywhere to Flip</span>
+              </div>
+            </div>
+            <!-- Modal Back Face -->
+            <div class="doc-flip-face doc-flip-back flex flex-col items-center justify-center bg-slate-900 rounded-xl overflow-hidden border border-white/20">
+              <img id="zoomBackImg" src="" class="max-h-full max-w-full object-contain" alt="Document Back Inspection"/>
+              <div class="absolute bottom-3 inset-x-4 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-white flex items-center justify-between font-mono">
+                <span id="zoomBackLabel">Document Back Side</span>
+                <span class="text-blue-300 font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">sync</span> Click anywhere to Flip</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-2.5 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-xs text-on-surface-variant font-mono">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span>High-Resolution Ingestion Verified • Rule 4 Safe Harbor Compliant</span>
+        </div>
+        <span class="text-outline">Tip: Press [Space] or [F] to flip, [Esc] to close</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

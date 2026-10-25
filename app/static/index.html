@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>VALUEX CA Firm | Bank Loan CPV & Document Scrutiny Suite</title>
+  
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&family=JetBrains+Mono:ital,wght@0,400..800;1,400..800&family=Space+Grotesk:wght@400..700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#00288e",
+            "primary-container": "#1e40af",
+            secondary: "#006c4a",
+            background: "#f8f9ff",
+            surface: "#f8f9ff",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-low": "#eff4ff",
+            "on-surface": "#0b1c30",
+            "on-surface-variant": "#444653",
+            outline: "#757684",
+            "outline-variant": "#c4c5d5",
+          },
+          fontFamily: {
+            headline: ["Space Grotesk", "sans-serif"],
+            body: ["Hanken Grotesk", "sans-serif"],
+            mono: ["JetBrains Mono", "monospace"],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-background text-on-surface font-body min-h-screen flex flex-col justify-between">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-outline-variant shadow-sm py-4 px-6">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="/static/nn_shah_logo_3d.png" alt="Naimish N. Shah & Co. Chartered Accountants" class="h-12 w-auto object-contain drop-shadow-sm"/>
+        <div class="border-l border-outline-variant pl-3">
+          <h1 class="font-headline font-bold text-base text-primary-container leading-tight">LOAN DUE DILIGENCE & CPV PLATFORM</h1>
+          <p class="font-mono text-xs text-outline">ICAI FRN: 106829W • Navrangpura, Ahmedabad</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-secondary border border-emerald-200 font-mono text-xs font-semibold">
+          <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+          Railway Production Ready
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="max-w-6xl mx-auto px-6 py-12 flex-1 flex flex-col items-center text-center">
+    <div class="max-w-3xl space-y-4 mb-12">
+      <span class="px-3 py-1 rounded-full bg-blue-50 text-primary-container font-mono text-xs font-bold border border-blue-200 uppercase tracking-wider">
+        Contact Point Verification (CPV) & Document Scrutiny Engine
+      </span>
+      <h2 class="font-headline font-bold text-3xl sm:text-4xl text-on-surface tracking-tight">
+        Zero-Lag Bank Loan Due Diligence Platform
+      </h2>
+      <p class="text-on-surface-variant text-base leading-relaxed">
+        Empowering Chartered Accountants and on-ground field inspection agents with real-time GNSS geofencing, 
+        indelible photo watermarking, cost-effective OpenRouter Gemini Vision OCR, and tamper-evident bank dossier certification.
+      </p>
+    </div>
+
+    <!-- Dual Launch Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl text-left mb-12">
+      <!-- Card 1: Field Agent Mobile PWA -->
+      <a href="/pwa" class="group bg-white rounded-2xl border-2 border-outline-variant hover:border-primary-container p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-blue-50 text-primary-container flex items-center justify-center group-hover:scale-105 transition-transform">
+              <span class="material-symbols-outlined text-[28px]">smartphone</span>
+            </div>
+            <span class="font-mono text-xs font-bold text-secondary bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+              PWA OFFLINE READY
+            </span>
+          </div>
+          <h3 class="font-headline font-bold text-xl text-on-surface mb-2">Field Staff Mobile PWA</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed mb-4">
+            Handheld mobile interface with real-time GPS radar tracking, 150m safe-harbor geofence enforcement, 
+            camera capture with indelible bottom watermark stamping, and zero-lag background uploads.
+          </p>
+          <ul class="text-xs text-outline space-y-1.5 font-mono mb-4">
+            <li class="flex items-center gap-1.5"><span class="text-secondary font-bold">✓</span> Real-time Haversine distance calculator</li>
+            <li class="flex items-center gap-1.5"><span class="text-secondary font-bold">✓</span> Service Worker & IndexedDB offline queue</li>
+            <li class="flex items-center gap-1.5"><span class="text-secondary font-bold">✓</span> Hardware-bound tamper-evident watermarks</li>
+          </ul>
+        </div>
+        <div class="pt-4 border-t border-outline-variant flex items-center justify-between text-primary-container font-headline font-bold text-sm">
+          <span>Launch Field Agent PWA</span>
+          <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+        </div>
+      </a>
+
+      <!-- Card 2: CA Scrutiny Portal -->
+      <a href="/portal" class="group bg-white rounded-2xl border-2 border-outline-variant hover:border-primary-container p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-secondary flex items-center justify-center group-hover:scale-105 transition-transform">
+              <span class="material-symbols-outlined text-[28px]">desktop_mac</span>
+            </div>
+            <span class="font-mono text-xs font-bold text-primary-container bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+              ICAI UDIN SYNCED
+            </span>
+          </div>
+          <h3 class="font-headline font-bold text-xl text-on-surface mb-2">CA Scrutiny & Certification Desk</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed mb-4">
+            Comprehensive audit workspace featuring side-by-side OCR cross-match, UIDAI compliant 8-digit masked Aadhaar verification, 
+            OpenRouter Gemini scanning, interactive map audit, and bank-certified ReportLab PDF export.
+          </p>
+          <ul class="text-xs text-outline space-y-1.5 font-mono mb-4">
+            <li class="flex items-center gap-1.5"><span class="text-secondary font-bold">✓</span> RapidFuzz discrepancy scoring (&gt;98% match)</li>
+            <li class="flex items-center gap-1.5"><span class="text-secondary font-bold">✓</span> UIDAI Rule 4 Aadhaar masking</li>
+            <li class="flex items-center gap-1.5"><span class="text-secondary font-bold">✓</span> ReportLab PDF compiler with SHA-256 fingerprint</li>
+          </ul>
+        </div>
+        <div class="pt-4 border-t border-outline-variant flex items-center justify-between text-primary-container font-headline font-bold text-sm">
+          <span>Launch CA Scrutiny Desk</span>
+          <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+        </div>
+      </a>
+    </div>
+
+    <!-- Quick API & Tech Badge Ribbon -->
+    <div class="flex flex-wrap items-center justify-center gap-4 text-xs font-mono text-outline">
+      <a href="/api/docs" target="_blank" class="hover:text-primary-container flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-outline-variant shadow-sm">
+        <span class="material-symbols-outlined text-[16px]">api</span>
+        <span>Interactive API Swagger</span>
+      </a>
+      <span class="bg-white px-3 py-1.5 rounded-lg border border-outline-variant shadow-sm">
+        FastAPI 0.111 • SQLAlchemy 2.0 Async • asyncpg
+      </span>
+      <span class="bg-white px-3 py-1.5 rounded-lg border border-outline-variant shadow-sm">
+        OpenRouter Gemini 2.0 Flash Vision
+      </span>
+      <span class="bg-white px-3 py-1.5 rounded-lg border border-outline-variant shadow-sm">
+        Celery 5.4 • Redis • Gunicorn
+      </span>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-outline-variant py-4 px-6 text-center text-xs text-outline font-mono">
+    VALUEX & CO. CHARTERED ACCOUNTANTS • Contact Point Verification & Bank Due Diligence System • Designed with Google Stitch
+  </footer>
+
+</body>
+</html>

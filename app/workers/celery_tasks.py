@@ -1,0 +1,293 @@
+import asyncio
+import os
+import uuid
+from datetime import datetime, timezone
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.models.document import CaseDocument, VerificationStatus
+from app.models.loan_case import CaseStatus, LoanCase, VisitRecord
+from app.models.report import AuditLog, CertifiedReport
+from app.models.user import User
+from app.services.geofence import validate_geofence
+from app.services.image_watermark import generate_thumbnail, get_exif_data, stamp_hard_watermark
+from app.services.ocr_parser import parse_document_ocr
+from app.services.pdf_generator import generate_certified_cpv_report
+from app.services.docx_generator import generate_certified_cpv_docx
+from app.workers.celery_app import celery_app
+
+
+def run_async(coro):
+    """Utility to run asynchronous coroutines inside Celery worker threads or running event loops."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result()
+
+    new_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(new_loop)
+    try:
+        return new_loop.run_until_complete(coro)
+    finally:
+        new_loop.close()
+
+
+@celery_app.task(name="app.workers.process_uploaded_media_task", bind=True, max_retries=3)
+def process_uploaded_media_task(self, document_id_str: str):
+    """
+    Background Task: Process uploaded photos and documents.
+    1. EXIF extraction (device GPS & hardware timestamps).
+    2. Geofence distance calculation.
+    3. Indelible hard pixel watermarking.
+    4. Lightweight web thumbnail generation.
+    5. High-accuracy, cost-effective OpenRouter Gemini Vision / Local OCR with Aadhaar masking.
+    6. Persist metadata to PostgreSQL.
+    """
+    async def _async_process():
+        doc_uuid = uuid.UUID(document_id_str)
+        async with AsyncSessionLocal() as session:
+            # 1. Fetch document and case
+            query = select(CaseDocument).where(CaseDocument.id == doc_uuid)
+            result = await session.execute(query)
+            document = result.scalar_one_or_none()
+            if not document:
+                return {"status": "error", "message": "Document not found"}
+
+            case_query = select(LoanCase).where(LoanCase.id == document.case_id)
+            case_result = await session.execute(case_query)
+            loan_case = case_result.scalar_one_or_none()
+            if not loan_case:
+                return {"status": "error", "message": "Associated case not found"}
+
+            # Agent details
+            agent_name = "Field Officer"
+            agent_code = "FA-AGENT"
+            if loan_case.assigned_agent_id:
+                agent_res = await session.execute(select(User).where(User.id == loan_case.assigned_agent_id))
+                agent = agent_res.scalar_one_or_none()
+                if agent:
+                    agent_name = agent.full_name
+                    agent_code = str(agent.id)[:8].upper()
+
+            raw_file_path = document.storage_url
+            if not os.path.exists(raw_file_path):
+                # If remote or missing on current container volume, skip local manipulation
+                document.verification_status = VerificationStatus.PROCESSED
+                await session.commit()
+                return {"status": "skipped", "message": "File not found locally"}
+
+            # 2. Extract EXIF
+            exif_data = get_exif_data(raw_file_path)
+            device_lat = document.latitude or exif_data.get("latitude") or loan_case.target_lat
+            device_lon = document.longitude or exif_data.get("longitude") or loan_case.target_lon
+
+            # 3. Geofence Validation
+            geofence_res = validate_geofence(
+                target_lat=loan_case.target_lat,
+                target_lon=loan_case.target_lon,
+                captured_lat=device_lat,
+                captured_lon=device_lon,
+                threshold_meters=settings.GEOFENCE_MAX_DISTANCE_METERS,
+            )
+            is_geofence_valid = geofence_res["is_valid"]
+            distance_meters = geofence_res["distance_meters"]
+            geofence_status_tag = "VALID" if is_geofence_valid else f"BREACHED (+{distance_meters:.0f}m)"
+
+            # 4. Burn Hard Pixel Watermark
+            file_dir, filename = os.path.split(raw_file_path)
+            name_part, ext = os.path.splitext(filename)
+            watermark_path = os.path.join(file_dir, f"{name_part}_watermarked{ext}")
+            thumb_path = os.path.join(file_dir, f"{name_part}_thumb.jpg")
+
+            stamp_hard_watermark(
+                input_image_path=raw_file_path,
+                output_image_path=watermark_path,
+                case_no=loan_case.case_no,
+                agent_name=agent_name,
+                agent_id=agent_code,
+                lat=device_lat,
+                lon=device_lon,
+                accuracy=3.2,
+                timestamp=document.captured_at or datetime.now(timezone.utc),
+                geofence_status=geofence_status_tag,
+            )
+
+            # 5. Generate Thumbnail
+            generate_thumbnail(
+                input_image_path=watermark_path,
+                output_thumb_path=thumb_path,
+                size=(400, 300),
+            )
+
+            # 6. OpenRouter Gemini Vision / Local OCR with Aadhaar Masking & Fuzzy Matching
+            ocr_result = parse_document_ocr(
+                image_path=watermark_path,
+                master_applicant_name=loan_case.applicant_name,
+                master_target_address=loan_case.target_address,
+                doc_type=document.doc_type.value,
+            )
+
+            # 7. Update Document Record
+            document.watermarked_url = watermark_path
+            document.thumbnail_url = thumb_path
+            document.latitude = device_lat
+            document.longitude = device_lon
+            document.distance_from_target = distance_meters
+            document.is_geofence_valid = is_geofence_valid
+            document.ocr_data = ocr_result
+            document.verification_status = (
+                VerificationStatus.DISCREPANCY_FLAGGED
+                if ocr_result.get("is_discrepancy") or not is_geofence_valid
+                else VerificationStatus.PROCESSED
+            )
+
+            # Update Case status to IN_PROGRESS if DRAFT or ASSIGNED
+            if loan_case.status in [CaseStatus.DRAFT, CaseStatus.ASSIGNED]:
+                loan_case.status = CaseStatus.IN_PROGRESS
+
+            await session.commit()
+            return {"status": "success", "document_id": str(document.id)}
+
+    return run_async(_async_process())
+
+
+@celery_app.task(name="app.workers.generate_report_pdf_task", bind=True)
+def generate_report_pdf_task(
+    self,
+    case_id_str: str,
+    ca_remarks: str,
+    user_id_str: str,
+    udin: str = None
+):
+    """
+    Background Task: Generate Certified ReportLab PDF Dossier.
+    """
+    async def _async_generate():
+        case_uuid = uuid.UUID(case_id_str)
+        user_uuid = uuid.UUID(user_id_str)
+        
+        async with AsyncSessionLocal() as session:
+            case_res = await session.execute(select(LoanCase).where(LoanCase.id == case_uuid))
+            loan_case = case_res.scalar_one_or_none()
+            if not loan_case:
+                return {"status": "error", "message": "Case not found"}
+
+            user_res = await session.execute(select(User).where(User.id == user_uuid))
+            ca_user = user_res.scalar_one_or_none()
+
+            visit_res = await session.execute(
+                select(VisitRecord).where(VisitRecord.case_id == case_uuid).order_by(VisitRecord.check_in_time.desc())
+            )
+            visit = visit_res.scalars().first()
+
+            doc_res = await session.execute(
+                select(CaseDocument).where(CaseDocument.case_id == case_uuid)
+            )
+            docs = doc_res.scalars().all()
+
+            # Compile PDF and DOCX as per specimen copy
+            os.makedirs("reports_generated", exist_ok=True)
+            output_pdf = os.path.join("reports_generated", f"Certified_Dossier_{loan_case.case_no}.pdf")
+            output_docx = os.path.join("reports_generated", f"Certified_Dossier_{loan_case.case_no}.docx")
+
+            case_dict = {
+                "case_no": loan_case.case_no,
+                "bank_name": loan_case.bank_name,
+                "branch": loan_case.branch,
+                "loan_type": loan_case.loan_type,
+                "applicant_name": loan_case.applicant_name,
+                "applicant_phone": loan_case.applicant_phone,
+                "target_address": loan_case.target_address,
+                "target_lat": loan_case.target_lat,
+                "target_lon": loan_case.target_lon,
+            }
+
+            if loan_case.field_form_data:
+                try:
+                    import json
+                    case_dict["field_form"] = json.loads(loan_case.field_form_data)
+                except Exception:
+                    pass
+
+            visit_dict = None
+            if visit:
+                visit_dict = {
+                    "check_in_time": visit.check_in_time.strftime("%d-%b-%Y %H:%M:%S IST"),
+                    "start_lat": visit.start_lat,
+                    "start_lon": visit.start_lon,
+                }
+
+            doc_items = [
+                {
+                    "doc_type": d.doc_type.value,
+                    "ocr_data": d.ocr_data or {},
+                    "watermarked_url": d.watermarked_url,
+                }
+                for d in docs
+            ]
+
+            report_meta = generate_certified_cpv_report(
+                output_pdf_path=output_pdf,
+                case_data=case_dict,
+                visit_data=visit_dict,
+                document_items=doc_items,
+                ca_remarks=ca_remarks,
+                udin=udin,
+                partner_name=ca_user.full_name if ca_user else None,
+            )
+
+            docx_meta = generate_certified_cpv_docx(
+                output_docx_path=output_docx,
+                case_data=case_dict,
+                visit_data=visit_dict,
+                document_items=doc_items,
+                ca_remarks=ca_remarks,
+                udin=report_meta["udin"],
+                partner_name=ca_user.full_name if ca_user else None,
+            )
+
+            # Store in DB
+            certified_report = CertifiedReport(
+                case_id=loan_case.id,
+                report_url=output_pdf,
+                docx_url=output_docx,
+                file_hash_sha256=report_meta["sha256"],
+                udin=report_meta["udin"],
+                generated_by_id=user_uuid,
+            )
+            session.add(certified_report)
+
+            # Update case status
+            loan_case.status = CaseStatus.CERTIFIED
+
+            # Audit Log
+            audit = AuditLog(
+                case_id=loan_case.id,
+                user_id=user_uuid,
+                action="REPORT_CERTIFIED",
+                extra_metadata={
+                    "sha256": report_meta["sha256"],
+                    "udin": report_meta["udin"],
+                    "report_path": output_pdf,
+                    "docx_path": output_docx,
+                }
+            )
+            session.add(audit)
+
+            await session.commit()
+            return {
+                "status": "success",
+                "report_id": str(certified_report.id),
+                "sha256": report_meta["sha256"],
+                "udin": report_meta["udin"],
+                "report_url": output_pdf,
+                "docx_url": output_docx,
+            }
+
+    return run_async(_async_generate())
