@@ -5,6 +5,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, require_role
 from app.core.database import get_db
+from app.models.document import CaseDocument
 from app.models.loan_case import CaseStatus, LoanCase
 from app.models.report import AuditLog
 from app.models.user import User, UserRole
@@ -141,3 +142,50 @@ async def update_case(
     await db.commit()
     await db.refresh(loan_case)
     return loan_case
+
+
+@router.get("/{case_id}/documents")
+async def list_case_documents(
+    case_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Retrieve all uploaded physical inspection photos and documents for a loan case.
+    Publicly accessible to allow real-time display and auto-sync on CA desktop portal.
+    """
+    query = (
+        select(CaseDocument)
+        .where(CaseDocument.case_id == case_id)
+        .order_by(desc(CaseDocument.created_at))
+    )
+    result = await db.execute(query)
+    docs = result.scalars().all()
+
+    formatted = []
+    for d in docs:
+        raw_url = d.watermarked_url or d.storage_url or ""
+        # Normalize file system paths to /storage/ public web URLs
+        norm_url = raw_url.replace("\\", "/")
+        if "storage_uploads/" in norm_url:
+            clean_url = "/storage/" + norm_url.split("storage_uploads/")[-1]
+        elif norm_url.startswith("http://") or norm_url.startswith("https://"):
+            clean_url = norm_url
+        elif norm_url.startswith("/"):
+            clean_url = norm_url
+        else:
+            clean_url = f"/storage/{norm_url}"
+
+        formatted.append({
+            "id": str(d.id),
+            "doc_type": d.doc_type.value if hasattr(d.doc_type, "value") else str(d.doc_type),
+            "url": clean_url,
+            "latitude": d.latitude,
+            "longitude": d.longitude,
+            "is_geofence_valid": d.is_geofence_valid,
+            "verification_status": d.verification_status.value if hasattr(d.verification_status, "value") else str(d.verification_status),
+            "created_at": d.created_at.strftime("%d-%b-%Y, %H:%M IST") if d.created_at else None,
+            "ocr_data": d.ocr_data or {},
+            "ca_remarks": d.ca_remarks,
+        })
+    return formatted
+

@@ -12,6 +12,34 @@ from app.models.user import User, UserRole
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login"
 )
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/auth/login",
+    auto_error=False,
+)
+
+
+async def get_current_user_optional(
+    db: AsyncSession = Depends(get_db),
+    token: Optional[str] = Depends(oauth2_scheme_optional),
+) -> Optional[User]:
+    if not token:
+        return None
+    payload = decode_token(token)
+    if not payload or payload.get("type") != "access":
+        return None
+    user_id_str = payload.get("sub")
+    if not user_id_str:
+        return None
+    try:
+        user_uuid = uuid.UUID(user_id_str)
+    except ValueError:
+        return None
+    query = select(User).where(User.id == user_uuid)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+    if user and user.is_active:
+        return user
+    return None
 
 
 async def get_current_user(

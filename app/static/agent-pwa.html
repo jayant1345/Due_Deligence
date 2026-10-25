@@ -800,21 +800,28 @@
       formData.append("longitude", currentDeviceLon);
 
       try {
+        const token = localStorage.getItem("pwa_token");
+        const headers = {};
+        if (token && token !== "demo-pwa-token") {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
         const response = await fetch(`/api/v1/visits/cases/${sampleCaseId}/upload`, {
           method: "POST",
-          headers: {
-            // In demo mode or bearer auth
-          },
+          headers: headers,
           body: formData
         });
 
-        if (response.status === 202) {
+        if (response.status === 202 || response.status === 200) {
           const data = await response.json();
-          alertText.innerHTML = `<b>202 Accepted (<100ms)</b>: Task ID <code>${data.task_id}</code>. OpenRouter Gemini OCR & Watermarking running in background.`;
+          alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
+          alertText.innerHTML = `✅ <b>Transmitted to CA Desktop Scrutiny Desk!</b><br/>GPS: ${currentDeviceLat.toFixed(4)}°N, ${currentDeviceLon.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>This photo is now visible live on CA desk in real time!</i>`;
         } else {
-          alertText.textContent = "Photo uploaded and cached in local PWA offline storage.";
+          const errData = await response.json().catch(() => ({}));
+          alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
+          alertText.textContent = `Upload Notice: ${errData.detail || 'Photo saved locally'}`;
         }
       } catch (err) {
+        alertBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-300 text-blue-900 text-xs font-mono shadow-sm";
         alertText.textContent = "Offline Mode: Photo saved to PWA local storage queue. Will sync automatically.";
       }
     }

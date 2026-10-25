@@ -1,4 +1,5 @@
 import os
+import uuid
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +10,7 @@ from app.api.v1 import api_router
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, Base, engine
 from app.core.security import hash_password
+from app.models.loan_case import CaseStatus, LoanCase
 from app.models.user import User, UserRole
 
 
@@ -45,7 +47,7 @@ async def lifespan(app: FastAPI):
                 email="agent1",
                 hashed_password=hash_password("agent1@123"),
                 full_name="Rajesh Varma (Field Agent 1)",
-                phone="+91 98111 22334",
+                phone="+91 91579 38887",
                 role=UserRole.FIELD_AGENT,
                 is_active=True,
             )
@@ -55,6 +57,98 @@ async def lifespan(app: FastAPI):
             agent_user.hashed_password = hash_password("agent1@123")
 
         await session.commit()
+        await session.refresh(admin_user)
+        await session.refresh(agent_user)
+
+        # 3. Seed Default Master Cases (UBI, SBI, HDFC, ICICI, BOB)
+        case_uuid_ubi = uuid.UUID("b901fc63-12a8-4e32-9c02-e20984cfb001")
+        res_case = await session.execute(select(LoanCase).where(LoanCase.id == case_uuid_ubi))
+        if not res_case.scalar_one_or_none():
+            standard_cases = [
+                LoanCase(
+                    id=uuid.UUID("b901fc63-12a8-4e32-9c02-e20984cfb001"),
+                    case_no="UBI-HL-2026-20L",
+                    bank_name="Union Bank of India",
+                    branch="Amrapura Branch",
+                    applicant_name="Mrs. Rajkunvarba Pradeepsinh Vaghela",
+                    applicant_phone="+91 81601 66900",
+                    loan_type="HOME_LOAN",
+                    loan_amount=2000000.0,
+                    target_address="31, Siddhi Vinayak Bunglows, Near Gayatri Temple, Pethapur, Gandhinagar 382610",
+                    target_lat=23.2156,
+                    target_lon=72.6369,
+                    status=CaseStatus.ASSIGNED,
+                    created_by_id=admin_user.id,
+                    assigned_agent_id=agent_user.id,
+                ),
+                LoanCase(
+                    id=uuid.UUID("c102ad74-23b9-4f43-ad13-f31095d0c002"),
+                    case_no="SBI-HL-2026-45L",
+                    bank_name="State Bank of India",
+                    branch="Bandra West Branch",
+                    applicant_name="Mr. Vikramaditya Sengupta",
+                    applicant_phone="+91 98201 12233",
+                    loan_type="HOME_LOAN",
+                    loan_amount=4500000.0,
+                    target_address="Flat 402, 4th Floor, Imperial Heights, Plot 12B, Bandra West, Mumbai 400050",
+                    target_lat=19.0596,
+                    target_lon=72.8295,
+                    status=CaseStatus.ASSIGNED,
+                    created_by_id=admin_user.id,
+                    assigned_agent_id=agent_user.id,
+                ),
+                LoanCase(
+                    id=uuid.UUID("d203be85-34ca-4a54-be24-a42106e1d003"),
+                    case_no="HDFC-LAP-2026-60L",
+                    bank_name="HDFC Bank",
+                    branch="Navrangpura Branch",
+                    applicant_name="Mr. Jayeshbhai K. Patel",
+                    applicant_phone="+91 98250 44556",
+                    loan_type="LAP",
+                    loan_amount=6000000.0,
+                    target_address="14, Shanti Kunj, Near Commerce Six Roads, Navrangpura, Ahmedabad 380009",
+                    target_lat=23.0372,
+                    target_lon=72.5621,
+                    status=CaseStatus.ASSIGNED,
+                    created_by_id=admin_user.id,
+                    assigned_agent_id=agent_user.id,
+                ),
+                LoanCase(
+                    id=uuid.UUID("e304cf96-45db-4b65-cf35-b53217f2e004"),
+                    case_no="ICICI-PL-2026-15L",
+                    bank_name="ICICI Bank",
+                    branch="Ashram Road Branch",
+                    applicant_name="Dr. Ananya Sharma",
+                    applicant_phone="+91 94260 99887",
+                    loan_type="PERSONAL_LOAN",
+                    loan_amount=1500000.0,
+                    target_address="C-12, Riverview Towers, Opp Gandhi Ashram, Ashram Road, Ahmedabad 380027",
+                    target_lat=23.0305,
+                    target_lon=72.5735,
+                    status=CaseStatus.ASSIGNED,
+                    created_by_id=admin_user.id,
+                    assigned_agent_id=agent_user.id,
+                ),
+                LoanCase(
+                    id=uuid.UUID("f405da07-56ec-4c76-da46-c64328a3f005"),
+                    case_no="BOB-HL-2026-30L",
+                    bank_name="Bank of Baroda",
+                    branch="Sector 11 Branch",
+                    applicant_name="Mr. Mahendrasinh Solanki",
+                    applicant_phone="+91 99781 23456",
+                    loan_type="HOME_LOAN",
+                    loan_amount=3000000.0,
+                    target_address="Plot 452/2, Sector 11, Gandhinagar Capital Complex, Gandhinagar 382011",
+                    target_lat=23.2350,
+                    target_lon=72.6520,
+                    status=CaseStatus.ASSIGNED,
+                    created_by_id=admin_user.id,
+                    assigned_agent_id=agent_user.id,
+                ),
+            ]
+            for sc in standard_cases:
+                session.add(sc)
+            await session.commit()
 
     yield
     # Shutdown

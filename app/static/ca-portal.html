@@ -754,6 +754,9 @@
             <span id="activeFolderBadge" class="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 font-bold">
               📁 /residence/
             </span>
+            <span id="liveSyncBadge" class="hidden bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300 font-bold flex items-center gap-1 font-mono">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> ⚡ LIVE SYNC
+            </span>
             <input type="file" id="bulkFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleBulkFolderUpload(this.files)"/>
             <button onclick="document.getElementById('bulkFolderInput').click()" title="Select local directory to import photos into active folder" class="text-[10px] font-bold text-primary-container hover:underline flex items-center gap-0.5 px-1 py-0.5">
               <span class="material-symbols-outlined text-[13px]">folder_zip</span>
@@ -1397,6 +1400,88 @@
       }
     }
 
+    // Auto-polling & Live Document Retrieval from Server
+    let liveSyncInterval = null;
+
+    async function fetchLiveCaseDocuments(caseId) {
+      if (!caseId) return;
+      try {
+        const res = await fetch(`/api/v1/cases/${caseId}/documents`);
+        if (!res.ok) return;
+        const docs = await res.json();
+        if (!docs || docs.length === 0) return;
+
+        const c = caseRegistry[caseId];
+        if (!c) return;
+
+        // Convert backend documents into photo display objects
+        const livePhotos = docs.map((d, idx) => ({
+          src: d.url,
+          title: (d.doc_type ? d.doc_type.replace(/_/g, " ") : "PHYSICAL EVIDENCE") + ` (Photo ${idx + 1})`,
+          tag: "⚡ LIVE FIELD UPLOAD",
+          timestamp: d.created_at || "Just now",
+          badge: d.is_geofence_valid ? `GPS: ${d.latitude ? d.latitude.toFixed(4) : '23.2154'}°N, ${d.longitude ? d.longitude.toFixed(4) : '72.6367'}°E (VERIFIED)` : `GPS: ${d.latitude ? d.latitude.toFixed(4) : ''}° (BREACH)`,
+          status: d.is_geofence_valid ? "MATCH" : "FLAGGED",
+          is_live: true,
+          lat: d.latitude,
+          lon: d.longitude
+        }));
+
+        // Default specimens to fall back on if fewer than 4 live photos
+        const defaultSpecimens = [
+          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Main Gate (સિદ્ધિ વિનાયક)", tag: "RESIDENCE: MAIN GATE", timestamp: "04-AUG-2026 11:32 IST", badge: "GPS: VERIFIED", status: "MATCH" },
+          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "Bungalow 31 (લક્ષ્મી કૃપા)", tag: "ELEVATION: CONFIRMED", timestamp: "04-AUG-2026 11:36 IST", badge: "ELEVATION: CONFIRMED", status: "CONFIRMED" },
+          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Drawing Room & Showcase", tag: "DRAWING ROOM ASSETS", timestamp: "04-AUG-2026 11:39 IST", badge: "HABITATION: VERIFIED", status: "VERIFIED" },
+          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Pradeepsinh Vaghela", tag: "PERSON MET", timestamp: "04-AUG-2026 11:42 IST", badge: "IDENTITY: MATCH", status: "MATCH" }
+        ];
+
+        // Put live photos first!
+        const mergedPhotos = [...livePhotos, ...defaultSpecimens].slice(0, 4);
+        c.residence_photos = mergedPhotos;
+        c.photos = mergedPhotos.map(p => p.src);
+
+        // Update active folder photos in DOM
+        renderPhotosForActiveFolder();
+
+        // Update live radar coordinates and field telemetry from latest uploaded photo
+        const latestDoc = docs[0];
+        if (latestDoc && latestDoc.latitude && latestDoc.longitude) {
+          c.capture_lat = latestDoc.latitude.toFixed(4);
+          c.capture_lon = latestDoc.longitude.toFixed(4);
+          const radarCaptureEl = document.getElementById("dispRadarCapture");
+          if (radarCaptureEl) {
+            radarCaptureEl.textContent = `CAPTURE: ${c.capture_lat}° N, ${c.capture_lon}° E (LIVE)`;
+          }
+          const radarAgentPin = document.getElementById("dispRadarAgentPin");
+          if (radarAgentPin) {
+            radarAgentPin.textContent = `FA-LIVE (${c.capture_lat}°, ${c.capture_lon}°)`;
+          }
+          const visitDateEl = document.getElementById("dispVisitDate");
+          if (visitDateEl && latestDoc.created_at) {
+            visitDateEl.textContent = `Live Field Telemetry: ${latestDoc.created_at}`;
+          }
+        }
+
+        // Show live sync badge
+        const badge = document.getElementById("liveSyncBadge");
+        if (badge) {
+          badge.classList.remove("hidden");
+          badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> ⚡ ${docs.length} Live Photo${docs.length > 1 ? 's' : ''} Synced`;
+        }
+      } catch (err) {
+        console.error("fetchLiveCaseDocuments error:", err);
+      }
+    }
+
+    function startLiveDocumentSync() {
+      if (liveSyncInterval) clearInterval(liveSyncInterval);
+      fetchLiveCaseDocuments(activeCaseId);
+      // Auto-poll every 4 seconds
+      liveSyncInterval = setInterval(() => {
+        fetchLiveCaseDocuments(activeCaseId);
+      }, 4000);
+    }
+
     // Realtime Manual UDIN Validation & Synchronization by CA Staff
     function handleUdinManualInput(val) {
       val = (val || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18);
@@ -1513,6 +1598,9 @@
 
       // Hide previous report badge if case changed
       document.getElementById("pdfSuccessCard").classList.add("hidden");
+
+      // 9. Fetch Live Evidence Photos from Server
+      fetchLiveCaseDocuments(caseId);
     }
 
     // Filter by Bank Name
@@ -2276,11 +2364,12 @@
       const c = caseRegistry[activeCaseId];
       if (c) {
         const agentName = document.getElementById("hoAgentSelect").options[document.getElementById("hoAgentSelect").selectedIndex].text.split(" - ")[0];
+        const phone = document.getElementById("hoAgentPhone").value.trim();
         c.status = "ASSIGNED_TO_FIELD";
-        c.agent = agentName;
+        c.agent = `${agentName} (Mob: ${phone})`;
         document.getElementById("dispCaseStatus").textContent = "ASSIGNED_TO_FIELD";
         document.getElementById("dispCaseStatusPill").className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200";
-        document.getElementById("dispFieldAgent").textContent = agentName;
+        document.getElementById("dispFieldAgent").textContent = c.agent;
       }
       closeHandoverModal();
       alert(`[✓] Case ${c ? c.case_no : ''} marked as ASSIGNED. Handover dispatched via WhatsApp to Field Staff.`);
@@ -2288,6 +2377,7 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       checkCaAuth();
+      startLiveDocumentSync();
       const inst = document.getElementById("hoInstructions");
       if (inst) inst.addEventListener("input", updateHandoverPreview);
       const phone = document.getElementById("hoAgentPhone");
