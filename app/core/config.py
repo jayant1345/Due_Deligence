@@ -26,18 +26,18 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/ca_loan_verification"
+        "sqlite+aiosqlite:///./due_diligence.db"
     )
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
         """
         Dynamically convert Railway's 'postgres://' or 'postgresql://' into 'postgresql+asyncpg://'.
-        Also handles sslmode parameters for asyncpg compatibility.
+        Also handles sslmode parameters for asyncpg compatibility, and supports SQLite fallback.
         """
         url = self.DATABASE_URL
         if not url:
-            return "postgresql+asyncpg://postgres:postgres@localhost:5432/ca_loan_verification"
+            return "sqlite+aiosqlite:///./due_diligence.db"
 
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
