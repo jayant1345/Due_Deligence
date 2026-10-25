@@ -78,16 +78,19 @@
       </div>
     </div>
     
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1.5">
       <div class="hidden sm:flex flex-col text-right">
         <span id="agentNameDisplay" class="font-body text-xs font-semibold text-on-surface leading-tight">Rajesh Varma</span>
-        <span class="font-mono text-[10px] text-outline">FA-9042 • Senior CPV</span>
+        <span id="agentBadgeDisplay" class="font-mono text-[10px] text-outline">agent1 • Senior CPV</span>
       </div>
-      <div class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-headline text-xs font-bold shadow-sm">
+      <div id="agentAvatarDisplay" class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-headline text-xs font-bold shadow-sm">
         RV
       </div>
       <button onclick="syncOfflineQueue()" class="p-1.5 rounded-lg text-primary hover:bg-surface-container-low active:scale-95 transition-all" title="Sync Offline Queue">
-        <span class="material-symbols-outlined text-[22px]">cloud_sync</span>
+        <span class="material-symbols-outlined text-[20px]">cloud_sync</span>
+      </button>
+      <button onclick="logoutAgent()" class="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 active:scale-95 transition-all" title="Sign Out">
+        <span class="material-symbols-outlined text-[20px]">logout</span>
       </button>
     </div>
   </header>
@@ -95,8 +98,23 @@
   <!-- Main Canvas Container -->
   <main class="w-full max-w-xl mx-auto px-4 pt-16 flex flex-col gap-4">
 
+    <!-- Assigned Case Selector Ribbon for Field Staff -->
+    <div class="bg-surface-container-lowest p-2.5 rounded-xl border border-outline-variant shadow-sm flex items-center justify-between gap-2 mt-1">
+      <div class="flex items-center gap-1 font-headline font-bold text-xs text-primary-container shrink-0">
+        <span class="material-symbols-outlined text-[16px]">task_alt</span>
+        <span>MY TASK:</span>
+      </div>
+      <select id="pwaCaseSelector" onchange="switchPwaCase(this.value)" class="text-xs bg-surface-container-low border border-outline-variant rounded-lg font-semibold text-on-surface focus:ring-primary-container py-1.5 px-2 w-full truncate">
+        <option value="UBI-HL-2026-20L">[UBI-HL-2026-20L] - Mrs. Rajkunvarba Vaghela (Gandhinagar)</option>
+        <option value="SBI-HL-2026-45L">[SBI-HL-2026-45L] - Mr. Vikramaditya Sengupta (Mumbai)</option>
+        <option value="HDFC-LAP-2026-60L">[HDFC-LAP-2026-60L] - Mr. Jayeshbhai K. Patel (Ahmedabad)</option>
+        <option value="ICICI-PL-2026-15L">[ICICI-PL-2026-15L] - Dr. Ananya Sharma (Ahmedabad)</option>
+        <option value="BOB-HL-2026-30L">[BOB-HL-2026-30L] - Mr. Mahendrasinh Solanki (Gandhinagar)</option>
+      </select>
+    </div>
+
     <!-- Telemetry Strip & Offline PWA Sync Status -->
-    <div class="pt-2 flex flex-col gap-2">
+    <div class="flex flex-col gap-2">
       <div class="flex items-center justify-between bg-surface-container-lowest p-2.5 rounded-lg border border-outline-variant shadow-sm text-xs">
         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
           <span id="pwaStatusPill" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 font-mono text-[11px] font-medium">
@@ -611,11 +629,86 @@
       }).catch(err => console.log("SW error:", err));
     }
 
-    const TARGET_LAT = 19.0596;
-    const TARGET_LON = 72.8295;
-    let currentDeviceLat = 19.0592;
-    let currentDeviceLon = 72.8298;
-    let sampleCaseId = "b901fc63-12a8-4e32-9c02-e20984cfb001"; // Fallback or loaded dynamically
+    // Multi-case Registry for Field PWA
+    const caseRegistryPwa = {
+      "UBI-HL-2026-20L": {
+        id: "b901fc63-12a8-4e32-9c02-e20984cfb001",
+        case_no: "UBI-HL-2026-20L",
+        applicant: "Mrs. Rajkunvarba Pradeepsinh Vaghela",
+        amount: "₹20.00 Lakhs",
+        loan_type: "HOUSING LOAN CPV",
+        address: "31, Siddhi Vinayak Bunglows, Near Gayatri Temple, Pethapur, Gandhinagar 382610",
+        pin: "382610",
+        ward: "Gandhinagar Municipal Corp",
+        lat: 23.2536,
+        lon: 72.6322,
+        dev_lat: 23.2534,
+        dev_lon: 72.6324
+      },
+      "SBI-HL-2026-45L": {
+        id: "c102ad74-23b9-4f43-ad13-f31095d0c002",
+        case_no: "SBI-HL-2026-45L",
+        applicant: "Mr. Vikramaditya Sengupta",
+        amount: "₹45.00 Lakhs",
+        loan_type: "RESIDENTIAL PROPERTY CPV",
+        address: "Flat 402, 4th Floor, Imperial Heights, Plot 12B, Bandra West, Mumbai 400050",
+        pin: "400050",
+        ward: "Ward H/West (MCGM)",
+        lat: 19.0596,
+        lon: 72.8295,
+        dev_lat: 19.0592,
+        dev_lon: 72.8298
+      },
+      "HDFC-LAP-2026-60L": {
+        id: "d203be85-34ca-4a54-be24-a42106e1d003",
+        case_no: "HDFC-LAP-2026-60L",
+        applicant: "Mr. Jayeshbhai K. Patel",
+        amount: "₹60.00 Lakhs",
+        loan_type: "LOAN AGAINST PROPERTY",
+        address: "14, Shanti Kunj, Near Commerce Six Roads, Navrangpura, Ahmedabad 380009",
+        pin: "380009",
+        ward: "West Zone (AMC)",
+        lat: 23.0372,
+        lon: 72.5621,
+        dev_lat: 23.0370,
+        dev_lon: 72.5623
+      },
+      "ICICI-PL-2026-15L": {
+        id: "e304cf96-45db-4b65-cf35-b53217f2e004",
+        case_no: "ICICI-PL-2026-15L",
+        applicant: "Dr. Ananya Sharma",
+        amount: "₹15.00 Lakhs",
+        loan_type: "PROFESSIONAL LOAN",
+        address: "C-12, Riverview Towers, Opp Gandhi Ashram, Ashram Road, Ahmedabad 380027",
+        pin: "380027",
+        ward: "Central Zone (AMC)",
+        lat: 23.0305,
+        lon: 72.5735,
+        dev_lat: 23.0303,
+        dev_lon: 72.5738
+      },
+      "BOB-HL-2026-30L": {
+        id: "f405da07-56ec-4c76-da46-c64328a3f005",
+        case_no: "BOB-HL-2026-30L",
+        applicant: "Mr. Mahendrasinh Solanki",
+        amount: "₹30.00 Lakhs",
+        loan_type: "HOUSING PURCHASE LOAN",
+        address: "Plot 452/2, Sector 11, Gandhinagar Capital Complex, Gandhinagar 382011",
+        pin: "382011",
+        ward: "Sector 11 (GMC)",
+        lat: 23.2156,
+        lon: 72.6369,
+        dev_lat: 23.2154,
+        dev_lon: 72.6367
+      }
+    };
+
+    let TARGET_LAT = 23.2536;
+    let TARGET_LON = 72.6322;
+    let currentDeviceLat = 23.2534;
+    let currentDeviceLon = 72.6324;
+    let sampleCaseId = "b901fc63-12a8-4e32-9c02-e20984cfb001";
+    let activeCaseKey = "UBI-HL-2026-20L";
 
     // Haversine formula calculation in client JS
     function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
@@ -801,6 +894,188 @@
         alert(`[✓ Offline Saved] Due Diligence Form cached locally on your device. It will auto-sync with the CA Office portal when you are back in network.`);
       }
     }
+
+    // ==========================================
+    // FIELD AGENT DYNAMIC CASE SWITCHER
+    // ==========================================
+    function switchPwaCase(key) {
+      const c = caseRegistryPwa[key];
+      if (!c) return;
+
+      activeCaseKey = key;
+      sampleCaseId = c.id;
+      TARGET_LAT = c.lat;
+      TARGET_LON = c.lon;
+      currentDeviceLat = c.dev_lat;
+      currentDeviceLon = c.dev_lon;
+
+      document.getElementById("caseNoDisplay").textContent = `CASE: ${c.case_no}`;
+      document.getElementById("applicantNameDisplay").textContent = c.applicant;
+      document.getElementById("loanAmountDisplay").textContent = c.amount;
+      document.getElementById("targetAddressDisplay").textContent = c.address;
+      document.getElementById("targetLatLonText").textContent = `${c.lat.toFixed(4)}° N`;
+
+      const selector = document.getElementById("pwaCaseSelector");
+      if (selector && selector.value !== key) {
+        selector.value = key;
+      }
+
+      updateGeofenceUI(currentDeviceLat, currentDeviceLon, 3.2);
+    }
+
+    // ==========================================
+    // FIELD AGENT AUTHENTICATION & LOGIN SCREEN
+    // ==========================================
+    function checkAgentAuth() {
+      const token = localStorage.getItem("pwa_token");
+      const modal = document.getElementById("agentLoginModal");
+      if (!token) {
+        if (modal) modal.classList.remove("hidden");
+      } else {
+        if (modal) modal.classList.add("hidden");
+        const userJson = localStorage.getItem("pwa_user");
+        if (userJson) {
+          try {
+            const u = JSON.parse(userJson);
+            if (u.full_name && document.getElementById("agentNameDisplay")) {
+              document.getElementById("agentNameDisplay").textContent = u.full_name;
+            }
+          } catch(e){}
+        }
+      }
+
+      // Check URL query parameter ?case=...
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramCase = urlParams.get("case") || urlParams.get("case_id");
+      if (paramCase) {
+        for (const [k, v] of Object.entries(caseRegistryPwa)) {
+          if (k.toLowerCase() === paramCase.toLowerCase() || v.case_no.toLowerCase() === paramCase.toLowerCase()) {
+            switchPwaCase(k);
+            break;
+          }
+        }
+      }
+    }
+
+    async function handleAgentLogin(e) {
+      if (e) e.preventDefault();
+      const uInput = document.getElementById("agentLoginUsername");
+      const pInput = document.getElementById("agentLoginPassword");
+      const alertEl = document.getElementById("agentLoginAlert");
+      const submitBtn = document.getElementById("agentLoginSubmitBtn");
+
+      const username = uInput.value.trim();
+      const password = pInput.value;
+
+      alertEl.classList.add("hidden");
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<span class="material-symbols-outlined animate-spin text-[18px]">sync</span> Authenticating...`;
+
+      try {
+        const res = await fetch("/api/v1/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem("pwa_token", data.access_token);
+          localStorage.setItem("pwa_user", JSON.stringify(data));
+          document.getElementById("agentLoginModal").classList.add("hidden");
+          if (document.getElementById("agentNameDisplay") && data.full_name) {
+            document.getElementById("agentNameDisplay").textContent = data.full_name;
+          }
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alertEl.textContent = err.detail || "Invalid agent credentials. Use agent1 / agent1@123";
+          alertEl.classList.remove("hidden");
+        }
+      } catch (err) {
+        if (username.toLowerCase() === "agent1" && password === "agent1@123") {
+          localStorage.setItem("pwa_token", "demo-pwa-token");
+          localStorage.setItem("pwa_user", JSON.stringify({ full_name: "Rajesh Varma", role: "FIELD_AGENT" }));
+          document.getElementById("agentLoginModal").classList.add("hidden");
+        } else {
+          alertEl.textContent = "Unable to connect to auth server. Try demo agent1 / agent1@123";
+          alertEl.classList.remove("hidden");
+        }
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>Sign In & Access Field Tasks</span><span class="material-symbols-outlined text-[18px]">login</span>`;
+      }
+    }
+
+    function fillAgentDemoCredentials() {
+      document.getElementById("agentLoginUsername").value = "agent1";
+      document.getElementById("agentLoginPassword").value = "agent1@123";
+    }
+
+    function togglePasswordVisibility(fieldId) {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        field.type = field.type === "password" ? "text" : "password";
+      }
+    }
+
+    function logoutAgent() {
+      if (confirm("Sign out of the Field Verification PWA?")) {
+        localStorage.removeItem("pwa_token");
+        localStorage.removeItem("pwa_user");
+        document.getElementById("agentLoginModal").classList.remove("hidden");
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      checkAgentAuth();
+    });
   </script>
+
+  <!-- FIELD AGENT AUTHENTICATION MODAL -->
+  <div id="agentLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden p-6">
+      <div class="text-center mb-5">
+        <img src="/static/nn_shah_logo_3d.png" alt="Naimish N. Shah & Co." class="h-12 w-auto mx-auto mb-2 object-contain drop-shadow-sm"/>
+        <h2 class="font-headline font-bold text-lg text-primary-container">Field Verification PWA</h2>
+        <p class="font-mono text-[11px] text-outline mt-0.5">Contact Point Verification (CPV) Suite</p>
+      </div>
+
+      <div id="agentLoginAlert" class="hidden mb-3.5 p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-mono"></div>
+
+      <form id="agentLoginForm" onsubmit="handleAgentLogin(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-mono font-bold text-on-surface mb-1 uppercase">Field Agent Username</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px]">badge</span>
+            <input id="agentLoginUsername" type="text" value="agent1" required class="w-full pl-9 pr-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm text-on-surface focus:ring-2 focus:ring-primary-container focus:border-transparent font-body"/>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-mono font-bold text-on-surface mb-1 uppercase">Password</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px]">lock</span>
+            <input id="agentLoginPassword" type="password" value="agent1@123" required class="w-full pl-9 pr-10 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm text-on-surface focus:ring-2 focus:ring-primary-container focus:border-transparent font-body"/>
+            <button type="button" onclick="togglePasswordVisibility('agentLoginPassword')" class="absolute right-3 top-2.5 text-outline hover:text-on-surface">
+              <span class="material-symbols-outlined text-[18px]">visibility</span>
+            </button>
+          </div>
+        </div>
+
+        <button type="button" onclick="fillAgentDemoCredentials()" class="w-full py-1.5 px-3 bg-blue-50 border border-blue-200 text-primary-container rounded-lg text-xs font-mono font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5">
+          <span class="material-symbols-outlined text-[15px]">key</span>
+          <span>Fill Demo: agent1 / agent1@123</span>
+        </button>
+
+        <button id="agentLoginSubmitBtn" type="submit" class="w-full py-2.5 bg-primary-container hover:bg-primary text-white rounded-lg font-headline font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2">
+          <span>Sign In & Access Field Tasks</span>
+          <span class="material-symbols-outlined text-[18px]">login</span>
+        </button>
+      </form>
+
+      <div class="mt-5 pt-3.5 border-t border-outline-variant text-center font-mono text-[10px] text-outline">
+        <span>Hardware-bound GPS Watermarking & Geofence Active</span>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

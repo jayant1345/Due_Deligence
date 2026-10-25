@@ -145,13 +145,17 @@
 
       <!-- User Info & Actions -->
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs">
+        <div id="caAvatarBadge" class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs">
           PS
         </div>
         <div class="hidden sm:block text-left">
-          <div class="text-xs font-semibold text-on-surface leading-tight">CA Pranav N. Shah, FCA</div>
-          <div class="font-mono text-[10px] text-outline">M.No: 033747 • Partner</div>
+          <div id="caUserFullName" class="text-xs font-semibold text-on-surface leading-tight">CA Pranav N. Shah, FCA</div>
+          <div id="caUserRoleTag" class="font-mono text-[10px] text-outline">admin • Sr. Partner</div>
         </div>
+        <button onclick="handleCaLogout()" class="px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-mono font-bold flex items-center gap-1 transition-colors" title="Logout from Scrutiny Desk">
+          <span class="material-symbols-outlined text-[15px]">logout</span>
+          <span class="hidden md:inline">Sign Out</span>
+        </button>
       </div>
     </div>
   </header>
@@ -205,14 +209,18 @@
         </div>
       </div>
 
-      <!-- Right: Case Counter & New Case Button -->
-      <div class="flex items-center gap-3 text-xs font-mono">
+      <!-- Right: Case Counter & Handover & New Case Button -->
+      <div class="flex items-center gap-2.5 text-xs font-mono">
         <span class="text-on-surface-variant bg-surface-container-lowest px-2 py-1 rounded border border-outline-variant">
           Total Cases: <strong id="totalCaseCount" class="text-primary-container">5</strong> Active
         </span>
+        <button id="btnOpenHandover" onclick="openHandoverModal()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-headline font-bold flex items-center gap-1.5 shadow-sm transition-all text-xs" title="Assign & Dispatch Task to Field Agent via WhatsApp">
+          <span class="material-symbols-outlined text-[16px]">send_to_mobile</span>
+          <span>📲 Handover to Field Staff</span>
+        </button>
         <button onclick="promptCreateNewCase()" class="px-2.5 py-1 bg-primary-container hover:bg-primary text-white rounded font-headline font-bold flex items-center gap-1 shadow-sm transition-all text-xs">
           <span class="material-symbols-outlined text-[15px]">add_circle</span>
-          <span>+ Add Loan Case</span>
+          <span>+ Add Case</span>
         </button>
       </div>
     </div>
@@ -247,9 +255,13 @@
         </div>
         <div class="flex items-center gap-1.5 bg-surface-container-low px-2.5 py-1 rounded-md border border-outline-variant">
           <span class="material-symbols-outlined text-secondary text-[16px]" style="font-variation-settings: 'FILL' 1;">satellite_alt</span>
-          <div class="font-mono text-[11px]">
-            <span id="dispFieldAgent" class="text-on-surface font-semibold">Nilesh & Kamal Bhai (Field Team)</span>
-            <span id="dispCoordinatesBadge" class="text-secondary font-bold ml-1">● COMPLIANT (23.2156° N, 72.6369° E)</span>
+          <div class="font-mono text-[11px] flex items-center gap-1.5">
+            <span id="dispFieldAgent" class="text-on-surface font-semibold">Rajesh Varma (agent1)</span>
+            <span id="dispCoordinatesBadge" class="text-secondary font-bold">● COMPLIANT (23.2156° N, 72.6369° E)</span>
+            <button onclick="openHandoverModal()" class="ml-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1 transition-colors" title="Dispatch to Field Agent via WhatsApp">
+              <span class="material-symbols-outlined text-[13px]">chat</span>
+              <span>WhatsApp Dispatch</span>
+            </button>
           </div>
         </div>
         <div class="hidden sm:flex items-center gap-1 font-mono text-[11px] text-outline">
@@ -2066,8 +2078,227 @@
       document.getElementById("docZoomModal").classList.add("hidden");
     }
 
+    // ==========================================
+    // CA PARTNER AUTHENTICATION & LOGIN SCREEN
+    // ==========================================
+    function checkCaAuth() {
+      const token = localStorage.getItem("ca_token");
+      const modal = document.getElementById("caLoginModal");
+      if (!token) {
+        if (modal) modal.classList.remove("hidden");
+      } else {
+        if (modal) modal.classList.add("hidden");
+        const userJson = localStorage.getItem("ca_user");
+        if (userJson) {
+          try {
+            const u = JSON.parse(userJson);
+            if (u.full_name && document.getElementById("caUserFullName")) {
+              document.getElementById("caUserFullName").textContent = u.full_name;
+            }
+            if (u.role && document.getElementById("caUserRoleTag")) {
+              document.getElementById("caUserRoleTag").textContent = `${u.role.toLowerCase()} • Logged In`;
+            }
+          } catch(e){}
+        }
+      }
+    }
+
+    async function handleCaLogin(e) {
+      if (e) e.preventDefault();
+      const uInput = document.getElementById("caLoginUsername");
+      const pInput = document.getElementById("caLoginPassword");
+      const alertEl = document.getElementById("caLoginAlert");
+      const submitBtn = document.getElementById("caLoginSubmitBtn");
+
+      const username = uInput.value.trim();
+      const password = pInput.value;
+
+      alertEl.classList.add("hidden");
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<span class="material-symbols-outlined animate-spin text-[18px]">sync</span> Authenticating...`;
+
+      try {
+        const res = await fetch("/api/v1/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem("ca_token", data.access_token);
+          localStorage.setItem("ca_user", JSON.stringify(data));
+          document.getElementById("caLoginModal").classList.add("hidden");
+          if (document.getElementById("caUserFullName") && data.full_name) {
+            document.getElementById("caUserFullName").textContent = data.full_name;
+          }
+          if (document.getElementById("caUserRoleTag") && data.role) {
+            document.getElementById("caUserRoleTag").textContent = `${data.role.toLowerCase()} • Logged In`;
+          }
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alertEl.textContent = err.detail || "Invalid login credentials. Please use admin / admin@123";
+          alertEl.classList.remove("hidden");
+        }
+      } catch (err) {
+        if (username.toLowerCase() === "admin" && password === "admin@123") {
+          localStorage.setItem("ca_token", "demo-ca-token");
+          localStorage.setItem("ca_user", JSON.stringify({ full_name: "CA Pranav N. Shah, FCA", role: "SUPER_ADMIN" }));
+          document.getElementById("caLoginModal").classList.add("hidden");
+        } else {
+          alertEl.textContent = "Unable to connect to auth server. Try demo admin / admin@123";
+          alertEl.classList.remove("hidden");
+        }
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>Sign In to CA Scrutiny Desk</span><span class="material-symbols-outlined text-[18px]">login</span>`;
+      }
+    }
+
+    function fillAdminDemoCredentials() {
+      document.getElementById("caLoginUsername").value = "admin";
+      document.getElementById("caLoginPassword").value = "admin@123";
+    }
+
+    function togglePasswordVisibility(fieldId) {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        field.type = field.type === "password" ? "text" : "password";
+      }
+    }
+
+    function handleCaLogout() {
+      if (confirm("Sign out of CA Scrutiny & Certification Desk?")) {
+        localStorage.removeItem("ca_token");
+        localStorage.removeItem("ca_user");
+        document.getElementById("caLoginModal").classList.remove("hidden");
+      }
+    }
+
+    // ==========================================
+    // CASE HANDOVER & WHATSAPP DISPATCH ENGINE
+    // ==========================================
+    function openHandoverModal() {
+      const c = caseRegistry[activeCaseId];
+      if (!c) return;
+
+      document.getElementById("hoCaseNo").textContent = c.case_no;
+      document.getElementById("hoBankBranch").textContent = `${c.bank} (${c.branch})`;
+      document.getElementById("hoApplicantName").textContent = c.applicant_name;
+      document.getElementById("hoPropertyAddress").textContent = c.address;
+
+      updateHandoverPreview();
+      document.getElementById("handoverModal").classList.remove("hidden");
+    }
+
+    function closeHandoverModal() {
+      document.getElementById("handoverModal").classList.add("hidden");
+    }
+
+    function onHandoverAgentChanged(val) {
+      const phoneInput = document.getElementById("hoAgentPhone");
+      const credUser = document.getElementById("hoCredUser");
+      const credPass = document.getElementById("hoCredPass");
+
+      if (val === "agent1") {
+        phoneInput.value = "+91 98111 22334";
+        credUser.textContent = "agent1";
+        credPass.textContent = "agent1@123";
+      } else if (val === "agent2") {
+        phoneInput.value = "+91 98250 54321";
+        credUser.textContent = "agent2";
+        credPass.textContent = "agent2@123";
+      } else {
+        phoneInput.value = "+91 ";
+        credUser.textContent = "agent1";
+        credPass.textContent = "agent1@123";
+        phoneInput.focus();
+      }
+      updateHandoverPreview();
+    }
+
+    function generateHandoverMessage() {
+      const c = caseRegistry[activeCaseId] || {};
+      const caseNo = c.case_no || "CASE-2026-001";
+      const applicant = c.applicant_name || "Applicant";
+      const bank = c.bank || "Empanelled Bank";
+      const branch = c.branch || "";
+      const address = c.address || "";
+      const user = document.getElementById("hoCredUser") ? document.getElementById("hoCredUser").textContent : "agent1";
+      const pass = document.getElementById("hoCredPass") ? document.getElementById("hoCredPass").textContent : "agent1@123";
+      const pwaLink = `${window.location.origin}/pwa?case=${encodeURIComponent(caseNo)}`;
+      const instructions = document.getElementById("hoInstructions") ? document.getElementById("hoInstructions").value.trim() : "";
+
+      return `🏛️ *VALUEX & CO. CHARTERED ACCOUNTANTS*\n*Contact Point Verification (CPV) Order*\n\n` +
+        `📋 *Case No:* ${caseNo}\n` +
+        `👤 *Borrower:* ${applicant}\n` +
+        `🏦 *Bank:* ${bank} (${branch})\n` +
+        `📍 *Property Address:* ${address}\n\n` +
+        `📲 *Open Field Agent Mobile PWA Link:*\n${pwaLink}\n\n` +
+        `🔑 *Agent Login Credentials:*\n` +
+        `• *Username:* ${user}\n` +
+        `• *Password:* ${pass}\n\n` +
+        `📝 *Inspection Instructions:*\n${instructions}\n\n` +
+        `⚠️ *Notice:* Live GNSS geofencing (<150m) and timestamp watermarking are active. Please capture 4 site photos, upload verification docs, and submit.`;
+    }
+
+    function updateHandoverPreview() {
+      const preview = document.getElementById("hoMessagePreview");
+      if (preview) {
+        preview.textContent = generateHandoverMessage();
+      }
+    }
+
+    async function copyHandoverMessage() {
+      const text = generateHandoverMessage();
+      const btnText = document.getElementById("btnCopyText");
+      try {
+        await navigator.clipboard.writeText(text);
+        if (btnText) {
+          btnText.textContent = "Copied to Clipboard! ✓";
+          setTimeout(() => { btnText.textContent = "Copy Message & Link"; }, 2500);
+        }
+      } catch (err) {
+        prompt("Copy the WhatsApp message text below:", text);
+      }
+    }
+
+    function dispatchToWhatsApp() {
+      const phone = document.getElementById("hoAgentPhone").value.replace(/[^0-9]/g, "");
+      const text = generateHandoverMessage();
+      const url = phone.length >= 10 
+        ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`
+        : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank");
+      markCaseAsAssigned();
+    }
+
+    function markCaseAsAssigned() {
+      const c = caseRegistry[activeCaseId];
+      if (c) {
+        const agentName = document.getElementById("hoAgentSelect").options[document.getElementById("hoAgentSelect").selectedIndex].text.split(" - ")[0];
+        c.status = "ASSIGNED_TO_FIELD";
+        c.agent = agentName;
+        document.getElementById("dispCaseStatus").textContent = "ASSIGNED_TO_FIELD";
+        document.getElementById("dispCaseStatusPill").className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200";
+        document.getElementById("dispFieldAgent").textContent = agentName;
+      }
+      closeHandoverModal();
+      alert(`[✓] Case ${c ? c.case_no : ''} marked as ASSIGNED. Handover dispatched via WhatsApp to Field Staff.`);
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      checkCaAuth();
+      const inst = document.getElementById("hoInstructions");
+      if (inst) inst.addEventListener("input", updateHandoverPreview);
+      const phone = document.getElementById("hoAgentPhone");
+      if (phone) phone.addEventListener("input", updateHandoverPreview);
+    });
+
     window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeDocZoomModal();
+      if (e.key === "Escape") {
+        closeDocZoomModal();
+        closeHandoverModal();
+      }
       if ((e.key === " " || e.key === "f" || e.key === "F") && !document.getElementById("docZoomModal").classList.contains("hidden")) {
         flipZoomCard();
       }
@@ -2129,6 +2360,160 @@
           <span>High-Resolution Ingestion Verified • Rule 4 Safe Harbor Compliant</span>
         </div>
         <span class="text-outline">Tip: Press [Space] or [F] to flip, [Esc] to close</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CA PARTNER / ADMIN AUTHENTICATION MODAL -->
+  <div id="caLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-md w-full shadow-2xl overflow-hidden p-6 sm:p-8">
+      <div class="text-center mb-6">
+        <img src="/static/nn_shah_logo_3d.png" alt="Naimish N. Shah & Co." class="h-12 w-auto mx-auto mb-3 object-contain drop-shadow-sm"/>
+        <h2 class="font-headline font-bold text-xl text-primary-container">Chartered Accountant Desk</h2>
+        <p class="font-mono text-xs text-outline mt-1">Loan Due Diligence & Bank Scrutiny Suite</p>
+      </div>
+
+      <div id="caLoginAlert" class="hidden mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-mono"></div>
+
+      <form id="caLoginForm" onsubmit="handleCaLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-mono font-bold text-on-surface mb-1 uppercase">Username / CA Email</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px]">account_circle</span>
+            <input id="caLoginUsername" type="text" value="admin" required class="w-full pl-9 pr-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm text-on-surface focus:ring-2 focus:ring-primary-container focus:border-transparent font-body"/>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-mono font-bold text-on-surface mb-1 uppercase">Password</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px]">lock</span>
+            <input id="caLoginPassword" type="password" value="admin@123" required class="w-full pl-9 pr-10 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm text-on-surface focus:ring-2 focus:ring-primary-container focus:border-transparent font-body"/>
+            <button type="button" onclick="togglePasswordVisibility('caLoginPassword')" class="absolute right-3 top-2.5 text-outline hover:text-on-surface">
+              <span class="material-symbols-outlined text-[18px]">visibility</span>
+            </button>
+          </div>
+        </div>
+
+        <button type="button" onclick="fillAdminDemoCredentials()" class="w-full py-1.5 px-3 bg-blue-50 border border-blue-200 text-primary-container rounded-lg text-xs font-mono font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5">
+          <span class="material-symbols-outlined text-[15px]">key</span>
+          <span>Fill Demo: admin / admin@123</span>
+        </button>
+
+        <button id="caLoginSubmitBtn" type="submit" class="w-full py-2.5 bg-primary-container hover:bg-primary text-white rounded-lg font-headline font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2">
+          <span>Sign In to CA Scrutiny Desk</span>
+          <span class="material-symbols-outlined text-[18px]">login</span>
+        </button>
+      </form>
+
+      <div class="mt-6 pt-4 border-t border-outline-variant text-center font-mono text-[11px] text-outline">
+        <span>Protected with Argon2id & JWT Bearer • ICAI Member Access</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CASE HANDOVER & WHATSAPP DISPATCH MODAL -->
+  <div id="handoverModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[22px]">send_to_mobile</span>
+          </div>
+          <div>
+            <h3 class="font-headline font-bold text-base text-on-surface">Handover Task to Field Staff</h3>
+            <p class="font-mono text-[11px] text-outline">Dispatch verification order & PWA credentials via WhatsApp</p>
+          </div>
+        </div>
+        <button onclick="closeHandoverModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto space-y-4">
+        <!-- Selected Case Snapshot -->
+        <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant text-xs space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-xs font-bold text-primary-container px-2 py-0.5 rounded bg-blue-50 border border-blue-200" id="hoCaseNo">UBI-HL-2026-20L</span>
+            <span class="font-mono text-[11px] text-outline" id="hoBankBranch">Union Bank of India (Amrapura Branch)</span>
+          </div>
+          <div class="font-headline text-sm font-bold text-on-surface" id="hoApplicantName">Mrs. Rajkunvarba Pradeepsinh Vaghela</div>
+          <div class="text-on-surface-variant flex items-start gap-1">
+            <span class="material-symbols-outlined text-[15px] text-primary-container mt-0.5 shrink-0">location_on</span>
+            <span id="hoPropertyAddress">31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar</span>
+          </div>
+        </div>
+
+        <!-- Field Agent Selection -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-mono font-bold text-on-surface mb-1 uppercase">Assign Field Agent</label>
+            <select id="hoAgentSelect" onchange="onHandoverAgentChanged(this.value)" class="w-full text-xs font-medium bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+              <option value="agent1">Rajesh Varma (agent1 - Senior CPV)</option>
+              <option value="agent2">Kamal Solanki (agent2 - Field Associate)</option>
+              <option value="custom">Custom Phone Number...</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-mono font-bold text-on-surface mb-1 uppercase">Agent WhatsApp / Phone</label>
+            <input id="hoAgentPhone" type="text" value="+91 98111 22334" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+        </div>
+
+        <!-- Field Agent Credentials Box -->
+        <div class="p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs">
+          <div class="font-mono font-bold text-primary-container mb-1.5 flex items-center justify-between">
+            <span>🔑 Field Agent PWA Login Credentials:</span>
+            <span class="text-[10px] text-secondary font-bold">SIMPLE LOGIN READY</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 font-mono text-[11px]">
+            <div><span class="text-outline">Username:</span> <strong id="hoCredUser" class="text-on-surface">agent1</strong></div>
+            <div><span class="text-outline">Password:</span> <strong id="hoCredPass" class="text-on-surface">agent1@123</strong></div>
+          </div>
+        </div>
+
+        <!-- Special Instructions -->
+        <div>
+          <label class="block text-xs font-mono font-bold text-on-surface mb-1 uppercase">Field Verification Instructions</label>
+          <textarea id="hoInstructions" rows="2" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body">1. Verify physical occupancy of borrower.
+2. Confirm with 2 neighbours.
+3. Take 4 GPS-watermarked photos (Exterior, Meter, Street, Door).
+4. Upload electricity bill and submit.</textarea>
+        </div>
+
+        <!-- Live WhatsApp Message Preview -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs font-mono font-bold text-on-surface uppercase flex items-center gap-1">
+              <span class="material-symbols-outlined text-emerald-600 text-[16px]">chat</span>
+              <span>WhatsApp Message Preview</span>
+            </label>
+            <span class="text-[10px] font-mono text-outline">Pre-formatted for WhatsApp</span>
+          </div>
+          <div id="hoMessagePreview" class="p-3 bg-emerald-50/70 border border-emerald-200 rounded-lg text-xs font-mono text-emerald-950 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto"></div>
+        </div>
+      </div>
+
+      <!-- Modal Footer Action Buttons -->
+      <div class="px-5 py-3.5 border-t border-outline-variant bg-surface-container-low flex flex-wrap items-center justify-between gap-2">
+        <button onclick="copyHandoverMessage()" class="px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-on-surface hover:bg-surface-container-high text-xs font-headline font-bold flex items-center gap-1.5 transition-all">
+          <span class="material-symbols-outlined text-[16px]">content_copy</span>
+          <span id="btnCopyText">Copy Message & Link</span>
+        </button>
+
+        <div class="flex items-center gap-2">
+          <button onclick="markCaseAsAssigned()" class="px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-primary-container hover:bg-blue-100 text-xs font-headline font-bold flex items-center gap-1.5 transition-all">
+            <span class="material-symbols-outlined text-[16px]">check_circle</span>
+            <span>Assign in Portal</span>
+          </button>
+          
+          <button onclick="dispatchToWhatsApp()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-headline font-bold flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all">
+            <span class="material-symbols-outlined text-[18px]">send</span>
+            <span>Send on WhatsApp</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
