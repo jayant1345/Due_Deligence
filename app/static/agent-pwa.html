@@ -106,6 +106,7 @@
       </div>
       <select id="pwaCaseSelector" onchange="switchPwaCase(this.value)" class="text-xs bg-surface-container-low border border-outline-variant rounded-lg font-semibold text-on-surface focus:ring-primary-container py-1.5 px-2 w-full truncate">
         <option value="UBI-HL-2026-20L" selected>[UBI-HL-2026-20L] - Mrs. Rajkunvarba Vaghela (Gandhinagar)</option>
+        <option value="UBI-HL-2026-616">[UBI-HL-2026-616] - Pargi Bhavnaben (Gandhinagar)</option>
         <option value="SBI-HL-2026-45L">[SBI-HL-2026-45L] - Mr. Vikramaditya Sengupta (Mumbai)</option>
         <option value="HDFC-LAP-2026-60L">[HDFC-LAP-2026-60L] - Mr. Jayeshbhai K. Patel (Ahmedabad)</option>
         <option value="ICICI-PL-2026-15L">[ICICI-PL-2026-15L] - Dr. Ananya Sharma (Ahmedabad)</option>
@@ -1065,6 +1066,26 @@
         utility_no: "Consumer # 04128/99102/3",
         meter_name: "Meter: Pradeepsinh Vaghela"
       },
+      "UBI-HL-2026-616": {
+        id: "b902fc74-33b9-4f54-ad24-f31095e0d616",
+        case_no: "UBI-HL-2026-616",
+        applicant: "Pargi Bhavnaben",
+        amount: "₹20.00 Lakhs",
+        loan_type: "HOUSING LOAN CPV",
+        address: "Plot 42, Gayatri Nagar, Sector 8, Gandhinagar 382007",
+        pin: "382007",
+        ward: "Ward 2, Gandhinagar (GMC)",
+        lat: 23.2156,
+        lon: 72.6369,
+        dev_lat: 23.2154,
+        dev_lon: 72.6367,
+        aadhaar_no: "XXXX - XXXX - 4182",
+        dob: "14/08/1993 | Female",
+        pan_no: "BYMPP4192K",
+        utility_provider: "UGVCL Electricity Bill",
+        utility_no: "Consumer # 02690/41820/1",
+        meter_name: "Meter: Pargi Bhavnaben"
+      },
       "SBI-HL-2026-45L": {
         id: "c102ad74-23b9-4f43-ad13-f31095d0c002",
         case_no: "SBI-HL-2026-45L",
@@ -1251,6 +1272,16 @@
 
         // Update active slot thumbnail and status
         uploadedSlots[activeUploadSlot] = true;
+        try {
+          localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${activeUploadSlot}`, JSON.stringify({
+            src: e.target.result,
+            timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + " IST",
+            lat: currentDeviceLat,
+            lon: currentDeviceLon
+          }));
+        } catch (storageErr) {
+          console.warn("Storage quota limit or private browsing:", storageErr);
+        }
         const thumbEl = document.getElementById(`slot${activeUploadSlot}Thumb`);
         if (thumbEl) {
           thumbEl.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-lg"/>`;

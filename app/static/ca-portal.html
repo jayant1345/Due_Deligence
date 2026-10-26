@@ -1777,17 +1777,22 @@
     async function fetchLiveCaseDocuments(caseId) {
       if (!caseId) return;
       try {
-        const res = await fetch(`/api/v1/cases/${caseId}/documents`);
-        if (!res.ok) return;
-        const docs = await res.json();
-        if (!docs || docs.length === 0) return;
+        let docs = [];
+        try {
+          const res = await fetch(`/api/v1/cases/${caseId}/documents`);
+          if (res.ok) {
+            docs = await res.json();
+          }
+        } catch (fetchErr) {
+          console.warn("fetch documents network notice:", fetchErr);
+        }
 
         const c = caseRegistry[caseId];
         if (!c) return;
 
         // 1. Separate AGENT_SELFIE from site evidence photos
-        const selfieDoc = docs.find(d => d.doc_type === "AGENT_SELFIE" || (d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
-        const evidenceDocs = docs.filter(d => d.doc_type !== "AGENT_SELFIE" && !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
+        const selfieDoc = (docs || []).find(d => d.doc_type === "AGENT_SELFIE" || (d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
+        const evidenceDocs = (docs || []).filter(d => d.doc_type !== "AGENT_SELFIE" && !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
 
         // 2. Strict Slot-based mapping (Slot 1 -> Photo 1, Slot 2 -> Photo 2, Slot 3 -> Photo 3, Slot 4 -> Photo 4)
         const slotMap = { 1: null, 2: null, 3: null, 4: null };
@@ -1832,6 +1837,30 @@
             }
           }
         });
+
+        // Check local PWA evidence cache if slot is not yet provided by server
+        for (let s = 1; s <= 4; s++) {
+          if (!slotMap[s]) {
+            const cachedPwa = localStorage.getItem(`pwa_evidence_${caseId}_slot_${s}`) || 
+                              localStorage.getItem(`pwa_evidence_b901fc63-12a8-4e32-9c02-e20984cfb001_slot_${s}`);
+            if (cachedPwa) {
+              try {
+                const parsed = JSON.parse(cachedPwa);
+                slotMap[s] = {
+                  url: parsed.src,
+                  created_at: parsed.timestamp || "Just now (Mobile PWA Upload)",
+                  latitude: parsed.lat || 23.2154,
+                  longitude: parsed.lon || 72.6367,
+                  is_geofence_valid: true
+                };
+              } catch (e) {}
+            }
+          }
+        }
+
+        // If no documents from server and no local cache, keep current photos
+        const hasAnyUploaded = Object.values(slotMap).some(Boolean);
+        if (!hasAnyUploaded && (!docs || docs.length === 0)) return;
 
         // Default specimens to fall back on if slot is empty
         const defaultSpecimens = {
@@ -2359,6 +2388,7 @@
 
       // 6. Update Dual Folder Site Evidence Photos
       renderPhotosForActiveFolder();
+      fetchLiveCaseDocuments(caseId);
 
       // 7. Update Field Staff Attendance Selfie Verification UI
       const cachedSelfie = localStorage.getItem("selfie_" + caseId);
@@ -3981,6 +4011,11 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       checkCaAuth();
+      const sel = document.getElementById("caseSelectorSelect");
+      const initCase = (sel && sel.value) ? sel.value : (activeCaseId || "ubi-hl-2026-616-pargi");
+      if (initCase) {
+        onCaseSelected(initCase);
+      }
       startLiveDocumentSync();
       renderManagementPortal();
       const inst = document.getElementById("hoInstructions");

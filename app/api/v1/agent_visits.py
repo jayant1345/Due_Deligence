@@ -125,7 +125,7 @@ async def submit_field_visit_form(
 
 @router.post("/cases/{case_id}/upload", response_model=DocumentUploadResponse, status_code=status.HTTP_202_ACCEPTED)
 async def zero_lag_upload_document(
-    case_id: uuid.UUID,
+    case_id: str,
     doc_type: DocumentType = Form(...),
     slot_number: Optional[int] = Form(None),
     visit_id: Optional[uuid.UUID] = Form(None),
@@ -143,9 +143,22 @@ async def zero_lag_upload_document(
     4. Auto-stamp hard watermark if image.
     5. Return instant 202 Accepted with task ID.
     """
-    # Quick check for case existence
-    case_res = await db.execute(select(LoanCase).where(LoanCase.id == case_id))
-    loan_case = case_res.scalar_one_or_none()
+    # Quick check for case existence by UUID or case_no
+    loan_case = None
+    try:
+        u_id = uuid.UUID(case_id)
+        case_res = await db.execute(select(LoanCase).where(LoanCase.id == u_id))
+        loan_case = case_res.scalar_one_or_none()
+    except ValueError:
+        clean_case_no = case_id.replace("-pargi", "").upper()
+        case_res = await db.execute(
+            select(LoanCase).where(
+                (LoanCase.case_no == case_id) | 
+                (LoanCase.case_no.ilike(f"%{clean_case_no}%"))
+            )
+        )
+        loan_case = case_res.scalar_one_or_none()
+
     if not loan_case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
 
@@ -156,7 +169,7 @@ async def zero_lag_upload_document(
     storage_url = await storage_service.save_upload_file(
         file_content=file_bytes,
         filename=file.filename or "upload.jpg",
-        subfolder=f"case_{case_id.hex}",
+        subfolder=f"case_{loan_case.id.hex}",
     )
 
     # Compute Geofence proximity
@@ -194,7 +207,7 @@ async def zero_lag_upload_document(
 
     # Persist document record
     doc = CaseDocument(
-        case_id=case_id,
+        case_id=loan_case.id,
         visit_id=visit_id,
         doc_type=doc_type,
         storage_url=storage_url,
@@ -238,7 +251,7 @@ async def zero_lag_upload_document(
     return DocumentUploadResponse(
         document_id=doc.id,
         task_id=task_id,
-        case_id=case_id,
+        case_id=loan_case.id,
         doc_type=doc_type,
         status="ACCEPTED",
         message="File ingested and queued for background watermarking, EXIF parsing, and OCR scrutiny.",

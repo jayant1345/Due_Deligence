@@ -1,7 +1,7 @@
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import desc, select
+from sqlalchemy import asc, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, require_role
 from app.core.database import get_db
@@ -146,16 +146,36 @@ async def update_case(
 
 @router.get("/{case_id}/documents")
 async def list_case_documents(
-    case_id: uuid.UUID,
+    case_id: str,
     db: AsyncSession = Depends(get_db),
 ):
     """
     Retrieve all uploaded physical inspection photos and documents for a loan case.
     Publicly accessible to allow real-time display and auto-sync on CA desktop portal.
+    Supports either direct UUID or human-readable case_no (e.g. UBI-HL-2026-616).
     """
+    target_uuid = None
+    try:
+        target_uuid = uuid.UUID(case_id)
+    except ValueError:
+        # Check by case_no (e.g. UBI-HL-2026-616)
+        clean_case_no = case_id.replace("-pargi", "").upper()
+        case_res = await db.execute(
+            select(LoanCase).where(
+                (LoanCase.case_no == case_id) | 
+                (LoanCase.case_no.ilike(f"%{clean_case_no}%"))
+            )
+        )
+        matched_case = case_res.scalar_one_or_none()
+        if matched_case:
+            target_uuid = matched_case.id
+
+    if not target_uuid:
+        return []
+
     query = (
         select(CaseDocument)
-        .where(CaseDocument.case_id == case_id)
+        .where(CaseDocument.case_id == target_uuid)
         .order_by(asc(CaseDocument.created_at))
     )
     result = await db.execute(query)
