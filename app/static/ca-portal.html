@@ -137,12 +137,19 @@
           </div>
         </div>
 
-        <!-- Navigation Links -->
-        <nav class="hidden lg:flex items-center gap-5 text-sm shrink-0">
-          <a class="border-b-2 border-primary-container text-primary-container font-semibold pb-1" href="#dossier">Current Scrutiny</a>
-          <a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1" href="#queue">Active Cases (8)</a>
-          <a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1" href="/pwa">Field PWA Mode</a>
-          <a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1" href="/api/docs" target="_blank">API Docs</a>
+        <!-- Navigation Links with Interactive View Switcher Tabs -->
+        <nav class="hidden lg:flex items-center gap-2 text-sm shrink-0">
+          <button id="navTabScrutiny" onclick="switchMainPortalView('scrutiny')" class="px-3.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 bg-primary-container text-white shadow-xs transition-all">
+            <span class="material-symbols-outlined text-[16px]">visibility</span>
+            <span>Current Scrutiny (ચકાસણી ડેસ્ક)</span>
+          </button>
+          <button id="navTabManagement" onclick="switchMainPortalView('management')" class="px-3.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 bg-surface-container-low text-on-surface hover:bg-surface-container border border-outline-variant transition-colors">
+            <span class="material-symbols-outlined text-[16px]">table_chart</span>
+            <span>Case Management & Records (મેનેજમેન્ટ પોર્ટલ)</span>
+            <span id="navCaseCountBadge" class="bg-primary-container/10 text-primary-container px-1.5 py-0.2 rounded font-mono text-[10px] font-bold">5</span>
+          </button>
+          <a class="px-2.5 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors" href="/pwa" target="_blank">Mobile PWA</a>
+          <a class="px-2.5 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors" href="/api/docs" target="_blank">API Docs</a>
         </nav>
 
         <!-- User Info & Actions -->
@@ -211,18 +218,22 @@
           </div>
         </div>
 
-        <!-- Right: Case Counter & Handover & New Case Button -->
-        <div class="flex items-center gap-2.5 text-xs font-mono">
+        <!-- Right: Case Counter & Handover & Bank Folder Ingest Button -->
+        <div class="flex items-center gap-2 text-xs font-mono flex-wrap">
           <span class="text-on-surface-variant bg-surface-container-lowest px-2 py-1 rounded border border-outline-variant">
             Total Cases: <strong id="totalCaseCount" class="text-primary-container">5</strong> Active
           </span>
-          <button id="btnOpenHandover" onclick="openHandoverModal()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-headline font-bold flex items-center gap-1.5 shadow-sm transition-all text-xs" title="Assign & Dispatch Task to Field Agent via WhatsApp">
-            <span class="material-symbols-outlined text-[16px]">send_to_mobile</span>
-            <span>📲 Handover to Field Staff</span>
+          <button id="btnOpenHandover" onclick="openHandoverModal()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-headline font-bold flex items-center gap-1 shadow-sm transition-all text-xs" title="Assign & Dispatch Task to Field Agent via WhatsApp">
+            <span class="material-symbols-outlined text-[15px]">send_to_mobile</span>
+            <span>📲 Handover</span>
           </button>
-          <button onclick="promptCreateNewCase()" class="px-2.5 py-1 bg-primary-container hover:bg-primary text-white rounded font-headline font-bold flex items-center gap-1 shadow-sm transition-all text-xs">
-            <span class="material-symbols-outlined text-[15px]">add_circle</span>
-            <span>+ Add Case</span>
+          <button onclick="openEditCaseModal(activeCaseId)" class="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-on-surface rounded font-headline font-bold flex items-center gap-1 shadow-2xs transition-all text-xs" title="Modify case details, address, or staff assignment">
+            <span class="material-symbols-outlined text-[15px] text-primary-container">edit_square</span>
+            <span>✏️ Edit Details</span>
+          </button>
+          <button onclick="openNewCaseModal()" class="px-3 py-1 bg-primary-container hover:bg-primary text-white rounded font-headline font-bold flex items-center gap-1.5 shadow-sm transition-all text-xs" title="Select Bank Case Documents Folder to auto-ingest and create case">
+            <span class="material-symbols-outlined text-[16px]">folder_zip</span>
+            <span>📁 Ingest Bank Folder (+ નવો કેસ)</span>
           </button>
         </div>
       </div>
@@ -267,6 +278,19 @@
             </button>
           </div>
         </div>
+
+        <!-- Interactive Field Staff Attendance Selfie Thumbnail -->
+        <div onclick="openSelfieModal()" class="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg px-2 py-1 cursor-pointer shadow-2xs transition-colors" title="Click to view Field Staff Attendance Selfie with GPS Timestamp">
+          <div class="relative w-6 h-6 rounded-full overflow-hidden border border-emerald-500 bg-slate-200 shrink-0">
+            <img id="dispAgentSelfieThumb" src="/static/specimen_assets/residence/agent_selfie_specimen.jpg" alt="Field Staff Selfie" class="w-full h-full object-cover"/>
+            <span class="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-emerald-500 ring-1 ring-white"></span>
+          </div>
+          <span class="font-mono text-[10px] font-bold text-emerald-900 flex items-center gap-0.5">
+            <span class="material-symbols-outlined text-[13px] text-emerald-600">verified</span>
+            <span id="dispAgentSelfieStatus">Staff Selfie</span>
+          </span>
+        </div>
+
         <div class="hidden sm:flex items-center gap-1 font-mono text-[11px] text-outline">
           <span class="material-symbols-outlined text-[14px]">schedule</span>
           <span id="dispVisitDate">Visited: 04-Aug-2026, 11:30 IST</span>
@@ -298,8 +322,9 @@
     </div>
   </section>
 
-  <!-- MAIN 3-COLUMN SCRUTINY WORKSPACE -->
-  <main class="flex-1 max-w-[1440px] w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+  <!-- VIEW 1: MAIN 3-COLUMN SCRUTINY WORKSPACE -->
+  <div id="viewScrutinyDesk" class="w-full transition-all">
+    <main class="flex-1 max-w-[1440px] w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
 
     <!-- COLUMN 1: DOCUMENT OCR & UPLOADER (4 Cols / 33%) -->
     <div class="lg:col-span-4 flex flex-col gap-4">
@@ -665,6 +690,41 @@
           <span class="material-symbols-outlined text-[13px]" style="font-variation-settings: 'FILL' 1;">radar</span>
           GEOFENCE VERIFIED
         </span>
+      </div>
+
+      <!-- Dedicated Field Staff Attendance Selfie Verification Card -->
+      <div class="bg-gradient-to-r from-emerald-50/90 via-blue-50/70 to-surface-container-lowest p-3 rounded-lg border border-emerald-200/90 shadow-xs flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="relative w-14 h-14 rounded-xl overflow-hidden border-2 border-emerald-500 shadow-sm shrink-0 cursor-pointer group" onclick="openSelfieModal()" title="Click to inspect Field Staff Attendance Selfie">
+            <img id="dispAgentSelfieCardImg" src="/static/specimen_assets/residence/agent_selfie_specimen.jpg" alt="Field Staff Attendance Selfie" class="w-full h-full object-cover group-hover:scale-105 transition-transform"/>
+            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+              <span class="material-symbols-outlined text-[18px]">zoom_in</span>
+            </div>
+            <div class="absolute bottom-0 inset-x-0 bg-emerald-700 text-white font-mono text-[7px] text-center py-0.5 uppercase font-bold">
+              GPS LOCKED
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-headline font-bold text-xs text-on-surface">Field Staff Verification Selfie (એજન્ટ હાજરી સેલ્ફી)</span>
+              <span id="dispAgentSelfieCardBadge" class="font-mono text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">
+                ✓ VERIFIED ON-SITE
+              </span>
+            </div>
+            <p class="font-mono text-[10px] text-on-surface-variant mt-0.5">
+              Conducted by: <strong id="dispAgentSelfieName" class="text-primary-container">Nilesh & Kamal Bhai (FA-7701/7702)</strong>
+            </p>
+            <div class="font-mono text-[9px] text-outline flex items-center gap-2 mt-0.5">
+              <span id="dispAgentSelfieTime">Time: 04-Aug-2026, 11:30 IST</span>
+              <span>•</span>
+              <span id="dispAgentSelfieGps" class="text-emerald-700 font-bold">GPS: 23.2154°N, 72.6367°E</span>
+            </div>
+          </div>
+        </div>
+        <button onclick="openSelfieModal()" class="px-2.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant text-[11px] font-bold text-primary-container flex items-center gap-1 shrink-0 transition-colors">
+          <span class="material-symbols-outlined text-[15px]">fullscreen</span>
+          <span>Inspect</span>
+        </button>
       </div>
 
       <!-- Satellite & Geofence Perimeter Visualizer Card -->
@@ -1066,7 +1126,223 @@
         </div>
       </div>
     </div>
-  </main>
+    </main>
+  </div> <!-- /viewScrutinyDesk -->
+
+  <!-- VIEW 2: CASE MANAGEMENT & HISTORICAL RECORDS PORTAL (MONTH-WISE, BANK-WISE, BRANCH-WISE) -->
+  <div id="viewManagementPortal" class="hidden w-full max-w-[1440px] mx-auto p-4 lg:p-6 space-y-6 transition-all">
+    <!-- Management Banner & Overview -->
+    <div class="bg-gradient-to-r from-primary-container via-blue-900 to-indigo-950 rounded-2xl p-5 text-white shadow-md flex flex-wrap items-center justify-between gap-4">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="px-2.5 py-0.5 rounded-full bg-white/20 text-white font-mono text-[10px] font-bold uppercase tracking-wider">PORTFOLIO INTELLIGENCE & AUDIT DESK</span>
+          <span class="text-xs text-blue-200 font-mono">• Month-wise & Branch-wise Records</span>
+        </div>
+        <h1 class="font-headline font-bold text-xl sm:text-2xl tracking-tight">Case Management & Field Staff Allotment Portal</h1>
+        <p class="text-xs sm:text-sm text-blue-100 max-w-2xl font-body">
+          Track empanelled bank inflow, field staff visit allocations, geotagged attendance selfies, and completed due diligence records across all branches.
+        </p>
+      </div>
+      <div class="flex items-center gap-2.5 flex-wrap">
+        <button onclick="openNewCaseModal()" class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-headline font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all active:scale-95">
+          <span class="material-symbols-outlined text-[20px]">folder_zip</span>
+          <span>📁 Ingest Bank Folder (+ નવો કેસ)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI SUMMARY CARDS -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <!-- Card 1: Total Received Cases -->
+      <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-xs flex items-center justify-between">
+        <div>
+          <p class="font-mono text-[10px] font-bold text-outline uppercase tracking-wider">Total Received Cases</p>
+          <h3 id="mgmtKpiTotal" class="font-headline font-bold text-2xl text-on-surface mt-0.5">5</h3>
+          <p class="font-mono text-[10px] text-outline mt-1">Across Empanelled Banks</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-blue-50 text-primary-container flex items-center justify-center">
+          <span class="material-symbols-outlined text-[24px]">account_balance</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Allotted to Field Staff -->
+      <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-xs flex items-center justify-between">
+        <div>
+          <p class="font-mono text-[10px] font-bold text-outline uppercase tracking-wider">Allotted to Field Staff</p>
+          <h3 id="mgmtKpiAllotted" class="font-headline font-bold text-2xl text-primary-container mt-0.5">5</h3>
+          <p class="font-mono text-[10px] text-primary-container font-semibold mt-1">100% Files Allocated</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[24px]">assignment_ind</span>
+        </div>
+      </div>
+
+      <!-- Card 3: Visits Completed -->
+      <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-xs flex items-center justify-between">
+        <div>
+          <p class="font-mono text-[10px] font-bold text-outline uppercase tracking-wider">Visits Completed</p>
+          <h3 id="mgmtKpiCompleted" class="font-headline font-bold text-2xl text-emerald-700 mt-0.5">4</h3>
+          <p class="font-mono text-[10px] text-emerald-700 font-semibold mt-1">GPS & Selfies Logged</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[24px]">task_alt</span>
+        </div>
+      </div>
+
+      <!-- Card 4: Certified & Signed Reports -->
+      <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-xs flex items-center justify-between">
+        <div>
+          <p class="font-mono text-[10px] font-bold text-outline uppercase tracking-wider">Certified Reports</p>
+          <h3 id="mgmtKpiCertified" class="font-headline font-bold text-2xl text-secondary mt-0.5">1</h3>
+          <p class="font-mono text-[10px] text-secondary font-semibold mt-1">ICAI UDIN Issued</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-secondary-container/30 text-secondary flex items-center justify-center">
+          <span class="material-symbols-outlined text-[24px]">verified</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BANK PORTFOLIO BREAKDOWN CARDS -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <h3 class="font-headline font-bold text-xs uppercase text-on-surface tracking-wider flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-primary-container text-[16px]">domain</span>
+          <span>Empanelled Bank Portfolio Distribution (બેંક વાઇઝ કેસ સંખ્યા)</span>
+        </h3>
+        <span class="text-[10px] font-mono text-outline">Click any bank card to filter records</span>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" id="mgmtBankCardsContainer">
+        <!-- Bank breakdown cards populated dynamically in JS -->
+      </div>
+    </div>
+
+    <!-- INTERACTIVE MULTI-DIMENSIONAL FILTERS & SEARCH BAR -->
+    <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-xs space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-1.5 font-headline font-bold text-xs text-primary-container">
+          <span class="material-symbols-outlined text-[18px]">filter_alt</span>
+          <span>MULTI-DIMENSIONAL RECORDS FILTER (મહિનાવાર, બેંકવાર અને શાખાવાર રેકોર્ડ્સ):</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="resetManagementFilters()" class="text-[11px] font-mono text-outline hover:text-on-surface flex items-center gap-1 transition-colors">
+            <span class="material-symbols-outlined text-[14px]">restart_alt</span>
+            <span>Reset Filters</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+        <!-- 1. Month-wise Filter -->
+        <div class="bg-surface-container-low border border-outline-variant rounded-lg p-1.5">
+          <label class="block font-mono text-[9px] font-bold text-outline uppercase mb-0.5">Month (મહિનો)</label>
+          <select id="mgmtFilterMonth" onchange="applyManagementFilters()" class="w-full text-xs font-bold text-on-surface bg-transparent border-0 p-0 focus:ring-0 cursor-pointer">
+            <option value="ALL">All Months (બધા મહિના)</option>
+            <option value="October 2026">October 2026 (ઓક્ટોબર)</option>
+            <option value="September 2026">September 2026 (સપ્ટેમ્બર)</option>
+            <option value="August 2026">August 2026 (ઓગસ્ટ)</option>
+            <option value="July 2026">July 2026 (જુલાઈ)</option>
+          </select>
+        </div>
+
+        <!-- 2. Bank-wise Filter -->
+        <div class="bg-surface-container-low border border-outline-variant rounded-lg p-1.5">
+          <label class="block font-mono text-[9px] font-bold text-outline uppercase mb-0.5">Bank (બેંક)</label>
+          <select id="mgmtFilterBank" onchange="applyManagementFilters()" class="w-full text-xs font-bold text-on-surface bg-transparent border-0 p-0 focus:ring-0 cursor-pointer">
+            <option value="ALL">All Empanelled Banks (બધી બેંક)</option>
+            <option value="Union Bank of India">Union Bank of India</option>
+            <option value="State Bank of India">State Bank of India</option>
+            <option value="HDFC Bank">HDFC Bank</option>
+            <option value="ICICI Bank">ICICI Bank</option>
+            <option value="Bank of Baroda">Bank of Baroda</option>
+          </select>
+        </div>
+
+        <!-- 3. Branch-wise Filter -->
+        <div class="bg-surface-container-low border border-outline-variant rounded-lg p-1.5">
+          <label class="block font-mono text-[9px] font-bold text-outline uppercase mb-0.5">Branch (શાખા)</label>
+          <select id="mgmtFilterBranch" onchange="applyManagementFilters()" class="w-full text-xs font-bold text-on-surface bg-transparent border-0 p-0 focus:ring-0 cursor-pointer">
+            <option value="ALL">All Branches (બધી શાખાઓ)</option>
+            <option value="Amrapura Branch">Amrapura Branch</option>
+            <option value="Bandra West Branch">Bandra West Branch</option>
+            <option value="Navrangpura Branch">Navrangpura Branch</option>
+            <option value="Ashram Road Branch">Ashram Road Branch</option>
+            <option value="Sector 11 Branch">Sector 11 Branch</option>
+          </select>
+        </div>
+
+        <!-- 4. Staff / Visited By Filter -->
+        <div class="bg-surface-container-low border border-outline-variant rounded-lg p-1.5">
+          <label class="block font-mono text-[9px] font-bold text-outline uppercase mb-0.5">Field Staff (સર્વે કરનાર)</label>
+          <select id="mgmtFilterStaff" onchange="applyManagementFilters()" class="w-full text-xs font-bold text-on-surface bg-transparent border-0 p-0 focus:ring-0 cursor-pointer">
+            <option value="ALL">All Field Staff (બધા એજન્ટ)</option>
+            <option value="Kamal Bhai">Kamal Bhai (FA-7702)</option>
+            <option value="Nilesh">Nilesh (FA-7701)</option>
+            <option value="Rajesh Varma">Rajesh Varma (FA-9042)</option>
+            <option value="Amit Shah">Amit Shah (FA-5011)</option>
+            <option value="Sneha Desai">Sneha Desai (FA-3104)</option>
+          </select>
+        </div>
+
+        <!-- 5. Status Filter -->
+        <div class="bg-surface-container-low border border-outline-variant rounded-lg p-1.5">
+          <label class="block font-mono text-[9px] font-bold text-outline uppercase mb-0.5">Allotment Status (સ્થિતિ)</label>
+          <select id="mgmtFilterStatus" onchange="applyManagementFilters()" class="w-full text-xs font-bold text-on-surface bg-transparent border-0 p-0 focus:ring-0 cursor-pointer">
+            <option value="ALL">All Statuses (બધી સ્થિતિ)</option>
+            <option value="ASSIGNED">ASSIGNED (સોંપેલ)</option>
+            <option value="IN_PROGRESS">IN_PROGRESS (ચાલુ)</option>
+            <option value="PENDING_CA_REVIEW">PENDING CA REVIEW (ચકાસણી પેન્ડિંગ)</option>
+            <option value="CERTIFIED">CERTIFIED (UDIN પ્રમાણિત)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Search Input Bar -->
+      <div class="relative">
+        <span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px]">search</span>
+        <input id="mgmtSearchInput" type="text" oninput="applyManagementFilters()" placeholder="Search by Applicant Name, Case No, Phone, Bank, Branch, or Address..." class="w-full pl-9 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs text-on-surface placeholder-outline focus:ring-2 focus:ring-primary-container focus:border-transparent font-body"/>
+      </div>
+    </div>
+
+    <!-- MASTER RECORDS DATA TABLE -->
+    <div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xs overflow-hidden">
+      <div class="p-3.5 border-b border-outline-variant bg-surface-container-low flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary-container text-[20px]">dataset</span>
+          <h3 class="font-headline font-bold text-sm text-on-surface">Case Portfolio & Field Visit History Records</h3>
+          <span id="mgmtFilteredCount" class="font-mono text-[10px] px-2 py-0.5 rounded bg-blue-50 text-primary-container border border-blue-200 font-bold">5 Cases Found</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="exportManagementCsv()" class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant text-[11px] font-bold text-on-surface flex items-center gap-1 transition-colors">
+            <span class="material-symbols-outlined text-[15px]">download</span>
+            <span>Export CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-outline-variant bg-surface-container-high/40 text-[10px] font-mono text-outline uppercase tracking-wider">
+              <th class="py-2.5 px-3">Month & Case Ref</th>
+              <th class="py-2.5 px-3">Applicant & Phone</th>
+              <th class="py-2.5 px-3">Bank & Branch</th>
+              <th class="py-2.5 px-3">Facility & Amount</th>
+              <th class="py-2.5 px-3">Allotted By</th>
+              <th class="py-2.5 px-3">Field Staff & Attendance Selfie</th>
+              <th class="py-2.5 px-3">Visit Telemetry</th>
+              <th class="py-2.5 px-3">Status</th>
+              <th class="py-2.5 px-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="mgmtTableBody" class="divide-y divide-outline-variant/60 text-xs font-body">
+            <!-- Rows rendered dynamically in JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div> <!-- /viewManagementPortal -->
 
   <script>
     let activeCaseId = "b901fc63-12a8-4e32-9c02-e20984cfb001";
@@ -1080,6 +1356,11 @@
         bank: "Union Bank of India",
         branch: "Amrapura Branch",
         applicant_name: "Mrs. Rajkunvarba Pradeepsinh Vaghela",
+        phone: "+91 81601 66900",
+        month: "August 2026",
+        allotted_by: "Suresh Sir (Operations Lead)",
+        loan_facility: "Home Loan (HL) ₹20.00 Lacs",
+        loan_amount_val: 2000000,
         pan: "BYMPG8996E",
         aadhaar_masked: "XXXX - XXXX - 7689",
         dob: "30/05/1997",
@@ -1087,6 +1368,9 @@
         ward: "WARD 1, GANDHINAGAR (ACTIVE)",
         address: "31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar",
         agent: "Nilesh & Kamal Bhai (Field Team)",
+        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
+        selfie_verified: true,
+        photos_count: 8,
         visit_date: "04-Aug-2026, 11:30 IST",
         benchmark_lat: "23.2156",
         benchmark_lon: "72.6369",
@@ -1179,6 +1463,11 @@
         bank: "State Bank of India",
         branch: "Bandra West Branch",
         applicant_name: "Mr. Vikramaditya Sengupta",
+        phone: "+91 98201 12233",
+        month: "October 2026",
+        allotted_by: "CA Pranav Shah (Sr. Partner)",
+        loan_facility: "Home Loan (HL) ₹45.00 Lacs",
+        loan_amount_val: 4500000,
         pan: "ABCPS1234F",
         aadhaar_masked: "XXXX - XXXX - 8912",
         dob: "14/08/1984",
@@ -1186,6 +1475,9 @@
         ward: "WARD 50, BANDRA, MUMBAI (ACTIVE)",
         address: "Flat 402, Imperial Heights, Bandra West, Mumbai - 400050",
         agent: "Rajesh Varma (FA-9042)",
+        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
+        selfie_verified: true,
+        photos_count: 8,
         visit_date: "24-Oct-2026, 14:15 IST",
         benchmark_lat: "19.0596",
         benchmark_lon: "72.8295",
@@ -1222,6 +1514,11 @@
         bank: "HDFC Bank",
         branch: "Navrangpura Branch",
         applicant_name: "Mr. Jayeshbhai K. Patel",
+        phone: "+91 98795 54433",
+        month: "October 2026",
+        allotted_by: "CA Pranav Shah (Sr. Partner)",
+        loan_facility: "Loan Against Property (LAP) ₹60.00 Lacs",
+        loan_amount_val: 6000000,
         pan: "AAEPP5521M",
         aadhaar_masked: "XXXX - XXXX - 3341",
         dob: "22/11/1979",
@@ -1229,6 +1526,9 @@
         ward: "WARD 7, AMBAWADI, AHMEDABAD (ACTIVE)",
         address: "B-14, Shivalik Corporate Park, Ambawadi, Ahmedabad - 380015",
         agent: "Amit Shah (FA-5011)",
+        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
+        selfie_verified: true,
+        photos_count: 8,
         visit_date: "23-Oct-2026, 16:30 IST",
         benchmark_lat: "23.0225",
         benchmark_lon: "72.5412",
@@ -1265,6 +1565,11 @@
         bank: "ICICI Bank",
         branch: "Ashram Road Branch",
         applicant_name: "Dr. Ananya Sharma",
+        phone: "+91 94260 99887",
+        month: "October 2026",
+        allotted_by: "Suresh Sir (Operations Lead)",
+        loan_facility: "Personal Loan (PL) ₹15.00 Lacs",
+        loan_amount_val: 1500000,
         pan: "CKLPS9012K",
         aadhaar_masked: "XXXX - XXXX - 9021",
         dob: "05/03/1991",
@@ -1272,6 +1577,9 @@
         ward: "WARD 9, ELLISBRIDGE, AHMEDABAD (ACTIVE)",
         address: "401, Doctor House, Ellisbridge, Ahmedabad - 380006",
         agent: "Sneha Desai (FA-3104)",
+        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
+        selfie_verified: true,
+        photos_count: 8,
         visit_date: "25-Oct-2026, 10:15 IST",
         benchmark_lat: "23.0180",
         benchmark_lon: "72.5680",
@@ -1308,6 +1616,11 @@
         bank: "Bank of Baroda",
         branch: "Sector 11 Branch",
         applicant_name: "Mr. Mahendrasinh Solanki",
+        phone: "+91 99781 23456",
+        month: "September 2026",
+        allotted_by: "Suresh Sir (Operations Lead)",
+        loan_facility: "Home Loan (HL) ₹30.00 Lacs",
+        loan_amount_val: 3000000,
         pan: "BTPMS4820R",
         aadhaar_masked: "XXXX - XXXX - 4410",
         dob: "18/07/1982",
@@ -1315,6 +1628,9 @@
         ward: "WARD 4, SECTOR 22, GANDHINAGAR (ACTIVE)",
         address: "Plot 112/1, Sector 22, Gandhinagar - 382022",
         agent: "Kamal Bhai (FA-7702)",
+        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
+        selfie_verified: true,
+        photos_count: 8,
         visit_date: "24-Oct-2026, 16:45 IST",
         benchmark_lat: "23.2350",
         benchmark_lon: "72.6520",
@@ -1465,6 +1781,21 @@
           }
         }
 
+        // Check for Field Staff Attendance Selfie uploaded from mobile PWA or backend
+        const selfieDoc = docs.find(d => d.doc_type === "AGENT_SELFIE" || (d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
+        if (selfieDoc && selfieDoc.url) {
+          c.agent_selfie = selfieDoc.url;
+          c.selfie_verified = true;
+          const selfieThumb = document.getElementById("dispAgentSelfieThumb");
+          if (selfieThumb) selfieThumb.src = selfieDoc.url;
+          const selfieCardImg = document.getElementById("dispAgentSelfieCardImg");
+          if (selfieCardImg) selfieCardImg.src = selfieDoc.url;
+          const selfieModalImg = document.getElementById("selfieModalImg");
+          if (selfieModalImg) selfieModalImg.src = selfieDoc.url;
+          const selfieStatus = document.getElementById("dispAgentSelfieStatus");
+          if (selfieStatus) selfieStatus.textContent = "Selfie Verified ✓";
+        }
+
         // Show live sync badge
         const badge = document.getElementById("liveSyncBadge");
         if (badge) {
@@ -1590,10 +1921,36 @@
       // 6. Update Dual Folder Site Evidence Photos
       renderPhotosForActiveFolder();
 
-      // 7. Update CA Partner Observations
+      // 7. Update Field Staff Attendance Selfie Verification UI
+      const cachedSelfie = localStorage.getItem("selfie_" + caseId);
+      const cachedTime = localStorage.getItem("selfie_timestamp_" + caseId);
+      const selfieUrl = cachedSelfie || c.agent_selfie || "/static/specimen_assets/residence/agent_selfie_specimen.jpg";
+      
+      const selfieThumb = document.getElementById("dispAgentSelfieThumb");
+      if (selfieThumb) selfieThumb.src = selfieUrl;
+      
+      const selfieCardImg = document.getElementById("dispAgentSelfieCardImg");
+      if (selfieCardImg) selfieCardImg.src = selfieUrl;
+      
+      const selfieModalImg = document.getElementById("selfieModalImg");
+      if (selfieModalImg) selfieModalImg.src = selfieUrl;
+
+      const selfieName = document.getElementById("dispAgentSelfieName");
+      if (selfieName) selfieName.textContent = c.agent || "Nilesh & Kamal Bhai (Field Team)";
+
+      const selfieTime = document.getElementById("dispAgentSelfieTime");
+      if (selfieTime) selfieTime.textContent = "Time: " + (cachedTime || c.visit_date || "04-Aug-2026, 11:30 IST");
+
+      const selfieGps = document.getElementById("dispAgentSelfieGps");
+      if (selfieGps) selfieGps.textContent = `GPS: ${c.capture_lat || c.benchmark_lat || '23.2154'}°N, ${c.capture_lon || c.benchmark_lon || '72.6367'}°E`;
+
+      const selfieStatus = document.getElementById("dispAgentSelfieStatus");
+      if (selfieStatus) selfieStatus.textContent = "Selfie Verified ✓";
+
+      // 8. Update CA Partner Observations
       document.getElementById("caRemarksInput").value = `Field inspection for ${c.applicant_name} (${c.case_no}) completed within permissible geofence limits (${c.distance_m}m delta). Physical occupancy verified via Society records and exterior meter alignment. Utility billing corroborates continuous residence. Document OCR yields >98% fuzzy alignment with master application dossier. Recommended for credit underwriting clearance.`;
 
-      // 8. Synchronize Filter dropdowns
+      // 9. Synchronize Filter dropdowns
       const bankSelect = document.getElementById("filterBankSelect");
       if (bankSelect && bankSelect.value !== "ALL" && bankSelect.value !== c.bank) {
         bankSelect.value = "ALL";
@@ -1602,7 +1959,7 @@
       // Hide previous report badge if case changed
       document.getElementById("pdfSuccessCard").classList.add("hidden");
 
-      // 9. Fetch Live Evidence Photos from Server
+      // 10. Fetch Live Evidence Photos from Server
       fetchLiveCaseDocuments(caseId);
     }
 
@@ -2399,24 +2756,697 @@
       markCaseAsAssigned();
     }
 
-    function markCaseAsAssigned() {
-      const c = caseRegistry[activeCaseId];
-      if (c) {
-        const agentName = document.getElementById("hoAgentSelect").options[document.getElementById("hoAgentSelect").selectedIndex].text.split(" - ")[0];
-        const phone = document.getElementById("hoAgentPhone").value.trim();
-        c.status = "ASSIGNED_TO_FIELD";
-        c.agent = `${agentName} (Mob: ${phone})`;
-        document.getElementById("dispCaseStatus").textContent = "ASSIGNED_TO_FIELD";
-        document.getElementById("dispCaseStatusPill").className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200";
-        document.getElementById("dispFieldAgent").textContent = c.agent;
+    // ==========================================
+    // PORTAL VIEW SWITCHER (SCRUTINY DESK vs MANAGEMENT PORTAL)
+    // ==========================================
+    function switchMainPortalView(view) {
+      const scrutinyDesk = document.getElementById("viewScrutinyDesk");
+      const mgmtPortal = document.getElementById("viewManagementPortal");
+      const tabScrutiny = document.getElementById("navTabScrutiny");
+      const tabMgmt = document.getElementById("navTabManagement");
+
+      if (view === "management") {
+        if (scrutinyDesk) scrutinyDesk.classList.add("hidden");
+        if (mgmtPortal) mgmtPortal.classList.remove("hidden");
+        if (tabMgmt) {
+          tabMgmt.className = "px-3 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
+        }
+        if (tabScrutiny) {
+          tabScrutiny.className = "px-3 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        }
+        renderManagementPortal();
+      } else {
+        if (scrutinyDesk) scrutinyDesk.classList.remove("hidden");
+        if (mgmtPortal) mgmtPortal.classList.add("hidden");
+        if (tabScrutiny) {
+          tabScrutiny.className = "px-3 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
+        }
+        if (tabMgmt) {
+          tabMgmt.className = "px-3 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        }
       }
-      closeHandoverModal();
-      alert(`[✓] Case ${c ? c.case_no : ''} marked as ASSIGNED. Handover dispatched via WhatsApp to Field Staff.`);
+    }
+
+    // ==========================================
+    // FIELD STAFF ATTENDANCE SELFIE ZOOM MODAL
+    // ==========================================
+    function openSelfieModal() {
+      const c = caseRegistry[activeCaseId] || {};
+      const cachedSelfie = localStorage.getItem("selfie_" + activeCaseId);
+      const cachedTime = localStorage.getItem("selfie_timestamp_" + activeCaseId);
+      const url = cachedSelfie || c.agent_selfie || "/static/specimen_assets/residence/agent_selfie_specimen.jpg";
+      
+      const img = document.getElementById("selfieModalImg");
+      if (img) img.src = url;
+      const name = document.getElementById("selfieModalStaffName");
+      if (name) name.textContent = c.agent || "Nilesh & Kamal Bhai (Field Team)";
+      const ts = document.getElementById("selfieModalTimestamp");
+      if (ts) ts.textContent = cachedTime || c.visit_date || "04-Aug-2026, 11:30 IST";
+      const gps = document.getElementById("selfieModalGps");
+      if (gps) gps.textContent = `${c.capture_lat || c.benchmark_lat || '23.2154'}° N, ${c.capture_lon || c.benchmark_lon || '72.6367'}° E (±3.2m)`;
+      
+      document.getElementById("selfieModal").classList.remove("hidden");
+    }
+
+    function closeSelfieModal() {
+      document.getElementById("selfieModal").classList.add("hidden");
+    }
+
+    // ==========================================
+    // BANK DOCUMENTS FOLDER INGESTION & AI SCANNER
+    // ==========================================
+    function openNewCaseModal() {
+      document.getElementById("newCaseModal").classList.remove("hidden");
+    }
+
+    function closeNewCaseModal() {
+      document.getElementById("newCaseModal").classList.add("hidden");
+    }
+
+    function handleNewCaseFolderSelected(files) {
+      if (!files || files.length === 0) return;
+      processIngestedFiles(Array.from(files));
+    }
+
+    function handleNewCaseFilesSelected(files) {
+      if (!files || files.length === 0) return;
+      processIngestedFiles(Array.from(files));
+    }
+
+    function processIngestedFiles(fileList) {
+      if (!fileList || fileList.length === 0) return;
+
+      const firstRelPath = fileList[0].webkitRelativePath || "";
+      let folderName = "";
+      if (firstRelPath) {
+        const parts = firstRelPath.split("/");
+        if (parts.length > 1) {
+          folderName = parts[0];
+        }
+      }
+      if (!folderName) {
+        folderName = "Bank_Documents_Folder_" + new Date().toISOString().slice(0, 10);
+      }
+
+      const folderNameEl = document.getElementById("newCaseFolderName");
+      if (folderNameEl) folderNameEl.textContent = `Folder: ${folderName}`;
+
+      // AI Heuristic parsing from folder name (e.g., "VAGHELA RAJKUNVARBA-HL-20 LACS")
+      let cleanFolder = folderName.replace(/_/g, "-");
+      let extractedName = "";
+      let extractedFacility = "Home Loan (HL)";
+      let extractedAmount = "20,00,000";
+
+      if (/LAP|property/i.test(cleanFolder)) extractedFacility = "Loan Against Property (LAP)";
+      else if (/PL|personal/i.test(cleanFolder)) extractedFacility = "Personal Loan (PL)";
+      else if (/commercial|CM/i.test(cleanFolder)) extractedFacility = "Commercial Mortgage (CM)";
+      else if (/business|msme/i.test(cleanFolder)) extractedFacility = "Business / MSME Loan";
+      else if (/HL|home/i.test(cleanFolder)) extractedFacility = "Home Loan (HL)";
+
+      const amtMatch = cleanFolder.match(/(\d+)\s*(LACS|LAKH|L|CR)/i);
+      if (amtMatch) {
+        const num = parseInt(amtMatch[1]);
+        if (/CR/i.test(amtMatch[2])) {
+          extractedAmount = (num * 10000000).toLocaleString("en-IN");
+        } else {
+          extractedAmount = (num * 100000).toLocaleString("en-IN");
+        }
+      }
+
+      const nameParts = cleanFolder.split(/[-–_]/);
+      if (nameParts.length > 0) {
+        extractedName = nameParts[0].trim().replace(/[0-9]/g, "").trim();
+        extractedName = extractedName.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+      }
+      if (!extractedName || extractedName.length < 3) {
+        extractedName = "Applicant " + Math.floor(1000 + Math.random() * 9000);
+      }
+
+      const randNum = Math.floor(100 + Math.random() * 900);
+      const caseRef = `UBI-HL-2026-${randNum}`;
+      document.getElementById("ncCaseNo").value = caseRef;
+      document.getElementById("ncApplicantName").value = extractedName;
+      document.getElementById("ncApplicantPhone").value = "+91 81" + Math.floor(10000000 + Math.random() * 90000000);
+      document.getElementById("ncLoanType").value = extractedFacility;
+      document.getElementById("ncLoanAmount").value = extractedAmount;
+      if (!document.getElementById("ncBranch").value) {
+        document.getElementById("ncBranch").value = "Amrapura Branch";
+      }
+      if (!document.getElementById("ncAddress").value) {
+        document.getElementById("ncAddress").value = `31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar - 382610`;
+      }
+
+      // Display classified badges in tray
+      const tray = document.getElementById("newCaseFilesTray");
+      const list = document.getElementById("newCaseFilesList");
+      const statusText = document.getElementById("newCaseAiStatusText");
+
+      if (tray && list) {
+        list.innerHTML = "";
+        let classifiedCount = 0;
+
+        fileList.forEach(f => {
+          const name = f.name;
+          const lower = name.toLowerCase();
+          let tag = "FILE";
+          let color = "bg-slate-100 text-slate-800 border-slate-300";
+
+          if (lower.includes("pan")) {
+            tag = "PAN: MATCH";
+            color = "bg-blue-100 text-blue-900 border-blue-300 font-bold";
+            classifiedCount++;
+          } else if (lower.includes("aadhaar") || lower.includes("aadhar") || lower.includes("uid")) {
+            tag = "AADHAAR: MATCH";
+            color = "bg-amber-100 text-amber-900 border-amber-300 font-bold";
+            classifiedCount++;
+          } else if (lower.includes("bill") || lower.includes("electricity") || lower.includes("ugvcl") || lower.includes("utility")) {
+            tag = "UTILITY: BILL";
+            color = "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold";
+            classifiedCount++;
+          } else if (lower.includes("selfie") || lower.includes("agent")) {
+            tag = "ATTENDANCE: SELFIE";
+            color = "bg-green-100 text-green-900 border-green-300 font-bold";
+            classifiedCount++;
+          } else if (lower.includes("gate") || lower.includes("main")) {
+            tag = "PHOTO: GATE";
+            color = "bg-purple-100 text-purple-900 border-purple-300 font-bold";
+            classifiedCount++;
+          } else if (lower.includes("elevation")) {
+            tag = "PHOTO: ELEVATION";
+            color = "bg-indigo-100 text-indigo-900 border-indigo-300 font-bold";
+            classifiedCount++;
+          } else if (lower.includes("interior") || lower.includes("room")) {
+            tag = "PHOTO: INTERIOR";
+            color = "bg-sky-100 text-sky-900 border-sky-300 font-bold";
+            classifiedCount++;
+          } else if (lower.includes("person") || lower.includes("husband")) {
+            tag = "PHOTO: PERSON MET";
+            color = "bg-rose-100 text-rose-900 border-rose-300 font-bold";
+            classifiedCount++;
+          } else {
+            tag = "BANK: EVIDENCE";
+            color = "bg-teal-100 text-teal-900 border-teal-300 font-bold";
+            classifiedCount++;
+          }
+
+          const badge = document.createElement("span");
+          badge.className = `inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono border ${color}`;
+          badge.innerHTML = `<span>${name}</span> <span class="opacity-70 text-[9px]">[${tag}]</span>`;
+          list.appendChild(badge);
+        });
+
+        if (statusText) {
+          statusText.textContent = `AI Scan Complete • ${fileList.length} Files Arranged (${classifiedCount} classified)`;
+        }
+        tray.classList.remove("hidden");
+      }
+    }
+
+    function quickFillSampleBankFolder() {
+      const folderName = "VAGHELA RAJKUNVARBA-HL-20 LACS";
+      const sampleFiles = [
+        { name: "PAN_Card_BYMPG8996E.pdf" },
+        { name: "Aadhaar_Masked_7689.pdf" },
+        { name: "UGVCL_Electricity_Bill.pdf" },
+        { name: "CPV_Bank_Sanction_Order.pdf" },
+        { name: "Residence_Main_Gate.jpg" },
+        { name: "House_31_Elevation.jpg" },
+        { name: "Living_Room_Interior.jpg" },
+        { name: "Pradeepsinh_Husband_Met.jpg" },
+        { name: "Field_Staff_Attendance_Selfie.jpg" }
+      ];
+
+      document.getElementById("ncCaseNo").value = "UBI-HL-2026-20L-NEW";
+      document.getElementById("ncApplicantName").value = "Mrs. Rajkunvarba Pradeepsinh Vaghela";
+      document.getElementById("ncApplicantPhone").value = "+91 81601 66900";
+      document.getElementById("ncBankName").value = "Union Bank of India";
+      document.getElementById("ncBranch").value = "Amrapura Branch";
+      document.getElementById("ncLoanType").value = "Home Loan (HL)";
+      document.getElementById("ncLoanAmount").value = "20,00,000";
+      document.getElementById("ncMonth").value = "August 2026";
+      document.getElementById("ncAddress").value = "31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar - 382610";
+      document.getElementById("ncLat").value = "23.2156";
+      document.getElementById("ncLon").value = "72.6369";
+      document.getElementById("ncAllottedBy").value = "Suresh Sir (Operations Lead)";
+      document.getElementById("ncFieldStaff").value = "Nilesh & Kamal Bhai (Field Team)";
+
+      const folderNameEl = document.getElementById("newCaseFolderName");
+      if (folderNameEl) folderNameEl.textContent = `Folder: ${folderName}`;
+
+      const tray = document.getElementById("newCaseFilesTray");
+      const list = document.getElementById("newCaseFilesList");
+      const statusText = document.getElementById("newCaseAiStatusText");
+
+      if (tray && list) {
+        list.innerHTML = "";
+        sampleFiles.forEach(f => {
+          let tag = "VERIFIED";
+          let color = "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold";
+          if (f.name.includes("PAN")) tag = "PAN: MATCH";
+          else if (f.name.includes("Aadhaar")) tag = "AADHAAR: MATCH";
+          else if (f.name.includes("Electricity")) tag = "UTILITY: MATCH";
+          else if (f.name.includes("Selfie")) tag = "ATTENDANCE: SELFIE";
+          else tag = "SITE: EVIDENCE";
+
+          const badge = document.createElement("span");
+          badge.className = `inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono border ${color}`;
+          badge.innerHTML = `<span>${f.name}</span> <span class="opacity-75 text-[9px]">[${tag}]</span>`;
+          list.appendChild(badge);
+        });
+
+        if (statusText) statusText.textContent = `AI Scan Complete • 9 Files Arranged from Bank Folder (100% Match)`;
+        tray.classList.remove("hidden");
+      }
+    }
+
+    async function handleCreateNewCase(e) {
+      if (e) e.preventDefault();
+      const caseNo = document.getElementById("ncCaseNo").value.trim();
+      const applicantName = document.getElementById("ncApplicantName").value.trim();
+      const phone = document.getElementById("ncApplicantPhone").value.trim();
+      const bank = document.getElementById("ncBankName").value;
+      const branch = document.getElementById("ncBranch").value.trim();
+      const loanType = document.getElementById("ncLoanType").value;
+      const loanAmount = document.getElementById("ncLoanAmount").value.trim();
+      const month = document.getElementById("ncMonth").value;
+      const address = document.getElementById("ncAddress").value.trim();
+      const lat = document.getElementById("ncLat").value.trim() || "23.2156";
+      const lon = document.getElementById("ncLon").value.trim() || "72.6369";
+      const allottedBy = document.getElementById("ncAllottedBy").value;
+      const fieldStaff = document.getElementById("ncFieldStaff").value;
+
+      const newCaseId = "case-" + Date.now();
+      const amtNumeric = parseInt(loanAmount.replace(/[^0-9]/g, "")) || 2000000;
+
+      caseRegistry[newCaseId] = {
+        case_no: caseNo,
+        bank: bank,
+        branch: branch,
+        applicant_name: applicantName,
+        phone: phone,
+        month: month,
+        allotted_by: allottedBy,
+        loan_facility: `${loanType} ₹${(amtNumeric/100000).toFixed(2)} Lacs`,
+        loan_amount_val: amtNumeric,
+        pan: "BYMPG8996E",
+        aadhaar_masked: "XXXX - XXXX - 7689",
+        dob: "30/05/1997",
+        gender: "Female",
+        ward: "WARD 1, GANDHINAGAR (ACTIVE)",
+        address: address,
+        agent: fieldStaff,
+        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
+        selfie_verified: true,
+        photos_count: 8,
+        visit_date: "Today, Just Onboarded",
+        benchmark_lat: lat,
+        benchmark_lon: lon,
+        capture_lat: (parseFloat(lat) - 0.0002).toFixed(4),
+        capture_lon: (parseFloat(lon) - 0.0002).toFixed(4),
+        distance_m: 25,
+        agent_pin: "FA-7701",
+        stay_period: "09 Years",
+        ownership: "Owned Premises",
+        person_met: `${applicantName} (Self / Family - ${phone})`,
+        neighbors: ["1. Society Chairman (Confirmed)", "2. Adjacent Resident (Confirmed)"],
+        status: "ASSIGNED_TO_FIELD",
+        residence_photos: [
+          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Main Gate & Society", tag: "MAIN GATE", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" },
+          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "Premises Elevation", tag: "ELEVATION", timestamp: "Today", badge: "AI ARRANGED", status: "CONFIRMED" },
+          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Interior Living Assets", tag: "INTERIOR", timestamp: "Today", badge: "AI ARRANGED", status: "VERIFIED" },
+          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: applicantName, tag: "PERSON MET", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" }
+        ],
+        work_photos: [
+          { src: "/static/specimen_assets/work/work_facade.jpg", title: "Workplace Facade", tag: "WORKPLACE FACADE", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" },
+          { src: "/static/specimen_assets/work/work_office.jpg", title: "Operations Floor", tag: "OPERATIONS", timestamp: "Today", badge: "AI ARRANGED", status: "VERIFIED" },
+          { src: "/static/specimen_assets/work/work_desk.jpg", title: "Inspection Desk", tag: "DESK", timestamp: "Today", badge: "AI ARRANGED", status: "CONFIRMED" },
+          { src: "/static/specimen_assets/work/work_approach.jpg", title: "Approach Road", tag: "APPROACH ROAD", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" }
+        ],
+        photos: [
+          "/static/specimen_assets/residence/res_gate.jpg",
+          "/static/specimen_assets/residence/res_elevation.jpg",
+          "/static/specimen_assets/residence/res_interior.jpg",
+          "/static/specimen_assets/residence/res_person_met.jpg"
+        ]
+      };
+
+      const selector = document.getElementById("caseSelectorSelect");
+      if (selector) {
+        const opt = document.createElement("option");
+        opt.value = newCaseId;
+        opt.textContent = `[${caseNo}] - ${applicantName} | ${bank} (${branch})`;
+        selector.insertBefore(opt, selector.firstChild);
+        selector.value = newCaseId;
+      }
+
+      const counterEl = document.getElementById("totalCaseCount");
+      if (counterEl) {
+        counterEl.textContent = Object.keys(caseRegistry).length;
+      }
+
+      onCaseSelected(newCaseId);
+      switchMainPortalView("scrutiny");
+      closeNewCaseModal();
+      renderManagementPortal();
+
+      try {
+        await fetch("/api/v1/cases", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            case_no: caseNo,
+            bank_name: bank,
+            branch_name: branch,
+            applicant_name: applicantName,
+            property_address: address,
+            benchmark_lat: parseFloat(lat),
+            benchmark_lon: parseFloat(lon),
+            status: "ASSIGNED"
+          })
+        });
+      } catch(e) {}
+
+      alert(`[✓] New case "${caseNo}" created from bank documents folder!\n• Borrower: ${applicantName}\n• Bank: ${bank} (${branch})\n• Allotted to: ${fieldStaff}\n\nCase is now loaded in the CA Scrutiny Desk.`);
+    }
+
+    // ==========================================
+    // EDIT / MODIFY CASE DETAILS MODAL
+    // ==========================================
+    function openEditCaseModal(caseId) {
+      const cId = caseId || activeCaseId;
+      const c = caseRegistry[cId];
+      if (!c) return;
+
+      document.getElementById("ecCaseId").value = cId;
+      document.getElementById("ecCaseNo").value = c.case_no;
+      document.getElementById("ecApplicantName").value = c.applicant_name;
+      document.getElementById("ecBank").value = c.bank;
+      document.getElementById("ecBranch").value = c.branch;
+      document.getElementById("ecAddress").value = c.address;
+      
+      const staffSelect = document.getElementById("ecStaff");
+      if (staffSelect) {
+        let found = false;
+        for (let opt of staffSelect.options) {
+          if (c.agent.includes(opt.value) || opt.value.includes(c.agent)) {
+            staffSelect.value = opt.value;
+            found = true;
+            break;
+          }
+        }
+        if (!found) staffSelect.selectedIndex = 0;
+      }
+
+      const statusSelect = document.getElementById("ecStatus");
+      if (statusSelect) {
+        statusSelect.value = c.status || "PENDING_CA_REVIEW";
+      }
+
+      document.getElementById("editCaseModal").classList.remove("hidden");
+    }
+
+    function closeEditCaseModal() {
+      document.getElementById("editCaseModal").classList.add("hidden");
+    }
+
+    function handleSaveCaseEdit(e) {
+      if (e) e.preventDefault();
+      const cId = document.getElementById("ecCaseId").value;
+      const c = caseRegistry[cId];
+      if (!c) return;
+
+      c.applicant_name = document.getElementById("ecApplicantName").value.trim();
+      c.bank = document.getElementById("ecBank").value.trim();
+      c.branch = document.getElementById("ecBranch").value.trim();
+      c.address = document.getElementById("ecAddress").value.trim();
+      c.agent = document.getElementById("ecStaff").value;
+      c.status = document.getElementById("ecStatus").value;
+
+      closeEditCaseModal();
+
+      const selector = document.getElementById("caseSelectorSelect");
+      if (selector) {
+        for (let opt of selector.options) {
+          if (opt.value === cId) {
+            opt.textContent = `[${c.case_no}] - ${c.applicant_name} | ${c.bank} (${c.branch})`;
+            break;
+          }
+        }
+      }
+
+      if (cId === activeCaseId) {
+        onCaseSelected(cId);
+      }
+      renderManagementPortal();
+      alert(`[✓] Case ${c.case_no} details successfully updated!`);
+    }
+
+    // ==========================================
+    // CASE MANAGEMENT & PORTFOLIO INTELLIGENCE
+    // ==========================================
+    function renderManagementPortal() {
+      const cases = Object.entries(caseRegistry).map(([id, c]) => ({ id, ...c }));
+
+      // 1. Calculate KPIs
+      const totalCases = cases.length;
+      const allottedCases = cases.filter(c => c.status === "ASSIGNED_TO_FIELD" || c.status === "IN_PROGRESS" || c.status === "ASSIGNED").length;
+      const completedCases = cases.filter(c => c.status === "PENDING_CA_REVIEW" || c.status === "CERTIFIED").length;
+      const certifiedCases = cases.filter(c => c.status === "CERTIFIED").length;
+
+      const kpiTotal = document.getElementById("mgmtKpiTotal");
+      const kpiAllotted = document.getElementById("mgmtKpiAllotted");
+      const kpiCompleted = document.getElementById("mgmtKpiCompleted");
+      const kpiCertified = document.getElementById("mgmtKpiCertified");
+
+      if (kpiTotal) kpiTotal.textContent = totalCases;
+      if (kpiAllotted) kpiAllotted.textContent = allottedCases;
+      if (kpiCompleted) kpiCompleted.textContent = completedCases;
+      if (kpiCertified) kpiCertified.textContent = certifiedCases;
+
+      // 2. Render Bank Distribution Cards
+      const bankMap = {};
+      cases.forEach(c => {
+        const b = c.bank || "Other";
+        if (!bankMap[b]) bankMap[b] = { count: 0, totalAmount: 0 };
+        bankMap[b].count++;
+        bankMap[b].totalAmount += (c.loan_amount_val || 2000000);
+      });
+
+      const bankContainer = document.getElementById("mgmtBankCardsContainer");
+      if (bankContainer) {
+        bankContainer.innerHTML = "";
+        const bankIcons = {
+          "Union Bank of India": "account_balance",
+          "State Bank of India": "assured_workload",
+          "HDFC Bank": "corporate_fare",
+          "ICICI Bank": "account_balance_wallet",
+          "Bank of Baroda": "savings"
+        };
+
+        Object.entries(bankMap).forEach(([bankName, info]) => {
+          const card = document.createElement("div");
+          card.onclick = () => {
+            const filterBank = document.getElementById("mgmtFilterBank");
+            if (filterBank) {
+              filterBank.value = bankName;
+              applyManagementFilters();
+            }
+          };
+          card.className = "cursor-pointer bg-surface-container-lowest hover:bg-surface-container-low p-3 rounded-xl border border-outline-variant hover:border-primary-container shadow-2xs hover:shadow-sm transition-all group";
+          card.innerHTML = `
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-on-surface truncate group-hover:text-primary-container">${bankName}</span>
+              <span class="material-symbols-outlined text-outline group-hover:text-primary-container text-[18px]">${bankIcons[bankName] || 'domain'}</span>
+            </div>
+            <div class="mt-2 flex items-baseline justify-between">
+              <span class="font-headline font-bold text-lg text-primary-container">${info.count} <span class="text-[10px] font-mono text-outline font-normal">cases</span></span>
+              <span class="font-mono text-[10px] font-bold text-secondary">₹${(info.totalAmount / 100000).toFixed(1)}L</span>
+            </div>
+          `;
+          bankContainer.appendChild(card);
+        });
+      }
+
+      // 3. Render Table Rows
+      applyManagementFilters();
+    }
+
+    function applyManagementFilters() {
+      const monthFilter = document.getElementById("mgmtFilterMonth") ? document.getElementById("mgmtFilterMonth").value : "ALL";
+      const bankFilter = document.getElementById("mgmtFilterBank") ? document.getElementById("mgmtFilterBank").value : "ALL";
+      const branchFilter = document.getElementById("mgmtFilterBranch") ? document.getElementById("mgmtFilterBranch").value : "ALL";
+      const staffFilter = document.getElementById("mgmtFilterStaff") ? document.getElementById("mgmtFilterStaff").value : "ALL";
+      const statusFilter = document.getElementById("mgmtFilterStatus") ? document.getElementById("mgmtFilterStatus").value : "ALL";
+      const query = (document.getElementById("mgmtSearchInput") ? document.getElementById("mgmtSearchInput").value : "").toLowerCase().trim();
+
+      const tbody = document.getElementById("mgmtTableBody");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+
+      let filtered = Object.entries(caseRegistry).map(([id, c]) => ({ id, ...c }));
+
+      if (monthFilter !== "ALL") {
+        filtered = filtered.filter(c => (c.month || "").toLowerCase().includes(monthFilter.toLowerCase()));
+      }
+      if (bankFilter !== "ALL") {
+        filtered = filtered.filter(c => c.bank === bankFilter);
+      }
+      if (branchFilter !== "ALL") {
+        filtered = filtered.filter(c => c.branch === branchFilter);
+      }
+      if (staffFilter !== "ALL") {
+        filtered = filtered.filter(c => (c.agent || "").toLowerCase().includes(staffFilter.toLowerCase()));
+      }
+      if (statusFilter !== "ALL") {
+        filtered = filtered.filter(c => (c.status || "").toUpperCase() === statusFilter.toUpperCase());
+      }
+      if (query) {
+        filtered = filtered.filter(c => 
+          (c.applicant_name || "").toLowerCase().includes(query) ||
+          (c.case_no || "").toLowerCase().includes(query) ||
+          (c.bank || "").toLowerCase().includes(query) ||
+          (c.branch || "").toLowerCase().includes(query) ||
+          (c.address || "").toLowerCase().includes(query) ||
+          (c.phone || "").toLowerCase().includes(query) ||
+          (c.agent || "").toLowerCase().includes(query)
+        );
+      }
+
+      const countBadge = document.getElementById("mgmtFilteredCount");
+      if (countBadge) countBadge.textContent = `${filtered.length} Cases Found`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" class="py-8 text-center text-outline font-mono text-xs">
+              <span class="material-symbols-outlined text-[28px] text-outline/60 block mb-1">search_off</span>
+              No case records match the specified filters. Try selecting "All" or clearing search.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      filtered.forEach(c => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-surface-container-low/60 transition-colors";
+
+        let statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">${c.status}</span>`;
+        if (c.status === "CERTIFIED") {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">CERTIFIED (UDIN)</span>`;
+        } else if (c.status === "PENDING_CA_REVIEW") {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200">PENDING CA REVIEW</span>`;
+        } else if (c.status === "ASSIGNED_TO_FIELD" || c.status === "ASSIGNED") {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">ASSIGNED TO FIELD</span>`;
+        }
+
+        const cachedSelfie = localStorage.getItem("selfie_" + c.id);
+        const selfieSrc = cachedSelfie || c.agent_selfie || "/static/specimen_assets/residence/agent_selfie_specimen.jpg";
+
+        tr.innerHTML = `
+          <td class="py-3 px-3">
+            <div class="font-mono text-xs font-bold text-primary-container">${c.case_no}</div>
+            <div class="font-mono text-[10px] text-outline">${c.month || 'August 2026'}</div>
+          </td>
+          <td class="py-3 px-3">
+            <div class="font-bold text-on-surface">${c.applicant_name}</div>
+            <div class="font-mono text-[10px] text-outline">${c.phone || '+91 81601 66900'}</div>
+          </td>
+          <td class="py-3 px-3">
+            <div class="font-bold text-on-surface">${c.bank}</div>
+            <div class="text-[11px] text-on-surface-variant font-medium">${c.branch}</div>
+          </td>
+          <td class="py-3 px-3">
+            <div class="font-medium text-on-surface">${c.loan_facility || 'Home Loan (HL)'}</div>
+            <div class="font-mono text-[10px] font-bold text-secondary">₹${((c.loan_amount_val || 2000000)/100000).toFixed(2)} Lacs</div>
+          </td>
+          <td class="py-3 px-3">
+            <div class="text-[11px] text-on-surface-variant font-medium">${c.allotted_by || 'Suresh Sir (Operations Lead)'}</div>
+          </td>
+          <td class="py-3 px-3">
+            <div class="flex items-center gap-2">
+              <div class="relative w-8 h-8 rounded-full overflow-hidden border border-emerald-500 bg-slate-200 shrink-0 cursor-pointer shadow-2xs hover:scale-110 transition-transform" onclick="activeCaseId='${c.id}'; openSelfieModal();" title="Click to view Attendance Selfie">
+                <img src="${selfieSrc}" alt="Selfie" class="w-full h-full object-cover"/>
+                <span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white"></span>
+              </div>
+              <div>
+                <div class="font-semibold text-on-surface text-[11px]">${c.agent}</div>
+                <div class="font-mono text-[9px] text-emerald-700 font-bold flex items-center gap-0.5">
+                  <span class="material-symbols-outlined text-[11px]">verified</span>
+                  <span>Selfie & GPS Logged</span>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="py-3 px-3 font-mono text-[11px]">
+            <div class="text-emerald-700 font-bold">● ${c.distance_m || 32}m (COMPLIANT)</div>
+            <div class="text-[10px] text-outline">${c.capture_lat || '23.2154'}°N, ${c.capture_lon || '72.6367'}°E</div>
+          </td>
+          <td class="py-3 px-3">
+            ${statusBadge}
+          </td>
+          <td class="py-3 px-3 text-right">
+            <div class="flex items-center justify-end gap-1 font-mono text-[11px]">
+              <button onclick="activeCaseId='${c.id}'; onCaseSelected('${c.id}'); switchMainPortalView('scrutiny');" class="px-2 py-1 bg-primary-container text-white rounded font-bold hover:bg-primary transition-colors" title="Open case in CA Scrutiny Desk">
+                Scrutiny
+              </button>
+              <button onclick="activeCaseId='${c.id}'; openHandoverModal();" class="p-1 rounded bg-surface-container hover:bg-emerald-50 text-emerald-700 border border-outline-variant transition-colors" title="Dispatch Handover to WhatsApp">
+                <span class="material-symbols-outlined text-[16px]">chat</span>
+              </button>
+              <button onclick="openEditCaseModal('${c.id}')" class="p-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant transition-colors" title="Edit Case Details">
+                <span class="material-symbols-outlined text-[16px]">edit</span>
+              </button>
+            </div>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function resetManagementFilters() {
+      if (document.getElementById("mgmtFilterMonth")) document.getElementById("mgmtFilterMonth").value = "ALL";
+      if (document.getElementById("mgmtFilterBank")) document.getElementById("mgmtFilterBank").value = "ALL";
+      if (document.getElementById("mgmtFilterBranch")) document.getElementById("mgmtFilterBranch").value = "ALL";
+      if (document.getElementById("mgmtFilterStaff")) document.getElementById("mgmtFilterStaff").value = "ALL";
+      if (document.getElementById("mgmtFilterStatus")) document.getElementById("mgmtFilterStatus").value = "ALL";
+      if (document.getElementById("mgmtSearchInput")) document.getElementById("mgmtSearchInput").value = "";
+      applyManagementFilters();
+    }
+
+    function exportManagementCsv() {
+      const headers = ["Case Ref", "Month", "Applicant Name", "Phone", "Empanelled Bank", "Branch", "Loan Facility", "Amount", "Allotted By", "Field Staff", "GPS Distance", "Latitude", "Longitude", "Status"];
+      const rows = Object.values(caseRegistry).map(c => [
+        `"${c.case_no || ''}"`,
+        `"${c.month || 'August 2026'}"`,
+        `"${c.applicant_name || ''}"`,
+        `"${c.phone || ''}"`,
+        `"${c.bank || ''}"`,
+        `"${c.branch || ''}"`,
+        `"${c.loan_facility || ''}"`,
+        `"${c.loan_amount_val || ''}"`,
+        `"${c.allotted_by || ''}"`,
+        `"${c.agent || ''}"`,
+        `"${c.distance_m || ''}m"`,
+        `"${c.capture_lat || c.benchmark_lat || ''}"`,
+        `"${c.capture_lon || c.benchmark_lon || ''}"`,
+        `"${c.status || ''}"`
+      ]);
+
+      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `CA_Portfolio_Case_Records_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
     window.addEventListener("DOMContentLoaded", () => {
       checkCaAuth();
       startLiveDocumentSync();
+      renderManagementPortal();
       const inst = document.getElementById("hoInstructions");
       if (inst) inst.addEventListener("input", updateHandoverPreview);
       const phone = document.getElementById("hoAgentPhone");
@@ -2642,6 +3672,323 @@
             <span class="material-symbols-outlined text-[18px]">send</span>
             <span>Send on WhatsApp</span>
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. BANK PROVIDED DOCUMENTS FOLDER SELECTION & CASE ONBOARDING MODAL -->
+  <div id="newCaseModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[94vh] animate-fadeIn">
+      <!-- Modal Header -->
+      <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-primary-container text-white flex items-center justify-center shadow-sm">
+            <span class="material-symbols-outlined text-[22px]">folder_zip</span>
+          </div>
+          <div>
+            <h3 class="font-headline font-bold text-base text-on-surface">Bank Documents Folder Ingestion & Case Onboarding</h3>
+            <p class="font-mono text-[10px] text-outline">Select bank case folder • AI scans & arranges all photos • Allot to field staff</p>
+          </div>
+        </div>
+        <button onclick="closeNewCaseModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <!-- Modal Form Body -->
+      <form id="newCaseForm" onsubmit="handleCreateNewCase(event)" class="p-5 overflow-y-auto space-y-4">
+        <!-- AI Folder Scanner Dropzone -->
+        <div class="p-4 rounded-xl bg-gradient-to-r from-blue-50/80 via-indigo-50/70 to-surface-container-lowest border-2 border-dashed border-primary-container/40 space-y-2.5">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-primary-container text-[20px]">drive_folder_upload</span>
+              <span class="font-headline font-bold text-xs sm:text-sm text-primary-container">Select Bank Case Documents Folder (બેંક ફોલ્ડર સિલેક્શન)</span>
+            </div>
+            <button type="button" onclick="quickFillSampleBankFolder()" class="px-2.5 py-1 rounded bg-blue-100 hover:bg-blue-200 text-primary-container font-mono text-[10px] font-bold flex items-center gap-1 transition-colors" title="Quickly import sample bank case folder">
+              <span class="material-symbols-outlined text-[13px]">auto_fix_high</span>
+              <span>Sample Bank Folder Demo</span>
+            </button>
+          </div>
+          <p class="text-xs text-on-surface-variant leading-relaxed">
+            Select the folder provided by the bank (e.g. <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-outline-variant text-[11px] font-bold text-primary-container">VAGHELA RAJKUNVARBA-HL-20 LACS</code>). AI will scan all photos, identify Aadhaar/PAN/Utility bills, arrange evidence, and prefill details.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            <!-- Directory Selection Input -->
+            <input type="file" id="newCaseFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleNewCaseFolderSelected(this.files)"/>
+            <button type="button" onclick="document.getElementById('newCaseFolderInput').click()" class="px-4 py-2 bg-primary-container hover:bg-primary text-white rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[17px]">folder_open</span>
+              <span>📁 Select Bank Case Folder from PC...</span>
+            </button>
+
+            <!-- Multi-file Ingest Input -->
+            <input type="file" id="newCaseFilesInput" multiple class="hidden" onchange="handleNewCaseFilesSelected(this.files)"/>
+            <button type="button" onclick="document.getElementById('newCaseFilesInput').click()" class="px-3.5 py-2 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-on-surface rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 transition-colors">
+              <span class="material-symbols-outlined text-[17px]">upload_file</span>
+              <span>📄 Select Files...</span>
+            </button>
+          </div>
+
+          <!-- AI Detection & Arranged Files Preview Tray -->
+          <div id="newCaseFilesTray" class="hidden p-3 rounded-lg bg-surface-container-lowest border border-outline-variant space-y-2">
+            <div class="flex items-center justify-between text-[11px] font-mono border-b border-outline-variant pb-1.5">
+              <span class="font-bold text-emerald-800 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[15px] text-emerald-600">verified</span>
+                <span id="newCaseAiStatusText">AI Scan Complete • 18 Files Arranged</span>
+              </span>
+              <span id="newCaseFolderName" class="text-outline truncate max-w-xs font-semibold">Folder: /</span>
+            </div>
+            <div id="newCaseFilesList" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pt-0.5">
+              <!-- Dynamically populated tags -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Editable Case Details Section (CA Office can modify if anything is not clear) -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-headline font-bold text-xs text-on-surface flex items-center gap-1.5 uppercase">
+              <span class="material-symbols-outlined text-primary-container text-[17px]">edit_note</span>
+              <span>Review & Modify Case Details (જો કંઈ સ્પષ્ટ ન હોય તો સુધારો કરી શકો છો)</span>
+            </span>
+            <span class="font-mono text-[9px] text-outline">All fields fully editable by CA office</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Case Reference No.*</label>
+              <input id="ncCaseNo" type="text" required placeholder="e.g. UBI-HL-2026-20L" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Full Name (અરજદાર નું નામ)*</label>
+              <input id="ncApplicantName" type="text" required placeholder="e.g. Mrs. Rajkunvarba Pradeepsinh Vaghela" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Phone / WhatsApp*</label>
+              <input id="ncApplicantPhone" type="text" required placeholder="e.g. +91 81601 66900" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Empanelled Bank Name (બેંક)*</label>
+              <select id="ncBankName" required class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="Union Bank of India">Union Bank of India</option>
+                <option value="State Bank of India">State Bank of India</option>
+                <option value="HDFC Bank">HDFC Bank</option>
+                <option value="ICICI Bank">ICICI Bank</option>
+                <option value="Bank of Baroda">Bank of Baroda</option>
+                <option value="Canara Bank">Canara Bank</option>
+                <option value="Punjab National Bank">Punjab National Bank</option>
+                <option value="Axis Bank">Axis Bank</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Branch Name (શાખા)*</label>
+              <input id="ncBranch" type="text" required placeholder="e.g. Amrapura Branch" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Loan Facility & Type*</label>
+              <select id="ncLoanType" required class="w-full text-xs font-medium bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="Home Loan (HL)">Home Loan (HL)</option>
+                <option value="Loan Against Property (LAP)">Loan Against Property (LAP)</option>
+                <option value="Commercial Mortgage (CM)">Commercial Mortgage (CM)</option>
+                <option value="Business / MSME Loan">Business / MSME Loan</option>
+                <option value="Personal Loan (PL)">Personal Loan (PL)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Sanction / Loan Amount (₹)*</label>
+              <input id="ncLoanAmount" type="text" required placeholder="e.g. 20,00,000 (20 Lacs)" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Intake Month (મહિનો)*</label>
+              <select id="ncMonth" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="October 2026">October 2026</option>
+                <option value="September 2026">September 2026</option>
+                <option value="August 2026" selected>August 2026</option>
+                <option value="July 2026">July 2026</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Target Inspection Property Address (સંપત્તિ સરનામું)*</label>
+            <textarea id="ncAddress" rows="2" required placeholder="e.g. 31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar - 382610" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 font-mono text-[11px]">
+            <div>
+              <label class="block text-[9px] font-bold text-outline uppercase mb-0.5">Target Latitude (અક્ષાંશ)</label>
+              <input id="ncLat" type="number" step="any" value="23.2156" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-mono"/>
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-outline uppercase mb-0.5">Target Longitude (રેખાંશ)</label>
+              <input id="ncLon" type="number" step="any" value="72.6369" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-mono"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- File Allotment & Field Staff Allocation -->
+        <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-headline font-bold text-xs text-primary-container flex items-center gap-1.5 uppercase">
+              <span class="material-symbols-outlined text-[17px]">assignment_turned_in</span>
+              <span>Case Allotment & Field Staff Allocation (કેસ સોંપણી)</span>
+            </span>
+            <span class="font-mono text-[9px] text-secondary bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold">DISPATCH READY</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">File Allotted By (સોંપનાર)*</label>
+              <select id="ncAllottedBy" class="w-full text-xs font-medium bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="Suresh Sir (Operations Lead)" selected>Suresh Sir (Operations Lead)</option>
+                <option value="CA Pranav Shah (Sr. Partner)">CA Pranav Shah (Sr. Partner)</option>
+                <option value="CA Rohan Parekh (Partner)">CA Rohan Parekh (Partner)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Allocate to Field Staff (સર્વે કરનાર સ્ટાફ)*</label>
+              <select id="ncFieldStaff" class="w-full text-xs font-bold text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="Nilesh & Kamal Bhai (Field Team)" selected>Joint Team: Nilesh & Kamal Bhai</option>
+                <option value="Kamal Bhai (FA-7702)">Kamal Bhai (Field Officer - FA-7702)</option>
+                <option value="Nilesh (FA-7701)">Nilesh (Field Verification Executive - FA-7701)</option>
+                <option value="Rajesh Varma (FA-9042)">Rajesh Varma (Senior CPV Officer - FA-9042)</option>
+                <option value="Amit Shah (FA-5011)">Amit Shah (Field Officer - FA-5011)</option>
+                <option value="Sneha Desai (FA-3104)">Sneha Desai (Field Associate - FA-3104)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="pt-2 flex items-center justify-end gap-2.5 border-t border-outline-variant">
+          <button type="button" onclick="closeNewCaseModal()" class="px-4 py-2 rounded-lg bg-surface-container border border-outline-variant text-on-surface hover:bg-surface-container-high text-xs font-headline font-bold transition-all">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-lg bg-primary-container hover:bg-primary text-white text-xs font-headline font-bold flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all active:scale-95">
+            <span class="material-symbols-outlined text-[18px]">verified</span>
+            <span>Confirm & Create Case in Portal (સાચવો અને સોંપો)</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. EDIT / MODIFY CASE DETAILS MODAL (FOR EXISTING OR INGESTED CASES) -->
+  <div id="editCaseModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fadeIn">
+      <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary-container text-[22px]">edit_square</span>
+          <div>
+            <h3 class="font-headline font-bold text-base text-on-surface">Modify Case Details & Telemetry</h3>
+            <p class="font-mono text-[10px] text-outline">Edit applicant info, address, bank, branch, or field staff allotment</p>
+          </div>
+        </div>
+        <button onclick="closeEditCaseModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <form id="editCaseForm" onsubmit="handleSaveCaseEdit(event)" class="p-5 overflow-y-auto space-y-3.5 text-xs">
+        <input type="hidden" id="ecCaseId"/>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Case No</label>
+            <input id="ecCaseNo" type="text" class="w-full text-xs font-mono font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2" readonly/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Name</label>
+            <input id="ecApplicantName" type="text" required class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Bank Name</label>
+            <input id="ecBank" type="text" required class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Branch Name</label>
+            <input id="ecBranch" type="text" required class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Target Address</label>
+          <textarea id="ecAddress" rows="2" required class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Assigned Field Staff</label>
+            <select id="ecStaff" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+              <option value="Nilesh & Kamal Bhai (Field Team)">Joint Team: Nilesh & Kamal Bhai</option>
+              <option value="Kamal Bhai (FA-7702)">Kamal Bhai (Field Officer - FA-7702)</option>
+              <option value="Nilesh (FA-7701)">Nilesh (Field Verification Executive - FA-7701)</option>
+              <option value="Rajesh Varma (FA-9042)">Rajesh Varma (Senior CPV Officer - FA-9042)</option>
+              <option value="Amit Shah (FA-5011)">Amit Shah (Field Officer - FA-5011)</option>
+              <option value="Sneha Desai (FA-3104)">Sneha Desai (Field Associate - FA-3104)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Status</label>
+            <select id="ecStatus" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+              <option value="PENDING_CA_REVIEW">PENDING_CA_REVIEW</option>
+              <option value="ASSIGNED">ASSIGNED</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="CERTIFIED">CERTIFIED</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2 border-t border-outline-variant">
+          <button type="button" onclick="closeEditCaseModal()" class="px-3.5 py-2 rounded-lg bg-surface-container border border-outline-variant text-on-surface font-headline font-bold text-xs">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline font-bold text-xs flex items-center gap-1 shadow-sm">
+            <span class="material-symbols-outlined text-[16px]">save</span>
+            <span>Save Modifications</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. FIELD STAFF ATTENDANCE SELFIE ZOOM INSPECTION MODAL -->
+  <div id="selfieModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col animate-fadeIn">
+      <div class="px-5 py-3 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-emerald-600 text-[20px]">photo_camera_front</span>
+          <div>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Field Staff Attendance Verification Selfie</h3>
+            <p class="font-mono text-[10px] text-outline">Indelible On-Site Attendance & Arrival Telemetry</p>
+          </div>
+        </div>
+        <button onclick="closeSelfieModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+      <div class="p-4 bg-slate-950 flex flex-col items-center justify-center">
+        <img id="selfieModalImg" src="/static/specimen_assets/residence/agent_selfie_specimen.jpg" alt="Field Staff Attendance Selfie" class="max-h-[58vh] w-auto rounded-lg shadow-lg border border-white/20 object-contain"/>
+      </div>
+      <div class="p-4 bg-surface-container-lowest border-t border-outline-variant font-mono text-xs space-y-1.5">
+        <div class="flex justify-between items-center">
+          <span class="text-outline">Staff Executive:</span>
+          <strong id="selfieModalStaffName" class="text-on-surface">Nilesh & Kamal Bhai (Field Team)</strong>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-outline">Attendance Time:</span>
+          <span id="selfieModalTimestamp" class="text-on-surface font-semibold">04-Aug-2026, 11:30 IST</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-outline">Hardware GPS Stamp:</span>
+          <span id="selfieModalGps" class="text-emerald-700 font-bold">23.2154° N, 72.6367° E (±3.2m)</span>
+        </div>
+        <div class="p-2 rounded bg-emerald-50 text-emerald-900 border border-emerald-200 text-[11px] font-bold text-center flex items-center justify-center gap-1.5 mt-1">
+          <span class="material-symbols-outlined text-[15px] text-emerald-600">verified</span>
+          <span>Survey Commenced On-Site • Attendance Selfie Authenticated</span>
         </div>
       </div>
     </div>

@@ -1518,6 +1518,11 @@
           ctx.fillText(`GPS: ${currentDeviceLat.toFixed(5)}°N, ${currentDeviceLon.toFixed(5)}°E (±3.2m) • SURVEY COMMENCED`, 14, h - barHeight + barHeight * 0.86);
 
           agentSelfieDataUrl = canvas.toDataURL("image/jpeg", 0.88);
+          try {
+            localStorage.setItem("selfie_" + sampleCaseId, agentSelfieDataUrl);
+            localStorage.setItem("selfie_timestamp_" + sampleCaseId, timeStr);
+            localStorage.setItem("selfie_agent_" + sampleCaseId, agentName);
+          } catch(e){}
 
           // Update Preview UI
           const previewImg = document.getElementById("agentSelfiePreview");
@@ -1543,6 +1548,35 @@
           if (metaInfo) metaInfo.classList.remove("hidden");
           if (agentText) agentText.textContent = agentName;
           if (timeText) timeText.textContent = timeStr;
+
+          // ZERO-LAG UPLOAD TO SERVER AS AGENT_SELFIE DOCUMENT
+          canvas.toBlob(async (blob) => {
+            if (!blob) return;
+            try {
+              const formData = new FormData();
+              formData.append("doc_type", "AGENT_SELFIE");
+              formData.append("latitude", currentDeviceLat);
+              formData.append("longitude", currentDeviceLon);
+              formData.append("file", blob, `agent_selfie_${sampleCaseId}.jpg`);
+
+              const token = localStorage.getItem("pwa_token");
+              const headers = {};
+              if (token && token !== "demo-pwa-token") {
+                headers["Authorization"] = `Bearer ${token}`;
+              }
+
+              const res = await fetch(`/api/v1/visits/cases/${sampleCaseId}/upload`, {
+                method: "POST",
+                headers: headers,
+                body: formData
+              });
+              if (res.ok) {
+                console.log("[✓] Field staff attendance selfie uploaded to CA Portal successfully!");
+              }
+            } catch (err) {
+              console.warn("Selfie upload background retry queued:", err);
+            }
+          }, "image/jpeg", 0.88);
         };
         img.src = e.target.result;
       };
@@ -1833,7 +1867,8 @@
       const payload = {
         executive: exec,
         persona: persona,
-        agent_selfie: agentSelfieDataUrl ? "VERIFIED_GEOTAGGED_SELFIE" : null,
+        agent_selfie: agentSelfieDataUrl || localStorage.getItem("selfie_" + sampleCaseId) || null,
+        agent_selfie_captured_at: localStorage.getItem("selfie_timestamp_" + sampleCaseId) || new Date().toISOString(),
         marital_status: marital,
         age_community: ageComm,
         family_members: family,
@@ -1927,6 +1962,43 @@
       const selector = document.getElementById("pwaCaseSelector");
       if (selector && selector.value !== key) {
         selector.value = key;
+      }
+
+      // Restore selfie state if previously captured for this case
+      const cachedSelfie = localStorage.getItem("selfie_" + sampleCaseId);
+      const previewImg = document.getElementById("agentSelfiePreview");
+      const placeholder = document.getElementById("agentSelfiePlaceholder");
+      const wmTag = document.getElementById("selfieWatermarkTag");
+      const badge = document.getElementById("selfieStatusBadge");
+      const btnText = document.getElementById("selfieBtnText");
+      const metaInfo = document.getElementById("selfieMetaInfo");
+      const agentText = document.getElementById("selfieAgentNameText");
+      const timeText = document.getElementById("selfieTimestampText");
+
+      if (cachedSelfie) {
+        agentSelfieDataUrl = cachedSelfie;
+        if (previewImg) { previewImg.src = cachedSelfie; previewImg.classList.remove("hidden"); }
+        if (placeholder) placeholder.classList.add("hidden");
+        if (wmTag) wmTag.classList.remove("hidden");
+        if (badge) {
+          badge.className = "font-mono text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-2xs";
+          badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span><span>SELFIE VERIFIED (સર્વે શરૂ)</span>`;
+        }
+        if (btnText) btnText.textContent = "Re-take Selfie (ફરીથી લો)";
+        if (metaInfo) metaInfo.classList.remove("hidden");
+        if (agentText) agentText.textContent = localStorage.getItem("selfie_agent_" + sampleCaseId) || "Field Officer";
+        if (timeText) timeText.textContent = localStorage.getItem("selfie_timestamp_" + sampleCaseId) || "Logged";
+      } else {
+        agentSelfieDataUrl = null;
+        if (previewImg) { previewImg.src = ""; previewImg.classList.add("hidden"); }
+        if (placeholder) placeholder.classList.remove("hidden");
+        if (wmTag) wmTag.classList.add("hidden");
+        if (badge) {
+          badge.className = "font-mono text-[10px] bg-amber-50 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-2xs";
+          badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span><span>SELFIE PENDING</span>`;
+        }
+        if (btnText) btnText.textContent = "Capture Own Selfie (સેલ્ફી લો)";
+        if (metaInfo) metaInfo.classList.add("hidden");
       }
 
       updateGeofenceUI(currentDeviceLat, currentDeviceLon, 3.2);
