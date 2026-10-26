@@ -1278,6 +1278,7 @@
       const formData = new FormData();
       formData.append("file", file);
       formData.append("doc_type", activeDocType || "PROPERTY_EXTERIOR");
+      formData.append("slot_number", activeUploadSlot);
       formData.append("latitude", currentDeviceLat);
       formData.append("longitude", currentDeviceLon);
 

@@ -1733,40 +1733,106 @@
         const c = caseRegistry[caseId];
         if (!c) return;
 
-        // Convert backend documents into photo display objects
-        const livePhotos = docs.map((d, idx) => ({
-          src: d.url,
-          title: (d.doc_type ? d.doc_type.replace(/_/g, " ") : "PHYSICAL EVIDENCE") + ` (Photo ${idx + 1})`,
-          tag: "⚡ LIVE FIELD UPLOAD",
-          timestamp: d.created_at || "Just now",
-          badge: d.is_geofence_valid ? `GPS: ${d.latitude ? d.latitude.toFixed(4) : '23.2154'}°N, ${d.longitude ? d.longitude.toFixed(4) : '72.6367'}°E (VERIFIED)` : `GPS: ${d.latitude ? d.latitude.toFixed(4) : ''}° (BREACH)`,
-          status: d.is_geofence_valid ? "MATCH" : "FLAGGED",
-          is_live: true,
-          lat: d.latitude,
-          lon: d.longitude
-        }));
+        // 1. Separate AGENT_SELFIE from site evidence photos
+        const selfieDoc = docs.find(d => d.doc_type === "AGENT_SELFIE" || (d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
+        const evidenceDocs = docs.filter(d => d.doc_type !== "AGENT_SELFIE" && !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
 
-        // Default specimens to fall back on if fewer than 4 live photos
-        const defaultSpecimens = [
-          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Main Gate (સિદ્ધિ વિનાયક)", tag: "RESIDENCE: MAIN GATE", timestamp: "04-AUG-2026 11:32 IST", badge: "GPS: VERIFIED", status: "MATCH" },
-          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "Bungalow 31 (લક્ષ્મી કૃપા)", tag: "ELEVATION: CONFIRMED", timestamp: "04-AUG-2026 11:36 IST", badge: "ELEVATION: CONFIRMED", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Drawing Room & Showcase", tag: "DRAWING ROOM ASSETS", timestamp: "04-AUG-2026 11:39 IST", badge: "HABITATION: VERIFIED", status: "VERIFIED" },
-          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Pradeepsinh Vaghela", tag: "PERSON MET", timestamp: "04-AUG-2026 11:42 IST", badge: "IDENTITY: MATCH", status: "MATCH" }
-        ];
+        // 2. Strict Slot-based mapping (Slot 1 -> Photo 1, Slot 2 -> Photo 2, Slot 3 -> Photo 3, Slot 4 -> Photo 4)
+        const slotMap = { 1: null, 2: null, 3: null, 4: null };
 
-        // Put live photos first!
-        const mergedPhotos = [...livePhotos, ...defaultSpecimens].slice(0, 4);
-        c.residence_photos = mergedPhotos;
-        c.photos = mergedPhotos.map(p => p.src);
+        // Helper to determine slot index (1 to 4) from doc
+        const getDocSlot = (d, fallbackIndex) => {
+          if (d.slot_number && d.slot_number >= 1 && d.slot_number <= 4) {
+            return d.slot_number;
+          }
+          const dt = (d.doc_type || "").toUpperCase();
+          if (dt.includes("GATE") || dt.includes("SOCIETY")) return 1;
+          if (dt.includes("ELEVATION") || dt.includes("DOOR")) return 2;
+          if (dt.includes("METER") || dt.includes("INTERIOR")) return 3;
+          if (dt.includes("NEIGHBOR") || dt.includes("PERSON")) return 4;
+          return fallbackIndex;
+        };
+
+        // Sort evidenceDocs chronologically (oldest first: Slot 1 -> 2 -> 3 -> 4)
+        evidenceDocs.sort((a, b) => {
+          const tA = new Date(a.created_at_raw || a.created_at || 0).getTime();
+          const tB = new Date(b.created_at_raw || b.created_at || 0).getTime();
+          return tA - tB;
+        });
+
+        // Assign to slots by slot_number or doc_type
+        evidenceDocs.forEach((d, idx) => {
+          const slot = getDocSlot(d, idx + 1);
+          if (slot >= 1 && slot <= 4 && !slotMap[slot]) {
+            slotMap[slot] = d;
+          }
+        });
+
+        // Any unassigned evidence docs fill remaining empty slots
+        evidenceDocs.forEach(d => {
+          const isAssigned = Object.values(slotMap).some(assigned => assigned && assigned.id === d.id);
+          if (!isAssigned) {
+            for (let s = 1; s <= 4; s++) {
+              if (!slotMap[s]) {
+                slotMap[s] = d;
+                break;
+              }
+            }
+          }
+        });
+
+        // Default specimens to fall back on if slot is empty
+        const defaultSpecimens = {
+          1: { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Main Gate (સિદ્ધિ વિનાયક)", tag: "RESIDENCE: MAIN GATE", timestamp: "04-AUG-2026 11:32 IST", badge: "GPS: VERIFIED", status: "MATCH" },
+          2: { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "Bungalow 31 (લક્ષ્મી કૃપા)", tag: "ELEVATION: CONFIRMED", timestamp: "04-AUG-2026 11:36 IST", badge: "ELEVATION: CONFIRMED", status: "CONFIRMED" },
+          3: { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Drawing Room & Showcase", tag: "DRAWING ROOM ASSETS", timestamp: "04-AUG-2026 11:39 IST", badge: "HABITATION: VERIFIED", status: "VERIFIED" },
+          4: { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Pradeepsinh Vaghela", tag: "PERSON MET", timestamp: "04-AUG-2026 11:42 IST", badge: "IDENTITY: MATCH", status: "MATCH" }
+        };
+
+        const titles = {
+          1: "Building / Society Gate (Photo 1)",
+          2: "House Door & Elevation (Photo 2)",
+          3: "Living Room & Electric Meter (Photo 3)",
+          4: "Person Met / Borrower at Site (Photo 4)"
+        };
+        const tags = {
+          1: "SLOT 1: SOCIETY & MAIN GATE",
+          2: "SLOT 2: HOUSE DOOR & NAMEPLATE",
+          3: "SLOT 3: LIVING ASSETS & METER",
+          4: "SLOT 4: PERSON MET AT SITE"
+        };
+
+        const finalPhotos = [];
+        for (let s = 1; s <= 4; s++) {
+          const d = slotMap[s];
+          if (d) {
+            finalPhotos.push({
+              src: d.url,
+              title: titles[s],
+              tag: tags[s],
+              timestamp: d.created_at || "Just now",
+              badge: d.is_geofence_valid ? `GPS: ${d.latitude ? d.latitude.toFixed(4) : '23.2154'}°N, ${d.longitude ? d.longitude.toFixed(4) : '72.6367'}°E (VERIFIED)` : `GPS: ${d.latitude ? d.latitude.toFixed(4) : ''}° (BREACH)`,
+              status: d.is_geofence_valid ? "MATCH" : "FLAGGED",
+              is_live: true,
+              lat: d.latitude,
+              lon: d.longitude
+            });
+          } else {
+            finalPhotos.push(defaultSpecimens[s]);
+          }
+        }
+
+        c.residence_photos = finalPhotos;
+        c.photos = finalPhotos.map(p => p.src);
 
         // Update active folder photos in DOM
         renderPhotosForActiveFolder();
 
         // Update live radar coordinates and field telemetry from latest uploaded photo
-        const latestDoc = docs[0];
-        if (latestDoc && latestDoc.latitude && latestDoc.longitude) {
-          c.capture_lat = latestDoc.latitude.toFixed(4);
-          c.capture_lon = latestDoc.longitude.toFixed(4);
+        const docWithCoords = [...docs].reverse().find(d => d.latitude && d.longitude);
+        if (docWithCoords) {
+          c.capture_lat = docWithCoords.latitude.toFixed(4);
+          c.capture_lon = docWithCoords.longitude.toFixed(4);
           const radarCaptureEl = document.getElementById("dispRadarCapture");
           if (radarCaptureEl) {
             radarCaptureEl.textContent = `CAPTURE: ${c.capture_lat}° N, ${c.capture_lon}° E (LIVE)`;
@@ -1776,8 +1842,8 @@
             radarAgentPin.textContent = `FA-LIVE (${c.capture_lat}°, ${c.capture_lon}°)`;
           }
           const visitDateEl = document.getElementById("dispVisitDate");
-          if (visitDateEl && latestDoc.created_at) {
-            visitDateEl.textContent = `Live Field Telemetry: ${latestDoc.created_at}`;
+          if (visitDateEl && docWithCoords.created_at) {
+            visitDateEl.textContent = `Live Field Telemetry: ${docWithCoords.created_at}`;
           }
         }
 

@@ -127,6 +127,7 @@ async def submit_field_visit_form(
 async def zero_lag_upload_document(
     case_id: uuid.UUID,
     doc_type: DocumentType = Form(...),
+    slot_number: Optional[int] = Form(None),
     visit_id: Optional[uuid.UUID] = Form(None),
     latitude: Optional[float] = Form(None),
     longitude: Optional[float] = Form(None),
@@ -187,6 +188,10 @@ async def zero_lag_upload_document(
         except Exception:
             watermarked_url = storage_url
 
+    ocr_meta = {}
+    if slot_number is not None:
+        ocr_meta["slot_number"] = slot_number
+
     # Persist document record
     doc = CaseDocument(
         case_id=case_id,
@@ -200,6 +205,7 @@ async def zero_lag_upload_document(
         is_geofence_valid=is_geofence_valid,
         captured_at=datetime.now(timezone.utc),
         verification_status=VerificationStatus.VERIFIED if is_geofence_valid else VerificationStatus.DISCREPANCY_FLAGGED,
+        ocr_data=ocr_meta,
     )
     db.add(doc)
 

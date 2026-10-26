@@ -156,7 +156,7 @@ async def list_case_documents(
     query = (
         select(CaseDocument)
         .where(CaseDocument.case_id == case_id)
-        .order_by(desc(CaseDocument.created_at))
+        .order_by(asc(CaseDocument.created_at))
     )
     result = await db.execute(query)
     docs = result.scalars().all()
@@ -175,15 +175,21 @@ async def list_case_documents(
         else:
             clean_url = f"/storage/{norm_url}"
 
+        slot_num = None
+        if d.ocr_data and isinstance(d.ocr_data, dict):
+            slot_num = d.ocr_data.get("slot_number")
+
         formatted.append({
             "id": str(d.id),
             "doc_type": d.doc_type.value if hasattr(d.doc_type, "value") else str(d.doc_type),
+            "slot_number": slot_num,
             "url": clean_url,
             "latitude": d.latitude,
             "longitude": d.longitude,
             "is_geofence_valid": d.is_geofence_valid,
             "verification_status": d.verification_status.value if hasattr(d.verification_status, "value") else str(d.verification_status),
             "created_at": d.created_at.strftime("%d-%b-%Y, %H:%M IST") if d.created_at else None,
+            "created_at_raw": d.created_at.isoformat() if d.created_at else None,
             "ocr_data": d.ocr_data or {},
             "ca_remarks": d.ca_remarks,
         })
