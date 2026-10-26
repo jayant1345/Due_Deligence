@@ -1929,7 +1929,6 @@
         }
 
         // Check for Field Staff Attendance Selfie uploaded from mobile PWA or backend
-        const selfieDoc = docs.find(d => d.doc_type === "AGENT_SELFIE" || (d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
         if (selfieDoc && selfieDoc.url) {
           c.agent_selfie = selfieDoc.url;
           c.selfie_verified = true;
