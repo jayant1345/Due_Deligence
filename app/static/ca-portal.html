@@ -105,126 +105,129 @@
     }
   </style>
 </head>
-<body class="h-full bg-background text-on-surface font-body antialiased flex flex-col overflow-x-hidden">
+<body class="min-h-screen bg-background text-on-surface font-body antialiased flex flex-col overflow-x-hidden">
 
-  <!-- TOP APP BAR -->
-  <header class="bg-surface-container-lowest border-b border-outline-variant shadow-sm sticky top-0 z-50">
-    <div class="w-full px-4 lg:px-8 flex justify-between items-center h-16 max-w-[1440px] mx-auto">
-      <!-- Brand & Profile -->
-      <div class="flex items-center gap-4">
-        <div class="flex items-center gap-3">
-          <img src="/static/nn_shah_logo_3d.png" alt="Naimish N. Shah & Co. Chartered Accountants" class="h-10 w-auto object-contain drop-shadow-sm"/>
-          <div class="border-l border-outline-variant pl-3">
-            <div class="font-headline font-bold text-sm text-primary-container tracking-tight">CPV & LOAN DUE DILIGENCE PORTAL</div>
-            <div class="font-mono text-[10px] text-outline flex items-center gap-1.5">
-              <span>ICAI FRN: 106829W</span>
-              <span class="inline-block w-1 h-1 rounded-full bg-outline"></span>
-              <span>Navrangpura, Ahmedabad</span>
+  <!-- STICKY TOP APP BAR & CASE SELECTION CONTAINER -->
+  <div class="sticky top-0 z-50 bg-surface-container-lowest shadow-sm border-b border-outline-variant">
+    <!-- TOP APP BAR -->
+    <header class="border-b border-outline-variant/60 bg-surface-container-lowest">
+      <div class="w-full px-4 lg:px-8 flex justify-between items-center min-h-[68px] py-2 max-w-[1440px] mx-auto gap-3 flex-wrap sm:flex-nowrap">
+        <!-- Brand & Profile -->
+        <div class="flex items-center gap-3 shrink-0 py-1">
+          <div class="flex items-center gap-3">
+            <img src="/static/nn_shah_logo_3d.png" alt="Naimish N. Shah & Co. Chartered Accountants" class="h-11 w-auto object-contain drop-shadow-sm shrink-0"/>
+            <div class="border-l-2 border-outline-variant/70 pl-3">
+              <div class="font-headline font-bold text-sm lg:text-base text-primary-container tracking-tight leading-snug">CPV & LOAN DUE DILIGENCE PORTAL</div>
+              <div class="font-mono text-[10px] text-outline flex items-center gap-1.5 mt-0.5">
+                <span class="font-bold text-on-surface">ICAI FRN: 106829W</span>
+                <span class="inline-block w-1 h-1 rounded-full bg-outline"></span>
+                <span>Navrangpura, Ahmedabad</span>
+              </div>
             </div>
+          </div>
+
+          <div class="hidden 2xl:flex items-center gap-2 pl-4 border-l border-outline-variant shrink-0">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
+            </span>
+            <span class="font-mono text-[11px] text-secondary bg-surface-container-low px-2 py-0.5 rounded border border-secondary/30 whitespace-nowrap">
+              Empanelled: Union Bank • SBI • HDFC • ICICI • Axis
+            </span>
           </div>
         </div>
 
-        <div class="hidden xl:flex items-center gap-2 pl-4 border-l border-outline-variant">
-          <span class="relative flex h-2 w-2">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
+        <!-- Navigation Links -->
+        <nav class="hidden lg:flex items-center gap-5 text-sm shrink-0">
+          <a class="border-b-2 border-primary-container text-primary-container font-semibold pb-1" href="#dossier">Current Scrutiny</a>
+          <a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1" href="#queue">Active Cases (8)</a>
+          <a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1" href="/pwa">Field PWA Mode</a>
+          <a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1" href="/api/docs" target="_blank">API Docs</a>
+        </nav>
+
+        <!-- User Info & Actions -->
+        <div class="flex items-center gap-3 shrink-0">
+          <div id="caAvatarBadge" class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs shrink-0">
+            PS
+          </div>
+          <div class="hidden sm:block text-left">
+            <div id="caUserFullName" class="text-xs font-semibold text-on-surface leading-tight">CA Pranav N. Shah, FCA</div>
+            <div id="caUserRoleTag" class="font-mono text-[10px] text-outline">admin • Sr. Partner</div>
+          </div>
+          <button onclick="handleCaLogout()" class="px-2.5 py-1.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-mono font-bold flex items-center gap-1 transition-colors" title="Logout from Scrutiny Desk">
+            <span class="material-symbols-outlined text-[15px]">logout</span>
+            <span class="hidden md:inline">Sign Out</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- MULTI-CASE SELECTION CONTROL RIBBON -->
+    <section class="bg-gradient-to-r from-surface-container-low via-surface-container to-surface-container-low py-2">
+      <div class="max-w-[1440px] mx-auto px-4 lg:px-8 flex flex-wrap items-center justify-between gap-3">
+        <!-- Left: Interactive Case Selection Dropdowns -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <div class="flex items-center gap-1.5 font-headline font-bold text-xs text-primary-container">
+            <span class="material-symbols-outlined text-[18px]">folder_managed</span>
+            <span>SELECT ACTIVE CASE:</span>
+          </div>
+
+          <!-- Filter 1: Bank Name Dropdown -->
+          <div class="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 shadow-sm">
+            <span class="material-symbols-outlined text-outline text-[15px]">account_balance</span>
+            <select id="filterBankSelect" onchange="onBankFilterChanged(this.value)" class="text-xs bg-transparent border-0 font-semibold text-on-surface focus:ring-0 cursor-pointer pr-4">
+              <option value="ALL">All Empanelled Banks (5)</option>
+              <option value="Union Bank of India">Union Bank of India</option>
+              <option value="State Bank of India">State Bank of India</option>
+              <option value="HDFC Bank">HDFC Bank</option>
+              <option value="ICICI Bank">ICICI Bank</option>
+              <option value="Bank of Baroda">Bank of Baroda</option>
+            </select>
+          </div>
+
+          <!-- Filter 2: Branch Name Dropdown -->
+          <div class="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 shadow-sm">
+            <span class="material-symbols-outlined text-outline text-[15px]">domain</span>
+            <select id="filterBranchSelect" onchange="onBranchFilterChanged(this.value)" class="text-xs bg-transparent border-0 font-semibold text-on-surface focus:ring-0 cursor-pointer pr-4">
+              <option value="ALL">All Branches</option>
+              <option value="Amrapura Branch">Amrapura Branch</option>
+              <option value="Bandra West Branch">Bandra West Branch</option>
+              <option value="Navrangpura Branch">Navrangpura Branch</option>
+              <option value="Ashram Road Branch">Ashram Road Branch</option>
+              <option value="Sector 11 Branch">Sector 11 Branch</option>
+            </select>
+          </div>
+
+          <!-- Master Case & Applicant Dropdown -->
+          <div class="flex items-center gap-1 bg-surface-container-lowest border-2 border-primary-container/60 rounded-lg px-2.5 py-1 shadow-sm">
+            <span class="material-symbols-outlined text-primary-container text-[16px]">person_search</span>
+            <select id="caseSelectorSelect" onchange="onCaseSelected(this.value)" class="text-xs bg-transparent border-0 font-bold text-primary-container focus:ring-0 cursor-pointer max-w-md">
+              <option value="b901fc63-12a8-4e32-9c02-e20984cfb001">[UBI-HL-2026-20L] - Mrs. Rajkunvarba Pradeepsinh Vaghela | Union Bank of India (Amrapura)</option>
+              <option value="c102ad74-23b9-4f43-ad13-f31095d0c002">[SBI-HL-2026-45L] - Mr. Vikramaditya Sengupta | State Bank of India (Bandra West)</option>
+              <option value="d203be85-34ca-4a54-be24-a42106e1d003">[HDFC-LAP-2026-60L] - Mr. Jayeshbhai K. Patel | HDFC Bank (Navrangpura)</option>
+              <option value="e304cf96-45db-4b65-cf35-b53217f2e004">[ICICI-PL-2026-15L] - Dr. Ananya Sharma | ICICI Bank (Ashram Road)</option>
+              <option value="f405da07-56ec-4c76-da46-c64328a3f005">[BOB-HL-2026-30L] - Mr. Mahendrasinh Solanki | Bank of Baroda (Sector 11)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Right: Case Counter & Handover & New Case Button -->
+        <div class="flex items-center gap-2.5 text-xs font-mono">
+          <span class="text-on-surface-variant bg-surface-container-lowest px-2 py-1 rounded border border-outline-variant">
+            Total Cases: <strong id="totalCaseCount" class="text-primary-container">5</strong> Active
           </span>
-          <span class="font-mono text-[11px] text-secondary bg-surface-container-low px-2 py-0.5 rounded border border-secondary/30">
-            Empanelled Bank Verification Agency • Union Bank of India, SBI, HDFC, ICICI, Axis
-          </span>
+          <button id="btnOpenHandover" onclick="openHandoverModal()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-headline font-bold flex items-center gap-1.5 shadow-sm transition-all text-xs" title="Assign & Dispatch Task to Field Agent via WhatsApp">
+            <span class="material-symbols-outlined text-[16px]">send_to_mobile</span>
+            <span>📲 Handover to Field Staff</span>
+          </button>
+          <button onclick="promptCreateNewCase()" class="px-2.5 py-1 bg-primary-container hover:bg-primary text-white rounded font-headline font-bold flex items-center gap-1 shadow-sm transition-all text-xs">
+            <span class="material-symbols-outlined text-[15px]">add_circle</span>
+            <span>+ Add Case</span>
+          </button>
         </div>
       </div>
-
-      <!-- Navigation Links -->
-      <nav class="hidden lg:flex items-center gap-6 text-sm">
-        <a class="border-b-2 border-primary-container text-primary-container font-semibold pb-1" href="#dossier">Current Scrutiny</a>
-        <a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1" href="#queue">Active Cases (8)</a>
-        <a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1" href="/pwa">Field PWA Mode</a>
-        <a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1" href="/api/docs" target="_blank">API Docs</a>
-      </nav>
-
-      <!-- User Info & Actions -->
-      <div class="flex items-center gap-3">
-        <div id="caAvatarBadge" class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs">
-          PS
-        </div>
-        <div class="hidden sm:block text-left">
-          <div id="caUserFullName" class="text-xs font-semibold text-on-surface leading-tight">CA Pranav N. Shah, FCA</div>
-          <div id="caUserRoleTag" class="font-mono text-[10px] text-outline">admin • Sr. Partner</div>
-        </div>
-        <button onclick="handleCaLogout()" class="px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-mono font-bold flex items-center gap-1 transition-colors" title="Logout from Scrutiny Desk">
-          <span class="material-symbols-outlined text-[15px]">logout</span>
-          <span class="hidden md:inline">Sign Out</span>
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <!-- MULTI-CASE SELECTION CONTROL RIBBON -->
-  <section class="bg-gradient-to-r from-surface-container-low via-surface-container to-surface-container-low border-b border-outline-variant py-2 shadow-sm sticky top-16 z-40">
-    <div class="max-w-[1440px] mx-auto px-4 lg:px-8 flex flex-wrap items-center justify-between gap-3">
-      <!-- Left: Interactive Case Selection Dropdowns -->
-      <div class="flex flex-wrap items-center gap-2.5">
-        <div class="flex items-center gap-1.5 font-headline font-bold text-xs text-primary-container">
-          <span class="material-symbols-outlined text-[18px]">folder_managed</span>
-          <span>SELECT ACTIVE CASE:</span>
-        </div>
-
-        <!-- Filter 1: Bank Name Dropdown -->
-        <div class="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 shadow-sm">
-          <span class="material-symbols-outlined text-outline text-[15px]">account_balance</span>
-          <select id="filterBankSelect" onchange="onBankFilterChanged(this.value)" class="text-xs bg-transparent border-0 font-semibold text-on-surface focus:ring-0 cursor-pointer pr-4">
-            <option value="ALL">All Empanelled Banks (5)</option>
-            <option value="Union Bank of India">Union Bank of India</option>
-            <option value="State Bank of India">State Bank of India</option>
-            <option value="HDFC Bank">HDFC Bank</option>
-            <option value="ICICI Bank">ICICI Bank</option>
-            <option value="Bank of Baroda">Bank of Baroda</option>
-          </select>
-        </div>
-
-        <!-- Filter 2: Branch Name Dropdown -->
-        <div class="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 shadow-sm">
-          <span class="material-symbols-outlined text-outline text-[15px]">domain</span>
-          <select id="filterBranchSelect" onchange="onBranchFilterChanged(this.value)" class="text-xs bg-transparent border-0 font-semibold text-on-surface focus:ring-0 cursor-pointer pr-4">
-            <option value="ALL">All Branches</option>
-            <option value="Amrapura Branch">Amrapura Branch</option>
-            <option value="Bandra West Branch">Bandra West Branch</option>
-            <option value="Navrangpura Branch">Navrangpura Branch</option>
-            <option value="Ashram Road Branch">Ashram Road Branch</option>
-            <option value="Sector 11 Branch">Sector 11 Branch</option>
-          </select>
-        </div>
-
-        <!-- Master Case & Applicant Dropdown -->
-        <div class="flex items-center gap-1 bg-surface-container-lowest border-2 border-primary-container/60 rounded-lg px-2.5 py-1 shadow-sm">
-          <span class="material-symbols-outlined text-primary-container text-[16px]">person_search</span>
-          <select id="caseSelectorSelect" onchange="onCaseSelected(this.value)" class="text-xs bg-transparent border-0 font-bold text-primary-container focus:ring-0 cursor-pointer max-w-md">
-            <option value="b901fc63-12a8-4e32-9c02-e20984cfb001">[UBI-HL-2026-20L] - Mrs. Rajkunvarba Pradeepsinh Vaghela | Union Bank of India (Amrapura)</option>
-            <option value="c102ad74-23b9-4f43-ad13-f31095d0c002">[SBI-HL-2026-45L] - Mr. Vikramaditya Sengupta | State Bank of India (Bandra West)</option>
-            <option value="d203be85-34ca-4a54-be24-a42106e1d003">[HDFC-LAP-2026-60L] - Mr. Jayeshbhai K. Patel | HDFC Bank (Navrangpura)</option>
-            <option value="e304cf96-45db-4b65-cf35-b53217f2e004">[ICICI-PL-2026-15L] - Dr. Ananya Sharma | ICICI Bank (Ashram Road)</option>
-            <option value="f405da07-56ec-4c76-da46-c64328a3f005">[BOB-HL-2026-30L] - Mr. Mahendrasinh Solanki | Bank of Baroda (Sector 11)</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Right: Case Counter & Handover & New Case Button -->
-      <div class="flex items-center gap-2.5 text-xs font-mono">
-        <span class="text-on-surface-variant bg-surface-container-lowest px-2 py-1 rounded border border-outline-variant">
-          Total Cases: <strong id="totalCaseCount" class="text-primary-container">5</strong> Active
-        </span>
-        <button id="btnOpenHandover" onclick="openHandoverModal()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-headline font-bold flex items-center gap-1.5 shadow-sm transition-all text-xs" title="Assign & Dispatch Task to Field Agent via WhatsApp">
-          <span class="material-symbols-outlined text-[16px]">send_to_mobile</span>
-          <span>📲 Handover to Field Staff</span>
-        </button>
-        <button onclick="promptCreateNewCase()" class="px-2.5 py-1 bg-primary-container hover:bg-primary text-white rounded font-headline font-bold flex items-center gap-1 shadow-sm transition-all text-xs">
-          <span class="material-symbols-outlined text-[15px]">add_circle</span>
-          <span>+ Add Case</span>
-        </button>
-      </div>
-    </div>
-  </section>
+    </section>
+  </div>
 
   <!-- SUB-HEADER DOSSIER RIBBON (SELECTED CASE DETAILS) -->
   <section class="bg-surface-container-lowest border-b border-outline-variant py-2.5 shadow-sm">
@@ -2172,11 +2175,30 @@
     function checkCaAuth() {
       const token = localStorage.getItem("ca_token");
       const modal = document.getElementById("caLoginModal");
+      const userJson = localStorage.getItem("ca_user");
+
+      // Strict role check: If stored user is FIELD_AGENT or agent, kick out immediately!
+      if (userJson) {
+        try {
+          const u = JSON.parse(userJson);
+          if (u.role === "FIELD_AGENT" || (u.email && u.email.toLowerCase().includes("agent")) || (u.username && u.username.toLowerCase().includes("agent"))) {
+            localStorage.removeItem("ca_token");
+            localStorage.removeItem("ca_user");
+            if (modal) modal.classList.remove("hidden");
+            const alertEl = document.getElementById("caLoginAlert");
+            if (alertEl) {
+              alertEl.innerHTML = `⛔ <b>ACCESS RESTRICTED:</b> Field Agent accounts are not permitted to access the CA Office Desk. Field staff must use the Field Verification PWA app.<br/><a href="/pwa" class="inline-block mt-2 font-bold underline text-blue-700">Open Field Verification PWA (મોબાઇલ એપ્લિકેશન) →</a>`;
+              alertEl.classList.remove("hidden");
+            }
+            return;
+          }
+        } catch(e){}
+      }
+
       if (!token) {
         if (modal) modal.classList.remove("hidden");
       } else {
         if (modal) modal.classList.add("hidden");
-        const userJson = localStorage.getItem("ca_user");
         if (userJson) {
           try {
             const u = JSON.parse(userJson);
@@ -2205,6 +2227,15 @@
       submitBtn.disabled = true;
       submitBtn.innerHTML = `<span class="material-symbols-outlined animate-spin text-[18px]">sync</span> Authenticating...`;
 
+      // Block field staff usernames locally right away
+      if (username.toLowerCase().startsWith("agent")) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>Sign In to CA Scrutiny Desk</span><span class="material-symbols-outlined text-[18px]">login</span>`;
+        alertEl.innerHTML = `⛔ <b>ACCESS DENIED:</b> Field Agents (<code>${username}</code>) are strictly prohibited from accessing the CA Office Desk. Please use the Field Verification PWA.<br/><a href="/pwa" class="inline-block mt-2 font-bold underline text-blue-700">Go to Field Verification PWA →</a>`;
+        alertEl.classList.remove("hidden");
+        return;
+      }
+
       try {
         const res = await fetch("/api/v1/auth/login", {
           method: "POST",
@@ -2213,6 +2244,14 @@
         });
         if (res.ok) {
           const data = await res.json();
+          // Backend returned user role check
+          if (data.role === "FIELD_AGENT") {
+            alertEl.innerHTML = `⛔ <b>ACCESS DENIED:</b> Field Agents are strictly prohibited from accessing the CA Office Scrutiny Desk. Please use the Field Verification PWA.<br/><a href="/pwa" class="inline-block mt-2 font-bold underline text-blue-700">Go to Field Verification PWA →</a>`;
+            alertEl.classList.remove("hidden");
+            localStorage.removeItem("ca_token");
+            localStorage.removeItem("ca_user");
+            return;
+          }
           localStorage.setItem("ca_token", data.access_token);
           localStorage.setItem("ca_user", JSON.stringify(data));
           document.getElementById("caLoginModal").classList.add("hidden");
@@ -2230,10 +2269,10 @@
       } catch (err) {
         if (username.toLowerCase() === "admin" && password === "admin@123") {
           localStorage.setItem("ca_token", "demo-ca-token");
-          localStorage.setItem("ca_user", JSON.stringify({ full_name: "CA Pranav N. Shah, FCA", role: "SUPER_ADMIN" }));
+          localStorage.setItem("ca_user", JSON.stringify({ full_name: "CA Pranav N. Shah (Sr. Partner)", role: "SUPER_ADMIN" }));
           document.getElementById("caLoginModal").classList.add("hidden");
         } else {
-          alertEl.textContent = "Unable to connect to auth server. Try demo admin / admin@123";
+          alertEl.textContent = "Unable to connect to auth server. Try admin / admin@123";
           alertEl.classList.remove("hidden");
         }
       } finally {

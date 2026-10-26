@@ -182,6 +182,97 @@
       </div>
     </section>
 
+    <!-- Case Documents Provided by CA Office Section (Strictly Read-Only Reference for Field Staff) -->
+    <section id="caDocsSection" class="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm flex flex-col gap-3">
+      <div class="flex items-center justify-between pb-2.5 border-b border-outline-variant">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-md bg-blue-50 text-primary-container flex items-center justify-center font-bold">
+            <span class="material-symbols-outlined text-[18px]">folder_shared</span>
+          </div>
+          <div>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Documents Provided by CA Office</h3>
+            <p class="font-mono text-[10px] text-outline">સી.એ. ઓફિસ દ્વારા આપેલા દસ્તાવેજો • Field Cross-Verification</p>
+          </div>
+        </div>
+        <span class="font-mono text-[10px] text-primary-container font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+          OFFICE DOSSIER
+        </span>
+      </div>
+
+      <p class="text-xs text-on-surface-variant leading-relaxed">
+        Cross-verify these official borrower identity documents on site before taking physical evidence photos:
+      </p>
+
+      <!-- 3 Document Cards: Aadhaar, PAN, Utility Bill -->
+      <div class="space-y-2.5">
+        <!-- 1. Aadhaar Card -->
+        <div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex items-start justify-between gap-2.5">
+          <div class="flex items-start gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-primary-container shrink-0 mt-0.5">
+              <span class="material-symbols-outlined text-[18px]">badge</span>
+            </div>
+            <div class="text-xs">
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-on-surface">Aadhaar Card (આધાર કાર્ડ)</span>
+                <span class="font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1 rounded border border-emerald-200 font-bold">MASKED</span>
+              </div>
+              <div id="pwaDocAadhaarName" class="font-semibold text-on-surface mt-0.5">Mrs. Rajkunvarba Pradeepsinh Vaghela</div>
+              <div id="pwaDocAadhaarNo" class="font-mono text-[11px] text-outline font-bold">XXXX - XXXX - 7689</div>
+              <div id="pwaDocAadhaarDob" class="font-mono text-[10px] text-on-surface-variant">DOB: 30/05/1997 | Female</div>
+            </div>
+          </div>
+          <button onclick="openPwaDocModal('aadhaar')" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-primary-container/40 text-primary-container font-headline text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[14px]">visibility</span>
+            <span>View</span>
+          </button>
+        </div>
+
+        <!-- 2. PAN Card -->
+        <div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex items-start justify-between gap-2.5">
+          <div class="flex items-start gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-primary-container shrink-0 mt-0.5">
+              <span class="material-symbols-outlined text-[18px]">credit_card</span>
+            </div>
+            <div class="text-xs">
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-on-surface">PAN Card (પાન કાર્ડ)</span>
+                <span class="font-mono text-[9px] bg-blue-50 text-blue-800 px-1 rounded border border-blue-200 font-bold">VERIFIED</span>
+              </div>
+              <div id="pwaDocPanName" class="font-semibold text-on-surface mt-0.5">RAJKUNVARBA VAGHELA</div>
+              <div id="pwaDocPanNo" class="font-mono text-[11px] text-primary-container font-bold">PAN: BYMPG8996E</div>
+              <div id="pwaDocPanWard" class="font-mono text-[10px] text-outline">WARD 1, GANDHINAGAR</div>
+            </div>
+          </div>
+          <button onclick="openPwaDocModal('pan')" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-primary-container/40 text-primary-container font-headline text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[14px]">visibility</span>
+            <span>View</span>
+          </button>
+        </div>
+
+        <!-- 3. Electricity Bill / Utility Proof -->
+        <div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex items-start justify-between gap-2.5">
+          <div class="flex items-start gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-primary-container shrink-0 mt-0.5">
+              <span class="material-symbols-outlined text-[18px]">receipt_long</span>
+            </div>
+            <div class="text-xs">
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-on-surface">Electricity Bill (લાઇટ બિલ)</span>
+                <span class="font-mono text-[9px] bg-purple-50 text-purple-800 px-1 rounded border border-purple-200 font-bold">METER PROOF</span>
+              </div>
+              <div id="pwaDocUtilityProvider" class="font-semibold text-on-surface mt-0.5">UGVCL Electricity Bill</div>
+              <div id="pwaDocUtilityNo" class="font-mono text-[11px] text-outline font-bold">Consumer # 04128/99102/3</div>
+              <div id="pwaDocUtilityMeter" class="font-mono text-[10px] text-outline">Meter Name: Pradeepsinh Vaghela</div>
+            </div>
+          </div>
+          <button onclick="openPwaDocModal('utility')" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-primary-container/40 text-primary-container font-headline text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[14px]">visibility</span>
+            <span>View</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
     <!-- Real-Time Geofence Compass & Radar Card -->
     <section class="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm">
       <div class="flex items-center justify-between mb-3">
@@ -331,84 +422,117 @@
       <div class="p-3 bg-surface-container-lowest flex flex-wrap items-center justify-between gap-2 border-t border-outline-variant">
         <div class="flex items-center gap-1.5 text-xs text-on-surface-variant font-mono">
           <span class="material-symbols-outlined text-[15px] text-secondary">fingerprint</span>
-          <span class="text-[11px]">SHA-256 Stamp Generated • Embedded to Bank Audit Vault</span>
+          <span class="text-[11px]">SHA-256 Stamp Generated • GPS Cryptographically Locked</span>
         </div>
-        <a href="/portal" class="inline-flex items-center gap-1 font-mono text-[11px] text-primary-container font-bold hover:underline">
-          <span>Open CA Desk</span>
-          <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-        </a>
+        <span class="inline-flex items-center gap-1 font-mono text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300 font-bold">
+          <span class="material-symbols-outlined text-[13px]">lock</span>
+          Field Terminal Isolated
+        </span>
       </div>
     </section>
 
-    <!-- Verification Checklist (CA Audit Protocol) -->
-    <section class="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm">
+    <!-- Dedicated Physical Evidence Photo Upload Slots -->
+    <section class="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm flex flex-col gap-3">
       <div class="flex items-center justify-between pb-3 border-b border-outline-variant">
         <div>
-          <h3 class="font-headline font-bold text-sm text-on-surface">Field Audit Compliance Dossier</h3>
-          <p class="font-mono text-[10px] text-outline">Mandatory RBI/IBA Banking Verification Modules</p>
+          <h3 class="font-headline font-bold text-sm text-on-surface">Physical Verification Photo Evidence</h3>
+          <p class="font-mono text-[10px] text-outline">સ્થળ તપાસ ફોટોગ્રાફ્સ અપલોડ • 4 Mandatory Slots</p>
         </div>
         <div class="flex flex-col items-end">
-          <span class="font-mono text-[10px] uppercase text-outline">Audit Progress</span>
-          <span class="font-headline font-bold text-xs text-primary-container">2 OF 4 COMPLETE</span>
+          <span class="font-mono text-[10px] uppercase text-outline">Slots Completed</span>
+          <span id="evidenceSlotsCount" class="font-headline font-bold text-xs text-primary-container">0 OF 4 COMPLETE</span>
         </div>
       </div>
 
-      <div class="divide-y divide-outline-variant">
-        <!-- Item 1: Complete -->
-        <div class="py-2.5 flex items-center justify-between gap-2">
-          <div class="flex items-start gap-2">
-            <span class="material-symbols-outlined text-[20px] text-secondary mt-0.5" style="font-variation-settings: 'FILL' 1;">task_alt</span>
+      <!-- Instruction banner -->
+      <div class="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-primary-container text-xs flex items-center gap-2">
+        <span class="material-symbols-outlined text-[18px] text-blue-700 shrink-0">info</span>
+        <span>Upload mandatory geotagged photographs in the designated slots below. Once all slots are uploaded, submit the dossier to complete the physical verification.</span>
+      </div>
+
+      <!-- 4 Photo Evidence Slots -->
+      <div class="space-y-3">
+        <!-- Slot 1: Society / Building Entrance -->
+        <div id="slotCard1" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slot1Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden">
+              <span class="material-symbols-outlined text-[22px]">corporate_fare</span>
+            </div>
             <div>
-              <p class="text-xs font-semibold text-on-surface">1. Exterior & Building Gate</p>
-              <p class="font-mono text-[10px] text-outline">Imperial Heights Main Entrance</p>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Slot 1: Building / Society Gate</span>
+                <span id="slot1Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">સોસાયટી / બિલ્ડીંગ મેઈન ગેટ અને નેમ બોર્ડ</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Society entrance, main road, signboard</p>
             </div>
           </div>
-          <span class="shrink-0 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-secondary font-mono text-[10px] font-bold">
-            Uploaded • Watermarked
-          </span>
+          <button onclick="triggerSlotCapture(1, 'PROPERTY_EXTERIOR')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slot1BtnText">Capture Gate Photo</span>
+          </button>
         </div>
 
-        <!-- Item 2: Complete -->
-        <div class="py-2.5 flex items-center justify-between gap-2">
-          <div class="flex items-start gap-2">
-            <span class="material-symbols-outlined text-[20px] text-secondary mt-0.5" style="font-variation-settings: 'FILL' 1;">task_alt</span>
+        <!-- Slot 2: House Elevation & Door / Nameplate -->
+        <div id="slotCard2" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slot2Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden">
+              <span class="material-symbols-outlined text-[22px]">door_front</span>
+            </div>
             <div>
-              <p class="text-xs font-semibold text-on-surface">2. Electric Meter & Utility Bill</p>
-              <p class="font-mono text-[10px] text-outline">MSEDCL Meter #MUM-70291 OCR Ready</p>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Slot 2: House Door & Name Plate</span>
+                <span id="slot2Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">મકાન દરવાજો અને નામપ્લેટ (ફ્લેટ નંબર)</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Flat number plate, door entrance, elevation</p>
             </div>
           </div>
-          <span class="shrink-0 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-secondary font-mono text-[10px] font-bold">
-            Uploaded • Gemini OCR
-          </span>
+          <button onclick="triggerSlotCapture(2, 'PROPERTY_EXTERIOR')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slot2BtnText">Capture Door Photo</span>
+          </button>
         </div>
 
-        <!-- Item 3: Pending -->
-        <div class="py-2.5 flex items-center justify-between gap-2">
-          <div class="flex items-start gap-2">
-            <span class="material-symbols-outlined text-[20px] text-amber-600 mt-0.5">pending</span>
+        <!-- Slot 3: Living Room Interior & Electricity Meter -->
+        <div id="slotCard3" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slot3Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden">
+              <span class="material-symbols-outlined text-[22px]">electric_meter</span>
+            </div>
             <div>
-              <p class="text-xs font-semibold text-on-surface">3. Living Room / Interior Assets</p>
-              <p class="font-mono text-[10px] text-outline">Physical occupancy & carpet area</p>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Slot 3: Living Room & Electric Meter</span>
+                <span id="slot3Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">હોલ/રૂમ અને ઇલેક્ટ્રિક મીટર રીડિંગ</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Physical meter number matching bill & interior assets</p>
             </div>
           </div>
-          <label for="cameraInput" class="cursor-pointer shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-50 border border-amber-300 text-amber-800 font-mono text-[10px] font-bold active:scale-95">
-            <span class="material-symbols-outlined text-[13px]">photo_camera</span>
-            Capture
-          </label>
+          <button onclick="triggerSlotCapture(3, 'ELECTRICITY_METER')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slot3BtnText">Capture Meter Photo</span>
+          </button>
         </div>
 
-        <!-- Item 4: Pending -->
-        <div class="py-2.5 flex items-center justify-between gap-2">
-          <div class="flex items-start gap-2">
-            <span class="material-symbols-outlined text-[20px] text-outline mt-0.5">radio_button_unchecked</span>
+        <!-- Slot 4: Person Met / Borrower at Site -->
+        <div id="slotCard4" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slot4Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden">
+              <span class="material-symbols-outlined text-[22px]">person_check</span>
+            </div>
             <div>
-              <p class="text-xs font-semibold text-on-surface">4. Neighbor / Society Cross-Check</p>
-              <p class="font-mono text-[10px] text-outline">Society Secretary verification questionnaire</p>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Slot 4: Person Met / Borrower at Site</span>
+                <span id="slot4Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">રૂબરૂ મુલાકાત - અરજદાર અથવા કુટુંબના સભ્ય</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Person met standing in the premises / co-applicant</p>
             </div>
           </div>
-          <button onclick="promptInspectionNotes()" class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container-low border border-outline-variant text-on-surface font-mono text-[10px] font-bold active:scale-95">
-            <span class="material-symbols-outlined text-[13px]">fact_check</span>
-            Verify
+          <button onclick="triggerSlotCapture(4, 'NEIGHBOR_VERIFICATION')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slot4BtnText">Capture Person Met</span>
           </button>
         </div>
       </div>
@@ -591,33 +715,33 @@
         <span class="font-mono text-[9px] text-outline uppercase font-bold">AUTO-ENCRYPT</span>
       </div>
 
-      <button onclick="window.location.href='/portal'" class="w-full py-3 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-sm font-bold shadow flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
-        <span class="material-symbols-outlined text-[18px]">verified</span>
-        <span>Open CA Verification Desk</span>
+      <button id="btnSubmitVerification" onclick="submitFinalPhysicalVerification()" class="w-full py-3.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-headline text-sm font-bold shadow-md flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
+        <span class="material-symbols-outlined text-[20px]">send_and_archive</span>
+        <span>Submit & Complete Physical Verification (વેરિફિકેશન પૂર્ણ કરો)</span>
       </button>
     </section>
 
   </main>
 
-  <!-- Mobile Bottom PWA Nav Bar -->
+  <!-- Mobile Bottom PWA Nav Bar (STRICTLY ISOLATED FROM CA DESK) -->
   <nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-2 bg-surface-container-lowest border-t border-outline-variant shadow-md backdrop-blur-md bg-opacity-95">
-    <a href="#visits" class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 font-mono text-[10px] hover:bg-surface-container-high active:scale-95 transition-all">
-      <span class="material-symbols-outlined text-[20px] mb-0.5">assignment</span>
-      <span>Visits</span>
+    <a href="#caDocsSection" class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 font-mono text-[10px] hover:bg-surface-container-high active:scale-95 transition-all">
+      <span class="material-symbols-outlined text-[20px] mb-0.5">folder_shared</span>
+      <span>CA Docs</span>
     </a>
-    <a href="#inspect" class="flex flex-col items-center justify-center bg-primary-container text-white rounded-lg px-4 py-1 font-mono text-[10px] active:scale-95 transition-all shadow-sm">
-      <span class="material-symbols-outlined text-[20px] mb-0.5 text-white">location_searching</span>
-      <span class="font-bold">Inspect</span>
+    <a href="#slotCard1" class="flex flex-col items-center justify-center bg-primary-container text-white rounded-lg px-4 py-1 font-mono text-[10px] active:scale-95 transition-all shadow-sm">
+      <span class="material-symbols-outlined text-[20px] mb-0.5 text-white">photo_camera</span>
+      <span class="font-bold">Photo Slots</span>
     </a>
     <a href="#sync" onclick="syncOfflineQueue()" class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 font-mono text-[10px] hover:bg-surface-container-high active:scale-95 transition-all relative">
       <span class="material-symbols-outlined text-[20px] mb-0.5">sync_saved_locally</span>
       <span>Sync</span>
       <span class="absolute top-1 right-3 w-2 h-2 rounded-full bg-secondary"></span>
     </a>
-    <a href="/portal" class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 font-mono text-[10px] hover:bg-surface-container-high active:scale-95 transition-all">
-      <span class="material-symbols-outlined text-[20px] mb-0.5">desktop_mac</span>
-      <span>Portal</span>
-    </a>
+    <button onclick="logoutAgent()" class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 font-mono text-[10px] hover:bg-surface-container-high active:scale-95 transition-all">
+      <span class="material-symbols-outlined text-[20px] mb-0.5 text-red-600">logout</span>
+      <span class="text-red-700 font-bold">Logout</span>
+    </button>
   </nav>
 
   <!-- Interactive JavaScript Engine -->
@@ -629,7 +753,7 @@
       }).catch(err => console.log("SW error:", err));
     }
 
-    // Multi-case Registry for Field PWA
+    // Multi-case Registry for Field PWA with CA Office Verified Dossiers
     const caseRegistryPwa = {
       "UBI-HL-2026-20L": {
         id: "b901fc63-12a8-4e32-9c02-e20984cfb001",
@@ -643,7 +767,13 @@
         lat: 23.2536,
         lon: 72.6322,
         dev_lat: 23.2534,
-        dev_lon: 72.6324
+        dev_lon: 72.6324,
+        aadhaar_no: "XXXX - XXXX - 7689",
+        dob: "30/05/1997 | Female",
+        pan_no: "BYMPG8996E",
+        utility_provider: "UGVCL Electricity Bill",
+        utility_no: "Consumer # 04128/99102/3",
+        meter_name: "Meter: Pradeepsinh Vaghela"
       },
       "SBI-HL-2026-45L": {
         id: "c102ad74-23b9-4f43-ad13-f31095d0c002",
@@ -657,7 +787,13 @@
         lat: 19.0596,
         lon: 72.8295,
         dev_lat: 19.0592,
-        dev_lon: 72.8298
+        dev_lon: 72.8298,
+        aadhaar_no: "XXXX - XXXX - 4102",
+        dob: "14/08/1988 | Male",
+        pan_no: "AJVPS8831K",
+        utility_provider: "MSEDCL Mumbai Bill",
+        utility_no: "Consumer # 90021/88319/1",
+        meter_name: "Meter: Vikramaditya Sengupta"
       },
       "HDFC-LAP-2026-60L": {
         id: "d203be85-34ca-4a54-be24-a42106e1d003",
@@ -671,7 +807,13 @@
         lat: 23.0372,
         lon: 72.5621,
         dev_lat: 23.0370,
-        dev_lon: 72.5623
+        dev_lon: 72.5623,
+        aadhaar_no: "XXXX - XXXX - 9812",
+        dob: "22/11/1976 | Male",
+        pan_no: "BKRPP4920M",
+        utility_provider: "Torrent Power Ltd.",
+        utility_no: "Consumer # 10092/44120/8",
+        meter_name: "Meter: Jayeshbhai K. Patel"
       },
       "ICICI-PL-2026-15L": {
         id: "e304cf96-45db-4b65-cf35-b53217f2e004",
@@ -685,7 +827,13 @@
         lat: 23.0305,
         lon: 72.5735,
         dev_lat: 23.0303,
-        dev_lon: 72.5738
+        dev_lon: 72.5738,
+        aadhaar_no: "XXXX - XXXX - 3390",
+        dob: "05/03/1992 | Female",
+        pan_no: "DFMPS1092Q",
+        utility_provider: "Torrent Power Ltd.",
+        utility_no: "Consumer # 08912/77321/4",
+        meter_name: "Meter: Dr. Ananya Sharma"
       },
       "BOB-HL-2026-30L": {
         id: "f405da07-56ec-4c76-da46-c64328a3f005",
@@ -699,7 +847,13 @@
         lat: 23.2156,
         lon: 72.6369,
         dev_lat: 23.2154,
-        dev_lon: 72.6367
+        dev_lon: 72.6367,
+        aadhaar_no: "XXXX - XXXX - 6721",
+        dob: "19/07/1983 | Male",
+        pan_no: "CRVMS7710R",
+        utility_provider: "UGVCL Electricity Bill",
+        utility_no: "Consumer # 05510/33918/9",
+        meter_name: "Meter: Mahendrasinh Solanki"
       }
     };
 
@@ -709,6 +863,11 @@
     let currentDeviceLon = 72.6324;
     let sampleCaseId = "b901fc63-12a8-4e32-9c02-e20984cfb001";
     let activeCaseKey = "UBI-HL-2026-20L";
+
+    // Dedicated Evidence Slots State
+    let activeUploadSlot = 1;
+    let activeDocType = "PROPERTY_EXTERIOR";
+    const uploadedSlots = { 1: false, 2: false, 3: false, 4: false };
 
     // Haversine formula calculation in client JS
     function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
@@ -774,15 +933,48 @@
         `CASE: SBI-HL-2024-8841 | AGENT: R. VARMA (FA-9042) | ${nowStr} | ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E | ACC: ${accuracy ? accuracy.toFixed(1) : '3.2'}m | GEOFENCE: ${isCompliant ? 'VALID' : 'BREACH'}`;
     }
 
-    // Zero-lag File Upload Handler
+    // Dedicated Slot Capture Trigger
+    function triggerSlotCapture(slotNum, docType) {
+      activeUploadSlot = slotNum;
+      activeDocType = docType;
+      const camInput = document.getElementById("cameraInput");
+      if (camInput) {
+        camInput.click();
+      }
+    }
+
+    function updateEvidenceProgress() {
+      const count = Object.values(uploadedSlots).filter(Boolean).length;
+      const countEl = document.getElementById("evidenceSlotsCount");
+      if (countEl) countEl.textContent = `${count} OF 4 COMPLETE`;
+    }
+
+    // Zero-lag File Upload Handler with Dedicated Evidence Slots
     async function handlePhotoUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
 
-      // Show instant client image preview
+      // Show instant client image preview in main photo preview
       const reader = new FileReader();
       reader.onload = (e) => {
         document.getElementById("previewPhotoImg").src = e.target.result;
+
+        // Update active slot thumbnail and status
+        uploadedSlots[activeUploadSlot] = true;
+        const thumbEl = document.getElementById(`slot${activeUploadSlot}Thumb`);
+        if (thumbEl) {
+          thumbEl.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-lg"/>`;
+        }
+        const badgeEl = document.getElementById(`slot${activeUploadSlot}Badge`);
+        if (badgeEl) {
+          badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+          badgeEl.textContent = "✓ UPLOADED";
+        }
+        const btnTextEl = document.getElementById(`slot${activeUploadSlot}BtnText`);
+        if (btnTextEl) {
+          btnTextEl.textContent = "Re-take Photo";
+        }
+        updateEvidenceProgress();
       };
       reader.readAsDataURL(file);
 
@@ -790,12 +982,12 @@
       const alertBox = document.getElementById("uploadAlert");
       const alertText = document.getElementById("uploadAlertText");
       alertBox.classList.remove("hidden");
-      alertText.textContent = "Streaming photo to Railway storage & enqueuing OpenRouter Gemini OCR...";
+      alertText.textContent = `Streaming Slot ${activeUploadSlot} photo to Railway storage & enqueuing Gemini OCR...`;
 
       // Multipart upload
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("doc_type", "PROPERTY_EXTERIOR");
+      formData.append("doc_type", activeDocType || "PROPERTY_EXTERIOR");
       formData.append("latitude", currentDeviceLat);
       formData.append("longitude", currentDeviceLon);
 
@@ -814,7 +1006,7 @@
         if (response.status === 202 || response.status === 200) {
           const data = await response.json();
           alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
-          alertText.innerHTML = `✅ <b>Transmitted to CA Desktop Scrutiny Desk!</b><br/>GPS: ${currentDeviceLat.toFixed(4)}°N, ${currentDeviceLon.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>This photo is now visible live on CA desk in real time!</i>`;
+          alertText.innerHTML = `✅ <b>Slot ${activeUploadSlot} Transmitted to CA Scrutiny Desk!</b><br/>GPS: ${currentDeviceLat.toFixed(4)}°N, ${currentDeviceLon.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>This photo is cryptographically locked and synced in real time.</i>`;
         } else {
           const errData = await response.json().catch(() => ({}));
           alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
@@ -823,6 +1015,118 @@
       } catch (err) {
         alertBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-300 text-blue-900 text-xs font-mono shadow-sm";
         alertText.textContent = "Offline Mode: Photo saved to PWA local storage queue. Will sync automatically.";
+      }
+    }
+
+    // Modal Inspection for CA-Provided Documents
+    let isPwaCardFlipped = false;
+    function openPwaDocModal(docType) {
+      const modal = document.getElementById("pwaDocModal");
+      const title = document.getElementById("pwaDocModalTitle");
+      const desc = document.getElementById("pwaDocModalDesc");
+      const imgFront = document.getElementById("pwaDocModalImgFront");
+      const imgBack = document.getElementById("pwaDocModalImgBack");
+      const flipBtn = document.getElementById("pwaDocFlipBtn");
+
+      const c = caseRegistryPwa[activeCaseKey] || caseRegistryPwa["UBI-HL-2026-20L"];
+
+      if (docType === "aadhaar") {
+        title.textContent = "Aadhaar Card (UIDAI Masked)";
+        desc.textContent = `Name: ${c.applicant} | Masked No: ${c.aadhaar_no || 'XXXX-XXXX-7689'} | DOB: ${c.dob || '30/05/1997'}`;
+        imgFront.src = "/static/aadhaar_front_specimen.png";
+        imgBack.src = "/static/aadhaar_back_specimen.png";
+        if (flipBtn) flipBtn.classList.remove("hidden");
+      } else if (docType === "pan") {
+        title.textContent = "PAN Card (Income Tax Dept)";
+        desc.textContent = `Name: ${c.applicant} | PAN: ${c.pan_no || 'BYMPG8996E'} | Ward: ${c.ward || 'Gandhinagar'}`;
+        imgFront.src = "/static/pan_card_specimen.png";
+        imgBack.src = "/static/pan_card_specimen.png";
+        if (flipBtn) flipBtn.classList.add("hidden");
+      } else if (docType === "utility") {
+        title.textContent = "Electricity / Utility Bill";
+        desc.textContent = `Provider: ${c.utility_provider || 'UGVCL'} | Consumer No: ${c.utility_no || '04128/99102/3'} | Meter: ${c.meter_name || c.applicant}`;
+        imgFront.src = "/static/electricity_bill_specimen.png";
+        imgBack.src = "/static/electricity_bill_specimen.png";
+        if (flipBtn) flipBtn.classList.add("hidden");
+      }
+
+      isPwaCardFlipped = false;
+      const flipCard = document.getElementById("pwaDocModalCard");
+      if (flipCard) flipCard.classList.remove("is-flipped");
+
+      if (modal) modal.classList.remove("hidden");
+    }
+
+    function flipPwaDocSide() {
+      const flipCard = document.getElementById("pwaDocModalCard");
+      if (!flipCard) return;
+      isPwaCardFlipped = !isPwaCardFlipped;
+      if (isPwaCardFlipped) {
+        flipCard.classList.add("is-flipped");
+      } else {
+        flipCard.classList.remove("is-flipped");
+      }
+    }
+
+    function closePwaDocModal() {
+      const modal = document.getElementById("pwaDocModal");
+      if (modal) modal.classList.add("hidden");
+    }
+
+    // Submit & Complete Physical Verification
+    async function submitFinalPhysicalVerification() {
+      const count = Object.values(uploadedSlots).filter(Boolean).length;
+      if (count === 0) {
+        if (!confirm("No physical evidence photos have been captured yet. Do you still wish to submit?")) {
+          return;
+        }
+      }
+
+      const btn = document.getElementById("btnSubmitVerification");
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-outlined animate-spin text-[20px]">sync</span> Submitting Physical Verification...`;
+      }
+
+      try {
+        const token = localStorage.getItem("pwa_token");
+        const headers = { "Content-Type": "application/json" };
+        if (token && token !== "demo-pwa-token") {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        await fetch(`/api/v1/visits/check-out`, {
+          method: "POST",
+          headers: headers,
+          body: JSON.stringify({
+            case_id: sampleCaseId,
+            latitude: currentDeviceLat,
+            longitude: currentDeviceLon,
+            notes: `Physical verification completed on-site. ${count}/4 evidence photo slots submitted. Verified with applicant identity.`
+          })
+        });
+
+        // Show completion modal
+        const compModal = document.getElementById("pwaCompletionModal");
+        const compTime = document.getElementById("pwaCompletionTimestamp");
+        if (compTime) {
+          compTime.textContent = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + " IST";
+        }
+        const compSlots = document.getElementById("pwaCompletionSlots");
+        if (compSlots) {
+          compSlots.textContent = `${count} of 4 Geotagged Slots Uploaded`;
+        }
+        if (compModal) compModal.classList.remove("hidden");
+
+      } catch(e) {
+        const compModal = document.getElementById("pwaCompletionModal");
+        if (compModal) compModal.classList.remove("hidden");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols-outlined text-[20px]">task_alt</span> <span>Physical Verification Completed (પૂર્ણ થયેલ)</span>`;
+          btn.className = "w-full py-3.5 rounded-lg bg-emerald-900 text-emerald-100 font-headline text-sm font-bold shadow flex items-center justify-center gap-2 cursor-default";
+        }
       }
     }
 
@@ -921,6 +1225,36 @@
       document.getElementById("loanAmountDisplay").textContent = c.amount;
       document.getElementById("targetAddressDisplay").textContent = c.address;
       document.getElementById("targetLatLonText").textContent = `${c.lat.toFixed(4)}° N`;
+
+      // Dynamically update CA-provided documents for this case
+      if (document.getElementById("pwaDocAadhaarName")) {
+        document.getElementById("pwaDocAadhaarName").textContent = c.applicant;
+        document.getElementById("pwaDocAadhaarNo").textContent = c.aadhaar_no || "XXXX - XXXX - 7689";
+        document.getElementById("pwaDocAadhaarDob").textContent = `DOB: ${c.dob || "30/05/1997"}`;
+      }
+      if (document.getElementById("pwaDocPanName")) {
+        document.getElementById("pwaDocPanName").textContent = c.applicant.toUpperCase();
+        document.getElementById("pwaDocPanNo").textContent = `PAN: ${c.pan_no || "BYMPG8996E"}`;
+        document.getElementById("pwaDocPanWard").textContent = `WARD: ${c.ward || "GMC"}`;
+      }
+      if (document.getElementById("pwaDocUtilityProvider")) {
+        document.getElementById("pwaDocUtilityProvider").textContent = c.utility_provider || "UGVCL Electricity Bill";
+        document.getElementById("pwaDocUtilityNo").textContent = c.utility_no || "Consumer # 04128/99102/3";
+        document.getElementById("pwaDocUtilityMeter").textContent = c.meter_name || `Meter Name: ${c.applicant}`;
+      }
+
+      // Reset slot states for the new case
+      for (let i = 1; i <= 4; i++) {
+        uploadedSlots[i] = false;
+        const b = document.getElementById(`slot${i}Badge`);
+        if (b) {
+          b.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
+          b.textContent = "PENDING";
+        }
+        const btn = document.getElementById(`slot${i}BtnText`);
+        if (btn) btn.textContent = `Capture Photo`;
+      }
+      updateEvidenceProgress();
 
       const selector = document.getElementById("pwaCaseSelector");
       if (selector && selector.value !== key) {
@@ -1084,5 +1418,92 @@
       </div>
     </div>
   </div>
+
+  <!-- CA-PROVIDED DOCUMENT ENLARGED INSPECTION MODAL -->
+  <div id="pwaDocModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-3">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <!-- Modal Header -->
+      <div class="p-3.5 bg-surface-container-low border-b border-outline-variant flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary-container text-[20px]">verified_user</span>
+          <div>
+            <h3 id="pwaDocModalTitle" class="font-headline font-bold text-sm text-on-surface">Document Inspection</h3>
+            <p id="pwaDocModalDesc" class="font-mono text-[10px] text-outline">Official Document Provided by CA Office</p>
+          </div>
+        </div>
+        <button onclick="closePwaDocModal()" class="w-8 h-8 rounded-full bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-outline hover:text-on-surface">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+
+      <!-- Modal Body with Flip Card -->
+      <div class="p-4 flex flex-col items-center gap-3 overflow-y-auto">
+        <div class="doc-flip-container" style="max-width: 440px; height: 260px;">
+          <div id="pwaDocModalCard" class="doc-flip-card h-full">
+            <!-- Front Face -->
+            <div class="doc-flip-face doc-flip-front border border-outline-variant shadow-md">
+              <img id="pwaDocModalImgFront" src="/static/aadhaar_front_specimen.png" alt="Document Front" class="w-full h-full object-contain bg-slate-900"/>
+              <div class="absolute bottom-2 left-2 bg-black/75 text-white px-2 py-0.5 rounded text-[10px] font-mono font-bold">FRONT SIDE</div>
+            </div>
+            <!-- Back Face -->
+            <div class="doc-flip-face doc-flip-back border border-outline-variant shadow-md">
+              <img id="pwaDocModalImgBack" src="/static/aadhaar_back_specimen.png" alt="Document Back" class="w-full h-full object-contain bg-slate-900"/>
+              <div class="absolute bottom-2 left-2 bg-black/75 text-white px-2 py-0.5 rounded text-[10px] font-mono font-bold">BACK SIDE</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 w-full justify-between pt-1">
+          <button id="pwaDocFlipBtn" onclick="flipPwaDocSide()" class="px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-primary-container font-headline text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">flip_camera_android</span>
+            <span>Flip Front / Back</span>
+          </button>
+          <span class="font-mono text-[10px] text-secondary bg-emerald-50 px-2 py-1 rounded border border-emerald-200 font-bold">
+            ✓ CA CERTIFIED COPY
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHYSICAL VERIFICATION COMPLETION SUCCESS MODAL -->
+  <div id="pwaCompletionModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border-2 border-emerald-500 rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden p-6 text-center animate-fade-in">
+      <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 mx-auto flex items-center justify-center mb-4 ring-8 ring-emerald-50 animate-bounce">
+        <span class="material-symbols-outlined text-[36px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+      </div>
+
+      <h2 class="font-headline font-bold text-lg text-emerald-900 mb-1">Physical Verification Submitted!</h2>
+      <p class="font-mono text-xs text-emerald-700 mb-4">સ્થળ તપાસ સફળતાપૂર્વક પૂર્ણ થયેલ છે</p>
+
+      <div class="p-3 bg-surface-container-low rounded-xl border border-outline-variant space-y-2 text-left text-xs mb-5">
+        <div class="flex items-center justify-between">
+          <span class="text-outline">Case Ref:</span>
+          <span id="pwaCompletionCaseNo" class="font-mono font-bold text-primary-container">UBI-HL-2026-20L</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-outline">Evidence Slots:</span>
+          <span id="pwaCompletionSlots" class="font-mono font-bold text-emerald-800">4 of 4 Geotagged Slots Uploaded</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-outline">Timestamp:</span>
+          <span id="pwaCompletionTimestamp" class="font-mono text-[11px] text-on-surface">26-Oct-2026 10:15 IST</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-outline">Dossier Status:</span>
+          <span class="font-mono font-bold text-secondary bg-emerald-100 px-1.5 py-0.5 rounded">PENDING_CA_REVIEW</span>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-on-surface-variant leading-relaxed mb-5">
+        The complete physical audit dossier and geotagged photographs have been securely transmitted to the CA Office Scrutiny Desk for certification.
+      </p>
+
+      <button onclick="document.getElementById('pwaCompletionModal').classList.add('hidden')" class="w-full py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-headline text-xs font-bold shadow transition-all">
+        Close & Continue Field Duties
+      </button>
+    </div>
+  </div>
+
 </body>
 </html>
