@@ -1112,6 +1112,7 @@
         id: "b901fc63-12a8-4e32-9c02-e20984cfb001",
         case_no: "UBI-HL-2026-20L",
         applicant: "Mrs. Rajkunvarba Pradeepsinh Vaghela",
+        phone: "8160166900",
         amount: "₹20.00 Lakhs",
         loan_type: "HOUSING LOAN CPV",
         address: "31, Siddhi Vinayak Bunglows, Near Gayatri Temple, Pethapur, Gandhinagar 382610",
@@ -1127,6 +1128,22 @@
         utility_provider: "UGVCL Electricity Bill",
         utility_no: "Consumer # 04128/99102/3",
         meter_name: "Meter: Pradeepsinh Vaghela",
+        age: "29 years",
+        marital: "Married (પરિણિત)",
+        qualification: "Graduate",
+        ownership: "Owned",
+        building_type: "Bungalow",
+        bhk: "3 BHK",
+        stay_period: "9 years",
+        owner_name: "( Ranjanba Vaghela ) Mother in law",
+        person_met: "Pradeepsinh Vaghela - 8160166900 (Husband)",
+        neighbors: ["1 - Narendrasinh Devda - Neighbour", "2 - Bhagvatsinh Rathod - Neighbour"],
+        family_members: [
+          { name: "Rajkunvarba Vaghela", relation: "Self / Applicant", age: "29", occupation: "Housewife", earning: "No" },
+          { name: "Pradeepsinh Vaghela", relation: "Husband", age: "32", occupation: "Business / Job", earning: "Yes" },
+          { name: "Ranjanba Vaghela", relation: "Mother-in-law", age: "58", occupation: "Senior Citizen", earning: "No" },
+          { name: "Takshdevsinh", relation: "Son", age: "5", occupation: "Student", earning: "No" }
+        ],
         aadhaar_front_img: "/static/specimen_assets/aadhaar_front.jpg",
         aadhaar_back_img: "/static/specimen_assets/aadhaar_back.jpg",
         pan_front_img: "/static/specimen_assets/pan_front.jpg",
@@ -1141,25 +1158,43 @@
         id: "b902fc74-33b9-4f54-ad24-f31095e0d616",
         case_no: "UBI-HL-2026-616",
         applicant: "Pargi Bhavnaben",
-        amount: "₹20.00 Lakhs",
-        loan_type: "HOUSING LOAN CPV",
-        address: "Plot 42, Gayatri Nagar, Sector 8, Gandhinagar 382007",
-        pin: "382007",
-        ward: "Ward 2, Gandhinagar (GMC)",
-        lat: 23.2156,
-        lon: 72.6369,
-        dev_lat: 23.2154,
-        dev_lon: 72.6367,
-        aadhaar_no: "XXXX - XXXX - 4182",
-        dob: "14/08/1993 | Female",
-        pan_no: "BYMPP4192K",
-        utility_provider: "UGVCL Electricity Bill",
-        utility_no: "Consumer # 02690/41820/1",
-        meter_name: "Meter: Pargi Bhavnaben",
-        aadhaar_front_img: "/static/specimen_assets/pargi_aadhaar_front.jpg",
+        phone: "9428351920",
+        amount: "₹15.00 Lakhs",
+        loan_type: "PERSONAL LOAN CPV",
+        branch: "Bagodara Branch",
+        address: "Opp. Bagodara Primary School, Main Bazar, Bagodara, Tal. Bavla, Dist. Ahmedabad - 382240",
+        pin: "382240",
+        ward: "Bagodara / Bavla (Ahmedabad Rural)",
+        lat: 22.8421,
+        lon: 72.1932,
+        dev_lat: 22.8420,
+        dev_lon: 72.1930,
+        aadhaar_no: "XXXX - XXXX - 6192",
+        dob: "14/08/1988 | Female",
+        pan_no: "BVNPP8291M",
+        utility_provider: "MGVCL Electricity Bill",
+        utility_no: "Consumer # 02148/09121/4",
+        meter_name: "Meter: MGV-BG-884910",
+        age: "38 years",
+        marital: "Married (પરિણિત)",
+        qualification: "Graduate (Govt Teacher)",
+        ownership: "Owned",
+        building_type: "Independent House",
+        bhk: "2 BHK",
+        stay_period: "12 years",
+        owner_name: "Pargi Bhavnaben (Self)",
+        person_met: "Pargi Bhavnaben (Self - 9428351920) & Husband Hiteshbhai",
+        neighbors: ["1 - Patel Ramanbhai - Neighbour", "2 - Shah Kirtibhai - Neighbour"],
+        family_members: [
+          { name: "Pargi Bhavnaben", relation: "Self / Applicant", age: "38", occupation: "Govt Teacher", earning: "Yes" },
+          { name: "Pargi Hiteshbhai", relation: "Husband", age: "42", occupation: "Agriculture / Business", earning: "Yes" },
+          { name: "Pargi Dhruv", relation: "Son", age: "14", occupation: "Student", earning: "No" },
+          { name: "Pargi Hetal", relation: "Daughter", age: "11", occupation: "Student", earning: "No" }
+        ],
+        aadhaar_front_img: "/static/specimen_assets/pargi_aadhaar_front_masked.jpg",
         aadhaar_back_img: "/static/specimen_assets/pargi_aadhaar_back.jpg",
         pan_front_img: "/static/specimen_assets/pargi_pan_front.jpg",
-        pan_back_img: "/static/specimen_assets/pargi_pan_back.jpg",
+        pan_back_img: "/static/specimen_assets/pargi_pan_front.jpg",
         utility_front_img: "/static/specimen_assets/pargi_utility_bill.jpg",
         form16_img: "/static/specimen_assets/pargi_form16.jpg",
         payslip_img: "/static/specimen_assets/pargi_payslip.jpg",
@@ -2103,6 +2138,44 @@
         document.getElementById("pwaDocPropertyTitle").textContent = `Sale Deed (દસ્તાવેજ) • ${c.applicant}`;
         document.getElementById("pwaDocPropertyAddress").textContent = c.address;
       }
+
+      // ==========================================
+      // SYNCHRONIZE MODULE 2 (Residential & Family Inquiries) DYNAMICALLY
+      // ==========================================
+      const fName = document.getElementById("formApplicantName");
+      if (fName) fName.value = c.applicant;
+      const fPhone = document.getElementById("formContactNumber");
+      if (fPhone) fPhone.value = c.phone || "9428351920";
+      const fAge = document.getElementById("formAge");
+      if (fAge) fAge.value = c.age || "38 years";
+      const fMarital = document.getElementById("formMarital");
+      if (fMarital && c.marital) fMarital.value = c.marital;
+      const fAddr = document.getElementById("formAddressVisited");
+      if (fAddr) fAddr.value = c.address;
+      const fOwn = document.getElementById("formOwnership");
+      if (fOwn) fOwn.value = c.ownership || "Owned";
+      const fBType = document.getElementById("formBuildingType");
+      if (fBType) fBType.value = c.building_type || "Independent House";
+      const fBhk = document.getElementById("formBhk");
+      if (fBhk) fBhk.value = c.bhk || "2 BHK";
+      const fStay = document.getElementById("formStayDuration");
+      if (fStay) fStay.value = c.stay_period || "12 years";
+      const fOwner = document.getElementById("formOwnerName");
+      if (fOwner) fOwner.value = c.owner_name || `${c.applicant} (Self)`;
+      const fMet = document.getElementById("formPersonMet");
+      if (fMet) fMet.value = c.person_met || `${c.applicant} (Self)`;
+      const fRefs = document.getElementById("formReferences");
+      if (fRefs) fRefs.value = (c.neighbors || []).join(", ");
+      
+      // Update dynamic family members
+      if (c.family_members && Array.isArray(c.family_members)) {
+        familyMembers = JSON.parse(JSON.stringify(c.family_members));
+      } else {
+        familyMembers = [
+          { name: c.applicant, relation: "Self / Applicant", age: "35", occupation: "Service", earning: "Yes" }
+        ];
+      }
+      renderFamilyMembers();
 
       // Reset flip button states
       isAadhaarFlippedInline = false;

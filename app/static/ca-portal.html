@@ -348,6 +348,61 @@
         </span>
       </div>
 
+      <!-- MULTI-PAGE PDF LLM SEPARATION & SCAN DESK -->
+      <div class="bg-gradient-to-r from-blue-900 to-indigo-950 p-3.5 rounded-xl border border-blue-700/60 shadow-md text-white space-y-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-amber-300 text-[20px]">call_split</span>
+            <div>
+              <h3 class="font-headline font-bold text-xs text-white">Single PDF Burst & LLM Page Separator</h3>
+              <p class="font-mono text-[9px] text-blue-200">OpenRouter Gemini 2.5 Flash extracts each page image & classifies</p>
+            </div>
+          </div>
+          <span class="px-2 py-0.5 rounded font-mono text-[9px] font-bold bg-amber-400 text-slate-950">
+            AI SEPARATION
+          </span>
+        </div>
+        <p class="text-[11px] text-blue-100 leading-snug">
+          Upload any combined loan PDF (or select <code class="bg-white/20 px-1 py-0.5 rounded text-[10px] font-mono">parghi bhavnaben.pdf</code>). AI bursts every page into 200 DPI images, classifies Aadhaar/PAN/MGVCL Bill/Payslip, and binds each to its card.
+        </p>
+        <div class="flex items-center gap-2 pt-1">
+          <input type="file" id="portalMultiPagePdfInput" accept="application/pdf,.pdf" class="hidden" onchange="handlePortalPdfSelected(this.files[0])"/>
+          <button type="button" onclick="document.getElementById('portalMultiPagePdfInput').click()" class="flex-1 py-1.5 px-2.5 bg-white text-blue-950 hover:bg-blue-50 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px] text-blue-700">upload_file</span>
+            <span>Select PDF from PC...</span>
+          </button>
+          <button type="button" id="btnRunPargiPdfDemo" onclick="runPargiPdfSeparationDemo()" class="py-1.5 px-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all" title="Extract and classify all pages of Pargi Bhavnaben's PDF with Gemini LLM">
+            <span class="material-symbols-outlined text-[16px]">bolt</span>
+            <span>Extract Parghi PDF (AI)</span>
+          </button>
+        </div>
+        <!-- Progress / Status bar -->
+        <div id="pdfBurstStatusBox" class="hidden p-2 rounded-lg bg-black/40 border border-white/20 font-mono text-[10px] space-y-1">
+          <div class="flex items-center justify-between text-amber-200 font-bold">
+            <span id="pdfBurstStatusText">Processing pages with Gemini LLM...</span>
+            <span id="pdfBurstStatusPercent">0%</span>
+          </div>
+          <div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
+            <div id="pdfBurstProgressBar" class="bg-amber-400 h-full w-0 transition-all duration-300"></div>
+          </div>
+        </div>
+        <!-- Separated Pages Quick Tray -->
+        <div id="pdfSeparatedPagesTray" class="hidden p-2.5 rounded-lg bg-slate-900/90 border border-blue-400/30 space-y-2">
+          <div class="flex items-center justify-between text-[10px] font-mono border-b border-white/10 pb-1">
+            <span class="text-emerald-300 font-bold flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">check_circle</span>
+              <span id="pdfSeparatedCount">5 Pages Extracted & Arranged</span>
+            </span>
+            <button type="button" onclick="bindSeparatedPagesToCards()" class="text-amber-300 hover:underline font-bold text-[10px]">
+              Apply All to Cards ✓
+            </button>
+          </div>
+          <div id="pdfSeparatedPagesList" class="grid grid-cols-5 gap-1.5">
+            <!-- Rendered thumbnail cards -->
+          </div>
+        </div>
+      </div>
+
       <!-- Scrutiny Item 1: Aadhaar Masking Card (Front & Back Flipped Document) -->
       <div class="bg-surface-container-lowest rounded-lg border border-outline-variant p-3.5 shadow-sm space-y-2.5 hover:border-primary-container transition-all">
         <div class="flex items-center justify-between pb-2 border-b border-outline-variant">
@@ -602,7 +657,7 @@
           <!-- Document Action Ribbon -->
           <div class="flex items-center justify-between bg-surface-container-low px-2.5 py-1.5 rounded-md border border-outline-variant text-[10px]">
             <div class="flex items-center gap-1 font-mono">
-              <button id="btnUtilitySideFront" onclick="event.stopPropagation(); setDocSide('utility', 'front')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs">Utility Bill (UGVCL)</button>
+              <button id="btnUtilitySideFront" onclick="event.stopPropagation(); setDocSide('utility', 'front')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container text-white shadow-xs">Utility Bill (MGVCL/UGVCL)</button>
               <button id="btnUtilitySideBack" onclick="event.stopPropagation(); setDocSide('utility', 'back')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface">CPV Visit Form</button>
             </div>
             <div class="flex items-center gap-1.5">
@@ -622,21 +677,21 @@
           </div>
 
           <!-- 3D Interactive Flip Card Container -->
-          <div class="doc-flip-container cursor-pointer" onclick="flipDocCard('utility')" title="Click anywhere to 3D flip between UGVCL Electricity Bill & CPV Field Form">
+          <div class="doc-flip-container cursor-pointer" onclick="flipDocCard('utility')" title="Click anywhere to 3D flip between Electricity Bill & CPV Field Form">
             <div id="utilityFlipCard" class="doc-flip-card shadow-sm border border-outline-variant hover:border-primary-container transition-all">
-              <!-- FRONT SIDE: Real Authentic UGVCL Electricity Bill -->
+              <!-- FRONT SIDE: Real Authentic Electricity Bill -->
               <div class="doc-flip-face doc-flip-front group relative bg-white">
-                <img id="dispUtilityFrontImg" src="/static/specimen_assets/utility_bill.jpg" class="w-full h-full object-cover object-top rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="UGVCL Electricity Bill"/>
+                <img id="dispUtilityFrontImg" src="/static/specimen_assets/utility_bill.jpg" class="w-full h-full object-cover object-top rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="Electricity Bill"/>
                 <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  UGVCL E-ELECTRICITY BILL
+                  <span id="dispUtilityDiscomBadge">MGVCL E-ELECTRICITY BILL</span>
                 </div>
                 <div class="absolute top-2 right-2 bg-primary-container/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md group-hover:bg-primary">
                   <span class="material-symbols-outlined text-[12px]">sync</span> Click to Flip ↻
                 </div>
                 <div class="absolute bottom-2 inset-x-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded text-[10px] text-white flex items-center justify-between font-mono border border-white/10">
-                  <span class="truncate font-semibold text-[9px]" id="dispUtilityFrontLabel">RANJANBA VAGHELA • 31 SIDDHI VINAYAK</span>
-                  <span class="text-blue-300 font-bold ml-1 text-[9px]">CON: 26905052191</span>
+                  <span class="truncate font-semibold text-[9px]" id="dispUtilityFrontLabel">PARGI BHAVNABEN • MAIN BAZAR, BAGODARA</span>
+                  <span id="dispUtilityConBadge" class="text-blue-300 font-bold ml-1 text-[9px]">CON: 02148/09121/4</span>
                 </div>
               </div>
               <!-- BACK SIDE: Real CPV Field Visit Form filled by agent Kamal -->
@@ -1838,50 +1893,53 @@
       "ubi-hl-2026-616-pargi": {
         case_no: "UBI-HL-2026-616",
         bank: "Union Bank of India",
-        branch: "Amrapura Branch",
+        branch: "Bagodara Branch",
         applicant_name: "Pargi Bhavnaben",
         phone: "+91 94283 51920",
         month: "October 2026",
         allotted_by: "Suresh Sir (Operations Lead)",
-        loan_facility: "Home Loan (HL) ₹20.00 Lacs",
-        loan_amount_val: 2000000,
-        pan: "BYMPP4192K",
-        aadhaar_masked: "XXXX - XXXX - 4182",
-        dob: "14/08/1993",
+        loan_facility: "Personal Loan ₹15.00 Lacs",
+        loan_amount_val: 1500000,
+        pan: "BVNPP8291M",
+        aadhaar_masked: "XXXX - XXXX - 6192",
+        dob: "14/08/1988",
         gender: "Female",
-        ward: "WARD 2, GANDHINAGAR (ACTIVE)",
-        address: "Plot 42, Gayatri Nagar, Sector 8, Gandhinagar - 382007",
+        ward: "BAGODARA RURAL / BAVLA (AHMEDABAD)",
+        address: "Opp. Bagodara Primary School, Main Bazar, Bagodara, Tal. Bavla, Dist. Ahmedabad - 382240",
         agent: "Nilesh & Kamal Bhai (Field Team)",
         agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
         selfie_verified: true,
         photos_count: 8,
         visit_date: "Today, Just Onboarded",
-        benchmark_lat: "23.2156",
-        benchmark_lon: "72.6369",
-        capture_lat: "23.2154",
-        capture_lon: "72.6367",
-        distance_m: 25,
+        benchmark_lat: "22.8421",
+        benchmark_lon: "72.1932",
+        capture_lat: "22.8420",
+        capture_lon: "72.1930",
+        distance_m: 22,
         agent_pin: "FA-7701",
-        stay_period: "06 Years",
+        stay_period: "12 Years",
         ownership: "Owned (Self)",
-        person_met: "Pargi Bhavnaben (Self - 9428351920)",
-        neighbors: ["1. Hasmukhbhai Patel (Neighbour - Confirmed)", "2. Dilipkumar Shah (Neighbour - Confirmed)"],
+        utility_discom: "MGVCL (Madhya Gujarat Vij Company Limited)",
+        consumer_no: "02148/09121/4",
+        meter_no: "MGV-BG-884910",
+        person_met: "Pargi Bhavnaben (Self - 9428351920) & Husband Hiteshbhai",
+        neighbors: ["1. Patel Ramanbhai (Neighbour - Confirmed 12+ Yrs)", "2. Shah Kirtibhai (Neighbour - Confirmed)"],
         status: "ASSIGNED_TO_FIELD",
         aadhaar_front_img: "/static/specimen_assets/pargi_aadhaar_front_masked.jpg",
         aadhaar_front_raw: "/static/specimen_assets/pargi_aadhaar_front.jpg",
         aadhaar_back_img: "/static/specimen_assets/pargi_aadhaar_back.jpg",
         pan_front_img: "/static/specimen_assets/pargi_pan_front.jpg",
-        pan_back_img: "/static/specimen_assets/pargi_pan_back.jpg",
+        pan_back_img: "/static/specimen_assets/pargi_pan_front.jpg",
         utility_front_img: "/static/specimen_assets/pargi_utility_bill.jpg",
         vault_documents: {
-          sale_deed: { title: "Registered Sale Deed (દસ્તાવેજ)", sub: "Reg # 7491/22 • Sub-Registrar GNR", type: "property", src: "/static/specimen_assets/pargi_sale_deed.jpg", status: "VERIFIED" },
-          index2: { title: "Index II Copy (સૂચિ ૨ નકલ)", sub: "Sub-Registrar Gandhinagar Clear Title", type: "property", src: "/static/specimen_assets/pargi_index2.jpg", status: "VERIFIED" },
-          utility: { title: "UGVCL Electricity Bill (વીજળી બિલ)", sub: "Consumer # 02690/41820/1", type: "property", src: "/static/specimen_assets/pargi_utility_bill.jpg", status: "VERIFIED" },
-          form16: { title: "Form 16 / TDS (Part A & B)", sub: "AY 2026-27 • GIDC Employer", type: "income", src: "/static/specimen_assets/pargi_form16.jpg", status: "COMPLIANT" },
-          payslip: { title: "Salary Payslip (Last 3 Months)", sub: "Net Credit: ₹82,030 / Month", type: "income", src: "/static/specimen_assets/pargi_payslip.jpg", status: "VERIFIED" },
-          bank_statement: { title: "6 Months Bank Statement", sub: "Axis A/c # 92102004819284", type: "income", src: "/static/specimen_assets/docscanner_page1_img1.jpg", status: "VERIFIED" },
-          aadhaar: { title: "Aadhaar Card (UIDAI Masked)", sub: "XXXX-XXXX-4182 • Rule 4", type: "kyc", src: "/static/specimen_assets/pargi_aadhaar_front_masked.jpg", status: "MASKED" },
-          pan: { title: "Permanent Account Number (PAN)", sub: "BYMPP4192K • Active & Linked", type: "kyc", src: "/static/specimen_assets/pargi_pan_front.jpg", status: "VERIFIED" }
+          sale_deed: { title: "Registered Sale Deed (દસ્તાવેજ)", sub: "Reg # 7491/22 • Sub-Registrar Bavla", type: "property", src: "/static/specimen_assets/pargi_sale_deed.jpg", status: "VERIFIED" },
+          index2: { title: "Index II Copy (સૂચિ ૨ નકલ)", sub: "Sub-Registrar Bavla Clear Title", type: "property", src: "/static/specimen_assets/pargi_index2.jpg", status: "VERIFIED" },
+          utility: { title: "MGVCL Electricity Bill (વીજળી બિલ)", sub: "Consumer # 02148/09121/4 • Bagodara Sub-Div", type: "property", src: "/static/specimen_assets/pargi_utility_bill.jpg", status: "VERIFIED" },
+          form16: { title: "Form 16 / TDS (Part A & B)", sub: "AY 2026-27 • Education Dept Employer", type: "income", src: "/static/specimen_assets/pargi_form16.jpg", status: "COMPLIANT" },
+          payslip: { title: "Salary Payslip (Govt Primary Teacher)", sub: "Net Credit: ₹42,180 / Month", type: "income", src: "/static/specimen_assets/pargi_payslip.jpg", status: "VERIFIED" },
+          bank_statement: { title: "6 Months Bank Statement", sub: "UBI Bagodara A/c # 0214810294819", type: "income", src: "/static/specimen_assets/docscanner_page1_img1.jpg", status: "VERIFIED" },
+          aadhaar: { title: "Aadhaar Card (UIDAI Masked)", sub: "XXXX-XXXX-6192 • Rule 4", type: "kyc", src: "/static/specimen_assets/pargi_aadhaar_front_masked.jpg", status: "MASKED" },
+          pan: { title: "Permanent Account Number (PAN)", sub: "BVNPP8291M • Active & Linked", type: "kyc", src: "/static/specimen_assets/pargi_pan_front.jpg", status: "VERIFIED" }
         },
         residence_photos: [
           { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Building / Society Gate (Photo 1)", tag: "SLOT 1: SOCIETY & MAIN GATE", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" },
@@ -2553,17 +2611,31 @@
       setDocSide('pan', 'front');
 
       // 4. Update CPV Field Form & Utility Proof
-      const utilityFrontUrl = c.utility_front_img || (caseId === "b901fc63-12a8-4e32-9c02-e20984cfb001" ? "/static/specimen_assets/utility_bill.jpg" : generateUtilityBillSvg(c.applicant_name, c.address, "2690" + Math.floor(1000000 + Math.random()*9000000)));
+      const isCase2 = caseId === "ubi-hl-2026-616-pargi" || (c.case_no && c.case_no.includes("616"));
+      const utilityFrontUrl = c.utility_front_img || (isCase2 ? "/static/specimen_assets/pargi_utility_bill.jpg" : "/static/specimen_assets/utility_bill.jpg");
       const uFImg = document.getElementById("dispUtilityFrontImg");
       if (uFImg) uFImg.src = utilityFrontUrl;
 
-      document.getElementById("dispStayPeriod").textContent = c.stay_period || "06 Years";
+      // Dynamic Discom badge and front button
+      const discomBadge = document.getElementById("dispUtilityDiscomBadge");
+      if (discomBadge) discomBadge.textContent = isCase2 ? "MGVCL E-ELECTRICITY BILL" : "UGVCL E-ELECTRICITY BILL";
+      const btnUF = document.getElementById("btnUtilitySideFront");
+      if (btnUF) btnUF.textContent = isCase2 ? "Utility Bill (MGVCL)" : "Utility Bill (UGVCL)";
+      const conBadge = document.getElementById("dispUtilityConBadge");
+      if (conBadge) conBadge.textContent = isCase2 ? "CON: 02148/09121/4" : "CON: 26905052191";
+
+      document.getElementById("dispStayPeriod").textContent = c.stay_period || (isCase2 ? "12 Years" : "06 Years");
       document.getElementById("dispOwnership").textContent = c.ownership || "Owned Premises";
       document.getElementById("dispPersonMet").textContent = c.person_met || `${c.applicant_name} (Self / Family - ${c.phone})`;
       document.getElementById("dispNeighbors").innerHTML = `<span class="font-bold text-primary-container">Neighbour Corroboration:</span> ${(c.neighbors || ["1. Resident 1", "2. Resident 2"]).join(' • ')}`;
-      if (document.getElementById("dispUtilityFrontLabel")) document.getElementById("dispUtilityFrontLabel").textContent = `${c.applicant_name.toUpperCase()} • ${c.address}`;
+      if (document.getElementById("dispUtilityFrontLabel")) document.getElementById("dispUtilityFrontLabel").textContent = isCase2 ? `PARGI BHAVNABEN • MAIN BAZAR, BAGODARA` : `${c.applicant_name.toUpperCase()} • ${c.address}`;
       if (document.getElementById("dispUtilityBackLabel")) document.getElementById("dispUtilityBackLabel").textContent = `AGENT: ${c.agent} • ${c.stay_period || '06 Years'} STAY • VERIFIED`;
       setDocSide('utility', 'front');
+
+      // Save active case to localStorage and sync selector
+      localStorage.setItem('activeCaseId', caseId);
+      const caseSelector = document.getElementById("caseSelectorSelect");
+      if (caseSelector && caseSelector.value !== caseId) caseSelector.value = caseId;
 
       // 5. Update Geofence Telemetry & Radar Card
       document.getElementById("dispRadarProximity").textContent = `PROXIMITY: ${c.distance_m} METERS (PASS)`;
@@ -2620,6 +2692,207 @@
 
       // 11. Fetch Live Evidence Photos from Server
       fetchLiveCaseDocuments(caseId);
+
+      // 12. Load Separated Document Pages from LLM Ingest
+      loadSeparatedCaseDocs(caseId);
+    }
+
+    // ==========================================
+    // MULTI-PAGE PDF LLM SEPARATION ENGINE
+    // ==========================================
+    let activeSeparatedDocs = [];
+
+    async function loadSeparatedCaseDocs(caseId) {
+      try {
+        const res = await fetch(`/api/v1/cases/${caseId}/separated-documents`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.documents && data.documents.length > 0) {
+            renderSeparatedPagesTray(data.documents);
+          } else {
+            const tray = document.getElementById("pdfSeparatedPagesTray");
+            if (tray) tray.classList.add("hidden");
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to load separated docs:", e);
+      }
+    }
+
+    async function handlePortalPdfSelected(file) {
+      if (!file) return;
+      await uploadAndProcessPdfFile(file);
+    }
+
+    async function runPargiPdfSeparationDemo() {
+      const btn = document.getElementById("btnRunPargiPdfDemo");
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-outlined animate-spin text-[16px]">sync</span> Scrutinizing...`;
+      }
+      await uploadAndProcessPdfFile(null); // null triggers server fallback to authentic specimen PDF
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="material-symbols-outlined text-[16px]">bolt</span> <span>Extract Parghi PDF (AI)</span>`;
+      }
+    }
+
+    async function uploadAndProcessPdfFile(file) {
+      const statusBox = document.getElementById("pdfBurstStatusBox");
+      const statusText = document.getElementById("pdfBurstStatusText");
+      const statusPercent = document.getElementById("pdfBurstStatusPercent");
+      const progressBar = document.getElementById("pdfBurstProgressBar");
+
+      if (statusBox) statusBox.classList.remove("hidden");
+      if (statusText) statusText.textContent = "1. Bursting PDF into high-res images & invoking Gemini LLM...";
+      if (statusPercent) statusPercent.textContent = "25%";
+      if (progressBar) progressBar.style.width = "25%";
+
+      const formData = new FormData();
+      if (file) {
+        formData.append("file", file);
+      }
+      const c = caseRegistry[activeCaseId] || {};
+      formData.append("applicant_name", c.applicant_name || "Pargi Bhavnaben");
+      formData.append("target_address", c.address || "Opp. Bagodara Primary School, Main Bazar, Bagodara, Tal. Bavla, Dist. Ahmedabad - 382240");
+
+      try {
+        const token = localStorage.getItem("ca_token");
+        const headers = {};
+        if (token && token !== "demo-ca-token") {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        setTimeout(() => {
+          if (statusText) statusText.textContent = "2. OpenRouter Gemini 2.5 Flash scanning forensic fields...";
+          if (statusPercent) statusPercent.textContent = "65%";
+          if (progressBar) progressBar.style.width = "65%";
+        }, 1200);
+
+        const res = await fetch(`/api/v1/cases/${activeCaseId}/ingest-pdf`, {
+          method: "POST",
+          headers: headers,
+          body: formData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (statusPercent) statusPercent.textContent = "100%";
+          if (progressBar) progressBar.style.width = "100%";
+          if (statusText) statusText.textContent = `✓ ${data.total_pages_separated} Pages separated & classified by Gemini LLM!`;
+
+          setTimeout(() => {
+            if (statusBox) statusBox.classList.add("hidden");
+          }, 2500);
+
+          renderSeparatedPagesTray(data.documents);
+          bindSeparatedPagesToCards();
+          alert(`[✓ Gemini LLM Document Separation Complete]\nProcessed: ${data.total_pages_separated} pages\nAll pages classified into MGVCL Utility Bill, PAN, Aadhaar, and Payslip.\nCards have been updated with authentic page images.`);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`PDF Processing notice: ${err.detail || 'Could not process PDF'}`);
+          if (statusBox) statusBox.classList.add("hidden");
+        }
+      } catch (err) {
+        console.error("PDF upload error:", err);
+        alert("PDF extraction error: " + err.message);
+        if (statusBox) statusBox.classList.add("hidden");
+      }
+    }
+
+    function renderSeparatedPagesTray(docs) {
+      activeSeparatedDocs = docs || [];
+      const tray = document.getElementById("pdfSeparatedPagesTray");
+      const list = document.getElementById("pdfSeparatedPagesList");
+      const countEl = document.getElementById("pdfSeparatedCount");
+
+      if (!tray || !list) return;
+      tray.classList.remove("hidden");
+      if (countEl) countEl.textContent = `${activeSeparatedDocs.length} Pages Extracted & Arranged`;
+
+      list.innerHTML = "";
+      activeSeparatedDocs.forEach((d, idx) => {
+        let badgeColor = "bg-blue-900 text-blue-200 border-blue-600";
+        let shortType = d.doc_type;
+        if (d.doc_type === "UTILITY_BILL") {
+          shortType = (d.utility_provider || "MGVCL") + " BILL";
+          badgeColor = "bg-emerald-950 text-emerald-300 border-emerald-600";
+        } else if (d.doc_type === "PAN_CARD") {
+          shortType = "PAN CARD";
+          badgeColor = "bg-sky-950 text-sky-300 border-sky-600";
+        } else if (d.doc_type === "AADHAAR_CARD") {
+          shortType = "AADHAAR " + (d.doc_sub_type || "");
+          badgeColor = "bg-amber-950 text-amber-300 border-amber-600";
+        } else if (d.doc_type === "SALARY_SLIP") {
+          shortType = "PAYSLIP";
+          badgeColor = "bg-purple-950 text-purple-300 border-purple-600";
+        }
+
+        const col = document.createElement("div");
+        col.className = "group relative rounded-lg bg-black/60 border border-white/20 p-1 flex flex-col items-center hover:border-amber-400 cursor-pointer transition-all";
+        col.title = `${d.document_title}\nMatch: ${d.name_match_score}%`;
+        col.onclick = () => window.open(d.image_url, '_blank');
+
+        col.innerHTML = `
+          <div class="w-full h-16 rounded overflow-hidden bg-slate-900 mb-1 flex items-center justify-center">
+            <img src="${d.image_url}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="${d.document_title}"/>
+          </div>
+          <span class="text-[8px] font-mono font-bold px-1 py-0.5 rounded border ${badgeColor} text-center truncate w-full block">
+            P${d.page_number}: ${shortType}
+          </span>
+        `;
+        list.appendChild(col);
+      });
+    }
+
+    function bindSeparatedPagesToCards() {
+      if (!activeSeparatedDocs || activeSeparatedDocs.length === 0) return;
+
+      activeSeparatedDocs.forEach(d => {
+        if (d.doc_type === "UTILITY_BILL") {
+          const uFImg = document.getElementById("dispUtilityFrontImg");
+          if (uFImg) uFImg.src = d.image_url;
+          const discomBadge = document.getElementById("dispUtilityDiscomBadge");
+          if (discomBadge) discomBadge.textContent = `${d.utility_provider || 'MGVCL'} E-ELECTRICITY BILL`;
+          const btnUF = document.getElementById("btnUtilitySideFront");
+          if (btnUF) btnUF.textContent = `Utility Bill (${d.utility_provider || 'MGVCL'})`;
+          if (d.consumer_number) {
+            const conBadge = document.getElementById("dispUtilityConBadge");
+            if (conBadge) conBadge.textContent = `CON: ${d.consumer_number}`;
+          }
+          if (d.extracted_address) {
+            const lbl = document.getElementById("dispUtilityFrontLabel");
+            if (lbl) lbl.textContent = `${(d.extracted_name || 'PARGI BHAVNABEN').toUpperCase()} • ${d.extracted_address}`;
+          }
+        } else if (d.doc_type === "PAN_CARD") {
+          const pFImg = document.getElementById("dispPanFrontImg");
+          if (pFImg) pFImg.src = d.image_url;
+          if (d.extracted_pan) {
+            const panEl = document.getElementById("dispPanNumber");
+            if (panEl) panEl.textContent = d.extracted_pan;
+            const panLbl = document.getElementById("dispPanFrontLabel");
+            if (panLbl) panLbl.textContent = `${d.extracted_pan} • ${(d.extracted_name || 'PARGI BHAVNABEN').toUpperCase()}`;
+          }
+        } else if (d.doc_type === "AADHAAR_CARD") {
+          if (d.doc_sub_type === "BACK" || (d.document_title && d.document_title.toLowerCase().includes("back"))) {
+            const aBImg = document.getElementById("dispAadhaarBackImg");
+            if (aBImg) aBImg.src = d.image_url;
+            if (d.extracted_address) {
+              const aBLbl = document.getElementById("dispAadhaarBackLabel");
+              if (aBLbl) aBLbl.textContent = d.extracted_address;
+            }
+          } else {
+            const aFImg = document.getElementById("dispAadhaarFrontImg");
+            if (aFImg) aFImg.src = d.image_url;
+            if (d.extracted_aadhaar) {
+              const aPill = document.getElementById("dispAadhaarMaskedPill");
+              if (aPill) aPill.textContent = d.extracted_aadhaar;
+              const aMask = document.getElementById("dispAadhaarMasked");
+              if (aMask) aMask.textContent = d.extracted_aadhaar;
+            }
+          }
+        }
+      });
     }
 
     // Filter by Bank Name
@@ -3703,12 +3976,12 @@
     }
 
     function quickFillSampleBankFolder() {
-      const folderName = "PARGI BHAVNABEN-HL-20 LACS";
+      const folderName = "PARGI BHAVNABEN-PERSONAL LOAN-15 LACS";
       const sampleFiles = [
-        { name: "PAN_Card_BYMPP4192K.pdf" },
-        { name: "Aadhaar_Masked_4182.pdf" },
-        { name: "UGVCL_Electricity_Bill.pdf" },
-        { name: "Bank_Sanction_Order.pdf" },
+        { name: "PAN_Card_BVNPP8291M.pdf" },
+        { name: "Aadhaar_Masked_6192.pdf" },
+        { name: "MGVCL_Electricity_Bill_Bagodara.pdf" },
+        { name: "Govt_Teacher_Salary_Payslip.pdf" },
         { name: "Residence_Gate_Photo.jpg" },
         { name: "Premises_Door_Elevation.jpg" },
         { name: "Living_Room_Assets.jpg" },
@@ -3719,18 +3992,18 @@
       document.getElementById("ncCaseNo").value = "UBI-HL-2026-616";
       document.getElementById("ncApplicantName").value = "Pargi Bhavnaben";
       document.getElementById("ncApplicantPhone").value = "+91 94283 51920";
-      if (document.getElementById("ncPan")) document.getElementById("ncPan").value = "BYMPP4192K";
-      if (document.getElementById("ncAadhaar")) document.getElementById("ncAadhaar").value = "XXXX - XXXX - 4182";
-      if (document.getElementById("ncDob")) document.getElementById("ncDob").value = "14/08/1993";
+      if (document.getElementById("ncPan")) document.getElementById("ncPan").value = "BVNPP8291M";
+      if (document.getElementById("ncAadhaar")) document.getElementById("ncAadhaar").value = "XXXX - XXXX - 6192";
+      if (document.getElementById("ncDob")) document.getElementById("ncDob").value = "14/08/1988";
       if (document.getElementById("ncGender")) document.getElementById("ncGender").value = "Female";
       document.getElementById("ncBankName").value = "Union Bank of India";
-      document.getElementById("ncBranch").value = "Amrapura Branch";
-      document.getElementById("ncLoanType").value = "Home Loan (HL)";
-      document.getElementById("ncLoanAmount").value = "20,00,000";
+      document.getElementById("ncBranch").value = "Bagodara Branch";
+      document.getElementById("ncLoanType").value = "Personal Loan";
+      document.getElementById("ncLoanAmount").value = "15,00,000";
       document.getElementById("ncMonth").value = "October 2026";
-      document.getElementById("ncAddress").value = "Plot 42, Gayatri Nagar, Sector 8, Gandhinagar - 382007";
-      document.getElementById("ncLat").value = "23.2156";
-      document.getElementById("ncLon").value = "72.6369";
+      document.getElementById("ncAddress").value = "Opp. Bagodara Primary School, Main Bazar, Bagodara, Tal. Bavla, Dist. Ahmedabad - 382240";
+      document.getElementById("ncLat").value = "22.8421";
+      document.getElementById("ncLon").value = "72.1932";
       document.getElementById("ncAllottedBy").value = "Suresh Sir (Operations Lead)";
       document.getElementById("ncFieldStaff").value = "Nilesh & Kamal Bhai (Field Team)";
 
@@ -4208,8 +4481,10 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       checkCaAuth();
+      const savedCase = localStorage.getItem("activeCaseId");
       const sel = document.getElementById("caseSelectorSelect");
-      const initCase = (sel && sel.value) ? sel.value : (activeCaseId || "ubi-hl-2026-616-pargi");
+      const initCase = (savedCase && caseRegistry[savedCase]) ? savedCase : ((sel && sel.value) ? sel.value : "ubi-hl-2026-616-pargi");
+      if (sel && initCase) sel.value = initCase;
       if (initCase) {
         onCaseSelected(initCase);
       }
