@@ -328,79 +328,54 @@
         <span class="font-mono text-[10px] text-blue-700 font-bold bg-white px-2 py-0.5 rounded border border-blue-200">15 PAGES SYNCHRONIZED</span>
       </div>
 
-      <!-- MODULE 1: Executive, Target Persona & Field Staff Selfie to Start Survey (PAGE 1) -->
+      <!-- MODULE 1: Start Survey & Executive Attendance (સર્વે શરૂઆત - ફક્ત એજન્ટ હાજરી) -->
       <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/80 space-y-3.5">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between pb-1 border-b border-outline-variant/60">
           <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-primary-container text-[18px]">badge</span>
-            <span class="font-headline font-bold text-xs text-on-surface">1. Executive & Persona (વિઝિટ કરનાર અને વ્યક્તિ પ્રકાર)</span>
+            <span class="material-symbols-outlined text-primary-container text-[20px]">play_circle</span>
+            <div>
+              <span class="font-headline font-bold text-xs sm:text-sm text-on-surface">1. Start Survey & Agent Attendance (સર્વે શરૂઆત - એજન્ટ હાજરી)</span>
+              <p class="font-mono text-[10px] text-outline">Start of Work On-Site • ફક્ત સર્વે શરૂ કરનાર એજન્ટ ની વિગત</p>
+            </div>
           </div>
-          <span class="font-mono text-[9px] bg-surface-container text-outline px-1.5 py-0.5 rounded uppercase font-bold">Page 1</span>
+          <span class="font-mono text-[9px] bg-primary-container/10 text-primary-container px-2 py-0.5 rounded font-bold uppercase">Page 1</span>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <!-- Executive Name Dropdown + Add Option -->
-          <div>
-            <div class="flex items-center justify-between mb-1">
-              <label class="font-mono text-[10px] font-bold text-outline">Executive Name (વિઝિટ કરનાર નું નામ)*</label>
-              <button type="button" onclick="toggleAddExecutiveInput()" class="text-[11px] text-primary-container font-bold hover:underline flex items-center gap-0.5">
-                <span class="material-symbols-outlined text-[14px]">add_circle</span>
-                <span>+ Add Executive</span>
-              </button>
-            </div>
-            <select id="formExecutive" onchange="handleExecutiveSelect(this.value)" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface focus:ring-2 focus:ring-primary-container">
-              <option value="Kamal" selected>Kamal Bhai (કમલ ભાઈ - Union Bank Field Officer)</option>
-              <option value="Nilesh">Nilesh (નિલેશ - Senior CPV Officer)</option>
-              <option value="Rajesh Varma">Rajesh Varma (રાજેશ વર્મા - FA-9042)</option>
-              <option value="Naimish N. Shah">Naimish N. Shah (નૈમિષ શાહ - Chartered Accountant)</option>
-              <option value="Jayesh Patel">Jayesh Patel (જયેશ પટેલ - Field Supervisor)</option>
-              <option value="__add_new__">+ Add New Executive (નવો એક્ઝિક્યુટિવ ઉમેરો)...</option>
-            </select>
-            <!-- Custom Executive Input Box (toggled) -->
-            <div id="addExecutiveBox" class="hidden mt-2 p-2 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-1.5">
-              <input id="newExecutiveInput" type="text" placeholder="Enter executive full name..." class="flex-1 text-xs bg-white border border-outline-variant rounded px-2 py-1 text-on-surface font-medium"/>
-              <button type="button" onclick="saveNewExecutive()" class="px-2.5 py-1 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded shadow-xs">Add</button>
-              <button type="button" onclick="toggleAddExecutiveInput()" class="p-1 text-outline hover:text-on-surface"><span class="material-symbols-outlined text-[16px]">close</span></button>
-            </div>
-          </div>
+        <div class="p-2.5 rounded-lg bg-blue-50/70 border border-blue-200 text-xs text-primary-container flex items-start gap-2">
+          <span class="material-symbols-outlined text-[16px] text-primary-container shrink-0 mt-0.5">info</span>
+          <p class="leading-relaxed">
+            <b>Start of Work:</b> Log your name and capture your own on-site selfie to begin the survey. <span class="text-outline font-normal">(Do NOT disturb the applicant or family members at this initial step; all interview and family inquiries follow in Section 2 below).</span>
+          </p>
+        </div>
 
-          <!-- Target Persona Dropdown + Add Option -->
-          <div>
-            <div class="flex items-center justify-between mb-1">
-              <label class="font-mono text-[10px] font-bold text-outline">Target Persona (પસંદગી પ્રકાર)*</label>
-              <button type="button" onclick="toggleAddPersonaInput()" class="text-[11px] text-primary-container font-bold hover:underline flex items-center gap-0.5">
-                <span class="material-symbols-outlined text-[14px]">add_circle</span>
-                <span>+ Add Persona</span>
-              </button>
+        <!-- Field Staff Conducting Survey (સર્વે કરનાર નું નામ) -->
+        <div>
+          <label class="font-mono text-[10px] font-bold text-outline block mb-1">Field Staff Name (સર્વે કરનાર નું નામ)*</label>
+          <div class="flex items-center gap-2.5 p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant shadow-2xs">
+            <div class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-headline text-xs font-bold shrink-0">
+              <span class="material-symbols-outlined text-[18px]">badge</span>
             </div>
-            <select id="formPersona" onchange="handlePersonaSelect(this.value)" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface focus:ring-2 focus:ring-primary-container">
-              <option value="Applicant" selected>Applicant (અરજદાર - Borrower)</option>
-              <option value="Co-applicant">Co-applicant (સહ-અરજદાર)</option>
-              <option value="Guarantor">Guarantor (જામીનદાર)</option>
-              <option value="Relative / Family Member">Relative / Family Member (સંબંધી / કુટુંબીજન)</option>
-              <option value="Neighbour Reference">Neighbour Reference (પાડોશી સંદર્ભ)</option>
-              <option value="__add_new__">+ Add New Persona (નવો પ્રકાર ઉમેરો)...</option>
-            </select>
-            <!-- Custom Persona Input Box (toggled) -->
-            <div id="addPersonaBox" class="hidden mt-2 p-2 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-1.5">
-              <input id="newPersonaInput" type="text" placeholder="Enter persona type..." class="flex-1 text-xs bg-white border border-outline-variant rounded px-2 py-1 text-on-surface font-medium"/>
-              <button type="button" onclick="saveNewPersona()" class="px-2.5 py-1 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded shadow-xs">Add</button>
-              <button type="button" onclick="toggleAddPersonaInput()" class="p-1 text-outline hover:text-on-surface"><span class="material-symbols-outlined text-[16px]">close</span></button>
+            <div class="flex-1">
+              <input id="formExecutive" type="text" value="Kamal Bhai (Field Officer)" class="w-full text-xs font-bold text-on-surface bg-transparent border-0 p-0 focus:ring-0 leading-tight" placeholder="Enter Field Staff Name..."/>
+              <p class="font-mono text-[10px] text-outline">Active Field Verifier • નાયબ સર્વે અધિકારી</p>
             </div>
+            <span class="font-mono text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded font-bold shrink-0">
+              VERIFIED STAFF
+            </span>
           </div>
         </div>
 
         <!-- FIELD STAFF OWN SELFIE PHOTO TO START SURVEY (REQUIRED STEP) -->
-        <div class="p-3 rounded-xl bg-gradient-to-r from-blue-50/90 to-indigo-50/90 border border-primary-container/30 shadow-xs space-y-2.5">
+        <div class="p-3.5 rounded-xl bg-gradient-to-r from-blue-50/90 to-indigo-50/90 border border-primary-container/30 shadow-xs space-y-2.5">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="material-symbols-outlined text-primary-container text-[20px]">photo_camera_front</span>
               <div>
-                <h4 class="font-headline font-bold text-xs sm:text-sm text-primary-container">Field Staff Verification Selfie (એજન્ટ નો સેલ્ફી ફોટો)</h4>
-                <p class="font-mono text-[10px] text-outline">Mandatory to Start Survey • ભૌતિક સર્વે શરૂ કરવા માટે જરૂરી</p>
+                <h4 class="font-headline font-bold text-xs sm:text-sm text-primary-container">Field Staff Verification Selfie (એજન્ટ નો પોતાનો સેલ્ફી ફોટો)</h4>
+                <p class="font-mono text-[10px] text-outline">Mandatory to Start Survey • ફક્ત એજન્ટ નો પોતાનો ફોટો</p>
               </div>
             </div>
-            <span id="selfieStatusBadge" class="font-mono text-[10px] bg-amber-50 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-2xs">
+            <span id="selfieStatusBadge" class="font-mono text-[10px] bg-amber-50 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-2xs">
               <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
               <span>SELFIE PENDING</span>
             </span>
@@ -422,11 +397,11 @@
             <!-- Action Buttons & Details -->
             <div class="flex-1 w-full space-y-2">
               <p class="text-xs text-on-surface-variant leading-relaxed">
-                Capture your own live photo on-site using device camera to authenticate physical presence and initiate the survey.
+                Take your live selfie to record arrival time and GPS coordinates before conducting applicant and property inquiries.
               </p>
               
               <div class="flex flex-wrap items-center gap-2">
-                <label class="cursor-pointer px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow flex items-center gap-1.5 active:scale-95 transition-all">
+                <label class="cursor-pointer px-3.5 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow flex items-center gap-1.5 active:scale-95 transition-all">
                   <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
                   <span id="selfieBtnText">Capture Own Selfie (સેલ્ફી લો)</span>
                   <input type="file" accept="image/*" capture="user" onchange="handleAgentSelfieCapture(event)" class="hidden"/>
@@ -441,14 +416,42 @@
         </div>
       </div>
 
-      <!-- MODULE 2: Residential Details (ઘર ની વિગત - PAGE 2 TO 7) -->
+      <!-- MODULE 2: Residential Details & Borrower Verification (ઘર ની વિગત - PAGE 2 TO 7) -->
       <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/80 space-y-3.5">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between pb-1 border-b border-outline-variant/60">
           <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-secondary text-[18px]">home</span>
-            <span class="font-headline font-bold text-xs text-on-surface">2. Residential Details (ઘર ની વિગત)</span>
+            <span class="material-symbols-outlined text-secondary text-[20px]">home</span>
+            <div>
+              <span class="font-headline font-bold text-xs sm:text-sm text-on-surface">2. Residential Details & Family Inquiries (ઘર અને કુટુંબ ની વિગત)</span>
+              <p class="font-mono text-[10px] text-outline">Applicant Interview & Property Cross-Check • Pages 2-7</p>
+            </div>
           </div>
-          <span class="font-mono text-[9px] bg-secondary-container text-secondary px-1.5 py-0.5 rounded uppercase font-bold">Pages 2-7</span>
+          <span class="font-mono text-[9px] bg-secondary-container text-secondary px-2 py-0.5 rounded uppercase font-bold">Pages 2-7</span>
+        </div>
+
+        <!-- Target Persona Dropdown + Add Option (Interview Persona) -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="font-mono text-[10px] font-bold text-outline">Target Persona (પસંદગી પ્રકાર - કોની વિગત ચકાસો છો?)*</label>
+            <button type="button" onclick="toggleAddPersonaInput()" class="text-[11px] text-primary-container font-bold hover:underline flex items-center gap-0.5">
+              <span class="material-symbols-outlined text-[14px]">add_circle</span>
+              <span>+ Add Persona</span>
+            </button>
+          </div>
+          <select id="formPersona" onchange="handlePersonaSelect(this.value)" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2.5 text-on-surface focus:ring-2 focus:ring-primary-container">
+            <option value="Applicant" selected>Applicant (અરજદાર - Borrower)</option>
+            <option value="Co-applicant">Co-applicant (સહ-અરજદાર)</option>
+            <option value="Guarantor">Guarantor (જામીનદાર)</option>
+            <option value="Relative / Family Member">Relative / Family Member (સંબંધી / કુટુંબીજન)</option>
+            <option value="Neighbour Reference">Neighbour Reference (પાડોશી સંદર્ભ)</option>
+            <option value="__add_new__">+ Add New Persona (નવો પ્રકાર ઉમેરો)...</option>
+          </select>
+          <!-- Custom Persona Input Box (toggled) -->
+          <div id="addPersonaBox" class="hidden mt-2 p-2 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-1.5">
+            <input id="newPersonaInput" type="text" placeholder="Enter persona type..." class="flex-1 text-xs bg-white border border-outline-variant rounded px-2 py-1 text-on-surface font-medium"/>
+            <button type="button" onclick="saveNewPersona()" class="px-2.5 py-1 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded shadow-xs">Add</button>
+            <button type="button" onclick="toggleAddPersonaInput()" class="p-1 text-outline hover:text-on-surface"><span class="material-symbols-outlined text-[16px]">close</span></button>
+          </div>
         </div>
 
         <!-- Name, Contact, Marital Status & Age -->
@@ -1943,8 +1946,14 @@
         if (userJson) {
           try {
             const u = JSON.parse(userJson);
-            if (u.full_name && document.getElementById("agentNameDisplay")) {
-              document.getElementById("agentNameDisplay").textContent = u.full_name;
+            if (u.full_name) {
+              if (document.getElementById("agentNameDisplay")) {
+                document.getElementById("agentNameDisplay").textContent = u.full_name;
+              }
+              const execInput = document.getElementById("formExecutive");
+              if (execInput && (!execInput.value || execInput.value.includes("Kamal"))) {
+                execInput.value = `${u.full_name} (Field Officer)`;
+              }
             }
           } catch(e){}
         }
