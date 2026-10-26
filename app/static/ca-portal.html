@@ -146,7 +146,12 @@
           <button id="navTabManagement" onclick="switchMainPortalView('management')" class="px-3.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 bg-surface-container-low text-on-surface hover:bg-surface-container border border-outline-variant transition-colors">
             <span class="material-symbols-outlined text-[16px]">table_chart</span>
             <span>Case Management & Records (મેનેજમેન્ટ પોર્ટલ)</span>
-            <span id="navCaseCountBadge" class="bg-primary-container/10 text-primary-container px-1.5 py-0.2 rounded font-mono text-[10px] font-bold">5</span>
+            <span id="navCaseCountBadge" class="bg-primary-container/10 text-primary-container px-1.5 py-0.2 rounded font-mono text-[10px] font-bold">6</span>
+          </button>
+          <button id="navTabVault" onclick="switchMainPortalView('vault')" class="px-3.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 bg-surface-container-low text-on-surface hover:bg-surface-container border border-outline-variant transition-colors" title="View & store Form 16, Payslips, Bank Statements, Sale Deed, Index II">
+            <span class="material-symbols-outlined text-[16px]">folder_special</span>
+            <span>Document Vault (દસ્તાવેજ સંગ્રહ)</span>
+            <span id="navVaultCountBadge" class="bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-mono text-[10px] font-bold">8 Files</span>
           </button>
           <a class="px-2.5 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors" href="/pwa" target="_blank">Mobile PWA</a>
           <a class="px-2.5 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors" href="/api/docs" target="_blank">API Docs</a>
@@ -370,6 +375,11 @@
                 <span class="material-symbols-outlined text-[12px]">verified_user</span>
                 <span id="aadhaarMaskLabel">Rule 4 Masked</span>
               </button>
+              <label onclick="event.stopPropagation();" class="cursor-pointer px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-high hover:bg-surface-container text-on-surface border border-outline-variant flex items-center gap-1 shadow-2xs transition-colors" title="Select and replace with authentic original scanned file">
+                <span class="material-symbols-outlined text-[13px] text-primary-container">file_upload</span>
+                <span>Replace Scan</span>
+                <input type="file" accept="image/*,application/pdf" class="hidden" onchange="directReplaceDocCard('aadhaar', this.files[0])"/>
+              </label>
               <button onclick="event.stopPropagation(); flipDocCard('aadhaar')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition-all" title="Flip Card to inspect other side">
                 <span class="material-symbols-outlined text-[13px] animate-spin-reverse">sync</span>
                 <span id="aadhaarFlipBtnText">Flip Card</span>
@@ -477,6 +487,11 @@
               <button id="btnPanSideBack" onclick="event.stopPropagation(); setDocSide('pan', 'back')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface">NSDL Verification</button>
             </div>
             <div class="flex items-center gap-1.5">
+              <label onclick="event.stopPropagation();" class="cursor-pointer px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-high hover:bg-surface-container text-on-surface border border-outline-variant flex items-center gap-1 shadow-2xs transition-colors" title="Select and replace with authentic original scanned file">
+                <span class="material-symbols-outlined text-[13px] text-primary-container">file_upload</span>
+                <span>Replace Scan</span>
+                <input type="file" accept="image/*,application/pdf" class="hidden" onchange="directReplaceDocCard('pan', this.files[0])"/>
+              </label>
               <button onclick="event.stopPropagation(); flipDocCard('pan')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition-all" title="Flip between physical card & online NSDL verification">
                 <span class="material-symbols-outlined text-[13px]">sync</span>
                 <span id="panFlipBtnText">Flip Card</span>
@@ -591,6 +606,11 @@
               <button id="btnUtilitySideBack" onclick="event.stopPropagation(); setDocSide('utility', 'back')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface">CPV Visit Form</button>
             </div>
             <div class="flex items-center gap-1.5">
+              <label onclick="event.stopPropagation();" class="cursor-pointer px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-high hover:bg-surface-container text-on-surface border border-outline-variant flex items-center gap-1 shadow-2xs transition-colors" title="Select and replace with authentic original scanned file">
+                <span class="material-symbols-outlined text-[13px] text-primary-container">file_upload</span>
+                <span>Replace Scan</span>
+                <input type="file" accept="image/*,application/pdf" class="hidden" onchange="directReplaceDocCard('utility', this.files[0])"/>
+              </label>
               <button onclick="event.stopPropagation(); flipDocCard('utility')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition-all" title="Flip between Electricity Bill & Field Visit Form">
                 <span class="material-symbols-outlined text-[13px]">sync</span>
                 <span id="utilityFlipBtnText">Flip Document</span>
@@ -673,6 +693,45 @@
               <span class="font-mono text-[9px] text-outline">Loaded for report generation</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Scrutiny Item 4: Case Document Vault & Property Dossier (મલ્ટીપલ દસ્તાવેજ સંગ્રહ) -->
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant p-3.5 shadow-sm space-y-3 hover:border-primary-container transition-all">
+        <div class="flex items-center justify-between pb-2 border-b border-outline-variant">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary-container text-[20px]">folder_special</span>
+            <div>
+              <div class="text-xs font-bold text-on-surface">Case Document Vault (દસ્તાવેજ અને મિલકત કાગળો)</div>
+              <div class="text-[10px] text-outline">Form 16, Payslips, Bank Statement, Sale Deed, Index II</div>
+            </div>
+          </div>
+          <button type="button" onclick="switchMainPortalView('vault')" class="px-2.5 py-1 rounded text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition-all" title="Open full multi-shelf document vault">
+            <span class="material-symbols-outlined text-[13px]">open_in_new</span>
+            <span>Full Vault</span>
+          </button>
+        </div>
+
+        <!-- Filter tabs for Vault Mini -->
+        <div class="flex items-center gap-1 bg-surface-container-high p-0.5 rounded-lg text-[10px] font-mono">
+          <button id="btnMiniVaultTabProperty" type="button" onclick="filterVaultMini('property')" class="flex-1 py-1 rounded text-center font-bold bg-primary-container text-white shadow-2xs">🏠 Property (3)</button>
+          <button id="btnMiniVaultTabIncome" type="button" onclick="filterVaultMini('income')" class="flex-1 py-1 rounded text-center text-on-surface-variant hover:text-on-surface">💼 Income (3)</button>
+          <button id="btnMiniVaultTabAll" type="button" onclick="filterVaultMini('all')" class="flex-1 py-1 rounded text-center text-on-surface-variant hover:text-on-surface">📁 All (8)</button>
+        </div>
+
+        <!-- Mini Vault Grid Cards -->
+        <div id="vaultMiniList" class="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+          <!-- Dynamically populated via renderVaultMini() -->
+        </div>
+
+        <!-- Quick Upload Dropzone & Add Button -->
+        <div class="pt-2 border-t border-outline-variant flex items-center justify-between">
+          <label class="cursor-pointer text-[11px] font-bold text-primary-container hover:text-primary flex items-center gap-1.5 bg-blue-50/60 hover:bg-blue-50 px-2.5 py-1 rounded border border-blue-200 transition-colors">
+            <span class="material-symbols-outlined text-[15px]">upload_file</span>
+            <span>Upload Document Scan</span>
+            <input type="file" multiple accept="image/*,application/pdf" class="hidden" onchange="handleVaultUpload(this.files)"/>
+          </label>
+          <span id="vaultDocCountText" class="font-mono text-[10px] text-secondary font-bold">8 Documents Active</span>
         </div>
       </div>
     </div>
@@ -1345,6 +1404,103 @@
     </div>
   </div> <!-- /viewManagementPortal -->
 
+  <!-- VIEW 3: CASE DOCUMENT VAULT & PROPERTY RECORDS REPOSITORY (દસ્તાવેજ અને મિલકત કાગળો) -->
+  <div id="viewDocumentVault" class="hidden w-full max-w-[1440px] mx-auto p-4 lg:p-6 space-y-6 transition-all">
+    <!-- Top Dossier Summary Banner -->
+    <div class="bg-gradient-to-r from-primary-container/10 via-surface-container to-surface-container-low p-4 sm:p-5 rounded-2xl border border-primary-container/20 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <div class="w-12 h-12 rounded-xl bg-primary-container text-white flex items-center justify-center font-bold shadow-sm">
+          <span class="material-symbols-outlined text-[28px]">folder_copy</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="font-headline font-bold text-lg sm:text-xl text-on-surface">Case Document Vault & Property Repository</h1>
+            <span id="vaultActiveCaseBadge" class="bg-primary-container text-white px-2.5 py-0.5 rounded-full font-mono text-xs font-bold shadow-2xs">UBI-HL-2026-616</span>
+            <span class="font-mono text-xs text-secondary bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300 font-bold">● TAMPER-PROOF REPOSITORY</span>
+          </div>
+          <p class="text-xs text-on-surface-variant mt-0.5">
+            Applicant: <strong id="vaultApplicantName" class="text-on-surface">Pargi Bhavnaben</strong> • Facility: <span id="vaultFacilityText" class="font-mono font-bold text-primary-container">Home Loan (HL) ₹20.00 Lacs</span> • Property: <span id="vaultAddressText" class="text-outline">Plot 42, Gayatri Nagar, Sector 8, Gandhinagar</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap w-full md:w-auto justify-end">
+        <label class="cursor-pointer px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95">
+          <span class="material-symbols-outlined text-[17px]">upload_file</span>
+          <span>Upload New Document</span>
+          <input type="file" multiple accept="image/*,application/pdf" class="hidden" onchange="handleVaultUpload(this.files)"/>
+        </label>
+        <button type="button" onclick="switchMainPortalView('scrutiny')" class="px-3.5 py-2 rounded-xl bg-surface-container-lowest hover:bg-surface-container border border-outline-variant text-on-surface font-headline text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all">
+          <span class="material-symbols-outlined text-[17px]">arrow_back</span>
+          <span>Back to Scrutiny Desk</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 4 Structured Document Shelves -->
+    <div class="space-y-6">
+      <!-- Shelf 1: Property Ownership & Legal Records (મિલકતના કાગળો) -->
+      <section class="bg-surface-container-lowest rounded-2xl border border-outline-variant p-4 sm:p-5 shadow-xs space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-outline-variant">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-900 flex items-center justify-center font-bold">
+              <span class="material-symbols-outlined text-[18px]">real_estate_agent</span>
+            </div>
+            <div>
+              <h2 class="font-headline font-bold text-sm sm:text-base text-on-surface">1. Property Ownership & Legal Records (મિલકતના કાગળો)</h2>
+              <p class="font-mono text-[11px] text-outline">Registered Sale Deed, Index II Copy, Light Bill, Property Tax & Sanction Maps</p>
+            </div>
+          </div>
+          <span class="font-mono text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 font-bold">TITLE VERIFIED ✓</span>
+        </div>
+
+        <div id="vaultShelfProperty" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Dynamically populated -->
+        </div>
+      </section>
+
+      <!-- Shelf 2: Income, Banking & Tax Records (આવક અને કરવેરા કાગળો) -->
+      <section class="bg-surface-container-lowest rounded-2xl border border-outline-variant p-4 sm:p-5 shadow-xs space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-outline-variant">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-900 flex items-center justify-center font-bold">
+              <span class="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+            </div>
+            <div>
+              <h2 class="font-headline font-bold text-sm sm:text-base text-on-surface">2. Income, Banking & Tax Returns (આવક અને બેંકિંગ પુરાવા)</h2>
+              <p class="font-mono text-[11px] text-outline">Form 16 (Part A & B), Salary Payslips (Last 3-6 Months), 6M Bank Statement, ITR-V</p>
+            </div>
+          </div>
+          <span class="font-mono text-xs bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200 font-bold">FINANCIALS OPERATIVE ✓</span>
+        </div>
+
+        <div id="vaultShelfIncome" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Dynamically populated -->
+        </div>
+      </section>
+
+      <!-- Shelf 3: KYC & Identity Records (ઓળખ અને રહેઠાણ પુરાવા) -->
+      <section class="bg-surface-container-lowest rounded-2xl border border-outline-variant p-4 sm:p-5 shadow-xs space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-outline-variant">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-900 flex items-center justify-center font-bold">
+              <span class="material-symbols-outlined text-[18px]">badge</span>
+            </div>
+            <div>
+              <h2 class="font-headline font-bold text-sm sm:text-base text-on-surface">3. KYC & Identity Verification (ઓળખ પુરાવા)</h2>
+              <p class="font-mono text-[11px] text-outline">Aadhaar Card (UIDAI Rule 4 Masked/Raw), Permanent Account Number (PAN Card & NSDL)</p>
+            </div>
+          </div>
+          <span class="font-mono text-xs bg-purple-50 text-purple-800 px-2 py-0.5 rounded border border-purple-200 font-bold">KYC SEEDED ✓</span>
+        </div>
+
+        <div id="vaultShelfKyc" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Dynamically populated -->
+        </div>
+      </section>
+    </div>
+  </div>
+
   <script>
     let activeCaseId = "b901fc63-12a8-4e32-9c02-e20984cfb001";
     let currentGlobalMode = "field";
@@ -1384,6 +1540,22 @@
         person_met: "Pradeepsinh Vaghela (Husband - 8160166900)",
         neighbors: ["1. Narendrasinh Devda (Neighbour - Confirmed)", "2. Bhagwatsinh Rathod (Neighbour - Confirmed)"],
         status: "PENDING_CA_REVIEW",
+        aadhaar_front_img: "/static/specimen_assets/aadhaar_front_masked.jpg",
+        aadhaar_front_raw: "/static/specimen_assets/aadhaar_front.jpg",
+        aadhaar_back_img: "/static/specimen_assets/aadhaar_back.jpg",
+        pan_front_img: "/static/specimen_assets/pan_front.jpg",
+        pan_back_img: "/static/specimen_assets/pan_back.jpg",
+        utility_front_img: "/static/specimen_assets/utility_bill.jpg",
+        vault_documents: {
+          sale_deed: { title: "Registered Sale Deed (દસ્તાવેજ)", sub: "Reg # 7491/22 • Sub-Registrar GNR", type: "property", src: "/static/specimen_assets/specimen_sale_deed.jpg", status: "VERIFIED" },
+          index2: { title: "Index II Copy (સૂચિ ૨ નકલ)", sub: "Revenue Inspector Certified", type: "property", src: "/static/specimen_assets/specimen_index2.jpg", status: "VERIFIED" },
+          utility: { title: "UGVCL Electricity Bill (વીજળી બિલ)", sub: "Consumer # 04128/99102/3", type: "property", src: "/static/specimen_assets/utility_bill.jpg", status: "VERIFIED" },
+          form16: { title: "Form 16 / TDS (Part A & B)", sub: "AY 2026-27 • Sec 192 TRACES", type: "income", src: "/static/specimen_assets/specimen_form16.jpg", status: "COMPLIANT" },
+          payslip: { title: "Salary Payslip (Last 3 Months)", sub: "Net Credit: ₹82,030 / Month", type: "income", src: "/static/specimen_assets/specimen_payslip.jpg", status: "VERIFIED" },
+          bank_statement: { title: "6 Months Bank Statement", sub: "HDFC A/c # 50100492817492", type: "income", src: "/static/specimen_assets/cpv_visit_form_page2.jpg", status: "VERIFIED" },
+          aadhaar: { title: "Aadhaar Card (UIDAI Masked)", sub: "XXXX-XXXX-7689 • Rule 4", type: "kyc", src: "/static/specimen_assets/aadhaar_front_masked.jpg", status: "MASKED" },
+          pan: { title: "Permanent Account Number (PAN)", sub: "BYMPG8996E • ITD Linked", type: "kyc", src: "/static/specimen_assets/pan_front.jpg", status: "VERIFIED" }
+        },
         residence_photos: [
           {
             src: "/static/specimen_assets/residence/res_gate.jpg",
@@ -1695,6 +1867,22 @@
         person_met: "Pargi Bhavnaben (Self - 9428351920)",
         neighbors: ["1. Hasmukhbhai Patel (Neighbour - Confirmed)", "2. Dilipkumar Shah (Neighbour - Confirmed)"],
         status: "ASSIGNED_TO_FIELD",
+        aadhaar_front_img: "/static/specimen_assets/pargi_aadhaar_front_masked.jpg",
+        aadhaar_front_raw: "/static/specimen_assets/pargi_aadhaar_front.jpg",
+        aadhaar_back_img: "/static/specimen_assets/pargi_aadhaar_back.jpg",
+        pan_front_img: "/static/specimen_assets/pargi_pan_front.jpg",
+        pan_back_img: "/static/specimen_assets/pargi_pan_back.jpg",
+        utility_front_img: "/static/specimen_assets/pargi_utility_bill.jpg",
+        vault_documents: {
+          sale_deed: { title: "Registered Sale Deed (દસ્તાવેજ)", sub: "Reg # 7491/22 • Sub-Registrar GNR", type: "property", src: "/static/specimen_assets/pargi_sale_deed.jpg", status: "VERIFIED" },
+          index2: { title: "Index II Copy (સૂચિ ૨ નકલ)", sub: "Sub-Registrar Gandhinagar Clear Title", type: "property", src: "/static/specimen_assets/pargi_index2.jpg", status: "VERIFIED" },
+          utility: { title: "UGVCL Electricity Bill (વીજળી બિલ)", sub: "Consumer # 02690/41820/1", type: "property", src: "/static/specimen_assets/pargi_utility_bill.jpg", status: "VERIFIED" },
+          form16: { title: "Form 16 / TDS (Part A & B)", sub: "AY 2026-27 • GIDC Employer", type: "income", src: "/static/specimen_assets/pargi_form16.jpg", status: "COMPLIANT" },
+          payslip: { title: "Salary Payslip (Last 3 Months)", sub: "Net Credit: ₹82,030 / Month", type: "income", src: "/static/specimen_assets/pargi_payslip.jpg", status: "VERIFIED" },
+          bank_statement: { title: "6 Months Bank Statement", sub: "Axis A/c # 92102004819284", type: "income", src: "/static/specimen_assets/docscanner_page1_img1.jpg", status: "VERIFIED" },
+          aadhaar: { title: "Aadhaar Card (UIDAI Masked)", sub: "XXXX-XXXX-4182 • Rule 4", type: "kyc", src: "/static/specimen_assets/pargi_aadhaar_front_masked.jpg", status: "MASKED" },
+          pan: { title: "Permanent Account Number (PAN)", sub: "BYMPP4192K • Active & Linked", type: "kyc", src: "/static/specimen_assets/pargi_pan_front.jpg", status: "VERIFIED" }
+        },
         residence_photos: [
           { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Building / Society Gate (Photo 1)", tag: "SLOT 1: SOCIETY & MAIN GATE", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" },
           { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "House Door & Elevation (Photo 2)", tag: "SLOT 2: HOUSE DOOR & NAMEPLATE", timestamp: "Today", badge: "AI ARRANGED", status: "CONFIRMED" },
@@ -2427,7 +2615,10 @@
       // Hide previous report badge if case changed
       document.getElementById("pdfSuccessCard").classList.add("hidden");
 
-      // 10. Fetch Live Evidence Photos from Server
+      // 10. Render Case Document Vault for Active Case
+      renderCaseDocumentVault(caseId);
+
+      // 11. Fetch Live Evidence Photos from Server
       fetchLiveCaseDocuments(caseId);
     }
 
@@ -3232,28 +3423,35 @@
     function switchMainPortalView(view) {
       const scrutinyDesk = document.getElementById("viewScrutinyDesk");
       const mgmtPortal = document.getElementById("viewManagementPortal");
+      const vaultPortal = document.getElementById("viewDocumentVault");
       const tabScrutiny = document.getElementById("navTabScrutiny");
       const tabMgmt = document.getElementById("navTabManagement");
+      const tabVault = document.getElementById("navTabVault");
 
       if (view === "management") {
         if (scrutinyDesk) scrutinyDesk.classList.add("hidden");
         if (mgmtPortal) mgmtPortal.classList.remove("hidden");
-        if (tabMgmt) {
-          tabMgmt.className = "px-3 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
-        }
-        if (tabScrutiny) {
-          tabScrutiny.className = "px-3 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
-        }
+        if (vaultPortal) vaultPortal.classList.add("hidden");
+        if (tabMgmt) tabMgmt.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
+        if (tabScrutiny) tabScrutiny.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        if (tabVault) tabVault.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
         renderManagementPortal();
+      } else if (view === "vault") {
+        if (scrutinyDesk) scrutinyDesk.classList.add("hidden");
+        if (mgmtPortal) mgmtPortal.classList.add("hidden");
+        if (vaultPortal) vaultPortal.classList.remove("hidden");
+        if (tabVault) tabVault.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
+        if (tabScrutiny) tabScrutiny.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        if (tabMgmt) tabMgmt.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        renderCaseDocumentVault(activeCaseId);
       } else {
         if (scrutinyDesk) scrutinyDesk.classList.remove("hidden");
         if (mgmtPortal) mgmtPortal.classList.add("hidden");
-        if (tabScrutiny) {
-          tabScrutiny.className = "px-3 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
-        }
-        if (tabMgmt) {
-          tabMgmt.className = "px-3 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
-        }
+        if (vaultPortal) vaultPortal.classList.add("hidden");
+        if (tabScrutiny) tabScrutiny.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
+        if (tabMgmt) tabMgmt.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        if (tabVault) tabVault.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        renderVaultMini();
       }
     }
 
@@ -4032,6 +4230,289 @@
         flipZoomCard();
       }
     });
+  
+    // ==========================================
+    // CASE DOCUMENT VAULT & PROPERTY RECORDS ENGINE
+    // ==========================================
+    let currentMiniVaultFilter = "property";
+
+    function filterVaultMini(category) {
+      currentMiniVaultFilter = category;
+      const btnProp = document.getElementById("btnMiniVaultTabProperty");
+      const btnInc = document.getElementById("btnMiniVaultTabIncome");
+      const btnAll = document.getElementById("btnMiniVaultTabAll");
+
+      if (btnProp) btnProp.className = category === "property" ? "flex-1 py-1 rounded text-center font-bold bg-primary-container text-white shadow-2xs" : "flex-1 py-1 rounded text-center text-on-surface-variant hover:text-on-surface";
+      if (btnInc) btnInc.className = category === "income" ? "flex-1 py-1 rounded text-center font-bold bg-primary-container text-white shadow-2xs" : "flex-1 py-1 rounded text-center text-on-surface-variant hover:text-on-surface";
+      if (btnAll) btnAll.className = category === "all" ? "flex-1 py-1 rounded text-center font-bold bg-primary-container text-white shadow-2xs" : "flex-1 py-1 rounded text-center text-on-surface-variant hover:text-on-surface";
+
+      renderVaultMini();
+    }
+
+    function renderVaultMini() {
+      const container = document.getElementById("vaultMiniList");
+      if (!container) return;
+
+      const c = caseRegistry[activeCaseId] || {};
+      const docs = c.vault_documents || {};
+
+      const items = Object.entries(docs).filter(([key, d]) => {
+        if (currentMiniVaultFilter === "all") return true;
+        return d.type === currentMiniVaultFilter;
+      });
+
+      container.innerHTML = "";
+
+      if (items.length === 0) {
+        container.innerHTML = `<div class="p-3 text-center text-[11px] font-mono text-outline">No documents in this category yet. Upload a scan above.</div>`;
+        return;
+      }
+
+      items.forEach(([key, d]) => {
+        const row = document.createElement("div");
+        row.className = "p-2 rounded-lg bg-surface-container-low hover:bg-surface-container border border-outline-variant flex items-center justify-between gap-2.5 transition-all group";
+        row.innerHTML = `
+          <div class="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer" onclick="openVaultDocZoom('${d.title.replace(/'/g, "\'")}', '${d.sub.replace(/'/g, "\'")}', '${d.src}', '${d.status}')">
+            <div class="relative w-11 h-11 rounded-md overflow-hidden border border-outline-variant shrink-0 bg-slate-900 shadow-2xs">
+              <img src="${d.src}" alt="${d.title}" class="w-full h-full object-cover group-hover:scale-110 transition-transform"/>
+              <span class="absolute bottom-0 inset-x-0 bg-black/75 text-white font-mono text-[7px] text-center font-bold">${d.type.toUpperCase()}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[11px] font-bold text-on-surface truncate group-hover:text-primary-container">${d.title}</div>
+              <div class="text-[9px] font-mono text-outline truncate">${d.sub}</div>
+              <span class="inline-block mt-0.5 text-[8px] font-mono font-bold px-1.5 py-0.2 rounded ${d.status === 'VERIFIED' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-blue-50 text-blue-800 border border-blue-200'}">${d.status}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            <button type="button" onclick="openVaultDocZoom('${d.title.replace(/'/g, "\'")}', '${d.sub.replace(/'/g, "\'")}', '${d.src}', '${d.status}')" class="p-1 rounded text-outline hover:text-primary-container hover:bg-surface-container-lowest" title="Enlarge Document">
+              <span class="material-symbols-outlined text-[16px]">zoom_in</span>
+            </button>
+            <label class="p-1 rounded text-outline hover:text-emerald-700 hover:bg-surface-container-lowest cursor-pointer" title="Replace with new scan">
+              <span class="material-symbols-outlined text-[16px]">file_upload</span>
+              <input type="file" accept="image/*,application/pdf" class="hidden" onchange="replaceVaultDoc('${key}', this.files[0])"/>
+            </label>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+
+      const countBadge = document.getElementById("vaultDocCountText");
+      if (countBadge) countBadge.textContent = `${Object.keys(docs).length} Documents Active`;
+      const navBadge = document.getElementById("navVaultCountBadge");
+      if (navBadge) navBadge.textContent = `${Object.keys(docs).length} Files`;
+    }
+
+    function renderCaseDocumentVault(caseId) {
+      const c = caseRegistry[caseId] || {};
+      
+      const badge = document.getElementById("vaultActiveCaseBadge");
+      if (badge) badge.textContent = c.case_no || "CASE";
+      const name = document.getElementById("vaultApplicantName");
+      if (name) name.textContent = c.applicant_name || "Applicant";
+      const fac = document.getElementById("vaultFacilityText");
+      if (fac) fac.textContent = c.loan_facility || "Home Loan (HL)";
+      const addr = document.getElementById("vaultAddressText");
+      if (addr) addr.textContent = c.address || "Property Address";
+
+      const shelfProp = document.getElementById("vaultShelfProperty");
+      const shelfInc = document.getElementById("vaultShelfIncome");
+      const shelfKyc = document.getElementById("vaultShelfKyc");
+
+      if (shelfProp) shelfProp.innerHTML = "";
+      if (shelfInc) shelfInc.innerHTML = "";
+      if (shelfKyc) shelfKyc.innerHTML = "";
+
+      const docs = c.vault_documents || {};
+
+      Object.entries(docs).forEach(([key, d]) => {
+        const card = document.createElement("div");
+        card.className = "bg-surface-container-low hover:bg-surface-container rounded-xl border border-outline-variant hover:border-primary-container shadow-2xs p-3 flex flex-col justify-between gap-3 transition-all group";
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between pb-2 border-b border-outline-variant/60">
+              <span class="font-headline font-bold text-xs text-on-surface truncate group-hover:text-primary-container">${d.title}</span>
+              <span class="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded ${d.status === 'VERIFIED' ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' : 'bg-blue-50 text-blue-800 border border-blue-300'}">${d.status}</span>
+            </div>
+            <div class="relative w-full h-44 rounded-lg overflow-hidden border border-outline-variant bg-slate-900 mt-2.5 cursor-pointer shadow-inner" onclick="openVaultDocZoom('${d.title.replace(/'/g, "\'")}', '${d.sub.replace(/'/g, "\'")}', '${d.src}', '${d.status}')">
+              <img src="${d.src}" alt="${d.title}" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"/>
+              <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-2 font-mono text-xs font-bold">
+                <span class="material-symbols-outlined text-[20px]">zoom_in</span> Click to Inspect
+              </div>
+            </div>
+            <p class="font-mono text-[10px] text-outline mt-2 truncate">${d.sub}</p>
+          </div>
+
+          <div class="flex items-center justify-between pt-2 border-t border-outline-variant/60 text-xs">
+            <button type="button" onclick="openVaultDocZoom('${d.title.replace(/'/g, "\'")}', '${d.sub.replace(/'/g, "\'")}', '${d.src}', '${d.status}')" class="px-2.5 py-1 rounded-lg bg-surface-container-lowest hover:bg-surface-container border border-outline-variant font-headline font-bold text-[11px] text-primary-container flex items-center gap-1 shadow-2xs">
+              <span class="material-symbols-outlined text-[14px]">fullscreen</span>
+              <span>Inspect</span>
+            </button>
+            <label class="cursor-pointer px-2.5 py-1 rounded-lg bg-primary-container hover:bg-primary text-white font-headline font-bold text-[11px] flex items-center gap-1 shadow-2xs transition-colors">
+              <span class="material-symbols-outlined text-[14px]">file_upload</span>
+              <span>Replace Scan</span>
+              <input type="file" accept="image/*,application/pdf" class="hidden" onchange="replaceVaultDoc('${key}', this.files[0])"/>
+            </label>
+          </div>
+        `;
+
+        if (d.type === "property" && shelfProp) shelfProp.appendChild(card);
+        else if (d.type === "income" && shelfInc) shelfInc.appendChild(card);
+        else if (shelfKyc) shelfKyc.appendChild(card);
+      });
+
+      renderVaultMini();
+    }
+
+    function openVaultDocZoom(title, sub, src, status) {
+      const modal = document.getElementById("docZoomModal");
+      const modalTitle = document.getElementById("zoomModalTitle");
+      const frontImg = document.getElementById("zoomFrontImg");
+      const backImg = document.getElementById("zoomBackImg");
+      const frontLabel = document.getElementById("zoomFrontLabel");
+      const backLabel = document.getElementById("zoomBackLabel");
+      const flipCard = document.getElementById("zoomFlipCard");
+
+      if (!modal) return;
+
+      modalTitle.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">verified_user</span> ${title} • Authentic Scanned Document`;
+      frontImg.src = src;
+      backImg.src = src;
+      frontLabel.textContent = `${title} • ${sub} (${status})`;
+      backLabel.textContent = `CA Vault Certified Scan • SHA256 Intact • Tamper Sealed`;
+
+      if (flipCard) flipCard.classList.remove("is-flipped");
+      modal.classList.remove("hidden");
+    }
+
+    function directReplaceDocCard(section, file) {
+      if (!file) return;
+      const previewUrl = URL.createObjectURL(file);
+      const c = caseRegistry[activeCaseId];
+
+      if (section === "aadhaar") {
+        if (c) {
+          c.aadhaar_front_img = previewUrl;
+          c.aadhaar_front_raw = previewUrl;
+          if (c.vault_documents && c.vault_documents.aadhaar) {
+            c.vault_documents.aadhaar.src = previewUrl;
+          }
+        }
+        const img = document.getElementById("dispAadhaarFrontImg");
+        if (img) img.src = previewUrl;
+        alert(`[✓] Aadhaar Card successfully updated with authentic scan: ${file.name}`);
+      } else if (section === "pan") {
+        if (c) {
+          c.pan_front_img = previewUrl;
+          if (c.vault_documents && c.vault_documents.pan) {
+            c.vault_documents.pan.src = previewUrl;
+          }
+        }
+        const img = document.getElementById("dispPanFrontImg");
+        if (img) img.src = previewUrl;
+        alert(`[✓] PAN Card successfully updated with authentic scan: ${file.name}`);
+      } else if (section === "utility") {
+        if (c) {
+          c.utility_front_img = previewUrl;
+          if (c.vault_documents && c.vault_documents.utility) {
+            c.vault_documents.utility.src = previewUrl;
+          }
+        }
+        const img = document.getElementById("dispUtilityFrontImg");
+        if (img) img.src = previewUrl;
+        alert(`[✓] Utility Bill successfully updated with authentic scan: ${file.name}`);
+      }
+
+      renderVaultMini();
+      handleSectionUpload(section, file);
+    }
+
+    function replaceVaultDoc(key, file) {
+      if (!file) return;
+      const previewUrl = URL.createObjectURL(file);
+      const c = caseRegistry[activeCaseId];
+      if (c && c.vault_documents && c.vault_documents[key]) {
+        c.vault_documents[key].src = previewUrl;
+        c.vault_documents[key].sub = `${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+        c.vault_documents[key].status = "REPLACED & VERIFIED";
+
+        // Also reflect in main scrutiny cards if it's aadhaar, pan, or utility
+        if (key === "aadhaar") {
+          c.aadhaar_front_img = previewUrl;
+          c.aadhaar_front_raw = previewUrl;
+          const aImg = document.getElementById("dispAadhaarFrontImg");
+          if (aImg) aImg.src = previewUrl;
+        } else if (key === "pan") {
+          c.pan_front_img = previewUrl;
+          const pImg = document.getElementById("dispPanFrontImg");
+          if (pImg) pImg.src = previewUrl;
+        } else if (key === "utility") {
+          c.utility_front_img = previewUrl;
+          const uImg = document.getElementById("dispUtilityFrontImg");
+          if (uImg) uImg.src = previewUrl;
+        }
+
+        renderCaseDocumentVault(activeCaseId);
+        alert(`[✓] ${c.vault_documents[key].title} updated with: ${file.name}`);
+      }
+    }
+
+    function handleVaultUpload(files) {
+      if (!files || files.length === 0) return;
+      const c = caseRegistry[activeCaseId];
+      if (!c) return;
+
+      if (!c.vault_documents) c.vault_documents = {};
+
+      Array.from(files).forEach((f, idx) => {
+        const previewUrl = URL.createObjectURL(f);
+        const name = f.name.toLowerCase();
+        let key = "custom_" + Date.now() + "_" + idx;
+        let type = "property";
+        let title = f.name.replace(/\.[^/.]+$/, "");
+
+        if (name.includes("pan")) {
+          key = "pan"; type = "kyc"; title = "Permanent Account Number (PAN)";
+          c.pan_front_img = previewUrl;
+          const pImg = document.getElementById("dispPanFrontImg");
+          if (pImg) pImg.src = previewUrl;
+        } else if (name.includes("aadhaar") || name.includes("aadhar") || name.includes("uid")) {
+          key = "aadhaar"; type = "kyc"; title = "Aadhaar Card (UIDAI Verified)";
+          c.aadhaar_front_img = previewUrl;
+          c.aadhaar_front_raw = previewUrl;
+          const aImg = document.getElementById("dispAadhaarFrontImg");
+          if (aImg) aImg.src = previewUrl;
+        } else if (name.includes("bill") || name.includes("light") || name.includes("electricity") || name.includes("ugvcl")) {
+          key = "utility"; type = "property"; title = "UGVCL Electricity Bill";
+          c.utility_front_img = previewUrl;
+          const uImg = document.getElementById("dispUtilityFrontImg");
+          if (uImg) uImg.src = previewUrl;
+        } else if (name.includes("form16") || name.includes("form 16") || name.includes("tds")) {
+          key = "form16"; type = "income"; title = "Form 16 (Part A & B / TDS)";
+        } else if (name.includes("salary") || name.includes("payslip") || name.includes("pay slip")) {
+          key = "payslip"; type = "income"; title = "Salary Payslip (Verified)";
+        } else if (name.includes("bank") || name.includes("statement")) {
+          key = "bank_statement"; type = "income"; title = "Operative Bank Statement (6 Months)";
+        } else if (name.includes("deed") || name.includes("sale") || name.includes("satakhat") || name.includes("dastavej")) {
+          key = "sale_deed"; type = "property"; title = "Registered Sale Deed (દસ્તાવેજ)";
+        } else if (name.includes("index") || name.includes("suchi")) {
+          key = "index2"; type = "property"; title = "Index II Copy (સૂચિ ૨ નકલ)";
+        } else if (name.includes("tax") || name.includes("noc")) {
+          key = "property_tax"; type = "property"; title = "Property Tax Bill & Municipal NOC";
+        }
+
+        c.vault_documents[key] = {
+          title: title,
+          sub: `${f.name} (${(f.size/1024).toFixed(1)} KB)`,
+          type: type,
+          src: previewUrl,
+          status: "UPLOADED & VERIFIED"
+        };
+      });
+
+      renderCaseDocumentVault(activeCaseId);
+      alert(`[✓] Successfully ingested ${files.length} document(s) into Case Document Vault!`);
+    }
+
   </script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH 3D FLIP -->

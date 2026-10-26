@@ -211,7 +211,7 @@
           <div class="flex items-start gap-3 w-full sm:w-auto">
             <!-- Visual Document Thumbnail with Flip Preview -->
             <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('aadhaar')">
-              <img id="pwaDocInlineAadhaarImg" src="/static/specimen_assets/aadhaar_front.jpg" alt="Aadhaar Card" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.src='/static/aadhaar_front_specimen.png'"/>
+              <img id="pwaDocInlineAadhaarImg" src="/static/specimen_assets/aadhaar_front.jpg" alt="Aadhaar Card" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.onerror=null;"/>
               <span id="pwaDocAadhaarSideBadge" class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">FRONT</span>
             </div>
             
@@ -243,7 +243,7 @@
           <div class="flex items-start gap-3 w-full sm:w-auto">
             <!-- Visual Document Thumbnail -->
             <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('pan')">
-              <img id="pwaDocInlinePanImg" src="/static/specimen_assets/pan_front.jpg" alt="PAN Card" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.src='/static/pan_card_specimen.png'"/>
+              <img id="pwaDocInlinePanImg" src="/static/specimen_assets/pan_front.jpg" alt="PAN Card" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.onerror=null;"/>
               <span id="pwaDocPanSideBadge" class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">FRONT</span>
             </div>
             
@@ -275,8 +275,8 @@
           <div class="flex items-start gap-3 w-full sm:w-auto">
             <!-- Visual Document Thumbnail -->
             <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('utility')">
-              <img id="pwaDocInlineUtilityImg" src="/static/specimen_assets/utility_bill.jpg" alt="Electricity Bill" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.src='/static/electricity_bill_specimen.png'"/>
-              <span class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">UGVCL</span>
+              <img id="pwaDocInlineUtilityImg" src="/static/specimen_assets/utility_bill.jpg" alt="Electricity Bill" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.onerror=null;"/>
+              <span id="pwaDocUtilitySideBadge" class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">UGVCL</span>
             </div>
             
             <div class="text-xs flex-1">
@@ -294,6 +294,68 @@
             <button type="button" onclick="openPwaDocModal('utility')" class="px-2.5 py-1.5 rounded-lg bg-primary-container text-white font-headline text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all">
               <span class="material-symbols-outlined text-[14px]">zoom_in</span>
               <span>Enlarge</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. Income Proof: Form 16 & Salary Payslip -->
+        <div class="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('form16')">
+              <img id="pwaDocInlineForm16Img" src="/static/specimen_assets/specimen_form16.jpg" alt="Form 16" class="w-full h-full object-cover transition-transform group-hover:scale-105"/>
+              <span class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">TDS-16</span>
+            </div>
+            
+            <div class="text-xs flex-1">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <span class="font-bold text-on-surface">Income Proof (ફોર્મ ૧૬ / પગાર સ્લિપ)</span>
+                <span class="font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1 rounded border border-emerald-200 font-bold">TRACES VERIFIED</span>
+              </div>
+              <div id="pwaDocIncomeName" class="font-semibold text-on-surface">Form 16 (Part A & B) • AY 2026-27</div>
+              <div id="pwaDocIncomeSalary" class="font-mono text-[11px] text-emerald-700 font-bold">Net Salary: ₹82,030 / Month (GIDC)</div>
+              <div class="font-mono text-[10px] text-outline">Salary Payslip & Bank Statements Attached</div>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-1.5 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-outline-variant/60">
+            <button type="button" onclick="openPwaDocModal('payslip')" class="px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container text-on-surface font-headline text-[11px] font-bold shadow-2xs flex items-center gap-1 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[14px] text-primary">receipt_long</span>
+              <span>Payslip</span>
+            </button>
+            <button type="button" onclick="openPwaDocModal('form16')" class="px-2.5 py-1.5 rounded-lg bg-primary-container text-white font-headline text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[14px]">zoom_in</span>
+              <span>Form 16</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 5. Property Legal Records: Registered Sale Deed & Index II -->
+        <div class="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('sale_deed')">
+              <img id="pwaDocInlineSaleDeedImg" src="/static/specimen_assets/specimen_sale_deed.jpg" alt="Sale Deed" class="w-full h-full object-cover transition-transform group-hover:scale-105"/>
+              <span class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">SALE DEED</span>
+            </div>
+            
+            <div class="text-xs flex-1">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <span class="font-bold text-on-surface">Property Documents (દસ્તાવેજ / સૂચિ ૨)</span>
+                <span class="font-mono text-[9px] bg-blue-50 text-blue-800 px-1 rounded border border-blue-200 font-bold">REG: 7491/22</span>
+              </div>
+              <div id="pwaDocPropertyTitle" class="font-semibold text-on-surface">Registered Sale Deed & Index II Copy</div>
+              <div id="pwaDocPropertyAddress" class="font-mono text-[10px] text-outline truncate">31, Siddhi Vinayak Bunglows, Pethapur</div>
+              <div class="font-mono text-[10px] text-emerald-700 font-semibold">Sub-Registrar Gandhinagar (Clear Title)</div>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-1.5 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-outline-variant/60">
+            <button type="button" onclick="openPwaDocModal('index2')" class="px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container text-on-surface font-headline text-[11px] font-bold shadow-2xs flex items-center gap-1 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[14px] text-primary">description</span>
+              <span>Index II</span>
+            </button>
+            <button type="button" onclick="openPwaDocModal('sale_deed')" class="px-2.5 py-1.5 rounded-lg bg-primary-container text-white font-headline text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[14px]">zoom_in</span>
+              <span>Sale Deed</span>
             </button>
           </div>
         </div>
@@ -1064,7 +1126,16 @@
         pan_no: "BYMPG8996E",
         utility_provider: "UGVCL Electricity Bill",
         utility_no: "Consumer # 04128/99102/3",
-        meter_name: "Meter: Pradeepsinh Vaghela"
+        meter_name: "Meter: Pradeepsinh Vaghela",
+        aadhaar_front_img: "/static/specimen_assets/aadhaar_front.jpg",
+        aadhaar_back_img: "/static/specimen_assets/aadhaar_back.jpg",
+        pan_front_img: "/static/specimen_assets/pan_front.jpg",
+        pan_back_img: "/static/specimen_assets/pan_back.jpg",
+        utility_front_img: "/static/specimen_assets/utility_bill.jpg",
+        form16_img: "/static/specimen_assets/specimen_form16.jpg",
+        payslip_img: "/static/specimen_assets/specimen_payslip.jpg",
+        sale_deed_img: "/static/specimen_assets/specimen_sale_deed.jpg",
+        index2_img: "/static/specimen_assets/specimen_index2.jpg"
       },
       "UBI-HL-2026-616": {
         id: "b902fc74-33b9-4f54-ad24-f31095e0d616",
@@ -1084,7 +1155,16 @@
         pan_no: "BYMPP4192K",
         utility_provider: "UGVCL Electricity Bill",
         utility_no: "Consumer # 02690/41820/1",
-        meter_name: "Meter: Pargi Bhavnaben"
+        meter_name: "Meter: Pargi Bhavnaben",
+        aadhaar_front_img: "/static/specimen_assets/pargi_aadhaar_front.jpg",
+        aadhaar_back_img: "/static/specimen_assets/pargi_aadhaar_back.jpg",
+        pan_front_img: "/static/specimen_assets/pargi_pan_front.jpg",
+        pan_back_img: "/static/specimen_assets/pargi_pan_back.jpg",
+        utility_front_img: "/static/specimen_assets/pargi_utility_bill.jpg",
+        form16_img: "/static/specimen_assets/pargi_form16.jpg",
+        payslip_img: "/static/specimen_assets/pargi_payslip.jpg",
+        sale_deed_img: "/static/specimen_assets/pargi_sale_deed.jpg",
+        index2_img: "/static/specimen_assets/pargi_index2.jpg"
       },
       "SBI-HL-2026-45L": {
         id: "c102ad74-23b9-4f43-ad13-f31095d0c002",
@@ -1347,13 +1427,14 @@
       const badge = document.getElementById("pwaDocAadhaarSideBadge");
       const btn = document.getElementById("btnTextAadhaarFlip");
       if (!img) return;
+      const c = caseRegistryPwa[activeCaseKey] || caseRegistryPwa["UBI-HL-2026-20L"];
       isAadhaarFlippedInline = !isAadhaarFlippedInline;
       if (isAadhaarFlippedInline) {
-        img.src = "/static/specimen_assets/aadhaar_back.jpg";
+        img.src = c.aadhaar_back_img || "/static/specimen_assets/aadhaar_back.jpg";
         if (badge) badge.textContent = "BACK";
         if (btn) btn.textContent = "View Front";
       } else {
-        img.src = "/static/specimen_assets/aadhaar_front.jpg";
+        img.src = c.aadhaar_front_img || "/static/specimen_assets/aadhaar_front.jpg";
         if (badge) badge.textContent = "FRONT";
         if (btn) btn.textContent = "Flip Side";
       }
@@ -1365,13 +1446,14 @@
       const badge = document.getElementById("pwaDocPanSideBadge");
       const btn = document.getElementById("btnTextPanFlip");
       if (!img) return;
+      const c = caseRegistryPwa[activeCaseKey] || caseRegistryPwa["UBI-HL-2026-20L"];
       isPanFlippedInline = !isPanFlippedInline;
       if (isPanFlippedInline) {
-        img.src = "/static/specimen_assets/pan_back.jpg";
+        img.src = c.pan_back_img || "/static/specimen_assets/pan_back.jpg";
         if (badge) badge.textContent = "BACK";
         if (btn) btn.textContent = "View Front";
       } else {
-        img.src = "/static/specimen_assets/pan_front.jpg";
+        img.src = c.pan_front_img || "/static/specimen_assets/pan_front.jpg";
         if (badge) badge.textContent = "FRONT";
         if (btn) btn.textContent = "Flip Side";
       }
@@ -1392,20 +1474,44 @@
       if (docType === "aadhaar") {
         title.textContent = "Aadhaar Card (UIDAI Masked)";
         desc.textContent = `Name: ${c.applicant} | Masked No: ${c.aadhaar_no || 'XXXX-XXXX-7689'} | DOB: ${c.dob || '30/05/1997'}`;
-        imgFront.src = "/static/specimen_assets/aadhaar_front.jpg";
-        imgBack.src = "/static/specimen_assets/aadhaar_back.jpg";
+        imgFront.src = c.aadhaar_front_img || "/static/specimen_assets/aadhaar_front.jpg";
+        imgBack.src = c.aadhaar_back_img || "/static/specimen_assets/aadhaar_back.jpg";
         if (flipBtn) flipBtn.classList.remove("hidden");
       } else if (docType === "pan") {
         title.textContent = "PAN Card (Income Tax Dept)";
         desc.textContent = `Name: ${c.applicant} | PAN: ${c.pan_no || 'BYMPG8996E'} | Ward: ${c.ward || 'Gandhinagar'}`;
-        imgFront.src = "/static/specimen_assets/pan_front.jpg";
-        imgBack.src = "/static/specimen_assets/pan_back.jpg";
+        imgFront.src = c.pan_front_img || "/static/specimen_assets/pan_front.jpg";
+        imgBack.src = c.pan_back_img || "/static/specimen_assets/pan_back.jpg";
         if (flipBtn) flipBtn.classList.remove("hidden");
       } else if (docType === "utility") {
         title.textContent = "Electricity / Utility Bill";
         desc.textContent = `Provider: ${c.utility_provider || 'UGVCL'} | Consumer No: ${c.utility_no || '04128/99102/3'} | Meter: ${c.meter_name || c.applicant}`;
-        imgFront.src = "/static/specimen_assets/utility_bill.jpg";
-        imgBack.src = "/static/specimen_assets/utility_bill.jpg";
+        imgFront.src = c.utility_front_img || "/static/specimen_assets/utility_bill.jpg";
+        imgBack.src = c.utility_front_img || "/static/specimen_assets/utility_bill.jpg";
+        if (flipBtn) flipBtn.classList.add("hidden");
+      } else if (docType === "form16") {
+        title.textContent = "Form 16 (Part A & B / TDS Certificate)";
+        desc.textContent = `Employee: ${c.applicant} | AY 2026-27 | Employer: Gujarat Infra Dev Corp`;
+        imgFront.src = c.form16_img || "/static/specimen_assets/specimen_form16.jpg";
+        imgBack.src = c.form16_img || "/static/specimen_assets/specimen_form16.jpg";
+        if (flipBtn) flipBtn.classList.add("hidden");
+      } else if (docType === "payslip") {
+        title.textContent = "Salary Payslip (Last Month)";
+        desc.textContent = `Employee: ${c.applicant} | Net Take-Home: ₹82,030 / Month | Verified Bank Credit`;
+        imgFront.src = c.payslip_img || "/static/specimen_assets/specimen_payslip.jpg";
+        imgBack.src = c.payslip_img || "/static/specimen_assets/specimen_payslip.jpg";
+        if (flipBtn) flipBtn.classList.add("hidden");
+      } else if (docType === "sale_deed") {
+        title.textContent = "Registered Sale Deed (દસ્તાવેજ)";
+        desc.textContent = `Buyer: ${c.applicant} | Consideration: ₹48.00 Lacs | Sub-Registrar Reg # 7491/22`;
+        imgFront.src = c.sale_deed_img || "/static/specimen_assets/specimen_sale_deed.jpg";
+        imgBack.src = c.sale_deed_img || "/static/specimen_assets/specimen_sale_deed.jpg";
+        if (flipBtn) flipBtn.classList.add("hidden");
+      } else if (docType === "index2") {
+        title.textContent = "Index II Copy (સૂચિ ૨ નકલ)";
+        desc.textContent = `Claimant: ${c.applicant} | Sub-Registrar Gandhinagar | Clear Marketable Title`;
+        imgFront.src = c.index2_img || "/static/specimen_assets/specimen_index2.jpg";
+        imgBack.src = c.index2_img || "/static/specimen_assets/specimen_index2.jpg";
         if (flipBtn) flipBtn.classList.add("hidden");
       }
 
@@ -1977,6 +2083,34 @@
         document.getElementById("pwaDocUtilityNo").textContent = c.utility_no || "Consumer # 04128/99102/3";
         document.getElementById("pwaDocUtilityMeter").textContent = c.meter_name || `Meter Name: ${c.applicant}`;
       }
+
+      // Update All Document Image Sources for the Active Case
+      const aadhImg = document.getElementById("pwaDocInlineAadhaarImg");
+      if (aadhImg) aadhImg.src = c.aadhaar_front_img || "/static/specimen_assets/aadhaar_front.jpg";
+      const panImg = document.getElementById("pwaDocInlinePanImg");
+      if (panImg) panImg.src = c.pan_front_img || "/static/specimen_assets/pan_front.jpg";
+      const utilImg = document.getElementById("pwaDocInlineUtilityImg");
+      if (utilImg) utilImg.src = c.utility_front_img || "/static/specimen_assets/utility_bill.jpg";
+      const f16Img = document.getElementById("pwaDocInlineForm16Img");
+      if (f16Img) f16Img.src = c.form16_img || "/static/specimen_assets/specimen_form16.jpg";
+      const deedImg = document.getElementById("pwaDocInlineSaleDeedImg");
+      if (deedImg) deedImg.src = c.sale_deed_img || "/static/specimen_assets/specimen_sale_deed.jpg";
+
+      if (document.getElementById("pwaDocIncomeName")) {
+        document.getElementById("pwaDocIncomeName").textContent = `Form 16 • ${c.applicant}`;
+      }
+      if (document.getElementById("pwaDocPropertyTitle")) {
+        document.getElementById("pwaDocPropertyTitle").textContent = `Sale Deed (દસ્તાવેજ) • ${c.applicant}`;
+        document.getElementById("pwaDocPropertyAddress").textContent = c.address;
+      }
+
+      // Reset flip button states
+      isAadhaarFlippedInline = false;
+      isPanFlippedInline = false;
+      if (document.getElementById("pwaDocAadhaarSideBadge")) document.getElementById("pwaDocAadhaarSideBadge").textContent = "FRONT";
+      if (document.getElementById("btnTextAadhaarFlip")) document.getElementById("btnTextAadhaarFlip").textContent = "Flip Side";
+      if (document.getElementById("pwaDocPanSideBadge")) document.getElementById("pwaDocPanSideBadge").textContent = "FRONT";
+      if (document.getElementById("btnTextPanFlip")) document.getElementById("btnTextPanFlip").textContent = "Flip Side";
 
       // Reset slot states for the new case
       for (let i = 1; i <= 4; i++) {
