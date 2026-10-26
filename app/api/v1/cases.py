@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from app.services.pdf_separator import burst_and_separate_pdf_with_llm
