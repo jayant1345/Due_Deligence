@@ -182,7 +182,7 @@
       </div>
     </section>
 
-    <!-- Case Documents Provided by CA Office Section (Strictly Read-Only Reference for Field Staff) -->
+    <!-- Case Documents Provided by CA Office Section (Direct Visual Previews for Field Staff) -->
     <section id="caDocsSection" class="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm flex flex-col gap-3">
       <div class="flex items-center justify-between pb-2.5 border-b border-outline-variant">
         <div class="flex items-center gap-2">
@@ -203,70 +203,98 @@
         Cross-verify these official borrower identity documents on site before taking physical evidence photos:
       </p>
 
-      <!-- 3 Document Cards: Aadhaar, PAN, Utility Bill -->
-      <div class="space-y-2.5">
-        <!-- 1. Aadhaar Card -->
-        <div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex items-start justify-between gap-2.5">
-          <div class="flex items-start gap-2.5">
-            <div class="w-8 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-primary-container shrink-0 mt-0.5">
-              <span class="material-symbols-outlined text-[18px]">badge</span>
+      <!-- 3 Visual Document Cards: Aadhaar, PAN, Utility Bill -->
+      <div class="space-y-3">
+        <!-- 1. Aadhaar Card Card -->
+        <div class="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <!-- Visual Document Thumbnail with Flip Preview -->
+            <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('aadhaar')">
+              <img id="pwaDocInlineAadhaarImg" src="/static/specimen_assets/aadhaar_front.jpg" alt="Aadhaar Card" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.src='/static/aadhaar_front_specimen.png'"/>
+              <span id="pwaDocAadhaarSideBadge" class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">FRONT</span>
             </div>
-            <div class="text-xs">
-              <div class="flex items-center gap-1.5">
+            
+            <div class="text-xs flex-1">
+              <div class="flex items-center gap-1.5 mb-0.5">
                 <span class="font-bold text-on-surface">Aadhaar Card (આધાર કાર્ડ)</span>
                 <span class="font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1 rounded border border-emerald-200 font-bold">MASKED</span>
               </div>
-              <div id="pwaDocAadhaarName" class="font-semibold text-on-surface mt-0.5">Mrs. Rajkunvarba Pradeepsinh Vaghela</div>
+              <div id="pwaDocAadhaarName" class="font-semibold text-on-surface">Mrs. Rajkunvarba Pradeepsinh Vaghela</div>
               <div id="pwaDocAadhaarNo" class="font-mono text-[11px] text-outline font-bold">XXXX - XXXX - 7689</div>
               <div id="pwaDocAadhaarDob" class="font-mono text-[10px] text-on-surface-variant">DOB: 30/05/1997 | Female</div>
             </div>
           </div>
-          <button onclick="openPwaDocModal('aadhaar')" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-primary-container/40 text-primary-container font-headline text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all">
-            <span class="material-symbols-outlined text-[14px]">visibility</span>
-            <span>View</span>
-          </button>
+          
+          <div class="flex items-center gap-1.5 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-outline-variant/60">
+            <button type="button" onclick="flipInlineAadhaar()" class="px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container text-on-surface font-headline text-[11px] font-bold shadow-2xs flex items-center gap-1 active:scale-95 transition-all" title="Flip to Back / Front">
+              <span class="material-symbols-outlined text-[14px] text-primary">sync</span>
+              <span id="btnTextAadhaarFlip">Flip Side</span>
+            </button>
+            <button type="button" onclick="openPwaDocModal('aadhaar')" class="px-2.5 py-1.5 rounded-lg bg-primary-container text-white font-headline text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[14px]">zoom_in</span>
+              <span>Enlarge</span>
+            </button>
+          </div>
         </div>
 
-        <!-- 2. PAN Card -->
-        <div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex items-start justify-between gap-2.5">
-          <div class="flex items-start gap-2.5">
-            <div class="w-8 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-primary-container shrink-0 mt-0.5">
-              <span class="material-symbols-outlined text-[18px]">credit_card</span>
+        <!-- 2. PAN Card Card -->
+        <div class="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <!-- Visual Document Thumbnail -->
+            <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('pan')">
+              <img id="pwaDocInlinePanImg" src="/static/specimen_assets/pan_front.jpg" alt="PAN Card" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.src='/static/pan_card_specimen.png'"/>
+              <span id="pwaDocPanSideBadge" class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">FRONT</span>
             </div>
-            <div class="text-xs">
-              <div class="flex items-center gap-1.5">
+            
+            <div class="text-xs flex-1">
+              <div class="flex items-center gap-1.5 mb-0.5">
                 <span class="font-bold text-on-surface">PAN Card (પાન કાર્ડ)</span>
                 <span class="font-mono text-[9px] bg-blue-50 text-blue-800 px-1 rounded border border-blue-200 font-bold">VERIFIED</span>
               </div>
-              <div id="pwaDocPanName" class="font-semibold text-on-surface mt-0.5">RAJKUNVARBA VAGHELA</div>
+              <div id="pwaDocPanName" class="font-semibold text-on-surface">RAJKUNVARBA VAGHELA</div>
               <div id="pwaDocPanNo" class="font-mono text-[11px] text-primary-container font-bold">PAN: BYMPG8996E</div>
-              <div id="pwaDocPanWard" class="font-mono text-[10px] text-outline">WARD 1, GANDHINAGAR</div>
+              <div id="pwaDocPanWard" class="font-mono text-[10px] text-outline">WARD 1, GANDHINAGAR (ITD VERIFIED)</div>
             </div>
           </div>
-          <button onclick="openPwaDocModal('pan')" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-primary-container/40 text-primary-container font-headline text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all">
-            <span class="material-symbols-outlined text-[14px]">visibility</span>
-            <span>View</span>
-          </button>
+          
+          <div class="flex items-center gap-1.5 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-outline-variant/60">
+            <button type="button" onclick="flipInlinePan()" class="px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container text-on-surface font-headline text-[11px] font-bold shadow-2xs flex items-center gap-1 active:scale-95 transition-all" title="Flip Side">
+              <span class="material-symbols-outlined text-[14px] text-primary">sync</span>
+              <span id="btnTextPanFlip">Flip Side</span>
+            </button>
+            <button type="button" onclick="openPwaDocModal('pan')" class="px-2.5 py-1.5 rounded-lg bg-primary-container text-white font-headline text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[14px]">zoom_in</span>
+              <span>Enlarge</span>
+            </button>
+          </div>
         </div>
 
         <!-- 3. Electricity Bill / Utility Proof -->
-        <div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex items-start justify-between gap-2.5">
-          <div class="flex items-start gap-2.5">
-            <div class="w-8 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-primary-container shrink-0 mt-0.5">
-              <span class="material-symbols-outlined text-[18px]">receipt_long</span>
+        <div class="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <!-- Visual Document Thumbnail -->
+            <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('utility')">
+              <img id="pwaDocInlineUtilityImg" src="/static/specimen_assets/utility_bill.jpg" alt="Electricity Bill" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.src='/static/electricity_bill_specimen.png'"/>
+              <span class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">UGVCL</span>
             </div>
-            <div class="text-xs">
-              <div class="flex items-center gap-1.5">
+            
+            <div class="text-xs flex-1">
+              <div class="flex items-center gap-1.5 mb-0.5">
                 <span class="font-bold text-on-surface">Electricity Bill (લાઇટ બિલ)</span>
                 <span class="font-mono text-[9px] bg-purple-50 text-purple-800 px-1 rounded border border-purple-200 font-bold">METER PROOF</span>
               </div>
-              <div id="pwaDocUtilityProvider" class="font-semibold text-on-surface mt-0.5">UGVCL Electricity Bill</div>
+              <div id="pwaDocUtilityProvider" class="font-semibold text-on-surface">UGVCL Electricity Bill</div>
               <div id="pwaDocUtilityNo" class="font-mono text-[11px] text-outline font-bold">Consumer # 04128/99102/3</div>
               <div id="pwaDocUtilityMeter" class="font-mono text-[10px] text-outline">Meter Name: Pradeepsinh Vaghela</div>
             </div>
           </div>
-          <button onclick="openPwaDocModal('utility')" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-primary-container/40 text-primary-container font-headline text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all">
-            <span class="material-symbols-outlined text-[14px]">visibility</span>
+          
+          <div class="flex items-center gap-1.5 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-outline-variant/60">
+            <button type="button" onclick="openPwaDocModal('utility')" class="px-2.5 py-1.5 rounded-lg bg-primary-container text-white font-headline text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[14px]">zoom_in</span>
+              <span>Enlarge</span>
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -300,8 +328,8 @@
         <span class="font-mono text-[10px] text-blue-700 font-bold bg-white px-2 py-0.5 rounded border border-blue-200">15 PAGES SYNCHRONIZED</span>
       </div>
 
-      <!-- MODULE 1: Executive & Target Persona (PAGE 1) -->
-      <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/80 space-y-3">
+      <!-- MODULE 1: Executive, Target Persona & Field Staff Selfie to Start Survey (PAGE 1) -->
+      <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/80 space-y-3.5">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-primary-container text-[18px]">badge</span>
@@ -311,31 +339,103 @@
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- Executive Name Dropdown + Add Option -->
           <div>
-            <label class="font-mono text-[10px] font-bold text-outline block mb-1">Executive Name (વિઝિટ કરનાર નું નામ)*</label>
-            <div class="relative">
-              <select id="formExecutive" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface focus:ring-2 focus:ring-primary-container">
-                <option value="Kamal">Kamal Bhai (કમલ ભાઈ - Union Bank Field Officer)</option>
-                <option value="Nilesh">Nilesh (નિલેશ)</option>
-                <option value="Rajesh">Rajesh Varma (રાજેશ વર્મા - FA-9042)</option>
-              </select>
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-mono text-[10px] font-bold text-outline">Executive Name (વિઝિટ કરનાર નું નામ)*</label>
+              <button type="button" onclick="toggleAddExecutiveInput()" class="text-[11px] text-primary-container font-bold hover:underline flex items-center gap-0.5">
+                <span class="material-symbols-outlined text-[14px]">add_circle</span>
+                <span>+ Add Executive</span>
+              </button>
+            </div>
+            <select id="formExecutive" onchange="handleExecutiveSelect(this.value)" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface focus:ring-2 focus:ring-primary-container">
+              <option value="Kamal" selected>Kamal Bhai (કમલ ભાઈ - Union Bank Field Officer)</option>
+              <option value="Nilesh">Nilesh (નિલેશ - Senior CPV Officer)</option>
+              <option value="Rajesh Varma">Rajesh Varma (રાજેશ વર્મા - FA-9042)</option>
+              <option value="Naimish N. Shah">Naimish N. Shah (નૈમિષ શાહ - Chartered Accountant)</option>
+              <option value="Jayesh Patel">Jayesh Patel (જયેશ પટેલ - Field Supervisor)</option>
+              <option value="__add_new__">+ Add New Executive (નવો એક્ઝિક્યુટિવ ઉમેરો)...</option>
+            </select>
+            <!-- Custom Executive Input Box (toggled) -->
+            <div id="addExecutiveBox" class="hidden mt-2 p-2 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-1.5">
+              <input id="newExecutiveInput" type="text" placeholder="Enter executive full name..." class="flex-1 text-xs bg-white border border-outline-variant rounded px-2 py-1 text-on-surface font-medium"/>
+              <button type="button" onclick="saveNewExecutive()" class="px-2.5 py-1 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded shadow-xs">Add</button>
+              <button type="button" onclick="toggleAddExecutiveInput()" class="p-1 text-outline hover:text-on-surface"><span class="material-symbols-outlined text-[16px]">close</span></button>
             </div>
           </div>
+
+          <!-- Target Persona Dropdown + Add Option -->
           <div>
-            <label class="font-mono text-[10px] font-bold text-outline block mb-1">Target Persona (પસંદગી પ્રકાર)*</label>
-            <div class="grid grid-cols-3 gap-1.5 text-xs font-body">
-              <label class="flex items-center justify-center gap-1 p-2 rounded-lg bg-primary-container text-white font-bold cursor-pointer border border-primary-container shadow-xs">
-                <input type="radio" name="pwaPersonaRadio" value="Applicant" checked class="hidden"/>
-                <span>Applicant (અરજદાર)</span>
-              </label>
-              <label class="flex items-center justify-center gap-1 p-2 rounded-lg bg-white text-on-surface hover:bg-surface-container border border-outline-variant cursor-pointer text-[11px]">
-                <input type="radio" name="pwaPersonaRadio" value="Co-applicant" class="hidden"/>
-                <span>Co-app</span>
-              </label>
-              <label class="flex items-center justify-center gap-1 p-2 rounded-lg bg-white text-on-surface hover:bg-surface-container border border-outline-variant cursor-pointer text-[11px]">
-                <input type="radio" name="pwaPersonaRadio" value="Guarantor" class="hidden"/>
-                <span>Guarantor</span>
-              </label>
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-mono text-[10px] font-bold text-outline">Target Persona (પસંદગી પ્રકાર)*</label>
+              <button type="button" onclick="toggleAddPersonaInput()" class="text-[11px] text-primary-container font-bold hover:underline flex items-center gap-0.5">
+                <span class="material-symbols-outlined text-[14px]">add_circle</span>
+                <span>+ Add Persona</span>
+              </button>
+            </div>
+            <select id="formPersona" onchange="handlePersonaSelect(this.value)" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface focus:ring-2 focus:ring-primary-container">
+              <option value="Applicant" selected>Applicant (અરજદાર - Borrower)</option>
+              <option value="Co-applicant">Co-applicant (સહ-અરજદાર)</option>
+              <option value="Guarantor">Guarantor (જામીનદાર)</option>
+              <option value="Relative / Family Member">Relative / Family Member (સંબંધી / કુટુંબીજન)</option>
+              <option value="Neighbour Reference">Neighbour Reference (પાડોશી સંદર્ભ)</option>
+              <option value="__add_new__">+ Add New Persona (નવો પ્રકાર ઉમેરો)...</option>
+            </select>
+            <!-- Custom Persona Input Box (toggled) -->
+            <div id="addPersonaBox" class="hidden mt-2 p-2 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-1.5">
+              <input id="newPersonaInput" type="text" placeholder="Enter persona type..." class="flex-1 text-xs bg-white border border-outline-variant rounded px-2 py-1 text-on-surface font-medium"/>
+              <button type="button" onclick="saveNewPersona()" class="px-2.5 py-1 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded shadow-xs">Add</button>
+              <button type="button" onclick="toggleAddPersonaInput()" class="p-1 text-outline hover:text-on-surface"><span class="material-symbols-outlined text-[16px]">close</span></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- FIELD STAFF OWN SELFIE PHOTO TO START SURVEY (REQUIRED STEP) -->
+        <div class="p-3 rounded-xl bg-gradient-to-r from-blue-50/90 to-indigo-50/90 border border-primary-container/30 shadow-xs space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary-container text-[20px]">photo_camera_front</span>
+              <div>
+                <h4 class="font-headline font-bold text-xs sm:text-sm text-primary-container">Field Staff Verification Selfie (એજન્ટ નો સેલ્ફી ફોટો)</h4>
+                <p class="font-mono text-[10px] text-outline">Mandatory to Start Survey • ભૌતિક સર્વે શરૂ કરવા માટે જરૂરી</p>
+              </div>
+            </div>
+            <span id="selfieStatusBadge" class="font-mono text-[10px] bg-amber-50 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-2xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+              <span>SELFIE PENDING</span>
+            </span>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-center gap-3 pt-1">
+            <!-- Selfie Image Preview Box -->
+            <div class="relative w-28 h-28 rounded-xl bg-surface-container-lowest border-2 border-dashed border-primary-container/40 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+              <img id="agentSelfiePreview" src="" alt="Agent Selfie" class="hidden w-full h-full object-cover"/>
+              <div id="agentSelfiePlaceholder" class="flex flex-col items-center justify-center text-center p-2 text-outline">
+                <span class="material-symbols-outlined text-[32px] text-primary-container/60 mb-0.5">face</span>
+                <span class="text-[10px] font-mono leading-tight">No Selfie Captured</span>
+              </div>
+              <div id="selfieWatermarkTag" class="hidden absolute bottom-0 left-0 right-0 bg-black/80 text-white font-mono text-[8px] px-1 py-0.5 text-center truncate">
+                GPS LOCKED
+              </div>
+            </div>
+
+            <!-- Action Buttons & Details -->
+            <div class="flex-1 w-full space-y-2">
+              <p class="text-xs text-on-surface-variant leading-relaxed">
+                Capture your own live photo on-site using device camera to authenticate physical presence and initiate the survey.
+              </p>
+              
+              <div class="flex flex-wrap items-center gap-2">
+                <label class="cursor-pointer px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow flex items-center gap-1.5 active:scale-95 transition-all">
+                  <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
+                  <span id="selfieBtnText">Capture Own Selfie (સેલ્ફી લો)</span>
+                  <input type="file" accept="image/*" capture="user" onchange="handleAgentSelfieCapture(event)" class="hidden"/>
+                </label>
+              </div>
+
+              <div id="selfieMetaInfo" class="hidden text-[10px] font-mono text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                ✓ Survey Commenced • Agent: <span id="selfieAgentNameText" class="font-bold">Rajesh Varma</span> • Time: <span id="selfieTimestampText" class="font-bold">--</span>
+              </div>
             </div>
           </div>
         </div>
@@ -402,16 +502,38 @@
           </div>
         </div>
 
-        <!-- Family Details (PAGE 4) -->
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="font-mono text-[10px] text-outline font-bold">Family Details (કુટુંબ વિગતો: Name - Age - Relation - Earning)*</label>
-            <span class="font-mono text-[9px] text-outline">4 Members Verified</span>
+        <!-- Family Details (PAGE 4) - Structured Field Staff Builder -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <label class="font-mono text-[10px] text-outline font-bold block">Family Details (કુટુંબ વિગતો: Name - Age - Relation - Earning)*</label>
+              <p class="text-[10px] text-on-surface-variant">Add or edit each family member living with the borrower:</p>
+            </div>
+            <span id="familyMemberCountBadge" class="font-mono text-[10px] text-primary-container font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+              4 Members
+            </span>
           </div>
-          <textarea id="formFamily" rows="4" class="w-full text-xs font-mono rounded-lg border border-outline-variant bg-white p-2.5 leading-relaxed text-on-surface focus:ring-2 focus:ring-primary-container">1 - Pradeepsinh - 32 - Husband - Business
-2 - Vishvrajsinh - 6 - Son - Student
-3 - Bakorsinh - 61 - Father in law - Pensioner
-4 - Ranjanba - 56 - Mother in law - House wife</textarea>
+
+          <!-- Dynamic Family Members List -->
+          <div id="familyMembersContainer" class="space-y-2">
+            <!-- Rendered by renderFamilyMembers() -->
+          </div>
+
+          <!-- Add Member Button -->
+          <div class="flex items-center justify-between pt-1">
+            <button type="button" onclick="addFamilyMemberRow()" class="px-3 py-1.5 rounded-lg bg-surface-container-lowest border border-primary-container/40 text-primary-container hover:bg-blue-50 font-headline text-xs font-bold shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[16px]">person_add</span>
+              <span>+ Add Family Member (નવા કુટુંબ સભ્ય ઉમેરો)</span>
+            </button>
+            <button type="button" onclick="toggleRawFamilyView()" class="text-[11px] text-outline hover:text-on-surface underline font-mono">
+              View Text Format
+            </button>
+          </div>
+
+          <!-- Hidden / Collapsible Raw Textarea for Form Payload Sync -->
+          <div id="rawFamilyBox" class="hidden mt-2">
+            <textarea id="formFamily" rows="3" readonly class="w-full text-xs font-mono rounded-lg border border-outline-variant bg-surface-container-low p-2 text-on-surface"></textarea>
+          </div>
         </div>
 
         <!-- Address Visited (PAGE 4) -->
@@ -486,32 +608,33 @@
           </div>
         </div>
 
-        <!-- Assets Visible at Site (PAGE 7) -->
-        <div>
-          <label class="font-mono text-[10px] text-outline block mb-1">Assets Visible (ઘરમાં દેખાતી વસ્તુઓ)*</label>
-          <div class="flex flex-wrap gap-1.5 text-[11px] font-mono">
-            <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-secondary border border-emerald-300 font-bold flex items-center gap-1 shadow-xs">
-              <span class="material-symbols-outlined text-[14px]">check</span> AC
-            </span>
-            <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-secondary border border-emerald-300 font-bold flex items-center gap-1 shadow-xs">
-              <span class="material-symbols-outlined text-[14px]">check</span> FAN
-            </span>
-            <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-secondary border border-emerald-300 font-bold flex items-center gap-1 shadow-xs">
-              <span class="material-symbols-outlined text-[14px]">check</span> LIGHT
-            </span>
-            <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-secondary border border-emerald-300 font-bold flex items-center gap-1 shadow-xs">
-              <span class="material-symbols-outlined text-[14px]">check</span> SOFA
-            </span>
-            <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-secondary border border-emerald-300 font-bold flex items-center gap-1 shadow-xs">
-              <span class="material-symbols-outlined text-[14px]">check</span> FRIDGE
-            </span>
-            <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-secondary border border-emerald-300 font-bold flex items-center gap-1 shadow-xs">
-              <span class="material-symbols-outlined text-[14px]">check</span> RO
-            </span>
-            <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-secondary border border-emerald-300 font-bold flex items-center gap-1 shadow-xs">
-              <span class="material-symbols-outlined text-[14px]">check</span> CCTV
+        <!-- Assets Visible at Site (PAGE 7) - Changeable & Addable -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <label class="font-mono text-[10px] text-outline block font-bold">Assets Visible in Home (ઘરમાં દેખાતી વસ્તુઓ)*</label>
+              <p class="text-[10px] text-on-surface-variant">Tap to select/deselect items observed during physical visit:</p>
+            </div>
+            <span id="activeAssetsCountBadge" class="font-mono text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300">
+              7 Selected
             </span>
           </div>
+
+          <!-- Dynamic Clickable Chips Container -->
+          <div id="assetsChipsContainer" class="flex flex-wrap gap-1.5 text-xs font-body">
+            <!-- Rendered dynamically by renderAssetsChips() -->
+          </div>
+
+          <!-- Add Custom Asset Input Bar -->
+          <div class="flex items-center gap-2 pt-1.5">
+            <input id="customAssetInput" type="text" placeholder="Type new asset observed (e.g. Geyser, Inverter, Computer)..." class="flex-1 text-xs bg-white border border-outline-variant rounded-lg px-2.5 py-1.5 text-on-surface font-medium focus:ring-2 focus:ring-primary-container"/>
+            <button type="button" onclick="addNewCustomAsset()" class="px-3 py-1.5 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-lg shadow-xs flex items-center gap-1 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[16px]">add</span>
+              <span>+ Add Asset</span>
+            </button>
+          </div>
+
+          <input type="hidden" id="formAssetsObserved" value=""/>
         </div>
       </div>
 
@@ -1182,6 +1305,43 @@
       }
     }
 
+    // Inline Document Flips
+    let isAadhaarFlippedInline = false;
+    function flipInlineAadhaar() {
+      const img = document.getElementById("pwaDocInlineAadhaarImg");
+      const badge = document.getElementById("pwaDocAadhaarSideBadge");
+      const btn = document.getElementById("btnTextAadhaarFlip");
+      if (!img) return;
+      isAadhaarFlippedInline = !isAadhaarFlippedInline;
+      if (isAadhaarFlippedInline) {
+        img.src = "/static/specimen_assets/aadhaar_back.jpg";
+        if (badge) badge.textContent = "BACK";
+        if (btn) btn.textContent = "View Front";
+      } else {
+        img.src = "/static/specimen_assets/aadhaar_front.jpg";
+        if (badge) badge.textContent = "FRONT";
+        if (btn) btn.textContent = "Flip Side";
+      }
+    }
+
+    let isPanFlippedInline = false;
+    function flipInlinePan() {
+      const img = document.getElementById("pwaDocInlinePanImg");
+      const badge = document.getElementById("pwaDocPanSideBadge");
+      const btn = document.getElementById("btnTextPanFlip");
+      if (!img) return;
+      isPanFlippedInline = !isPanFlippedInline;
+      if (isPanFlippedInline) {
+        img.src = "/static/specimen_assets/pan_back.jpg";
+        if (badge) badge.textContent = "BACK";
+        if (btn) btn.textContent = "View Front";
+      } else {
+        img.src = "/static/specimen_assets/pan_front.jpg";
+        if (badge) badge.textContent = "FRONT";
+        if (btn) btn.textContent = "Flip Side";
+      }
+    }
+
     // Modal Inspection for CA-Provided Documents
     let isPwaCardFlipped = false;
     function openPwaDocModal(docType) {
@@ -1197,20 +1357,20 @@
       if (docType === "aadhaar") {
         title.textContent = "Aadhaar Card (UIDAI Masked)";
         desc.textContent = `Name: ${c.applicant} | Masked No: ${c.aadhaar_no || 'XXXX-XXXX-7689'} | DOB: ${c.dob || '30/05/1997'}`;
-        imgFront.src = "/static/aadhaar_front_specimen.png";
-        imgBack.src = "/static/aadhaar_back_specimen.png";
+        imgFront.src = "/static/specimen_assets/aadhaar_front.jpg";
+        imgBack.src = "/static/specimen_assets/aadhaar_back.jpg";
         if (flipBtn) flipBtn.classList.remove("hidden");
       } else if (docType === "pan") {
         title.textContent = "PAN Card (Income Tax Dept)";
         desc.textContent = `Name: ${c.applicant} | PAN: ${c.pan_no || 'BYMPG8996E'} | Ward: ${c.ward || 'Gandhinagar'}`;
-        imgFront.src = "/static/pan_card_specimen.png";
-        imgBack.src = "/static/pan_card_specimen.png";
-        if (flipBtn) flipBtn.classList.add("hidden");
+        imgFront.src = "/static/specimen_assets/pan_front.jpg";
+        imgBack.src = "/static/specimen_assets/pan_back.jpg";
+        if (flipBtn) flipBtn.classList.remove("hidden");
       } else if (docType === "utility") {
         title.textContent = "Electricity / Utility Bill";
         desc.textContent = `Provider: ${c.utility_provider || 'UGVCL'} | Consumer No: ${c.utility_no || '04128/99102/3'} | Meter: ${c.meter_name || c.applicant}`;
-        imgFront.src = "/static/electricity_bill_specimen.png";
-        imgBack.src = "/static/electricity_bill_specimen.png";
+        imgFront.src = "/static/specimen_assets/utility_bill.jpg";
+        imgBack.src = "/static/specimen_assets/utility_bill.jpg";
         if (flipBtn) flipBtn.classList.add("hidden");
       }
 
@@ -1235,6 +1395,339 @@
     function closePwaDocModal() {
       const modal = document.getElementById("pwaDocModal");
       if (modal) modal.classList.add("hidden");
+    }
+
+    // ==========================================
+    // QUESTION 1: EXECUTIVE & PERSONA MANAGERS
+    // ==========================================
+    function toggleAddExecutiveInput() {
+      const box = document.getElementById("addExecutiveBox");
+      if (box) {
+        box.classList.toggle("hidden");
+        if (!box.classList.contains("hidden")) {
+          const inp = document.getElementById("newExecutiveInput");
+          if (inp) inp.focus();
+        }
+      }
+    }
+
+    function handleExecutiveSelect(val) {
+      if (val === "__add_new__") {
+        toggleAddExecutiveInput();
+      }
+    }
+
+    function saveNewExecutive() {
+      const input = document.getElementById("newExecutiveInput");
+      const val = (input ? input.value : "").trim();
+      if (!val) {
+        alert("Please enter executive name");
+        return;
+      }
+      const sel = document.getElementById("formExecutive");
+      if (sel) {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = `${val} (Custom Executive)`;
+        opt.selected = true;
+        sel.insertBefore(opt, sel.lastElementChild);
+      }
+      if (input) input.value = "";
+      toggleAddExecutiveInput();
+    }
+
+    function toggleAddPersonaInput() {
+      const box = document.getElementById("addPersonaBox");
+      if (box) {
+        box.classList.toggle("hidden");
+        if (!box.classList.contains("hidden")) {
+          const inp = document.getElementById("newPersonaInput");
+          if (inp) inp.focus();
+        }
+      }
+    }
+
+    function handlePersonaSelect(val) {
+      if (val === "__add_new__") {
+        toggleAddPersonaInput();
+      }
+    }
+
+    function saveNewPersona() {
+      const input = document.getElementById("newPersonaInput");
+      const val = (input ? input.value : "").trim();
+      if (!val) {
+        alert("Please enter persona type");
+        return;
+      }
+      const sel = document.getElementById("formPersona");
+      if (sel) {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = `${val} (Custom Persona)`;
+        opt.selected = true;
+        sel.insertBefore(opt, sel.lastElementChild);
+      }
+      if (input) input.value = "";
+      toggleAddPersonaInput();
+    }
+
+    // ==========================================
+    // FIELD STAFF OWN SELFIE WATERMARK & ATTESTATION
+    // ==========================================
+    let agentSelfieDataUrl = null;
+    function handleAgentSelfieCapture(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          // Canvas watermarking with hardware GPS
+          const canvas = document.createElement("canvas");
+          const w = Math.min(img.width, 1080);
+          const scale = w / img.width;
+          const h = img.height * scale;
+          canvas.width = w;
+          canvas.height = h;
+
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+
+          // Watermark bar
+          const barHeight = Math.max(70, Math.round(h * 0.16));
+          ctx.fillStyle = "rgba(0, 0, 0, 0.78)";
+          ctx.fillRect(0, h - barHeight, w, barHeight);
+
+          const now = new Date();
+          const timeStr = now.toLocaleDateString("en-GB") + " " + now.toLocaleTimeString("en-GB") + " IST";
+          const agentName = (document.getElementById("agentNameDisplay") || {}).textContent || "Rajesh Varma";
+          const caseNo = (document.getElementById("caseNoDisplay") || {}).textContent || "UBI-HL-2026-20L";
+
+          ctx.fillStyle = "#10b981";
+          ctx.font = `bold ${Math.round(barHeight * 0.22)}px monospace`;
+          ctx.fillText(`✓ NAIMISH N. SHAH & CO. • FIELD STAFF ATTENDANCE SELFIE`, 14, h - barHeight + barHeight * 0.28);
+
+          ctx.fillStyle = "#ffffff";
+          ctx.font = `${Math.round(barHeight * 0.19)}px monospace`;
+          ctx.fillText(`AGENT: ${agentName} | ${caseNo} | TIME: ${timeStr}`, 14, h - barHeight + barHeight * 0.58);
+          ctx.fillText(`GPS: ${currentDeviceLat.toFixed(5)}°N, ${currentDeviceLon.toFixed(5)}°E (±3.2m) • SURVEY COMMENCED`, 14, h - barHeight + barHeight * 0.86);
+
+          agentSelfieDataUrl = canvas.toDataURL("image/jpeg", 0.88);
+
+          // Update Preview UI
+          const previewImg = document.getElementById("agentSelfiePreview");
+          const placeholder = document.getElementById("agentSelfiePlaceholder");
+          const wmTag = document.getElementById("selfieWatermarkTag");
+          const badge = document.getElementById("selfieStatusBadge");
+          const btnText = document.getElementById("selfieBtnText");
+          const metaInfo = document.getElementById("selfieMetaInfo");
+          const agentText = document.getElementById("selfieAgentNameText");
+          const timeText = document.getElementById("selfieTimestampText");
+
+          if (previewImg) {
+            previewImg.src = agentSelfieDataUrl;
+            previewImg.classList.remove("hidden");
+          }
+          if (placeholder) placeholder.classList.add("hidden");
+          if (wmTag) wmTag.classList.remove("hidden");
+          if (badge) {
+            badge.className = "font-mono text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-2xs";
+            badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span><span>SELFIE VERIFIED (સર્વે શરૂ)</span>`;
+          }
+          if (btnText) btnText.textContent = "Re-take Selfie (ફરીથી લો)";
+          if (metaInfo) metaInfo.classList.remove("hidden");
+          if (agentText) agentText.textContent = agentName;
+          if (timeText) timeText.textContent = timeStr;
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // ==========================================
+    // STRUCTURED FAMILY DETAILS BUILDER
+    // ==========================================
+    let familyMembers = [
+      { name: "Pradeepsinh", age: "32", relation: "Husband (પતિ)", occupation: "Business (ધંધો)" },
+      { name: "Vishvrajsinh", age: "6", relation: "Son (પુત્ર)", occupation: "Student (વિદ્યાર્થી)" },
+      { name: "Bakorsinh", age: "61", relation: "Father in law (સસરા)", occupation: "Pensioner (પેન્શનર)" },
+      { name: "Ranjanba", age: "56", relation: "Mother in law (સાસુ)", occupation: "House wife (ગૃહિણી)" }
+    ];
+
+    const familyRelations = [
+      "Husband (પતિ)", "Wife (પત્ની)", "Son (પુત્ર)", "Daughter (પુત્રી)",
+      "Father (પિતા)", "Mother (માતા)", "Father in law (સસરા)", "Mother in law (સાસુ)",
+      "Brother (ભાઈ)", "Sister (બહેન)", "Grandfather (દાદા)", "Grandmother (દાદી)",
+      "Uncle (કાકા / મામા)", "Aunt (કાકી / મામી)", "Relative / Other (અન્ય)"
+    ];
+
+    const familyOccupations = [
+      "Business (ધંધો)", "Job / Salaried (નોકરી)", "House wife (ગૃહિણી)",
+      "Student (વિદ્યાર્થી)", "Pensioner (પેન્શનર)", "Self-Employed (સ્વરોજગાર)",
+      "Agriculture / Farmer (ખેતી)", "Dependent (આધારિત)"
+    ];
+
+    function renderFamilyMembers() {
+      const container = document.getElementById("familyMembersContainer");
+      if (!container) return;
+
+      container.innerHTML = "";
+      familyMembers.forEach((m, idx) => {
+        const row = document.createElement("div");
+        row.className = "p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant shadow-2xs space-y-2";
+        
+        let relOptions = familyRelations.map(r => `<option value="${r}" ${r.startsWith(m.relation.split(' ')[0]) || m.relation === r ? 'selected' : ''}>${r}</option>`).join("");
+        let occOptions = familyOccupations.map(o => `<option value="${o}" ${o.startsWith(m.occupation.split(' ')[0]) || m.occupation === o ? 'selected' : ''}>${o}</option>`).join("");
+
+        row.innerHTML = `
+          <div class="flex items-center justify-between pb-1 border-b border-outline-variant/60">
+            <span class="font-headline font-bold text-xs text-primary-container">Member #${idx + 1}</span>
+            <button type="button" onclick="removeFamilyMemberRow(${idx})" class="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded active:scale-95 transition-all" title="Remove Member">
+              <span class="material-symbols-outlined text-[16px]">delete</span>
+            </button>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div>
+              <label class="font-mono text-[9px] text-outline block mb-0.5">Full Name (પૂરું નામ)*</label>
+              <input type="text" value="${m.name}" oninput="updateFamilyMember(${idx}, 'name', this.value)" placeholder="Name" class="w-full text-xs font-semibold rounded border border-outline-variant bg-white p-1.5 text-on-surface"/>
+            </div>
+            <div>
+              <label class="font-mono text-[9px] text-outline block mb-0.5">Relation (સંબંધ)*</label>
+              <select onchange="updateFamilyMember(${idx}, 'relation', this.value)" class="w-full text-xs font-semibold rounded border border-outline-variant bg-white p-1.5 text-on-surface">
+                ${relOptions}
+              </select>
+            </div>
+            <div>
+              <label class="font-mono text-[9px] text-outline block mb-0.5">Age (ઉંમર)*</label>
+              <input type="number" value="${m.age}" oninput="updateFamilyMember(${idx}, 'age', this.value)" placeholder="Age" class="w-full text-xs font-mono font-semibold rounded border border-outline-variant bg-white p-1.5 text-on-surface"/>
+            </div>
+            <div>
+              <label class="font-mono text-[9px] text-outline block mb-0.5">Occupation (વ્યવસાય)*</label>
+              <select onchange="updateFamilyMember(${idx}, 'occupation', this.value)" class="w-full text-xs font-semibold rounded border border-outline-variant bg-white p-1.5 text-on-surface">
+                ${occOptions}
+              </select>
+            </div>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+
+      const badge = document.getElementById("familyMemberCountBadge");
+      if (badge) badge.textContent = `${familyMembers.length} Members`;
+
+      syncFamilyTextarea();
+    }
+
+    function addFamilyMemberRow() {
+      familyMembers.push({ name: "", age: "", relation: "Relative / Other (અન્ય)", occupation: "Job / Salaried (નોકરી)" });
+      renderFamilyMembers();
+    }
+
+    function removeFamilyMemberRow(idx) {
+      if (familyMembers.length <= 1) {
+        alert("At least 1 family member should be recorded.");
+        return;
+      }
+      familyMembers.splice(idx, 1);
+      renderFamilyMembers();
+    }
+
+    function updateFamilyMember(idx, field, val) {
+      if (familyMembers[idx]) {
+        familyMembers[idx][field] = val;
+        syncFamilyTextarea();
+      }
+    }
+
+    function syncFamilyTextarea() {
+      const textarea = document.getElementById("formFamily");
+      if (!textarea) return;
+      const lines = familyMembers.map((m, i) => {
+        const cleanRel = (m.relation || "").split(" ")[0];
+        const cleanOcc = (m.occupation || "").split(" ")[0];
+        return `${i + 1} - ${m.name || 'Member'} - ${m.age || '0'} - ${cleanRel} - ${cleanOcc}`;
+      });
+      textarea.value = lines.join("\n");
+    }
+
+    function toggleRawFamilyView() {
+      const box = document.getElementById("rawFamilyBox");
+      if (box) box.classList.toggle("hidden");
+    }
+
+    // ==========================================
+    // INTERACTIVE ASSETS VISIBLE CHIPS MANAGER
+    // ==========================================
+    let visibleAssets = [
+      { id: "ac", name: "AC", active: true },
+      { id: "fan", name: "FAN", active: true },
+      { id: "light", name: "LIGHT", active: true },
+      { id: "sofa", name: "SOFA", active: true },
+      { id: "fridge", name: "FRIDGE", active: true },
+      { id: "ro", name: "RO", active: true },
+      { id: "cctv", name: "CCTV", active: true },
+      { id: "tv", name: "TV (ટેલિવિઝન)", active: false },
+      { id: "wm", name: "WASHING MACHINE (વોશિંગ મશીન)", active: false },
+      { id: "bike", name: "TWO WHEELER (બાઇક / એક્ટિવા)", active: false },
+      { id: "car", name: "CAR (ફોર વ્હીલર)", active: false },
+      { id: "dining", name: "DINING TABLE (ડાઇનિંગ ટેબલ)", active: false },
+      { id: "inverter", name: "INVERTER (ઇન્વર્ટર)", active: false },
+      { id: "micro", name: "MICROWAVE (માઇક્રોવેવ)", active: false }
+    ];
+
+    function renderAssetsChips() {
+      const container = document.getElementById("assetsChipsContainer");
+      if (!container) return;
+
+      container.innerHTML = "";
+      let activeCount = 0;
+
+      visibleAssets.forEach((a, idx) => {
+        if (a.active) activeCount++;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.onclick = () => toggleAssetChip(idx);
+        if (a.active) {
+          btn.className = "px-2.5 py-1.5 rounded-lg bg-emerald-100 text-emerald-950 border border-emerald-400 font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition-all";
+          btn.innerHTML = `<span class="material-symbols-outlined text-[15px] text-emerald-700">check_circle</span> <span>${a.name}</span>`;
+        } else {
+          btn.className = "px-2.5 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface-variant border border-outline-variant hover:bg-surface-container font-medium flex items-center gap-1 shadow-2xs active:scale-95 transition-all";
+          btn.innerHTML = `<span class="material-symbols-outlined text-[15px] text-outline">add</span> <span>${a.name}</span>`;
+        }
+        container.appendChild(btn);
+      });
+
+      const countBadge = document.getElementById("activeAssetsCountBadge");
+      if (countBadge) countBadge.textContent = `${activeCount} Selected`;
+
+      syncAssetsInput();
+    }
+
+    function toggleAssetChip(idx) {
+      if (visibleAssets[idx]) {
+        visibleAssets[idx].active = !visibleAssets[idx].active;
+        renderAssetsChips();
+      }
+    }
+
+    function addNewCustomAsset() {
+      const input = document.getElementById("customAssetInput");
+      const val = (input ? input.value : "").trim();
+      if (!val) {
+        alert("Please enter asset name (e.g. Geyser, Chimney)");
+        return;
+      }
+      visibleAssets.push({ id: "custom_" + Date.now(), name: val.toUpperCase(), active: true });
+      if (input) input.value = "";
+      renderAssetsChips();
+    }
+
+    function syncAssetsInput() {
+      const activeNames = visibleAssets.filter(a => a.active).map(a => a.name);
+      const hidden = document.getElementById("formAssetsObserved");
+      if (hidden) hidden.value = activeNames.join(", ");
     }
 
     // Submit & Complete Physical Verification
@@ -1313,10 +1806,16 @@
     }
 
     async function submitDueDiligenceForm() {
+      if (!agentSelfieDataUrl) {
+        if (!confirm("Field Staff Selfie has not been captured yet. Capturing your selfie authenticates attendance to start the survey. Do you wish to continue without selfie?")) {
+          return;
+        }
+      }
+
       const exec = document.getElementById("formExecutive").value;
       const persona = document.getElementById("formPersona").value;
       const marital = document.getElementById("formMarital").value;
-      const ageComm = document.getElementById("formAgeCommunity").value;
+      const ageComm = (document.getElementById("formAge") || {}).value || "29 years";
       const family = document.getElementById("formFamily").value;
       const bType = document.getElementById("formBuildingType").value;
       const bhk = document.getElementById("formBhk").value;
@@ -1326,10 +1825,12 @@
       const refs = document.getElementById("formReferences").value;
       const personMet = document.getElementById("formPersonMet").value;
       const occupation = document.getElementById("formOccupation").value;
+      const assetsObserved = (document.getElementById("formAssetsObserved") || {}).value || "AC, FAN, LIGHT, SOFA, FRIDGE, RO, CCTV";
       
       const payload = {
         executive: exec,
         persona: persona,
+        agent_selfie: agentSelfieDataUrl ? "VERIFIED_GEOTAGGED_SELFIE" : null,
         marital_status: marital,
         age_community: ageComm,
         family_members: family,
@@ -1340,8 +1841,8 @@
         neighbour_1: refs.split(",")[0] || "Neighbour 1",
         neighbour_2: refs.split(",")[1] || "Neighbour 2",
         person_met: personMet,
-        assets_observed: "A.C., Refrigerator, Sofa Set, T.V., Two-Wheeler, RO Filter",
-        nameboard_visible: "Yes (Confirmed at entrance)",
+        assets_observed: assetsObserved,
+        nameboard_visible: "No (બોર્ડ નથી)",
         office_details: `Occupation: ${occupation}. ${occupation === 'House Wife' ? 'Applicant is a Housewife (Co-applicant / Home Maker). Business verification is Not Applicable.' : 'Business verification conducted.'}`
       };
 
@@ -1357,8 +1858,8 @@
           body: JSON.stringify({ form_data: payload })
         });
         if (res.ok) {
-          alertText.innerHTML = `<b>✓ Due Diligence Form Synced:</b> ${bhk} ${bType} (${own}), ${stay} stay. Successfully pushed to CA Portal for Scrutiny.`;
-          alert(`[✓] Due Diligence Form Synced Successfully!\nExecutive: ${exec}\nProperty: ${bhk} ${bType} (${own})\nDuration of Stay: ${stay}\nData has been pushed to CA Verification Desk.`);
+          alertText.innerHTML = `<b>✓ Due Diligence Form Synced:</b> ${bhk} ${bType} (${own}), ${stay} stay, ${visibleAssets.filter(a=>a.active).length} assets. Successfully pushed to CA Portal for Scrutiny.`;
+          alert(`[✓] Due Diligence Form Synced Successfully!\nExecutive: ${exec}\nPersona: ${persona}\nProperty: ${bhk} ${bType} (${own})\nDuration of Stay: ${stay}\nAssets: ${assetsObserved}\nData has been pushed to CA Verification Desk.`);
         } else {
           localStorage.setItem(`field_form_${sampleCaseId}`, JSON.stringify(payload));
           alertText.innerHTML = `<b>✓ Cached Locally:</b> Form saved in PWA offline queue. Will auto-sync when online.`;
@@ -1537,6 +2038,8 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       checkAgentAuth();
+      renderFamilyMembers();
+      renderAssetsChips();
     });
   </script>
 
