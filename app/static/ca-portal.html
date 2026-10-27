@@ -2537,7 +2537,12 @@
         const col = document.createElement("div");
         col.className = "group relative rounded-lg bg-black/60 border border-white/20 p-1 flex flex-col items-center hover:border-amber-400 cursor-pointer transition-all";
         col.title = `${d.document_title || ""}${d.holder_name ? "\nHolder: " + d.holder_name : ""}${(d.discrepancies || []).length ? "\n⚠ " + d.discrepancies.join("\n⚠ ") : ""}`;
-        col.onclick = () => window.open(d.image_url, "_blank", "noopener");
+        col.onclick = () => openVaultDocZoom(
+          `Page ${d.page_number || ''} • ${shortType}`,
+          `${d.holder_name || ''} ${d.document_title || ''}`,
+          d.image_url,
+          d.scan_status || 'VERIFIED'
+        );
 
         const frame = document.createElement("div");
         frame.className = "w-full h-16 rounded overflow-hidden bg-slate-900 mb-1 flex items-center justify-center";
@@ -3067,8 +3072,132 @@
       if (pill) pill.textContent = c.aadhaar_masked || "Pending AI scan";
     }
 
-    // High-Resolution Lightbox Zoom Modal Logic
+    // High-Resolution Lightbox Zoom Modal Logic with Full Page Zoom & Pan Engine
     let currentZoomSection = "aadhaar";
+    let docZoomState = {
+      scale: 1,
+      translateX: 0,
+      translateY: 0,
+      rotation: 0,
+      isDragging: false,
+      startX: 0,
+      startY: 0,
+      isFullscreen: false
+    };
+
+    function updateZoomTransform() {
+      const container = document.getElementById("zoomTransformContainer");
+      const badge = document.getElementById("zoomLevelBadge");
+      const hud = document.getElementById("hudZoomText");
+      if (!container) return;
+      const pct = Math.round(docZoomState.scale * 100);
+      if (badge) badge.textContent = `${pct}%`;
+      if (hud) hud.textContent = `${pct}%`;
+      container.style.transform = `translate(${docZoomState.translateX}px, ${docZoomState.translateY}px) scale(${docZoomState.scale}) rotate(${docZoomState.rotation}deg)`;
+    }
+
+    function zoomDocModal(delta) {
+      docZoomState.scale = Math.min(Math.max(0.4, +(docZoomState.scale + delta).toFixed(2)), 4.0);
+      updateZoomTransform();
+    }
+
+    function resetDocZoom() {
+      docZoomState.scale = 1;
+      docZoomState.translateX = 0;
+      docZoomState.translateY = 0;
+      docZoomState.rotation = 0;
+      updateZoomTransform();
+    }
+
+    function fitDocToPage() {
+      docZoomState.scale = 0.85;
+      docZoomState.translateX = 0;
+      docZoomState.translateY = 0;
+      updateZoomTransform();
+    }
+
+    function fitDocToWidth() {
+      docZoomState.scale = 1.35;
+      docZoomState.translateX = 0;
+      docZoomState.translateY = 0;
+      updateZoomTransform();
+    }
+
+    function rotateDocModal() {
+      docZoomState.rotation = (docZoomState.rotation + 90) % 360;
+      updateZoomTransform();
+    }
+
+    function toggleDocZoomFullscreen() {
+      const modalBox = document.getElementById("docZoomModalBox");
+      const icon = document.getElementById("iconDocFullscreen");
+      docZoomState.isFullscreen = !docZoomState.isFullscreen;
+      if (docZoomState.isFullscreen) {
+        modalBox.classList.remove("max-w-6xl", "w-[96vw]", "h-[94vh]");
+        modalBox.classList.add("w-[99vw]", "h-[98vh]", "max-w-none", "max-h-none");
+        if (icon) icon.textContent = "fullscreen_exit";
+      } else {
+        modalBox.classList.remove("w-[99vw]", "h-[98vh]", "max-w-none", "max-h-none");
+        modalBox.classList.add("max-w-6xl", "w-[96vw]", "h-[94vh]");
+        if (icon) icon.textContent = "fullscreen";
+      }
+    }
+
+    function openDocInNewTab() {
+      const flipCard = document.getElementById("zoomFlipCard");
+      const frontImg = document.getElementById("zoomFrontImg");
+      const backImg = document.getElementById("zoomBackImg");
+      const isFlipped = flipCard && flipCard.classList.contains("is-flipped");
+      const activeSrc = isFlipped ? backImg.src : frontImg.src;
+      if (activeSrc && !activeSrc.includes("placeholders")) {
+        window.open(activeSrc, "_blank", "noopener");
+      }
+    }
+
+    function initZoomPanHandlers() {
+      const vp = document.getElementById("zoomViewport");
+      if (!vp || vp._zoomPanInit) return;
+      vp._zoomPanInit = true;
+
+      vp.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        if (e.target.closest("button") || e.target.closest("label")) return;
+        docZoomState.isDragging = true;
+        docZoomState.startX = e.clientX - docZoomState.translateX;
+        docZoomState.startY = e.clientY - docZoomState.translateY;
+        vp.style.cursor = "grabbing";
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!docZoomState.isDragging) return;
+        docZoomState.translateX = e.clientX - docZoomState.startX;
+        docZoomState.translateY = e.clientY - docZoomState.startY;
+        updateZoomTransform();
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (docZoomState.isDragging) {
+          docZoomState.isDragging = false;
+          if (vp) vp.style.cursor = "grab";
+        }
+      });
+
+      vp.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.15 : -0.15;
+        zoomDocModal(delta);
+      }, { passive: false });
+
+      vp.addEventListener("dblclick", (e) => {
+        if (e.target.closest("button") || e.target.closest("label")) return;
+        if (docZoomState.scale > 1.2) {
+          resetDocZoom();
+        } else {
+          docZoomState.scale = 2.0;
+          updateZoomTransform();
+        }
+      });
+    }
 
     function openDocZoomModal(section) {
       currentZoomSection = section;
@@ -3079,7 +3208,12 @@
       const frontLabel = document.getElementById("zoomFrontLabel");
       const backLabel = document.getElementById("zoomBackLabel");
       const flipCard = document.getElementById("zoomFlipCard");
+      const sideControls = document.getElementById("zoomSideControls");
+      const flipBtn = document.getElementById("zoomFlipBtn");
       const c = caseRegistry[activeCaseId] || {};
+
+      if (sideControls) sideControls.classList.remove("hidden");
+      if (flipBtn) flipBtn.classList.remove("hidden");
 
       if (section === "aadhaar") {
         title.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">badge</span> Aadhaar Card (Front / Back) • ${c.applicant_name || 'Scrutiny'}`;
@@ -3101,16 +3235,18 @@
         backLabel.textContent = `Physical CPV Due Diligence Inspection Form - Completed for ${c.applicant_name}`;
       }
 
-      if (docState[section].isFlipped) {
+      if (docState[section] && docState[section].isFlipped) {
         flipCard.classList.add("is-flipped");
-        document.getElementById("zoomSideBtnFront").className = "px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
-        document.getElementById("zoomSideBtnBack").className = "px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
+        document.getElementById("zoomSideBtnFront").className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
+        document.getElementById("zoomSideBtnBack").className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
       } else {
         flipCard.classList.remove("is-flipped");
-        document.getElementById("zoomSideBtnFront").className = "px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
-        document.getElementById("zoomSideBtnBack").className = "px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
+        document.getElementById("zoomSideBtnFront").className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
+        document.getElementById("zoomSideBtnBack").className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
       }
 
+      resetDocZoom();
+      initZoomPanHandlers();
       modal.classList.remove("hidden");
     }
 
@@ -3118,30 +3254,35 @@
       const flipCard = document.getElementById("zoomFlipCard");
       const isFlipped = flipCard.classList.toggle("is-flipped");
       document.getElementById("zoomSideBtnFront").className = !isFlipped 
-        ? "px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm" 
-        : "px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
+        ? "px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm" 
+        : "px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
       document.getElementById("zoomSideBtnBack").className = isFlipped 
-        ? "px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm" 
-        : "px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
-      setDocSide(currentZoomSection, isFlipped ? "back" : "front");
+        ? "px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm" 
+        : "px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
+      if (docState[currentZoomSection]) {
+        setDocSide(currentZoomSection, isFlipped ? "back" : "front");
+      }
     }
 
     function setZoomSide(side) {
       const flipCard = document.getElementById("zoomFlipCard");
       if (side === "back") {
         flipCard.classList.add("is-flipped");
-        document.getElementById("zoomSideBtnFront").className = "px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
-        document.getElementById("zoomSideBtnBack").className = "px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
+        document.getElementById("zoomSideBtnFront").className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
+        document.getElementById("zoomSideBtnBack").className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
       } else {
         flipCard.classList.remove("is-flipped");
-        document.getElementById("zoomSideBtnFront").className = "px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
-        document.getElementById("zoomSideBtnBack").className = "px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
+        document.getElementById("zoomSideBtnFront").className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
+        document.getElementById("zoomSideBtnBack").className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
       }
-      setDocSide(currentZoomSection, side);
+      if (docState[currentZoomSection]) {
+        setDocSide(currentZoomSection, side);
+      }
     }
 
     function closeDocZoomModal() {
       document.getElementById("docZoomModal").classList.add("hidden");
+      resetDocZoom();
     }
 
     // ==========================================
@@ -4350,12 +4491,29 @@
     });
 
     window.addEventListener("keydown", (e) => {
+      const zoomModal = document.getElementById("docZoomModal");
+      const isZoomOpen = zoomModal && !zoomModal.classList.contains("hidden");
       if (e.key === "Escape") {
         closeDocZoomModal();
         closeHandoverModal();
       }
-      if ((e.key === " " || e.key === "f" || e.key === "F") && !document.getElementById("docZoomModal").classList.contains("hidden")) {
-        flipZoomCard();
+      if (isZoomOpen) {
+        if (e.key === " " || e.key === "f" || e.key === "F") {
+          e.preventDefault();
+          flipZoomCard();
+        } else if (e.key === "+" || e.key === "=") {
+          e.preventDefault();
+          zoomDocModal(0.25);
+        } else if (e.key === "-" || e.key === "_") {
+          e.preventDefault();
+          zoomDocModal(-0.25);
+        } else if (e.key === "0") {
+          e.preventDefault();
+          resetDocZoom();
+        } else if (e.key === "r" || e.key === "R") {
+          e.preventDefault();
+          rotateDocModal();
+        }
       }
     });
   
@@ -4508,7 +4666,14 @@
       frontLabel.textContent = `${title} • ${sub} (${status})`;
       backLabel.textContent = `CA Vault Certified Scan • SHA256 Intact • Tamper Sealed`;
 
+      const sideControls = document.getElementById("zoomSideControls");
+      const flipBtn = document.getElementById("zoomFlipBtn");
+      if (sideControls) sideControls.classList.add("hidden");
+      if (flipBtn) flipBtn.classList.add("hidden");
+
       if (flipCard) flipCard.classList.remove("is-flipped");
+      resetDocZoom();
+      initZoomPanHandlers();
       modal.classList.remove("hidden");
     }
 
@@ -4643,61 +4808,121 @@
 
   </script>
 
-  <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH 3D FLIP -->
-  <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 lg:p-8 animate-fadeIn">
-    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+  <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
+  <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
+    <div id="docZoomModalBox" class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-6xl w-[96vw] h-[94vh] flex flex-col shadow-2xl overflow-hidden transition-all duration-200">
       <!-- Modal Header -->
-      <div class="px-5 py-3.5 border-b border-outline-variant flex items-center justify-between bg-surface-container-low">
-        <h3 id="zoomModalTitle" class="font-headline font-bold text-sm text-on-surface flex items-center gap-2">
-          Document Inspection
+      <div class="px-4 py-2.5 sm:px-5 sm:py-3 border-b border-outline-variant flex items-center justify-between bg-surface-container-low shrink-0 gap-2">
+        <h3 id="zoomModalTitle" class="font-headline font-bold text-xs sm:text-sm text-on-surface flex items-center gap-2 truncate">
+          <span class="material-symbols-outlined text-primary-container text-[20px]">verified_user</span>
+          <span>Document Inspection</span>
         </h3>
-        <div class="flex items-center gap-2">
-          <!-- Flip Controls Inside Modal -->
-          <div class="inline-flex items-center bg-surface-container-high p-0.5 rounded-full border border-outline-variant text-xs">
-            <button id="zoomSideBtnFront" onclick="setZoomSide('front')" class="px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm">Front Side</button>
-            <button id="zoomSideBtnBack" onclick="setZoomSide('back')" class="px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant">Back Side</button>
+        
+        <!-- Controls Toolbar -->
+        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap justify-end">
+          <!-- Zoom & Transform Controls -->
+          <div class="inline-flex items-center bg-surface-container-high px-1 py-0.5 rounded-lg border border-outline-variant text-xs gap-0.5 font-mono">
+            <button type="button" onclick="zoomDocModal(-0.25)" class="p-1 rounded hover:bg-surface-container text-on-surface" title="Zoom Out (-)">
+              <span class="material-symbols-outlined text-[17px]">zoom_out</span>
+            </button>
+            <button type="button" onclick="resetDocZoom()" id="zoomLevelBadge" class="px-2 py-0.5 rounded bg-surface-container text-primary-container font-bold text-[11px] hover:bg-white transition-colors" title="Click to Reset Zoom (100%)">
+              100%
+            </button>
+            <button type="button" onclick="zoomDocModal(0.25)" class="p-1 rounded hover:bg-surface-container text-on-surface" title="Zoom In (+)">
+              <span class="material-symbols-outlined text-[17px]">zoom_in</span>
+            </button>
+            <div class="w-px h-3.5 bg-outline-variant/60 mx-0.5"></div>
+            <button type="button" onclick="fitDocToPage()" class="px-2 py-0.5 rounded hover:bg-surface-container text-on-surface text-[10px] font-bold flex items-center gap-1" title="Fit Full Page Height">
+              <span class="material-symbols-outlined text-[15px]">fit_screen</span>
+              <span class="hidden md:inline">Fit Page</span>
+            </button>
+            <button type="button" onclick="fitDocToWidth()" class="px-2 py-0.5 rounded hover:bg-surface-container text-on-surface text-[10px] font-bold flex items-center gap-1" title="Fit Full Width">
+              <span class="material-symbols-outlined text-[15px]">width</span>
+              <span class="hidden md:inline">Fit Width</span>
+            </button>
+            <button type="button" onclick="rotateDocModal()" class="p-1 rounded hover:bg-surface-container text-on-surface" title="Rotate 90° Clockwise">
+              <span class="material-symbols-outlined text-[17px]">rotate_right</span>
+            </button>
           </div>
-          <button onclick="flipZoomCard()" class="px-3 py-1 bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs">
-            <span class="material-symbols-outlined text-[15px]">sync</span>
-            <span>Flip Document ↻</span>
+
+          <!-- Fullscreen / Maximize Toggle -->
+          <button type="button" onclick="toggleDocZoomFullscreen()" id="btnDocFullscreen" class="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant flex items-center justify-center transition-all" title="Toggle Fullscreen / Maximize View">
+            <span class="material-symbols-outlined text-[18px]" id="iconDocFullscreen">fullscreen</span>
           </button>
-          <button onclick="closeDocZoomModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-all">
+
+          <!-- Open in New Tab -->
+          <button type="button" onclick="openDocInNewTab()" class="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant flex items-center justify-center transition-all" title="Open Original Full-Resolution Scan in New Tab">
+            <span class="material-symbols-outlined text-[18px]">open_in_new</span>
+          </button>
+
+          <!-- Front / Back Flip Side Controls -->
+          <div id="zoomSideControls" class="inline-flex items-center bg-surface-container-high p-0.5 rounded-full border border-outline-variant text-xs">
+            <button id="zoomSideBtnFront" onclick="setZoomSide('front')" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm">Front Side</button>
+            <button id="zoomSideBtnBack" onclick="setZoomSide('back')" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant">Back Side</button>
+          </div>
+          <button id="zoomFlipBtn" onclick="flipZoomCard()" class="px-2.5 py-1 bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 rounded-full text-xs font-bold flex items-center gap-1 transition-all shadow-xs" title="3D Flip Document (Spacebar / F)">
+            <span class="material-symbols-outlined text-[15px]">sync</span>
+            <span class="hidden sm:inline">Flip ↻</span>
+          </button>
+
+          <!-- Close Modal -->
+          <button onclick="closeDocZoomModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-all" title="Close [Esc]">
             <span class="material-symbols-outlined text-[20px]">close</span>
           </button>
         </div>
       </div>
 
-      <!-- Modal Body (3D Flip Inspector Container) -->
-      <div class="p-6 flex-1 overflow-y-auto flex flex-col items-center justify-center bg-slate-950/90 relative">
-        <div class="doc-flip-container max-w-2xl w-full cursor-pointer" onclick="flipZoomCard()" title="Click anywhere to 3D flip card">
-          <div id="zoomFlipCard" class="doc-flip-card shadow-2xl rounded-xl" style="height: 480px;">
-            <!-- Modal Front Face -->
-            <div class="doc-flip-face doc-flip-front flex flex-col items-center justify-center bg-slate-900 rounded-xl overflow-hidden border border-white/20">
-              <img id="zoomFrontImg" src="" class="max-h-full max-w-full object-contain" alt="Document Front Inspection"/>
-              <div class="absolute bottom-3 inset-x-4 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-white flex items-center justify-between font-mono">
-                <span id="zoomFrontLabel">Document Front Side</span>
-                <span class="text-blue-300 font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">sync</span> Click anywhere to Flip</span>
+      <!-- Modal Body (Viewer Container with Pan, Scroll, and 3D Flip) -->
+      <div id="zoomViewport" class="flex-1 w-full overflow-hidden relative flex items-center justify-center bg-slate-950 p-2 select-none cursor-grab active:cursor-grabbing" style="min-height: 480px;">
+        <div id="zoomTransformContainer" class="transition-transform duration-100 ease-out flex items-center justify-center" style="transform: translate(0px, 0px) scale(1) rotate(0deg); transform-origin: center center;">
+          <div class="doc-flip-container w-[820px] max-w-[94vw]" style="perspective: 1600px;">
+            <div id="zoomFlipCard" class="doc-flip-card shadow-2xl rounded-xl relative" style="height: 78vh; min-height: 520px; max-height: 900px;">
+              <!-- Modal Front Face -->
+              <div class="doc-flip-face doc-flip-front flex flex-col items-center justify-center bg-slate-900 rounded-xl overflow-hidden border border-white/20">
+                <img id="zoomFrontImg" src="" class="w-full h-full object-contain pointer-events-none" alt="Document Front Inspection"/>
+                <div class="absolute bottom-3 inset-x-4 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-white flex items-center justify-between font-mono pointer-events-auto">
+                  <span id="zoomFrontLabel" class="truncate pr-2">Document Front Side</span>
+                  <button type="button" onclick="flipZoomCard()" class="text-blue-300 hover:text-blue-200 font-bold flex items-center gap-1 shrink-0"><span class="material-symbols-outlined text-[14px]">sync</span> Flip to Back</button>
+                </div>
               </div>
-            </div>
-            <!-- Modal Back Face -->
-            <div class="doc-flip-face doc-flip-back flex flex-col items-center justify-center bg-slate-900 rounded-xl overflow-hidden border border-white/20">
-              <img id="zoomBackImg" src="" class="max-h-full max-w-full object-contain" alt="Document Back Inspection"/>
-              <div class="absolute bottom-3 inset-x-4 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-white flex items-center justify-between font-mono">
-                <span id="zoomBackLabel">Document Back Side</span>
-                <span class="text-blue-300 font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">sync</span> Click anywhere to Flip</span>
+              <!-- Modal Back Face -->
+              <div class="doc-flip-face doc-flip-back flex flex-col items-center justify-center bg-slate-900 rounded-xl overflow-hidden border border-white/20">
+                <img id="zoomBackImg" src="" class="w-full h-full object-contain pointer-events-none" alt="Document Back Inspection"/>
+                <div class="absolute bottom-3 inset-x-4 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-white flex items-center justify-between font-mono pointer-events-auto">
+                  <span id="zoomBackLabel" class="truncate pr-2">Document Back Side</span>
+                  <button type="button" onclick="flipZoomCard()" class="text-blue-300 hover:text-blue-200 font-bold flex items-center gap-1 shrink-0"><span class="material-symbols-outlined text-[14px]">sync</span> Flip to Front</button>
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        <!-- Floating Quick HUD Controls on bottom right -->
+        <div class="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-black/75 backdrop-blur-md border border-white/20 rounded-full px-2.5 py-1 shadow-xl text-white font-mono text-xs">
+          <button type="button" onclick="zoomDocModal(-0.25)" class="w-6 h-6 rounded-full hover:bg-white/20 flex items-center justify-center" title="Zoom Out (-)">
+            <span class="material-symbols-outlined text-[15px]">remove</span>
+          </button>
+          <span id="hudZoomText" class="font-bold text-[11px] px-1 min-w-[36px] text-center">100%</span>
+          <button type="button" onclick="zoomDocModal(0.25)" class="w-6 h-6 rounded-full hover:bg-white/20 flex items-center justify-center" title="Zoom In (+)">
+            <span class="material-symbols-outlined text-[15px]">add</span>
+          </button>
+          <button type="button" onclick="resetDocZoom()" class="w-6 h-6 rounded-full hover:bg-white/20 flex items-center justify-center text-amber-300 ml-0.5" title="Reset Zoom (100%)">
+            <span class="material-symbols-outlined text-[15px]">restart_alt</span>
+          </button>
+          <button type="button" onclick="toggleDocZoomFullscreen()" class="w-6 h-6 rounded-full hover:bg-white/20 flex items-center justify-center text-sky-300" title="Maximize View">
+            <span class="material-symbols-outlined text-[15px]">fullscreen</span>
+          </button>
+        </div>
       </div>
 
       <!-- Modal Footer -->
-      <div class="px-5 py-2.5 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-xs text-on-surface-variant font-mono">
+      <div class="px-5 py-2 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-xs text-on-surface-variant font-mono shrink-0">
         <div class="flex items-center gap-2">
-          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span>High-Resolution Ingestion Verified • Rule 4 Safe Harbor Compliant</span>
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span class="hidden sm:inline">High-Resolution Full Page Viewer • Drag to pan • Scroll to zoom • Double click to toggle</span>
+          <span class="sm:hidden">Drag to pan • Scroll to zoom</span>
         </div>
-        <span class="text-outline">Tip: Press [Space] or [F] to flip, [Esc] to close</span>
+        <span class="text-outline text-[11px]">Tip: [+] / [-] zoom • [Space] / [F] flip • [Esc] close</span>
       </div>
     </div>
   </div>
