@@ -744,26 +744,48 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Occupation (વ્યવસાય)*</label>
-            <select id="formOccupation" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
-              <option value="House Wife" selected>House Wife (ગૃહિણી)</option>
-              <option value="Business">Business (ધંધો)</option>
-              <option value="Job">Job / Salaried (નોકરી)</option>
+            <select id="formOccupation" onchange="handleOccupationChange(this.value)" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="Job" selected>Job / Salaried (નોકરી - શિક્ષક / કર્મચારી)</option>
+              <option value="Business">Business / Self-Employed (ધંધો / વ્યવસાય)</option>
+              <option value="House Wife">House Wife (ગૃહિણી / Home Maker)</option>
               <option value="Retired">Retired / Pensioner</option>
             </select>
           </div>
           <div>
-            <label class="font-mono text-[10px] text-outline block mb-1">Work From Home (ઘરે થી કામ કરે છે?)*</label>
-            <input value="Only resident visit" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-outline" readonly/>
+            <label class="font-mono text-[10px] text-outline block mb-1">Designation / Role (હોદ્દો / પોઝિશન)*</label>
+            <input id="formDesignation" value="Teacher (શિક્ષક)" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Teacher, Clerk, Manager"/>
           </div>
           <div>
-            <label class="font-mono text-[10px] text-outline block mb-1">Firm Name (કંપની નું નામ)*</label>
-            <input value="Only resident visit (House Wife)" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-outline" readonly/>
+            <label class="font-mono text-[10px] text-outline block mb-1">Work From Home (ઘરે થી કામ કરે છે?)*</label>
+            <select id="formWorkFromHome" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="No" selected>No - Physical Workplace Visit (ઓફીસ / શાળા સ્થળ તપાસ)</option>
+              <option value="Yes">Yes - Works From Home</option>
+            </select>
           </div>
         </div>
 
-        <div class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center gap-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Employer / School / Firm Name (સંસ્થા / કંપની નું નામ)*</label>
+            <input id="formFirmName" value="M/s. District Panchayat Education Committee" class="w-full text-xs font-bold rounded-lg border border-outline-variant bg-white p-2 text-primary-container" placeholder="Enter school / employer / company name"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Office / Workplace Address (ઓફીસ / શાળા નું સરનામું)*</label>
+            <input id="formOfficeAddress" value="District Panchayat Education Committee, Dholka, Gujarat-382260" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="Enter office / workplace address"/>
+          </div>
+        </div>
+
+        <!-- DYNAMIC NOTIFICATION: EMPLOYED VS HOUSEWIFE -->
+        <div id="officeVerificationNotice" class="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2">
+          <span class="material-symbols-outlined text-[18px] text-primary-container shrink-0 mt-0.5">verified</span>
+          <div>
+            <b>Office / Workplace Verification Required:</b> Applicant is employed/salaried (<span id="dispNoticeOccupation">Teacher</span> at <span id="dispNoticeFirm">District Panchayat Education Committee</span>). Physical site verification of workplace and capturing 4 Geotagged Office Premises Evidence Photos is <u>mandatory</u>.
+          </div>
+        </div>
+
+        <div id="housewifeExemptionNotice" class="hidden p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center gap-2">
           <span class="material-symbols-outlined text-[18px] text-secondary">verified</span>
-          <span><b>Office Verification Exemption:</b> Applicant is a Home Maker / Co-applicant. Resident visit completed. Office verification is Not Applicable.</span>
+          <span><b>Office Verification Exemption:</b> Applicant is a Home Maker / Housewife. Resident visit completed. Office verification is Not Applicable.</span>
         </div>
       </div>
 
@@ -967,27 +989,39 @@
       </div>
     </section>
 
-    <!-- Dedicated Physical Evidence Photo Upload Slots -->
+    <!-- Dedicated Physical Evidence Photo Upload Slots with Dual Folder Support -->
     <section class="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm flex flex-col gap-3">
-      <div class="flex items-center justify-between pb-3 border-b border-outline-variant">
+      <div class="flex items-center justify-between pb-2 border-b border-outline-variant">
         <div>
           <h3 class="font-headline font-bold text-sm text-on-surface">Physical Verification Photo Evidence</h3>
-          <p class="font-mono text-[10px] text-outline">સ્થળ તપાસ ફોટોગ્રાફ્સ અપલોડ • 4 Mandatory Slots</p>
+          <p class="font-mono text-[10px] text-outline">સ્થળ તપાસ ફોટોગ્રાફ્સ અપલોડ • Residence & Office Folders</p>
         </div>
         <div class="flex flex-col items-end">
-          <span class="font-mono text-[10px] uppercase text-outline">Slots Completed</span>
+          <span class="font-mono text-[10px] uppercase text-outline">Evidence Status</span>
           <span id="evidenceSlotsCount" class="font-headline font-bold text-xs text-primary-container">0 OF 4 COMPLETE</span>
         </div>
+      </div>
+
+      <!-- DUAL EVIDENCE FOLDER TABS: Residence vs Office -->
+      <div class="bg-surface-container-high p-1.5 rounded-xl border border-outline-variant flex items-center gap-2">
+        <button id="pwaTabResidence" type="button" onclick="switchPwaPhotoFolder('residence')" class="flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-primary-container text-white shadow-xs">
+          <span class="material-symbols-outlined text-[16px]">home</span>
+          <span>Residence Evidence (રહેઠાણ - 4)</span>
+        </button>
+        <button id="pwaTabOffice" type="button" onclick="switchPwaPhotoFolder('office')" class="flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container">
+          <span class="material-symbols-outlined text-[16px]">domain</span>
+          <span>Office Evidence (ઓફીસ / શાળા - 4)</span>
+        </button>
       </div>
 
       <!-- Instruction banner -->
       <div class="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-primary-container text-xs flex items-center gap-2">
         <span class="material-symbols-outlined text-[18px] text-blue-700 shrink-0">info</span>
-        <span>Upload mandatory geotagged photographs in the designated slots below. Once all slots are uploaded, submit the dossier to complete the physical verification.</span>
+        <span id="pwaFolderInstructionText">Upload mandatory geotagged residential photographs in the designated slots below. For employed/business applicants, switch to Office Evidence to capture workplace photos.</span>
       </div>
 
-      <!-- 4 Photo Evidence Slots -->
-      <div class="space-y-3">
+      <!-- FOLDER 1: Residence Slots (4 Slots) -->
+      <div id="pwaResidenceSlotsContainer" class="space-y-3">
         <!-- Slot 1: Society / Building Entrance -->
         <div id="slotCard1" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
           <div class="flex items-start gap-3 w-full sm:w-auto">
@@ -1003,7 +1037,7 @@
               <p class="font-mono text-[10px] text-outline mt-0.5">Target: Society entrance, main road, signboard</p>
             </div>
           </div>
-          <button onclick="triggerSlotCapture(1, 'PROPERTY_EXTERIOR')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+          <button onclick="triggerSlotCapture(1, 'PROPERTY_EXTERIOR', 'residence')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
             <span class="material-symbols-outlined text-[16px]">photo_camera</span>
             <span id="slot1BtnText">Capture Gate Photo</span>
           </button>
@@ -1024,7 +1058,7 @@
               <p class="font-mono text-[10px] text-outline mt-0.5">Target: Flat number plate, door entrance, elevation</p>
             </div>
           </div>
-          <button onclick="triggerSlotCapture(2, 'PROPERTY_EXTERIOR')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+          <button onclick="triggerSlotCapture(2, 'PROPERTY_EXTERIOR', 'residence')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
             <span class="material-symbols-outlined text-[16px]">photo_camera</span>
             <span id="slot2BtnText">Capture Door Photo</span>
           </button>
@@ -1045,7 +1079,7 @@
               <p class="font-mono text-[10px] text-outline mt-0.5">Target: Physical meter number matching bill & interior assets</p>
             </div>
           </div>
-          <button onclick="triggerSlotCapture(3, 'ELECTRICITY_METER')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+          <button onclick="triggerSlotCapture(3, 'ELECTRICITY_METER', 'residence')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
             <span class="material-symbols-outlined text-[16px]">photo_camera</span>
             <span id="slot3BtnText">Capture Meter Photo</span>
           </button>
@@ -1066,9 +1100,96 @@
               <p class="font-mono text-[10px] text-outline mt-0.5">Target: Person met standing in the premises / co-applicant</p>
             </div>
           </div>
-          <button onclick="triggerSlotCapture(4, 'NEIGHBOR_VERIFICATION')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+          <button onclick="triggerSlotCapture(4, 'NEIGHBOR_VERIFICATION', 'residence')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
             <span class="material-symbols-outlined text-[16px]">photo_camera</span>
             <span id="slot4BtnText">Capture Person Met</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- FOLDER 2: Office / Workplace Slots (4 Slots) -->
+      <div id="pwaOfficeSlotsContainer" class="hidden space-y-3">
+        <!-- Office Slot 1: Workplace Entrance & Building Facade -->
+        <div id="slotCardOffice1" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotOffice1Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden">
+              <span class="material-symbols-outlined text-[22px]">apartment</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Office Slot 1: Building Entrance & Facade</span>
+                <span id="slotOffice1Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">ઓફીસ / શાળા નું બિલ્ડીંગ અને મુખ્ય પ્રવેશદ્વાર</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: School / Office main gate, building exterior, road view</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(1, 'OFFICE_FACADE', 'office')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotOffice1BtnText">Capture Office Entrance</span>
+          </button>
+        </div>
+
+        <!-- Office Slot 2: Official Name Board / Signboard -->
+        <div id="slotCardOffice2" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotOffice2Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden">
+              <span class="material-symbols-outlined text-[22px]">signpost</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Office Slot 2: Office / School Name Board</span>
+                <span id="slotOffice2Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">ઓફીસ / શાળા નું સત્તાવાર નેમ બોર્ડ (સંસ્થા નામ)</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Organization signboard, department nameplate</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(2, 'OFFICE_NAMEBOARD', 'office')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotOffice2BtnText">Capture Name Board</span>
+          </button>
+        </div>
+
+        <!-- Office Slot 3: Work Area / Staff Room / Desk -->
+        <div id="slotCardOffice3" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotOffice3Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden">
+              <span class="material-symbols-outlined text-[22px]">desk</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Office Slot 3: Staff Room / Work Area</span>
+                <span id="slotOffice3Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">કામ કરવાની જગ્યા / સ્ટાફ રૂમ / ટીચર ડેસ્ક</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Staff workstation, classroom/office desk, active operation</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(3, 'OFFICE_INTERIOR', 'office')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotOffice3BtnText">Capture Work Area</span>
+          </button>
+        </div>
+
+        <!-- Office Slot 4: Agent at Workplace / Colleague Met -->
+        <div id="slotCardOffice4" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotOffice4Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden">
+              <span class="material-symbols-outlined text-[22px]">badge</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Office Slot 4: Field Staff at Workplace / Met Staff</span>
+                <span id="slotOffice4Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">ઓફીસ સ્થળ પર એજન્ટ અથવા સહકર્મી / અધિકારી મુલાકાત</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Agent selfie at workplace / HR or colleague inquiry</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(4, 'OFFICE_SELFIE', 'office')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotOffice4BtnText">Capture Workplace Selfie</span>
           </button>
         </div>
       </div>
@@ -1270,10 +1391,61 @@
     let sampleCaseId = "b901fc63-12a8-4e32-9c02-e20984cfb001";
     let activeCaseKey = "UBI-HL-2026-20L";
 
-    // Dedicated Evidence Slots State
+    // Dedicated Evidence Slots State (Dual Folder Support: Residence & Office)
+    let currentPwaFolder = "residence"; // 'residence' or 'office'
     let activeUploadSlot = 1;
     let activeDocType = "PROPERTY_EXTERIOR";
-    const uploadedSlots = { 1: false, 2: false, 3: false, 4: false };
+    const uploadedResidenceSlots = { 1: false, 2: false, 3: false, 4: false };
+    const uploadedOfficeSlots = { 1: false, 2: false, 3: false, 4: false };
+    const uploadedSlots = uploadedResidenceSlots; // backward compatibility
+
+    // Switch between Residence and Office/Workplace Photo Folders in PWA
+    function switchPwaPhotoFolder(folder) {
+      currentPwaFolder = folder;
+      const tabRes = document.getElementById("pwaTabResidence");
+      const tabOff = document.getElementById("pwaTabOffice");
+      const contRes = document.getElementById("pwaResidenceSlotsContainer");
+      const contOff = document.getElementById("pwaOfficeSlotsContainer");
+      const inst = document.getElementById("pwaFolderInstructionText");
+
+      if (folder === "residence") {
+        if (tabRes) tabRes.className = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-primary-container text-white shadow-xs";
+        if (tabOff) tabOff.className = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container";
+        if (contRes) contRes.classList.remove("hidden");
+        if (contOff) contOff.classList.add("hidden");
+        if (inst) inst.textContent = "Upload mandatory geotagged residential photographs in the designated slots below. For employed/business applicants, switch to Office Evidence to capture workplace photos.";
+      } else {
+        if (tabOff) tabOff.className = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-primary-container text-white shadow-xs";
+        if (tabRes) tabRes.className = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container";
+        if (contOff) contOff.classList.remove("hidden");
+        if (contRes) contRes.classList.add("hidden");
+        if (inst) inst.textContent = "🏢 OFFICE / WORKPLACE EVIDENCE: Capture school/office entrance, signboard/nameplate, work area/staff desk, and field staff workplace verification selfie.";
+      }
+      updateEvidenceProgress();
+    }
+
+    // Toggle Occupation UI between Employed/Teacher/Business and Housewife
+    function handleOccupationChange(occ) {
+      const noticeWork = document.getElementById("officeVerificationNotice");
+      const noticeHw = document.getElementById("housewifeExemptionNotice");
+      const dispOcc = document.getElementById("dispNoticeOccupation");
+      const dispFirm = document.getElementById("dispNoticeFirm");
+      const firmInput = document.getElementById("formFirmName");
+      const roleInput = document.getElementById("formDesignation");
+      const wfhInput = document.getElementById("formWorkFromHome");
+
+      if (occ === "House Wife") {
+        if (noticeWork) noticeWork.classList.add("hidden");
+        if (noticeHw) noticeHw.classList.remove("hidden");
+        if (wfhInput) wfhInput.value = "Yes";
+      } else {
+        if (noticeWork) noticeWork.classList.remove("hidden");
+        if (noticeHw) noticeHw.classList.add("hidden");
+        if (dispOcc) dispOcc.textContent = occ === "Job" ? (roleInput ? roleInput.value : "Teacher / Job") : "Business / Self-Employed";
+        if (dispFirm) dispFirm.textContent = (firmInput && firmInput.value) || "Employer / School";
+        if (wfhInput) wfhInput.value = "No";
+      }
+    }
 
     // Haversine formula calculation in client JS
     function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
@@ -1336,13 +1508,14 @@
       // Update Watermark string preview
       const nowStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + " " + new Date().toLocaleTimeString('en-GB') + " IST";
       document.getElementById("watermarkBannerText").textContent = 
-        `CASE: SBI-HL-2024-8841 | AGENT: R. VARMA (FA-9042) | ${nowStr} | ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E | ACC: ${accuracy ? accuracy.toFixed(1) : '3.2'}m | GEOFENCE: ${isCompliant ? 'VALID' : 'BREACH'}`;
+        `CASE: ${activeCaseKey} | AGENT: FA-7701/7702 | ${nowStr} | ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E | ACC: ${accuracy ? accuracy.toFixed(1) : '3.2'}m | GEOFENCE: ${isCompliant ? 'VALID' : 'BREACH'}`;
     }
 
-    // Dedicated Slot Capture Trigger
-    function triggerSlotCapture(slotNum, docType) {
+    // Dedicated Slot Capture Trigger with Folder Awareness
+    function triggerSlotCapture(slotNum, docType, folder) {
       activeUploadSlot = slotNum;
       activeDocType = docType;
+      if (folder) currentPwaFolder = folder;
       const camInput = document.getElementById("cameraInput");
       if (camInput) {
         camInput.click();
@@ -1350,45 +1523,78 @@
     }
 
     function updateEvidenceProgress() {
-      const count = Object.values(uploadedSlots).filter(Boolean).length;
+      const isOffice = currentPwaFolder === "office";
+      const map = isOffice ? uploadedOfficeSlots : uploadedResidenceSlots;
+      const count = Object.values(map).filter(Boolean).length;
       const countEl = document.getElementById("evidenceSlotsCount");
-      if (countEl) countEl.textContent = `${count} OF 4 COMPLETE`;
+      if (countEl) countEl.textContent = `${count} OF 4 COMPLETE (${isOffice ? 'OFFICE' : 'RESIDENCE'})`;
     }
 
-    // Zero-lag File Upload Handler with Dedicated Evidence Slots
+    // Zero-lag File Upload Handler with Dedicated Evidence Slots (Residence & Office)
     async function handlePhotoUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
+
+      const isOffice = currentPwaFolder === "office";
 
       // Show instant client image preview in main photo preview
       const reader = new FileReader();
       reader.onload = (e) => {
         document.getElementById("previewPhotoImg").src = e.target.result;
 
-        // Update active slot thumbnail and status
-        uploadedSlots[activeUploadSlot] = true;
-        try {
-          localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${activeUploadSlot}`, JSON.stringify({
-            src: e.target.result,
-            timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + " IST",
-            lat: currentDeviceLat,
-            lon: currentDeviceLon
-          }));
-        } catch (storageErr) {
-          console.warn("Storage quota limit or private browsing:", storageErr);
-        }
-        const thumbEl = document.getElementById(`slot${activeUploadSlot}Thumb`);
-        if (thumbEl) {
-          thumbEl.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-lg"/>`;
-        }
-        const badgeEl = document.getElementById(`slot${activeUploadSlot}Badge`);
-        if (badgeEl) {
-          badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
-          badgeEl.textContent = "✓ UPLOADED";
-        }
-        const btnTextEl = document.getElementById(`slot${activeUploadSlot}BtnText`);
-        if (btnTextEl) {
-          btnTextEl.textContent = "Re-take Photo";
+        if (isOffice) {
+          uploadedOfficeSlots[activeUploadSlot] = true;
+          try {
+            localStorage.setItem(`pwa_evidence_${sampleCaseId}_office_slot_${activeUploadSlot}`, JSON.stringify({
+              src: e.target.result,
+              timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + " IST",
+              lat: currentDeviceLat,
+              lon: currentDeviceLon,
+              doc_type: activeDocType
+            }));
+          } catch (storageErr) {
+            console.warn("Storage quota limit or private browsing:", storageErr);
+          }
+          const thumbEl = document.getElementById(`slotOffice${activeUploadSlot}Thumb`);
+          if (thumbEl) {
+            thumbEl.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-lg"/>`;
+          }
+          const badgeEl = document.getElementById(`slotOffice${activeUploadSlot}Badge`);
+          if (badgeEl) {
+            badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+            badgeEl.textContent = "✓ UPLOADED";
+          }
+          const btnTextEl = document.getElementById(`slotOffice${activeUploadSlot}BtnText`);
+          if (btnTextEl) {
+            btnTextEl.textContent = "Re-take Photo";
+          }
+        } else {
+          uploadedResidenceSlots[activeUploadSlot] = true;
+          uploadedSlots[activeUploadSlot] = true;
+          try {
+            localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${activeUploadSlot}`, JSON.stringify({
+              src: e.target.result,
+              timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + " IST",
+              lat: currentDeviceLat,
+              lon: currentDeviceLon,
+              doc_type: activeDocType
+            }));
+          } catch (storageErr) {
+            console.warn("Storage quota limit or private browsing:", storageErr);
+          }
+          const thumbEl = document.getElementById(`slot${activeUploadSlot}Thumb`);
+          if (thumbEl) {
+            thumbEl.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-lg"/>`;
+          }
+          const badgeEl = document.getElementById(`slot${activeUploadSlot}Badge`);
+          if (badgeEl) {
+            badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+            badgeEl.textContent = "✓ UPLOADED";
+          }
+          const btnTextEl = document.getElementById(`slot${activeUploadSlot}BtnText`);
+          if (btnTextEl) {
+            btnTextEl.textContent = "Re-take Photo";
+          }
         }
         updateEvidenceProgress();
       };
@@ -1398,13 +1604,14 @@
       const alertBox = document.getElementById("uploadAlert");
       const alertText = document.getElementById("uploadAlertText");
       alertBox.classList.remove("hidden");
-      alertText.textContent = `Streaming Slot ${activeUploadSlot} photo to Railway storage & enqueuing Gemini OCR...`;
+      alertText.textContent = `Streaming ${isOffice ? 'Office' : 'Residence'} Slot ${activeUploadSlot} photo to Railway storage & enqueuing Gemini OCR...`;
 
       // Multipart upload
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("doc_type", activeDocType || "PROPERTY_EXTERIOR");
+      formData.append("doc_type", activeDocType || (isOffice ? "OFFICE_FACADE" : "PROPERTY_EXTERIOR"));
       formData.append("slot_number", activeUploadSlot);
+      formData.append("folder", isOffice ? "work" : "residence");
       formData.append("latitude", currentDeviceLat);
       formData.append("longitude", currentDeviceLon);
 
@@ -1423,7 +1630,7 @@
         if (response.status === 202 || response.status === 200) {
           const data = await response.json();
           alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
-          alertText.innerHTML = `✅ <b>Slot ${activeUploadSlot} Transmitted to CA Scrutiny Desk!</b><br/>GPS: ${currentDeviceLat.toFixed(4)}°N, ${currentDeviceLon.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>This photo is cryptographically locked and synced in real time.</i>`;
+          alertText.innerHTML = `✅ <b>${isOffice ? '🏢 Office' : '🏡 Residence'} Slot ${activeUploadSlot} Transmitted to CA Scrutiny Desk!</b><br/>GPS: ${currentDeviceLat.toFixed(4)}°N, ${currentDeviceLon.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>This photo is cryptographically locked and synced in real time.</i>`;
         } else {
           const errData = await response.json().catch(() => ({}));
           alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
@@ -2009,7 +2216,11 @@
       const owner = document.getElementById("formOwnerName").value;
       const refs = document.getElementById("formReferences").value;
       const personMet = document.getElementById("formPersonMet").value;
-      const occupation = document.getElementById("formOccupation").value;
+      const occupation = document.getElementById("formOccupation") ? document.getElementById("formOccupation").value : "Job";
+      const firmName = document.getElementById("formFirmName") ? document.getElementById("formFirmName").value : "";
+      const designation = document.getElementById("formDesignation") ? document.getElementById("formDesignation").value : "";
+      const officeAddress = document.getElementById("formOfficeAddress") ? document.getElementById("formOfficeAddress").value : "";
+      const wfh = document.getElementById("formWorkFromHome") ? document.getElementById("formWorkFromHome").value : "No";
       const assetsObserved = (document.getElementById("formAssetsObserved") || {}).value
         || visibleAssets.filter(a => a.active).map(a => a.name || a.label || a.id).filter(Boolean).join(", ");
       
@@ -2025,13 +2236,21 @@
         ownership: own,
         period_of_stay: stay,
         owner_name: owner,
-        // Only what the agent actually recorded on site — never placeholder answers
         neighbour_1: (refs.split(",")[0] || "").trim(),
         neighbour_2: (refs.split(",")[1] || "").trim(),
         person_met: personMet,
         assets_observed: assetsObserved,
         nameboard_visible: "",
-        office_details: `Occupation: ${occupation}. ${occupation === 'House Wife' ? 'Applicant is a Housewife (Co-applicant / Home Maker). Business verification is Not Applicable.' : 'Business verification conducted.'}`
+        occupation: occupation,
+        office_details: {
+          occupation: occupation,
+          designation: designation,
+          position: designation,
+          firm_name: firmName,
+          address: officeAddress,
+          work_from_home: wfh,
+          verification_status: occupation === 'House Wife' ? 'Not Applicable (Home Maker)' : 'Office Verification Conducted'
+        }
       };
 
       const alertBox = document.getElementById("uploadAlert");
@@ -2160,6 +2379,37 @@
       }
       renderFamilyMembers();
 
+      // ==========================================
+      // SYNCHRONIZE MODULE 3 (Office / Occupation & Employer Details) DYNAMICALLY
+      // ==========================================
+      const occRaw = (c.occupation || (c.firm_name ? "Job" : "House Wife")).toLowerCase();
+      const fOcc = document.getElementById("formOccupation");
+      if (fOcc) {
+        if (occRaw.includes("job") || occRaw.includes("teach") || occRaw.includes("salar") || occRaw.includes("shikshak")) {
+          fOcc.value = "Job";
+        } else if (occRaw.includes("business") || occRaw.includes("shop") || occRaw.includes("trade")) {
+          fOcc.value = "Business";
+        } else if (occRaw.includes("retire") || occRaw.includes("pension")) {
+          fOcc.value = "Retired";
+        } else {
+          fOcc.value = "House Wife";
+        }
+      }
+
+      const fFirm = document.getElementById("formFirmName");
+      if (fFirm) fFirm.value = c.firm_name || c.employer_name || "M/s. District Panchayat Education Committee";
+
+      const fRole = document.getElementById("formDesignation");
+      if (fRole) fRole.value = c.position || c.designation || "Teacher (શિક્ષક)";
+
+      const fOffAddr = document.getElementById("formOfficeAddress");
+      if (fOffAddr) fOffAddr.value = c.office_address || "District Panchayat Education Committee, Dholka, Gujarat-382260";
+
+      const fWfh = document.getElementById("formWorkFromHome");
+      if (fWfh) fWfh.value = (fOcc && fOcc.value === "House Wife") ? "Yes" : "No";
+
+      handleOccupationChange(fOcc ? fOcc.value : "Job");
+
       // Reset flip button states
       isAadhaarFlippedInline = false;
       isPanFlippedInline = false;
@@ -2168,16 +2418,45 @@
       if (document.getElementById("pwaDocPanSideBadge")) document.getElementById("pwaDocPanSideBadge").textContent = "FRONT";
       if (document.getElementById("btnTextPanFlip")) document.getElementById("btnTextPanFlip").textContent = "Flip Side";
 
-      // Reset slot states for the new case
+      // Reset & restore slot states for Residence & Office Folders
       for (let i = 1; i <= 4; i++) {
-        uploadedSlots[i] = false;
-        const b = document.getElementById(`slot${i}Badge`);
-        if (b) {
-          b.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
-          b.textContent = "PENDING";
+        // 1. Residence Slot
+        uploadedResidenceSlots[i] = false;
+        const bRes = document.getElementById(`slot${i}Badge`);
+        const btnRes = document.getElementById(`slot${i}BtnText`);
+        const thumbRes = document.getElementById(`slot${i}Thumb`);
+        const cachedRes = localStorage.getItem(`pwa_evidence_${sampleCaseId}_slot_${i}`);
+        if (cachedRes) {
+          try {
+            const parsed = JSON.parse(cachedRes);
+            uploadedResidenceSlots[i] = true;
+            if (bRes) { bRes.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bRes.textContent = "✓ UPLOADED"; }
+            if (btnRes) btnRes.textContent = "Re-take Photo";
+            if (thumbRes) thumbRes.innerHTML = `<img src="${parsed.src}" class="w-full h-full object-cover rounded-lg"/>`;
+          } catch(e) {}
+        } else {
+          if (bRes) { bRes.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bRes.textContent = "PENDING"; }
+          if (btnRes) btnRes.textContent = "Capture Photo";
         }
-        const btn = document.getElementById(`slot${i}BtnText`);
-        if (btn) btn.textContent = `Capture Photo`;
+
+        // 2. Office / Workplace Slot
+        uploadedOfficeSlots[i] = false;
+        const bOff = document.getElementById(`slotOffice${i}Badge`);
+        const btnOff = document.getElementById(`slotOffice${i}BtnText`);
+        const thumbOff = document.getElementById(`slotOffice${i}Thumb`);
+        const cachedOff = localStorage.getItem(`pwa_evidence_${sampleCaseId}_office_slot_${i}`);
+        if (cachedOff) {
+          try {
+            const parsed = JSON.parse(cachedOff);
+            uploadedOfficeSlots[i] = true;
+            if (bOff) { bOff.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bOff.textContent = "✓ UPLOADED"; }
+            if (btnOff) btnOff.textContent = "Re-take Photo";
+            if (thumbOff) thumbOff.innerHTML = `<img src="${parsed.src}" class="w-full h-full object-cover rounded-lg"/>`;
+          } catch(e) {}
+        } else {
+          if (bOff) { bOff.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bOff.textContent = "PENDING"; }
+          if (btnOff) btnOff.textContent = "Capture Photo";
+        }
       }
       updateEvidenceProgress();
 
@@ -2257,6 +2536,18 @@
 
         const key = target.case_no;
         const amtLakhs = target.loan_amount ? (target.loan_amount / 100000).toFixed(2) : "0.00";
+        let parsedFormData = {};
+        if (target.field_form_data) {
+          try {
+            parsedFormData = typeof target.field_form_data === 'string' ? JSON.parse(target.field_form_data) : target.field_form_data;
+          } catch(e) {}
+        }
+        const off = parsedFormData.office_details || {};
+        const occ = parsedFormData.occupation || off.position || off.occupation || "Job";
+        const firm = off.firm_name || "M/s. District Panchayat Education Committee";
+        const pos = off.position || off.designation || "Teacher / Job";
+        const offAddr = off.address || "District Panchayat Education Committee, Dholka, Gujarat-382260";
+
         caseRegistryPwa[key] = Object.assign({}, caseRegistryPwa[key] || {}, {
           id: target.id,
           case_no: target.case_no,
@@ -2272,6 +2563,11 @@
           lon: target.target_lon,
           dev_lat: target.target_lat,
           dev_lon: target.target_lon,
+          occupation: occ,
+          firm_name: firm,
+          position: pos,
+          designation: pos,
+          office_address: offAddr,
           is_live_case: true,
         });
 
