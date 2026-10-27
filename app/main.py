@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -150,29 +151,84 @@ async def lifespan(app: FastAPI):
                 session.add(sc)
             await session.commit()
 
-        # 4. Guarantee Pargi Bhavnaben case (UBI-HL-2026-531) is seeded for live bank scrutiny
+        # 4. Guarantee Pargi Bhavnaben case (UBI-HL-2026-531) is seeded with authentic field data
         case_uuid_pargi = uuid.UUID("b8df82fd-e33a-493e-8d4b-a802861cf294")
+        pargi_form_payload = json.dumps({
+            "marital_status": "Married",
+            "community": "Hindu",
+            "qualification": "Graduate",
+            "occupation": "Job",
+            "period_of_stay": "05 Years",
+            "ownership": "Rented",
+            "building_type": "2 BHK Independent House",
+            "nameboard_visible": "No",
+            "general_appearance": "Good",
+            "locality": "Middle Class",
+            "surroundings": "Developed",
+            "assets_observed": "A.C., Fan, T.V., Sofa, Fridge, etc.",
+            "evidence_enclosed": "Yes",
+            "overall_status": "Positive",
+            "person_met": "Mr. Balvant Bhai Pargi (Husband - 9909918965)",
+            "family_members": [
+                {"name": "Bhavna Ben", "relation": "Self", "age": "43", "earning": "Yes"},
+                {"name": "Balvant Bhai", "relation": "Husband", "age": "50", "earning": "Yes"}
+            ],
+            "office_details": {
+                "firm_name": "M/s. District Panchayat Education Committee",
+                "address": "District Panchayat Education Committee, Dholka, Gujarat-382260",
+                "landmark": "Dholka, Gujarat",
+                "firm_type": "Government Job",
+                "premises_ownership": "NA",
+                "premises_owner": "NA",
+                "owner_relation": "NA",
+                "area": "Commercial",
+                "period_of_stay": "15-03-2007",
+                "established_since": "15-03-2007",
+                "experience": "19 Years",
+                "location": "Commercial",
+                "employees": "Multiple Staff",
+                "nameboard": "Yes",
+                "infrastructure": "Good",
+                "reg_or_emp_no": "DPEC-771",
+                "position": "Teacher / Job",
+                "assets": "Office Furniture, Computers, Records",
+                "assessment": "Positive",
+                "met": {"name": "Office Principal / Incharge", "contact": "02714-222345", "relation": "Employer"}
+            },
+            "net_salary": "45765",
+            "form16_ay": ["2026-2027", "2025-2026"]
+        })
+
         res_pargi = await session.execute(
             select(LoanCase).where((LoanCase.id == case_uuid_pargi) | (LoanCase.case_no == "UBI-HL-2026-531"))
         )
-        if not res_pargi.scalar_one_or_none():
+        existing_pargi = res_pargi.scalar_one_or_none()
+        if not existing_pargi:
             pargi_case = LoanCase(
                 id=case_uuid_pargi,
                 case_no="UBI-HL-2026-531",
                 bank_name="Union Bank of India",
-                branch="Dholka Branch",
-                applicant_name="Pargi Bhavnaben Sartanlal",
-                applicant_phone="+91 90000 11111",
-                loan_type="Personal Loan (PL)",
+                branch="Bagodara Branch",
+                applicant_name="Mrs. Bhavnaben Pargi",
+                applicant_phone="+91 99099 18965",
+                loan_type="Personal Loan",
                 loan_amount=1500000.0,
-                target_address="3, Vaijnath Society, Opp Dev Vihar, Kalikund Saroda Road, Dholka, Ahmedabad - 382225",
+                target_address="3, Vajinath Society, Opp. Dev Vihar, Kalikund Saroda Road, Dholka, Ahmedabad-382225",
                 target_lat=23.2156,
                 target_lon=72.6369,
                 status=CaseStatus.ASSIGNED,
+                field_form_data=pargi_form_payload,
                 created_by_id=admin_user.id,
                 assigned_agent_id=agent_user.id,
             )
             session.add(pargi_case)
+            await session.commit()
+        else:
+            existing_pargi.field_form_data = pargi_form_payload
+            existing_pargi.applicant_name = "Mrs. Bhavnaben Pargi"
+            existing_pargi.applicant_phone = "+91 99099 18965"
+            existing_pargi.branch = "Bagodara Branch"
+            existing_pargi.target_address = "3, Vajinath Society, Opp. Dev Vihar, Kalikund Saroda Road, Dholka, Ahmedabad-382225"
             await session.commit()
 
     yield

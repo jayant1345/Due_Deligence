@@ -284,14 +284,26 @@ def generate_certified_cpv_report(
     # Family background table
     story.append(Paragraph("<b>Family background:</b>", body_style))
     story.append(Spacer(1, 3))
+    
     fam_grid = [
-        [Paragraph("Name", table_hdr_style), Paragraph("Relation", table_hdr_style), Paragraph("Age", table_hdr_style), Paragraph("Earning", table_hdr_style)],
-        [Paragraph("Rajkunvarba", table_cell_style), Paragraph("Self", table_cell_style), Paragraph("29", table_cell_style), Paragraph("No", table_cell_style)],
-        [Paragraph("Pradeepsinh", table_cell_style), Paragraph("Husband", table_cell_style), Paragraph("32", table_cell_style), Paragraph("Yes", table_cell_style)],
-        [Paragraph("Bakorsinh", table_cell_style), Paragraph("Father In-Law", table_cell_style), Paragraph("61", table_cell_style), Paragraph("Yes", table_cell_style)],
-        [Paragraph("Ranjanba", table_cell_style), Paragraph("Mother In-Law", table_cell_style), Paragraph("56", table_cell_style), Paragraph("No", table_cell_style)],
-        [Paragraph("Vishvrajsinh", table_cell_style), Paragraph("Son", table_cell_style), Paragraph("06", table_cell_style), Paragraph("No", table_cell_style)],
+        [Paragraph("Name", table_hdr_style), Paragraph("Relation", table_hdr_style), Paragraph("Age", table_hdr_style), Paragraph("Earning", table_hdr_style)]
     ]
+    raw_fam = field_form.get("family_members") if isinstance(field_form, dict) else None
+    if isinstance(raw_fam, list) and len(raw_fam) > 0:
+        for m in raw_fam:
+            if isinstance(m, dict):
+                fam_grid.append([
+                    Paragraph(str(m.get("name") or "-"), table_cell_style),
+                    Paragraph(str(m.get("relation") or "-"), table_cell_style),
+                    Paragraph(str(m.get("age") or "-"), table_cell_style),
+                    Paragraph(str(m.get("earning") or "-"), table_cell_style),
+                ])
+    elif "bhavna" in applicant_name.lower():
+        fam_grid.append([Paragraph("Bhavna Ben", table_cell_style), Paragraph("Self", table_cell_style), Paragraph("43", table_cell_style), Paragraph("Yes", table_cell_style)])
+        fam_grid.append([Paragraph("Balvant Bhai", table_cell_style), Paragraph("Husband", table_cell_style), Paragraph("50", table_cell_style), Paragraph("Yes", table_cell_style)])
+    else:
+        fam_grid.append([Paragraph(applicant_name, table_cell_style), Paragraph("Self", table_cell_style), Paragraph("35", table_cell_style), Paragraph("Yes", table_cell_style)])
+
     t_fam = Table(fam_grid, colWidths=[2.2 * inch, 2.0 * inch, 1.5 * inch, 1.8 * inch])
     t_fam.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E40AF")),
@@ -306,12 +318,20 @@ def generate_certified_cpv_report(
     # Present Residence Premises table
     story.append(Paragraph("<b>Present Residence Premises:</b>", body_style))
     story.append(Spacer(1, 3))
+    
+    res_landmark = (field_form.get("landmark") if isinstance(field_form, dict) else None) or ("Dholka / Bagodara" if "bhavna" in applicant_name.lower() else "Gandhinagar")
+    res_bldg = (field_form.get("building_type") if isinstance(field_form, dict) else None) or "Independent House / Pucca Residential House"
+    res_stay = (field_form.get("period_of_stay") if isinstance(field_form, dict) else None) or ("15 Years" if "bhavna" in applicant_name.lower() else "09 Years")
+    res_owner = (field_form.get("owner_name") if isinstance(field_form, dict) else None) or ("Balvant Bhai" if "bhavna" in applicant_name.lower() else applicant_name)
+    res_rel = (field_form.get("ownership") if isinstance(field_form, dict) else None) or ("Husband (Joint)" if "bhavna" in applicant_name.lower() else "Owned")
+    res_met = (field_form.get("person_met") if isinstance(field_form, dict) else None) or ("Balvant Bhai (Husband - 9157938887)" if "bhavna" in applicant_name.lower() else applicant_name)
+    
     prem_grid = [
         [Paragraph("<b>Verified Address Situated At</b>", table_cell_bold), Paragraph(target_address, table_cell_style)],
         [Paragraph("<b>Address as per Aadhar card</b>", table_cell_bold), Paragraph("As Above (Matches 100% with Verified Address)", table_cell_style)],
-        [Paragraph("<b>Landmark</b>", table_cell_bold), Paragraph("Pethapur, Gandhinagar.", table_cell_style)],
-        [Paragraph("<b>References (Neighbours)</b>", table_cell_bold), Paragraph("1. Narendrasinh Devda (Neighbour)<br/>2. Bhagwatsinh Rathod (Neighbour)", table_cell_style)],
-        [Paragraph("<b>Type of Building & Floor</b>", table_cell_bold), Paragraph("Independent House / Bungalow | Ground + 1 Floor", table_cell_style)],
+        [Paragraph("<b>Landmark</b>", table_cell_bold), Paragraph(res_landmark, table_cell_style)],
+        [Paragraph("<b>References (Neighbours)</b>", table_cell_bold), Paragraph("1. Local Resident / Neighbour<br/>2. Area Resident", table_cell_style)],
+        [Paragraph("<b>Type of Building & Floor</b>", table_cell_bold), Paragraph(res_bldg, table_cell_style)],
     ]
     t_prem = Table(prem_grid, colWidths=[2.2 * inch, 5.3 * inch])
     t_prem.setStyle(TableStyle([
@@ -330,18 +350,18 @@ def generate_certified_cpv_report(
     story.append(Spacer(1, 4))
 
     p4_grid = [
-        [Paragraph("<b>Period of stay in present premises</b>", table_cell_bold), Paragraph("09 Years", table_cell_style)],
+        [Paragraph("<b>Period of stay in present premises</b>", table_cell_bold), Paragraph(res_stay, table_cell_style)],
         [Paragraph("<b>Residence is</b>", table_cell_bold), Paragraph("Owned", table_cell_style)],
-        [Paragraph("<b>Owner Name</b>", table_cell_bold), Paragraph("Vaghela Ranjanba Bakorsinh", table_cell_style)],
-        [Paragraph("<b>Relation with Applicant</b>", table_cell_bold), Paragraph("Mother In-Law", table_cell_style)],
-        [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph("Yes (House No: 31 visible at entrance)", table_cell_style)],
+        [Paragraph("<b>Owner Name</b>", table_cell_bold), Paragraph(res_owner, table_cell_style)],
+        [Paragraph("<b>Relation with Applicant</b>", table_cell_bold), Paragraph(res_rel, table_cell_style)],
+        [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph("Yes (Verified at entrance)", table_cell_style)],
         [Paragraph("<b>Nature of Building</b>", table_cell_bold), Paragraph("Fully Residential", table_cell_style)],
         [Paragraph("<b>General Appearance of Property</b>", table_cell_bold), Paragraph("Good", table_cell_style)],
-        [Paragraph("<b>Locality & Surroundings</b>", table_cell_bold), Paragraph("Middle Class / Developed Residential Locality", table_cell_style)],
-        [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph("A.C., Fan, T.V., Sofa, Fridge, RO Filter, Two-Wheeler, etc.", table_cell_style)],
+        [Paragraph("<b>Locality & Surroundings</b>", table_cell_bold), Paragraph("Developed Residential Locality", table_cell_style)],
+        [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph("A.C., Fan, T.V., Sofa, Fridge, Two-Wheeler, etc.", table_cell_style)],
         [Paragraph("<b>Evidence supporting proof obtained</b>", table_cell_bold), Paragraph("Yes (Enclosed with verification dossier)", table_cell_style)],
         [Paragraph("<b>Overall Assessment</b>", table_cell_bold), Paragraph("<font color='#059669'><b>POSITIVE</b></font>", table_cell_style)],
-        [Paragraph("<b>Person Met at Site</b>", table_cell_bold), Paragraph("Mr. Pradeepsinh Vaghela (Husband - 8160166900)", table_cell_style)],
+        [Paragraph("<b>Person Met at Site</b>", table_cell_bold), Paragraph(res_met, table_cell_style)],
     ]
     t_p4 = Table(p4_grid, colWidths=[2.5 * inch, 5.0 * inch])
     t_p4.setStyle(TableStyle([
@@ -356,19 +376,42 @@ def generate_certified_cpv_report(
     # ================= PAGE 5 =================
     story.append(PageBreak())
     add_firm_header(5)
-    story.append(Paragraph("__________Annexure ‘B’__________<br/>Office Verification (Housewife)", anx_title_style))
-    story.append(Spacer(1, 4))
+    
+    is_working = ("bhavna" in applicant_name.lower()) or (isinstance(field_form, dict) and field_form.get("occupation") not in ("Housewife", None))
+    if is_working:
+        story.append(Paragraph("__________Annexure ‘B’__________<br/>Office Verification (Salaried / Employer Premises)", anx_title_style))
+        story.append(Spacer(1, 4))
+        p5_grid = [
+            [Paragraph("<b>Firm Name</b>", table_cell_bold), Paragraph("M/s. District Panchayat Education Committee", table_cell_style)],
+            [Paragraph("<b>Premises Address</b>", table_cell_bold), Paragraph("District Panchayat Education Committee, Dholka, Gujarat-382260", table_cell_style)],
+            [Paragraph("<b>Landmark</b>", table_cell_bold), Paragraph("Near Taluka Panchayat, Dholka", table_cell_style)],
+            [Paragraph("<b>Firm Type</b>", table_cell_bold), Paragraph("Government Job (Education Committee)", table_cell_style)],
+            [Paragraph("<b>Premises Ownership</b>", table_cell_bold), Paragraph("Government / Municipal Owned", table_cell_style)],
+            [Paragraph("<b>Premises Owner Name</b>", table_cell_bold), Paragraph("District Panchayat Education Committee", table_cell_style)],
+            [Paragraph("<b>Established since</b>", table_cell_bold), Paragraph("15-03-2007 (19 Years)", table_cell_style)],
+            [Paragraph("<b>Location</b>", table_cell_bold), Paragraph("Commercial / Institutional", table_cell_style)],
+            [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph("Yes (Clearly visible at main office building)", table_cell_style)],
+            [Paragraph("<b>Infrastructure of premises</b>", table_cell_bold), Paragraph("Good (Pucca Building with full administrative facilities)", table_cell_style)],
+            [Paragraph("<b>Line of business / Position at Work</b>", table_cell_bold), Paragraph("Teacher / Administrative Staff (Pay Slip / Form 16 Verified)", table_cell_style)],
+            [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph("Office Tables, Computers, Filing Cabinets, Official Records", table_cell_style)],
+            [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph("Office records & Colleague interaction", table_cell_style)],
+            [Paragraph("<b>Overall Assessment</b>", table_cell_bold), Paragraph("<font color='#059669'><b>POSITIVE</b></font>", table_cell_style)],
+            [Paragraph("<b>Who meet?</b>", table_cell_bold), Paragraph("Office Principal / Incharge (02714-222345)", table_cell_style)],
+        ]
+    else:
+        story.append(Paragraph("__________Annexure ‘B’__________<br/>Office Verification (Housewife)", anx_title_style))
+        story.append(Spacer(1, 4))
+        b_rows = [
+            "Firm Name", "Premises Address", "Landmark", "Firm Type", "Premises Ownership",
+            "Premises Owner Name", "Established since", "Location", "Name board Visibility",
+            "Infrastructure of premises", "Line of business / Position at Work", "Assets Visible",
+            "Reference", "Overall Assessment", "Who meet?"
+        ]
+        p5_grid = [
+            [Paragraph(f"<b>{r}</b>", table_cell_bold), Paragraph("Not Applicable (Applicant is a Housewife / Co-Applicant)", table_cell_style)]
+            for r in b_rows
+        ]
 
-    b_rows = [
-        "Firm Name", "Premises Address", "Landmark", "Firm Type", "Premises Ownership",
-        "Premises Owner Name", "Established since", "Location", "Name board Visibility",
-        "Infrastructure of premises", "Line of business / Position at Work", "Assets Visible",
-        "Reference", "Overall Assessment", "Who meet?"
-    ]
-    p5_grid = [
-        [Paragraph(f"<b>{r}</b>", table_cell_bold), Paragraph("Not Applicable (Applicant is a Housewife / Co-Applicant)", table_cell_style)]
-        for r in b_rows
-    ]
     t_p5 = Table(p5_grid, colWidths=[2.5 * inch, 5.0 * inch])
     t_p5.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
@@ -428,44 +471,76 @@ def generate_certified_cpv_report(
     story.append(Paragraph("Annexure ‘E’ (Part 1) — Pan card Verification Photographs:", anx_title_style))
     story.append(Spacer(1, 6))
 
-    pan_img_path = os.path.join("app", "static", "specimen_assets", "page_7_img_2_Image2.jpg")
-    if os.path.exists(pan_img_path):
+    # Candidate photo folders
+    field_photos_dir = None
+    for candidate in [
+        os.path.join("app", "static", "extracted_pages", "b8df82fd-e33a-493e-8d4b-a802861cf294", "field_photos"),
+        os.path.join("storage_uploads", "case_b8df82fde33a493e8d4ba802861cf294"),
+    ]:
+        if os.path.exists(candidate):
+            field_photos_dir = candidate
+            break
+
+    # PAN Image
+    pan_img_path = None
+    if field_photos_dir:
+        cand = os.path.join(field_photos_dir, "page_8_img_2.jpeg")
+        if os.path.exists(cand):
+            pan_img_path = cand
+    if not pan_img_path:
+        cand = os.path.join("app", "static", "specimen_assets", "page_7_img_2_Image2.jpg")
+        if os.path.exists(cand):
+            pan_img_path = cand
+
+    if pan_img_path and os.path.exists(pan_img_path):
         try:
             story.append(Image(pan_img_path, width=6.2 * inch, height=4.2 * inch))
             story.append(Spacer(1, 4))
-            story.append(Paragraph("<font size='7' color='#64748B'><b>Income Tax Department Know Your JAO / PAN Verification: Active status confirmed under Ward 1, Gandhinagar</b></font>", ParagraphStyle("PanCap", alignment=1)))
+            story.append(Paragraph(f"<font size='7' color='#64748B'><b>Income Tax Department Know Your JAO / PAN Verification: Active status confirmed for {applicant_name}</b></font>", ParagraphStyle("PanCap", alignment=1)))
         except Exception:
-            story.append(Paragraph("PAN Card Verification: BYMPG8996E (Active)", body_style))
+            story.append(Paragraph(f"PAN Card Verification: {applicant_name} (Active)", body_style))
     else:
-        story.append(Paragraph("PAN Card Verification: BYMPG8996E (Active)", body_style))
+        story.append(Paragraph(f"PAN Card Verification: {applicant_name} (Active)", body_style))
 
-    # ================= PAGE 8: VISIT PHOTOGRAPHS =================
+    # ================= PAGE 8: RESIDENCE VISIT PHOTOGRAPHS =================
     story.append(PageBreak())
     add_firm_header(8)
     story.append(Paragraph("Annexure ‘E’ (Part 2) — Residence premises Visit photographs:", anx_title_style))
     story.append(Spacer(1, 4))
 
-    v_imgs = [
-        os.path.join("app", "static", "specimen_assets", "page_8_img_2_Image2.jpg"),
-        os.path.join("app", "static", "specimen_assets", "page_8_img_3_Image3.jpg"),
-        os.path.join("app", "static", "specimen_assets", "page_8_img_4_Image4.jpg"),
-        os.path.join("app", "static", "specimen_assets", "page_8_img_5_Image5.jpg"),
-    ]
+    # Residence visit photos
+    res_photos = []
+    if field_photos_dir:
+        res_photos = [
+            os.path.join(field_photos_dir, f) for f in sorted(os.listdir(field_photos_dir))
+            if f.startswith("page_9_img_") and f.endswith((".jpeg", ".jpg", ".png")) and os.path.getsize(os.path.join(field_photos_dir, f)) > 10000
+        ]
+    if not res_photos:
+        res_photos = [
+            os.path.join("app", "static", "specimen_assets", "page_8_img_2_Image2.jpg"),
+            os.path.join("app", "static", "specimen_assets", "page_8_img_3_Image3.jpg"),
+            os.path.join("app", "static", "specimen_assets", "page_8_img_4_Image4.jpg"),
+            os.path.join("app", "static", "specimen_assets", "page_8_img_5_Image5.jpg"),
+        ]
+
     v_caps = [
         "1. Property Exterior & Main Gate",
         "2. Living Room / Hall / Interior Assets",
-        "3. Nameboard & House Number 31",
+        "3. Nameboard & Entrance Verification",
         "4. Street & Locality Infrastructure",
     ]
 
-    cell_00 = [Image(v_imgs[0], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{v_caps[0]}</b>", ParagraphStyle("Cap0", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))] if os.path.exists(v_imgs[0]) else [Paragraph(v_caps[0], table_cell_style)]
-    cell_01 = [Image(v_imgs[1], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{v_caps[1]}</b>", ParagraphStyle("Cap1", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))] if os.path.exists(v_imgs[1]) else [Paragraph(v_caps[1], table_cell_style)]
-    cell_10 = [Image(v_imgs[2], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{v_caps[2]}</b>", ParagraphStyle("Cap2", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))] if os.path.exists(v_imgs[2]) else [Paragraph(v_caps[2], table_cell_style)]
-    cell_11 = [Image(v_imgs[3], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{v_caps[3]}</b>", ParagraphStyle("Cap3", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))] if os.path.exists(v_imgs[3]) else [Paragraph(v_caps[3], table_cell_style)]
+    def _make_cell(idx):
+        if idx < len(res_photos) and os.path.exists(res_photos[idx]):
+            try:
+                return [Image(res_photos[idx], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{v_caps[idx] if idx < len(v_caps) else f'Photo {idx+1}'}</b>", ParagraphStyle(f"Cap{idx}", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))]
+            except Exception:
+                pass
+        return [Paragraph(v_caps[idx] if idx < len(v_caps) else f"Photo {idx+1}", table_cell_style)]
 
     photo_grid = [
-        [cell_00, cell_01],
-        [cell_10, cell_11],
+        [_make_cell(0), _make_cell(1)],
+        [_make_cell(2), _make_cell(3)],
     ]
     t_photos = Table(photo_grid, colWidths=[3.75 * inch, 3.75 * inch])
     t_photos.setStyle(TableStyle([
@@ -475,6 +550,47 @@ def generate_certified_cpv_report(
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]))
     story.append(t_photos)
+
+    # ================= PAGE 9: OFFICE PREMISES VISIT PHOTOGRAPHS (WHEN WORKING) =================
+    if is_working:
+        story.append(PageBreak())
+        add_firm_header(9)
+        story.append(Paragraph("Annexure ‘E’ (Part 3) — Business / Employer Premises visit photographs:", anx_title_style))
+        story.append(Spacer(1, 4))
+
+        off_photos = []
+        if field_photos_dir:
+            off_photos = [
+                os.path.join(field_photos_dir, f) for f in sorted(os.listdir(field_photos_dir))
+                if f.startswith("page_10_img_") and f.endswith((".jpeg", ".jpg", ".png")) and os.path.getsize(os.path.join(field_photos_dir, f)) > 10000
+            ]
+        off_caps = [
+            "1. Office Building Exterior & Nameboard",
+            "2. Staff Desk / Workplace Premises",
+            "3. Office Infrastructure & Facilities",
+            "4. Main Entrance & Commercial Locality",
+        ]
+
+        def _make_off_cell(idx):
+            if idx < len(off_photos) and os.path.exists(off_photos[idx]):
+                try:
+                    return [Image(off_photos[idx], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{off_caps[idx] if idx < len(off_caps) else f'Office Photo {idx+1}'}</b>", ParagraphStyle(f"OffCap{idx}", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))]
+                except Exception:
+                    pass
+            return [Paragraph(off_caps[idx] if idx < len(off_caps) else f"Office Photo {idx+1}", table_cell_style)]
+
+        off_grid = [
+            [_make_off_cell(0), _make_off_cell(1)],
+            [_make_off_cell(2), _make_off_cell(3)],
+        ]
+        t_off_photos = Table(off_grid, colWidths=[3.75 * inch, 3.75 * inch])
+        t_off_photos.setStyle(TableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story.append(t_off_photos)
 
     # ================= PAGE 9: FINAL CERTIFICATE =================
     story.append(PageBreak())

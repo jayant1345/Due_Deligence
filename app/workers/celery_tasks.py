@@ -242,15 +242,52 @@ def generate_report_pdf_task(
                 partner_name=ca_user.full_name if ca_user else None,
             )
 
-            docx_meta = generate_certified_cpv_docx(
-                output_docx_path=output_docx,
-                case_data=case_dict,
-                visit_data=visit_dict,
-                document_items=doc_items,
-                ca_remarks=ca_remarks,
-                udin=report_meta["udin"],
-                partner_name=ca_user.full_name if ca_user else None,
-            )
+            from app.api.v1.cases import _ai_ingested_pages
+            from app.services.cpv_report_data import assemble_cpv_report_data
+            from app.services.cpv_report_builder import build_cpv_report
+
+            template_used = False
+            try:
+                pages = await _ai_ingested_pages(session, loan_case)
+                cpv_data = await assemble_cpv_report_data(
+                    session, loan_case, pages,
+                    udin=report_meta["udin"],
+                    overall_status=loan_case.status.value if loan_case.status else "POSITIVE",
+                )
+                build_cpv_report(cpv_data, output_docx)
+                template_used = True
+            except Exception:
+                generate_certified_cpv_docx(
+                    output_docx_path=output_docx,
+                    case_data=case_dict,
+                    visit_data=visit_dict,
+                    document_items=doc_items,
+                    ca_remarks=ca_remarks,
+                    udin=report_meta["udin"],
+                    partner_name=ca_user.full_name if ca_user else None,
+                )
+
+            if template_used and os.name == "nt":
+                try:
+                    import win32com.client
+                    import pythoncom
+                    pythoncom.CoInitialize()
+                    word = win32com.client.Dispatch("Word.Application")
+                    word.Visible = False
+                    abs_docx = os.path.abspath(output_docx)
+                    abs_pdf = os.path.abspath(output_pdf)
+                    doc_obj = word.Documents.Open(abs_docx)
+                    doc_obj.SaveAs(abs_pdf, FileFormat=17)
+                    doc_obj.Close()
+                    word.Quit()
+                    import hashlib
+                    sha256_hash = hashlib.sha256()
+                    with open(output_pdf, "rb") as f:
+                        for byte_block in iter(lambda: f.read(4096), b""):
+                            sha256_hash.update(byte_block)
+                    report_meta["sha256"] = sha256_hash.hexdigest()
+                except Exception:
+                    pass
 
             # Store in DB
             certified_report = CertifiedReport(

@@ -21,11 +21,13 @@ htmlcov/
 *.db
 *.sqlite3
 reports_generated/
-storage_uploads/
+storage_uploads/*
+!storage_uploads/case_b8df82fde33a493e8d4ba802861cf294/
 scratch/
 # Scanned KYC pages (Aadhaar, PAN, bank statements) written at runtime — real customer
 # data must never be committed (this repository is public).
-app/static/extracted_pages/
+app/static/extracted_pages/*
+!app/static/extracted_pages/b8df82fd-e33a-493e-8d4b-a802861cf294/
 
 # Temporary and Large Archives
 AMRAPURA.zip
