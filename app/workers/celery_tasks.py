@@ -194,6 +194,9 @@ async def async_generate_report_pdf(
     output_docx = os.path.join("reports_generated", f"Certified_Dossier_{loan_case.case_no}.docx")
 
     case_dict = {
+        "case_id": str(loan_case.id),
+        "case_uuid": str(loan_case.id),
+        "case_hex": loan_case.id.hex,
         "case_no": loan_case.case_no,
         "bank_name": loan_case.bank_name,
         "branch": loan_case.branch,
@@ -215,16 +218,23 @@ async def async_generate_report_pdf(
     visit_dict = None
     if visit:
         visit_dict = {
-            "check_in_time": visit.check_in_time.strftime("%d-%b-%Y %H:%M:%S IST"),
+            "check_in_time": visit.check_in_time.strftime("%d-%b-%Y %H:%M:%S IST") if visit.check_in_time else None,
             "start_lat": visit.start_lat,
             "start_lon": visit.start_lon,
         }
 
     doc_items = [
         {
-            "doc_type": d.doc_type.value,
+            "id": str(d.id),
+            "doc_type": d.doc_type.value if hasattr(d.doc_type, "value") else str(d.doc_type),
             "ocr_data": d.ocr_data or {},
             "watermarked_url": d.watermarked_url,
+            "storage_url": d.storage_url,
+            "latitude": d.latitude,
+            "longitude": d.longitude,
+            "captured_at": d.captured_at.strftime("%d-%b-%Y, %H:%M IST") if d.captured_at else (d.created_at.strftime("%d-%b-%Y, %H:%M IST") if d.created_at else None),
+            "created_at": d.created_at,
+            "slot_number": (d.ocr_data or {}).get("slot_number"),
         }
         for d in docs
     ]
