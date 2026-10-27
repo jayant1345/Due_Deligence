@@ -766,44 +766,7 @@
         </div>
       </div>
 
-      <!-- Scrutiny Item 4: Case Document Vault & Property Dossier (મલ્ટીપલ દસ્તાવેજ સંગ્રહ) -->
-      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant p-3.5 shadow-sm space-y-3 hover:border-primary-container transition-all">
-        <div class="flex items-center justify-between pb-2 border-b border-outline-variant">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-primary-container text-[20px]">folder_special</span>
-            <div>
-              <div class="text-xs font-bold text-on-surface">Case Document Vault (દસ્તાવેજ અને મિલકત કાગળો)</div>
-              <div class="text-[10px] text-outline">Form 16, Payslips, Bank Statement, Sale Deed, Index II</div>
-            </div>
-          </div>
-          <button type="button" onclick="switchMainPortalView('vault')" class="px-2.5 py-1 rounded text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition-all" title="Open full multi-shelf document vault">
-            <span class="material-symbols-outlined text-[13px]">open_in_new</span>
-            <span>Full Vault</span>
-          </button>
-        </div>
 
-        <!-- Filter tabs for Vault Mini -->
-        <div class="flex items-center gap-1 bg-surface-container-high p-0.5 rounded-lg text-[10px] font-mono">
-          <button id="btnMiniVaultTabProperty" type="button" onclick="filterVaultMini('property')" class="flex-1 py-1 rounded text-center font-bold bg-primary-container text-white shadow-2xs">🏠 Property (3)</button>
-          <button id="btnMiniVaultTabIncome" type="button" onclick="filterVaultMini('income')" class="flex-1 py-1 rounded text-center text-on-surface-variant hover:text-on-surface">💼 Income (3)</button>
-          <button id="btnMiniVaultTabAll" type="button" onclick="filterVaultMini('all')" class="flex-1 py-1 rounded text-center text-on-surface-variant hover:text-on-surface">📁 All (8)</button>
-        </div>
-
-        <!-- Mini Vault Grid Cards -->
-        <div id="vaultMiniList" class="space-y-2 max-h-[380px] overflow-y-auto pr-1">
-          <!-- Dynamically populated via renderVaultMini() -->
-        </div>
-
-        <!-- Quick Upload Dropzone & Add Button -->
-        <div class="pt-2 border-t border-outline-variant flex items-center justify-between">
-          <label class="cursor-pointer text-[11px] font-bold text-primary-container hover:text-primary flex items-center gap-1.5 bg-blue-50/60 hover:bg-blue-50 px-2.5 py-1 rounded border border-blue-200 transition-colors">
-            <span class="material-symbols-outlined text-[15px]">upload_file</span>
-            <span>Upload Document Scan</span>
-            <input type="file" multiple accept="image/*,application/pdf" class="hidden" onchange="handleVaultUpload(this.files)"/>
-          </label>
-          <span id="vaultDocCountText" class="font-mono text-[10px] text-secondary font-bold">8 Documents Active</span>
-        </div>
-      </div>
     </div>
 
     <!-- COLUMN 2: GEOFENCE TELEMETRY & PHYSICAL SITE EVIDENCE (5 Cols / 38%) -->
