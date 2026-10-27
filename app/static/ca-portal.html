@@ -347,32 +347,48 @@
         </span>
       </div>
 
-      <!-- MULTI-PAGE PDF LLM SEPARATION & SCAN DESK -->
+      <!-- MULTI-PAGE PDF & FOLDER LLM SEPARATION & SCAN DESK -->
       <div class="bg-gradient-to-r from-blue-900 to-indigo-950 p-3.5 rounded-xl border border-blue-700/60 shadow-md text-white space-y-2.5">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-amber-300 text-[20px]">call_split</span>
+            <span class="material-symbols-outlined text-amber-300 text-[20px]">folder_copy</span>
             <div>
-              <h3 class="font-headline font-bold text-xs text-white">Single PDF Burst & LLM Page Separator</h3>
-              <p class="font-mono text-[9px] text-blue-200">OpenRouter Gemini 2.5 Flash extracts each page image & classifies</p>
+              <h3 class="font-headline font-bold text-xs text-white">AI Document Ingestion (Single PDF, Bank Folder, or Multiple Files)</h3>
+              <p class="font-mono text-[9px] text-blue-200">OpenRouter Gemini 2.5 Flash extracts, classifies & organizes each document</p>
             </div>
           </div>
           <span class="px-2 py-0.5 rounded font-mono text-[9px] font-bold bg-amber-400 text-slate-950">
-            AI SEPARATION
+            AI SEPARATION & FOLDER INGEST
           </span>
         </div>
         <p class="text-[11px] text-blue-100 leading-snug">
-          Upload this case's loan PDF. AI bursts every page into 200 DPI images, classifies Aadhaar/PAN/MGVCL Bill/Payslip, and binds each to its card.
+          Upload documents via <b>Single Combined PDF</b>, <b>Whole Bank Folder</b>, or <b>Multiple Files</b>. AI automatically scans every document, classifies Aadhaar/PAN/Utility Bill/Payslip/Form 16/Bank Statements, and arranges them into their respective cards.
         </p>
-        <div class="flex items-center gap-2 pt-1">
+        <div class="flex flex-wrap items-center gap-2 pt-1">
+          <!-- 1. Single PDF Selection -->
           <input type="file" id="portalMultiPagePdfInput" accept="application/pdf,.pdf" class="hidden" onchange="handlePortalPdfSelected(this.files[0])"/>
-          <button type="button" onclick="document.getElementById('portalMultiPagePdfInput').click()" class="flex-1 py-1.5 px-2.5 bg-white text-blue-950 hover:bg-blue-50 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all">
-            <span class="material-symbols-outlined text-[16px] text-blue-700">upload_file</span>
-            <span>Select PDF from PC...</span>
+          <button type="button" onclick="document.getElementById('portalMultiPagePdfInput').click()" class="py-1.5 px-3 bg-white text-blue-950 hover:bg-blue-50 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px] text-blue-700">description</span>
+            <span>Select Single PDF...</span>
           </button>
-          <button type="button" id="btnRunPargiPdfDemo" onclick="runPargiPdfSeparationDemo()" class="py-1.5 px-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all" title="Select this case's PDF and extract every page with Gemini AI">
+
+          <!-- 2. Bank Folder Selection (webkitdirectory) -->
+          <input type="file" id="portalFolderInput" webkitdirectory directory multiple class="hidden" onchange="handlePortalFolderSelected(this.files)"/>
+          <button type="button" onclick="document.getElementById('portalFolderInput').click()" class="py-1.5 px-3.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all" title="Select an entire bank case folder from your computer">
+            <span class="material-symbols-outlined text-[16px]">folder_open</span>
+            <span>📁 Select Folder from PC...</span>
+          </button>
+
+          <!-- 3. Multiple Loose Files Selection -->
+          <input type="file" id="portalMultiFilesInput" multiple class="hidden" onchange="handlePortalMultiFilesSelected(this.files)"/>
+          <button type="button" onclick="document.getElementById('portalMultiFilesInput').click()" class="py-1.5 px-3 bg-blue-800/80 hover:bg-blue-700 text-white border border-blue-500/40 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all" title="Select multiple PDFs or photos at once">
+            <span class="material-symbols-outlined text-[16px]">upload_file</span>
+            <span>📄 Select Multiple Files...</span>
+          </button>
+
+          <button type="button" id="btnRunPargiPdfDemo" onclick="runPargiPdfSeparationDemo()" class="ml-auto py-1.5 px-3 bg-blue-950/70 hover:bg-blue-900 text-blue-200 border border-blue-400/30 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all" title="Select PDF and extract every page with Gemini AI">
             <span class="material-symbols-outlined text-[16px]">bolt</span>
-            <span>Scan Case PDF (AI)</span>
+            <span>Scan (AI)</span>
           </button>
         </div>
         <!-- Progress / Status bar -->
@@ -2405,6 +2421,46 @@
     async function handlePortalPdfSelected(file) {
       if (!file) return;
       await uploadAndProcessPdfFile(file);
+    }
+
+    async function handlePortalFolderSelected(files) {
+      if (!files || files.length === 0 || !activeCaseId) return;
+      await handleBatchPortalFilesIngest(Array.from(files));
+    }
+
+    async function handlePortalMultiFilesSelected(files) {
+      if (!files || files.length === 0 || !activeCaseId) return;
+      await handleBatchPortalFilesIngest(Array.from(files));
+    }
+
+    async function handleBatchPortalFilesIngest(fileList) {
+      const pdfs = fileList.filter(f => f.name.toLowerCase().endsWith(".pdf"));
+      const images = fileList.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name));
+
+      if (pdfs.length === 0 && images.length === 0) {
+        alert("No PDF or image files found in the selected folder/files.");
+        return;
+      }
+
+      const statusBox = document.getElementById("pdfBurstStatusBox");
+      const statusText = document.getElementById("pdfBurstStatusText");
+      const statusPercent = document.getElementById("pdfBurstStatusPercent");
+      const progressBar = document.getElementById("pdfBurstProgressBar");
+
+      if (statusBox) statusBox.classList.remove("hidden");
+      if (statusText) statusText.textContent = `Found ${pdfs.length} PDF(s) and ${images.length} Image(s). Processing with Gemini AI...`;
+      if (statusPercent) statusPercent.textContent = "15%";
+      if (progressBar) progressBar.style.width = "15%";
+
+      for (let i = 0; i < pdfs.length; i++) {
+        // First file in batch clears stale prior scan; subsequent files append additively
+        const isFirst = (i === 0);
+        await uploadAndProcessPdfFile(pdfs[i], isFirst, i + 1, pdfs.length);
+      }
+
+      if (images.length > 0) {
+        await ingestLooseImagesForCase(images);
+      }
     }
 
     function runPargiPdfSeparationDemo() {
