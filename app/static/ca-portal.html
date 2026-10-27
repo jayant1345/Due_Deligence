@@ -3488,7 +3488,7 @@
       const pwaLink = `${window.location.origin}/pwa?case=${encodeURIComponent(caseNo)}`;
       const instructions = document.getElementById("hoInstructions") ? document.getElementById("hoInstructions").value.trim() : "";
 
-      return `🏛️ *VALUEX & CO. CHARTERED ACCOUNTANTS*\n*Contact Point Verification (CPV) Order*\n\n` +
+      return `🏛️ *NAIMISH N. SHAH & CO. CHARTERED ACCOUNTANTS*\n*Contact Point Verification (CPV) Order*\n\n` +
         `📋 *Case No:* ${caseNo}\n` +
         `👤 *Borrower:* ${applicant}\n` +
         `🏦 *Bank:* ${bank} (${branch})\n` +
@@ -5056,7 +5056,11 @@
             </label>
             <span class="text-[10px] font-mono text-outline">Pre-formatted for WhatsApp</span>
           </div>
-          <div id="hoMessagePreview" class="p-3 bg-emerald-50/70 border border-emerald-200 rounded-lg text-xs font-mono text-emerald-950 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto"></div>
+          <div class="p-2.5 bg-white border border-emerald-200 rounded-t-lg flex items-center gap-3">
+            <img src="/static/specimen_assets/naimish_shah_logo.png" alt="Naimish N. Shah & Co." class="h-7 w-auto object-contain"/>
+            <span class="text-[11px] font-headline font-bold text-slate-800">NAIMISH N. SHAH & CO. CHARTERED ACCOUNTANTS</span>
+          </div>
+          <div id="hoMessagePreview" class="p-3 bg-emerald-50/70 border-x border-b border-emerald-200 rounded-b-lg text-xs font-mono text-emerald-950 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto"></div>
         </div>
       </div>
 

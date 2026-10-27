@@ -77,8 +77,10 @@ async def generate_report(
 
     user_id_str = str(current_user.id) if current_user else str(uuid.uuid4())
 
-    # Generate the report
-    result = generate_report_pdf_task(
+    # Generate the report directly on current async db session
+    from app.workers.celery_tasks import async_generate_report_pdf
+    result = await async_generate_report_pdf(
+        session=db,
         case_id_str=str(req.case_id),
         ca_remarks=req.ca_remarks,
         user_id_str=user_id_str,
@@ -170,17 +172,19 @@ async def download_report_pdf(
     case_res = await db.execute(select(LoanCase).where(LoanCase.applicant_name.ilike("%bhavna%")).limit(1))
     pargi_case = case_res.scalar_one_or_none()
     if pargi_case:
-        gen_res = generate_report_pdf_task(
+        from app.workers.celery_tasks import async_generate_report_pdf
+        gen_res = await async_generate_report_pdf(
+            session=db,
             case_id_str=str(pargi_case.id),
             ca_remarks="Verified & Certified",
             user_id_str=str(uuid.uuid4()),
             udin="26033747AAAAAA1234",
         )
-        if gen_res.get("status") == "success" and os.path.exists(gen_res.get("pdf_path", "")):
+        if gen_res.get("status") == "success" and os.path.exists(gen_res.get("report_url", "")):
             return FileResponse(
-                path=gen_res["pdf_path"],
+                path=gen_res["report_url"],
                 media_type="application/pdf",
-                filename=os.path.basename(gen_res["pdf_path"]),
+                filename=os.path.basename(gen_res["report_url"]),
             )
 
     raise HTTPException(
@@ -239,17 +243,19 @@ async def download_report_docx(
     case_res = await db.execute(select(LoanCase).where(LoanCase.applicant_name.ilike("%bhavna%")).limit(1))
     pargi_case = case_res.scalar_one_or_none()
     if pargi_case:
-        gen_res = generate_report_pdf_task(
+        from app.workers.celery_tasks import async_generate_report_pdf
+        gen_res = await async_generate_report_pdf(
+            session=db,
             case_id_str=str(pargi_case.id),
             ca_remarks="Verified & Certified",
             user_id_str=str(uuid.uuid4()),
             udin="26033747AAAAAA1234",
         )
-        if gen_res.get("status") == "success" and os.path.exists(gen_res.get("docx_path", "")):
+        if gen_res.get("status") == "success" and os.path.exists(gen_res.get("docx_url", "")):
             return FileResponse(
-                path=gen_res["docx_path"],
+                path=gen_res["docx_url"],
                 media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                filename=os.path.basename(gen_res["docx_path"]),
+                filename=os.path.basename(gen_res["docx_url"]),
             )
 
     raise HTTPException(

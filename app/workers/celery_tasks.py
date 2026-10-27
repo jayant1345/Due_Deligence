@@ -157,174 +157,191 @@ def process_uploaded_media_task(self, document_id_str: str):
     return run_async(_async_process())
 
 
+async def async_generate_report_pdf(
+    session: AsyncSession,
+    case_id_str: str,
+    ca_remarks: Optional[str] = None,
+    user_id_str: Optional[str] = None,
+    udin: Optional[str] = None,
+) -> Dict[str, Any]:
+    case_uuid = uuid.UUID(case_id_str)
+    user_uuid = uuid.UUID(user_id_str) if user_id_str else uuid.uuid4()
+    
+    case_res = await session.execute(select(LoanCase).where(LoanCase.id == case_uuid))
+    loan_case = case_res.scalar_one_or_none()
+    if not loan_case:
+        return {"status": "error", "message": "Case not found"}
+
+    ca_user = None
+    if user_id_str:
+        user_res = await session.execute(select(User).where(User.id == user_uuid))
+        ca_user = user_res.scalar_one_or_none()
+
+    visit_res = await session.execute(
+        select(VisitRecord).where(VisitRecord.case_id == case_uuid).order_by(VisitRecord.check_in_time.desc())
+    )
+    visit = visit_res.scalars().first()
+
+    doc_res = await session.execute(
+        select(CaseDocument).where(CaseDocument.case_id == case_uuid)
+    )
+    docs = doc_res.scalars().all()
+
+    # Compile PDF and DOCX as per specimen copy
+    os.makedirs("reports_generated", exist_ok=True)
+    output_pdf = os.path.join("reports_generated", f"Certified_Dossier_{loan_case.case_no}.pdf")
+    output_docx = os.path.join("reports_generated", f"Certified_Dossier_{loan_case.case_no}.docx")
+
+    case_dict = {
+        "case_no": loan_case.case_no,
+        "bank_name": loan_case.bank_name,
+        "branch": loan_case.branch,
+        "loan_type": loan_case.loan_type,
+        "applicant_name": loan_case.applicant_name,
+        "applicant_phone": loan_case.applicant_phone,
+        "target_address": loan_case.target_address,
+        "target_lat": loan_case.target_lat,
+        "target_lon": loan_case.target_lon,
+    }
+
+    if loan_case.field_form_data:
+        try:
+            import json
+            case_dict["field_form"] = json.loads(loan_case.field_form_data)
+        except Exception:
+            pass
+
+    visit_dict = None
+    if visit:
+        visit_dict = {
+            "check_in_time": visit.check_in_time.strftime("%d-%b-%Y %H:%M:%S IST"),
+            "start_lat": visit.start_lat,
+            "start_lon": visit.start_lon,
+        }
+
+    doc_items = [
+        {
+            "doc_type": d.doc_type.value,
+            "ocr_data": d.ocr_data or {},
+            "watermarked_url": d.watermarked_url,
+        }
+        for d in docs
+    ]
+
+    report_meta = generate_certified_cpv_report(
+        output_pdf_path=output_pdf,
+        case_data=case_dict,
+        visit_data=visit_dict,
+        document_items=doc_items,
+        ca_remarks=ca_remarks,
+        udin=udin,
+        partner_name=ca_user.full_name if ca_user else None,
+    )
+
+    from app.api.v1.cases import _ai_ingested_pages
+    from app.services.cpv_report_data import assemble_cpv_report_data
+    from app.services.cpv_report_builder import build_cpv_report
+
+    template_used = False
+    try:
+        pages = await _ai_ingested_pages(session, loan_case)
+        cpv_data = await assemble_cpv_report_data(
+            session, loan_case, pages,
+            udin=report_meta["udin"],
+            overall_status=loan_case.status.value if loan_case.status else "POSITIVE",
+        )
+        build_cpv_report(cpv_data, output_docx)
+        template_used = True
+    except Exception:
+        generate_certified_cpv_docx(
+            output_docx_path=output_docx,
+            case_data=case_dict,
+            visit_data=visit_dict,
+            document_items=doc_items,
+            ca_remarks=ca_remarks,
+            udin=report_meta["udin"],
+            partner_name=ca_user.full_name if ca_user else None,
+        )
+
+    if template_used and os.name == "nt":
+        try:
+            import win32com.client
+            import pythoncom
+            pythoncom.CoInitialize()
+            word = win32com.client.Dispatch("Word.Application")
+            word.Visible = False
+            abs_docx = os.path.abspath(output_docx)
+            abs_pdf = os.path.abspath(output_pdf)
+            doc_obj = word.Documents.Open(abs_docx)
+            doc_obj.SaveAs(abs_pdf, FileFormat=17)
+            doc_obj.Close()
+            word.Quit()
+            import hashlib
+            sha256_hash = hashlib.sha256()
+            with open(output_pdf, "rb") as f:
+                for byte_block in iter(lambda: f.read(4096), b""):
+                    sha256_hash.update(byte_block)
+            report_meta["sha256"] = sha256_hash.hexdigest()
+        except Exception:
+            pass
+
+    # Store in DB
+    certified_report = CertifiedReport(
+        case_id=loan_case.id,
+        report_url=output_pdf,
+        docx_url=output_docx,
+        file_hash_sha256=report_meta["sha256"],
+        udin=report_meta["udin"],
+        generated_by_id=user_uuid,
+    )
+    session.add(certified_report)
+
+    # Update case status
+    loan_case.status = CaseStatus.CERTIFIED
+
+    # Audit Log
+    audit = AuditLog(
+        case_id=loan_case.id,
+        user_id=user_uuid,
+        action="REPORT_CERTIFIED",
+        extra_metadata={
+            "sha256": report_meta["sha256"],
+            "udin": report_meta["udin"],
+            "report_path": output_pdf,
+            "docx_path": output_docx,
+        }
+    )
+    session.add(audit)
+
+    await session.commit()
+    return {
+        "status": "success",
+        "report_id": str(certified_report.id),
+        "sha256": report_meta["sha256"],
+        "udin": report_meta["udin"],
+        "report_url": output_pdf,
+        "docx_url": output_docx,
+    }
+
+
 @celery_app.task(name="app.workers.generate_report_pdf_task", bind=True)
 def generate_report_pdf_task(
     self,
     case_id_str: str,
-    ca_remarks: str,
-    user_id_str: str,
-    udin: str = None
+    ca_remarks: Optional[str] = None,
+    user_id_str: Optional[str] = None,
+    udin: Optional[str] = None,
 ):
     """
-    Background Task: Generate Certified ReportLab PDF Dossier.
+    Background Task: Compile bank-ready PDF & DOCX report.
     """
-    async def _async_generate():
-        case_uuid = uuid.UUID(case_id_str)
-        user_uuid = uuid.UUID(user_id_str)
-        
+    async def _runner():
         async with AsyncSessionLocal() as session:
-            case_res = await session.execute(select(LoanCase).where(LoanCase.id == case_uuid))
-            loan_case = case_res.scalar_one_or_none()
-            if not loan_case:
-                return {"status": "error", "message": "Case not found"}
-
-            user_res = await session.execute(select(User).where(User.id == user_uuid))
-            ca_user = user_res.scalar_one_or_none()
-
-            visit_res = await session.execute(
-                select(VisitRecord).where(VisitRecord.case_id == case_uuid).order_by(VisitRecord.check_in_time.desc())
-            )
-            visit = visit_res.scalars().first()
-
-            doc_res = await session.execute(
-                select(CaseDocument).where(CaseDocument.case_id == case_uuid)
-            )
-            docs = doc_res.scalars().all()
-
-            # Compile PDF and DOCX as per specimen copy
-            os.makedirs("reports_generated", exist_ok=True)
-            output_pdf = os.path.join("reports_generated", f"Certified_Dossier_{loan_case.case_no}.pdf")
-            output_docx = os.path.join("reports_generated", f"Certified_Dossier_{loan_case.case_no}.docx")
-
-            case_dict = {
-                "case_no": loan_case.case_no,
-                "bank_name": loan_case.bank_name,
-                "branch": loan_case.branch,
-                "loan_type": loan_case.loan_type,
-                "applicant_name": loan_case.applicant_name,
-                "applicant_phone": loan_case.applicant_phone,
-                "target_address": loan_case.target_address,
-                "target_lat": loan_case.target_lat,
-                "target_lon": loan_case.target_lon,
-            }
-
-            if loan_case.field_form_data:
-                try:
-                    import json
-                    case_dict["field_form"] = json.loads(loan_case.field_form_data)
-                except Exception:
-                    pass
-
-            visit_dict = None
-            if visit:
-                visit_dict = {
-                    "check_in_time": visit.check_in_time.strftime("%d-%b-%Y %H:%M:%S IST"),
-                    "start_lat": visit.start_lat,
-                    "start_lon": visit.start_lon,
-                }
-
-            doc_items = [
-                {
-                    "doc_type": d.doc_type.value,
-                    "ocr_data": d.ocr_data or {},
-                    "watermarked_url": d.watermarked_url,
-                }
-                for d in docs
-            ]
-
-            report_meta = generate_certified_cpv_report(
-                output_pdf_path=output_pdf,
-                case_data=case_dict,
-                visit_data=visit_dict,
-                document_items=doc_items,
+            return await async_generate_report_pdf(
+                session=session,
+                case_id_str=case_id_str,
                 ca_remarks=ca_remarks,
+                user_id_str=user_id_str,
                 udin=udin,
-                partner_name=ca_user.full_name if ca_user else None,
             )
-
-            from app.api.v1.cases import _ai_ingested_pages
-            from app.services.cpv_report_data import assemble_cpv_report_data
-            from app.services.cpv_report_builder import build_cpv_report
-
-            template_used = False
-            try:
-                pages = await _ai_ingested_pages(session, loan_case)
-                cpv_data = await assemble_cpv_report_data(
-                    session, loan_case, pages,
-                    udin=report_meta["udin"],
-                    overall_status=loan_case.status.value if loan_case.status else "POSITIVE",
-                )
-                build_cpv_report(cpv_data, output_docx)
-                template_used = True
-            except Exception:
-                generate_certified_cpv_docx(
-                    output_docx_path=output_docx,
-                    case_data=case_dict,
-                    visit_data=visit_dict,
-                    document_items=doc_items,
-                    ca_remarks=ca_remarks,
-                    udin=report_meta["udin"],
-                    partner_name=ca_user.full_name if ca_user else None,
-                )
-
-            if template_used and os.name == "nt":
-                try:
-                    import win32com.client
-                    import pythoncom
-                    pythoncom.CoInitialize()
-                    word = win32com.client.Dispatch("Word.Application")
-                    word.Visible = False
-                    abs_docx = os.path.abspath(output_docx)
-                    abs_pdf = os.path.abspath(output_pdf)
-                    doc_obj = word.Documents.Open(abs_docx)
-                    doc_obj.SaveAs(abs_pdf, FileFormat=17)
-                    doc_obj.Close()
-                    word.Quit()
-                    import hashlib
-                    sha256_hash = hashlib.sha256()
-                    with open(output_pdf, "rb") as f:
-                        for byte_block in iter(lambda: f.read(4096), b""):
-                            sha256_hash.update(byte_block)
-                    report_meta["sha256"] = sha256_hash.hexdigest()
-                except Exception:
-                    pass
-
-            # Store in DB
-            certified_report = CertifiedReport(
-                case_id=loan_case.id,
-                report_url=output_pdf,
-                docx_url=output_docx,
-                file_hash_sha256=report_meta["sha256"],
-                udin=report_meta["udin"],
-                generated_by_id=user_uuid,
-            )
-            session.add(certified_report)
-
-            # Update case status
-            loan_case.status = CaseStatus.CERTIFIED
-
-            # Audit Log
-            audit = AuditLog(
-                case_id=loan_case.id,
-                user_id=user_uuid,
-                action="REPORT_CERTIFIED",
-                extra_metadata={
-                    "sha256": report_meta["sha256"],
-                    "udin": report_meta["udin"],
-                    "report_path": output_pdf,
-                    "docx_path": output_docx,
-                }
-            )
-            session.add(audit)
-
-            await session.commit()
-            return {
-                "status": "success",
-                "report_id": str(certified_report.id),
-                "sha256": report_meta["sha256"],
-                "udin": report_meta["udin"],
-                "report_url": output_pdf,
-                "docx_url": output_docx,
-            }
-
-    return run_async(_async_generate())
+    return run_async(_runner())
