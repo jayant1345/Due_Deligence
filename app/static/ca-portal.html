@@ -236,9 +236,9 @@
             <span class="material-symbols-outlined text-[15px] text-primary-container">edit_square</span>
             <span>✏️ Edit Details</span>
           </button>
-          <button onclick="openNewCaseModal()" class="px-3 py-1 bg-primary-container hover:bg-primary text-white rounded font-headline font-bold flex items-center gap-1.5 shadow-sm transition-all text-xs" title="Select Bank Case Documents Folder to auto-ingest and create case">
-            <span class="material-symbols-outlined text-[16px]">folder_zip</span>
-            <span>📁 Ingest Bank Folder (+ નવો કેસ)</span>
+          <button onclick="triggerAiFolderIngest()" class="px-3 py-1 bg-primary-container hover:bg-primary text-white rounded font-headline font-bold flex items-center gap-1.5 shadow-sm transition-all text-xs" title="Select Bank Case Documents Folder or PDF to auto-ingest with Gemini AI">
+            <span class="material-symbols-outlined text-[16px]">bolt</span>
+            <span>⚡ AI Ingest Bank Folder / PDF</span>
           </button>
         </div>
       </div>
@@ -348,7 +348,7 @@
       </div>
 
       <!-- MULTI-PAGE PDF & FOLDER LLM SEPARATION & SCAN DESK -->
-      <div class="bg-gradient-to-r from-blue-900 to-indigo-950 p-3.5 rounded-xl border border-blue-700/60 shadow-md text-white space-y-2.5">
+      <div id="aiDocumentIngestSection" class="bg-gradient-to-r from-blue-900 to-indigo-950 p-3.5 rounded-xl border border-blue-700/60 shadow-md text-white space-y-2.5 transition-all duration-300">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-amber-300 text-[20px]">folder_copy</span>
@@ -1237,9 +1237,9 @@
         </p>
       </div>
       <div class="flex items-center gap-2.5 flex-wrap">
-        <button onclick="openNewCaseModal()" class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-headline font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all active:scale-95">
-          <span class="material-symbols-outlined text-[20px]">folder_zip</span>
-          <span>📁 Ingest Bank Folder (+ નવો કેસ)</span>
+        <button onclick="triggerAiFolderIngest()" class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-headline font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all active:scale-95" title="Switch to Scrutiny Desk and select bank folder/PDF for Gemini AI auto-scan">
+          <span class="material-symbols-outlined text-[20px]">bolt</span>
+          <span>⚡ AI Ingest Bank Folder / PDF</span>
         </button>
       </div>
     </div>
@@ -2472,12 +2472,28 @@
     }
 
     async function handlePortalFolderSelected(files) {
-      if (!files || files.length === 0 || !activeCaseId) return;
+      if (!files || files.length === 0) return;
+      if (!activeCaseId) {
+        const firstKey = Object.keys(caseRegistry)[0];
+        if (firstKey) activeCaseId = firstKey;
+      }
+      if (!activeCaseId) {
+        alert("Please select or load an active case first.");
+        return;
+      }
       await handleBatchPortalFilesIngest(Array.from(files));
     }
 
     async function handlePortalMultiFilesSelected(files) {
-      if (!files || files.length === 0 || !activeCaseId) return;
+      if (!files || files.length === 0) return;
+      if (!activeCaseId) {
+        const firstKey = Object.keys(caseRegistry)[0];
+        if (firstKey) activeCaseId = firstKey;
+      }
+      if (!activeCaseId) {
+        alert("Please select or load an active case first.");
+        return;
+      }
       await handleBatchPortalFilesIngest(Array.from(files));
     }
 
@@ -3727,12 +3743,27 @@
     // ==========================================
     // BANK DOCUMENTS FOLDER INGESTION & AI SCANNER
     // ==========================================
+    function triggerAiFolderIngest() {
+      switchMainPortalView('scrutiny');
+      const aiBox = document.getElementById('aiDocumentIngestSection');
+      if (aiBox) {
+        aiBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        aiBox.classList.add('ring-4', 'ring-amber-400');
+        setTimeout(() => aiBox.classList.remove('ring-4', 'ring-amber-400'), 2500);
+      }
+      const folderInput = document.getElementById('portalFolderInput');
+      if (folderInput) {
+        folderInput.click();
+      }
+    }
+
     function openNewCaseModal() {
-      document.getElementById("newCaseModal").classList.remove("hidden");
+      triggerAiFolderIngest();
     }
 
     function closeNewCaseModal() {
-      document.getElementById("newCaseModal").classList.add("hidden");
+      const modal = document.getElementById("newCaseModal");
+      if (modal) modal.classList.add("hidden");
     }
 
     function handleNewCaseFolderSelected(files) {
