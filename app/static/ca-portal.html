@@ -2929,7 +2929,8 @@
         const response = await fetch("/api/v1/reports/generate", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            ...authHeaders()
           },
           body: JSON.stringify({
             case_id: activeCaseId,
@@ -2947,11 +2948,11 @@
           const report = await response.json();
           showPdfSuccess(report.id, report.file_hash_sha256, report.udin);
         } else {
-          // In standalone demo preview, generate local client-side confirmation
-          showPdfSuccess("demo-report-01", "a6b78d234f9810ac90b14ef982c76a59b34cd1234ef9876543210123456789ab", udin);
+          const errData = await response.json().catch(() => ({}));
+          alert("Dossier compilation error: " + (errData.detail || response.statusText));
         }
       } catch (err) {
-        showPdfSuccess("demo-report-01", "a6b78d234f9810ac90b14ef982c76a59b34cd1234ef9876543210123456789ab", udin);
+        alert("Network error connecting to dossier engine: " + err.message);
       } finally {
         btn.disabled = false;
         btnText.innerHTML = `<span>Re-Generate Certified Dossier</span>`;

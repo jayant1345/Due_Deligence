@@ -50,6 +50,7 @@ def generate_certified_cpv_report(
     bank_name = case_data.get("bank_name", "Union Bank of India")
     branch = case_data.get("branch", "Amrapura Branch")
     loan_type = case_data.get("loan_type", "Home Loan")
+    field_form = case_data.get("field_form") or {}
 
     doc = SimpleDocTemplate(
         output_pdf_path,
