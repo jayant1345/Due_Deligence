@@ -605,16 +605,16 @@ def generate_certified_cpv_docx(
     sorted_docs = []
     if document_items:
         def _doc_sort_key(d):
+            if d.get("created_at_ts") is not None:
+                try:
+                    return float(d["created_at_ts"])
+                except Exception:
+                    pass
             dt = d.get("created_at")
             if isinstance(dt, datetime):
                 return dt.timestamp()
-            if isinstance(dt, str):
-                return dt
-            return ""
-        try:
-            sorted_docs = sorted(document_items, key=_doc_sort_key, reverse=True)
-        except Exception:
-            sorted_docs = list(document_items)
+            return 0.0
+        sorted_docs = sorted(document_items, key=_doc_sort_key, reverse=True)
 
     pan_img_path = None
     if sorted_docs:

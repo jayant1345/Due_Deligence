@@ -183,8 +183,11 @@ async def async_generate_report_pdf(
     )
     visit = visit_res.scalars().first()
 
+    from sqlalchemy import desc
     doc_res = await session.execute(
-        select(CaseDocument).where(CaseDocument.case_id == case_uuid)
+        select(CaseDocument)
+        .where(CaseDocument.case_id == case_uuid)
+        .order_by(desc(CaseDocument.created_at))
     )
     docs = doc_res.scalars().all()
 
@@ -233,7 +236,7 @@ async def async_generate_report_pdf(
             "latitude": d.latitude,
             "longitude": d.longitude,
             "captured_at": d.captured_at.strftime("%d-%b-%Y, %H:%M IST") if d.captured_at else (d.created_at.strftime("%d-%b-%Y, %H:%M IST") if d.created_at else None),
-            "created_at": d.created_at,
+            "created_at_ts": d.created_at.timestamp() if d.created_at else 0.0,
             "slot_number": (d.ocr_data or {}).get("slot_number"),
         }
         for d in docs
