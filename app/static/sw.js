@@ -1,5 +1,6 @@
 // Service Worker for VALUEX CA CPV Field Agent PWA
-const CACHE_NAME = "valuex-cpv-v1";
+// Bump on every release that changes the PWA page so old cached copies are purged.
+const CACHE_NAME = "valuex-cpv-v2";
 const STATIC_ASSETS = [
   "/pwa",
   "/manifest.json",
@@ -57,7 +58,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static Assets: Stale While Revalidate
+  // App pages and case-scanned images: Network First, cache only as the offline fallback —
+  // a stale page or stale document image must never be shown to a field agent as current.
+  if (event.request.mode === "navigate" || url.pathname.startsWith("/static/extracted_pages/")) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && event.request.method === "GET") {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Fonts / CDN scripts: Stale While Revalidate
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)

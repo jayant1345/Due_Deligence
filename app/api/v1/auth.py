@@ -22,6 +22,17 @@ from app.schemas.auth import (
 router = APIRouter(prefix="/auth", tags=["Authentication & RBAC"])
 
 
+def login_aliases(identifier: str) -> list:
+    """Short login names map to the e-mail-style accounts seeded in different environments."""
+    identifier = (identifier or "").lower().strip()
+    aliases = [identifier]
+    if identifier in ("admin", "admin@123", "superadmin"):
+        aliases.extend(["admin", "admin@valuexca.com"])
+    elif identifier in ("agent1", "agent", "rajesh"):
+        aliases.extend(["agent1", "agent1@valuexca.com", "agent.rajesh@valuexca.com"])
+    return aliases
+
+
 @router.post("/login", response_model=Token)
 async def login(
     req: LoginRequest,
@@ -35,13 +46,7 @@ async def login(
             detail="Username or email is required",
         )
 
-    aliases = [identifier]
-    if identifier in ("admin", "admin@123", "superadmin"):
-        aliases.extend(["admin", "admin@valuexca.com"])
-    elif identifier in ("agent1", "agent", "rajesh"):
-        aliases.extend(["agent1", "agent1@valuexca.com", "agent.rajesh@valuexca.com"])
-
-    query = select(User).where(User.email.in_(aliases))
+    query = select(User).where(User.email.in_(login_aliases(identifier)))
     result = await db.execute(query)
     user = result.scalars().first()
 

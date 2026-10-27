@@ -15,6 +15,15 @@ class ReportGenerateRequest(BaseModel):
     checklist_no_adverse_findings: bool = True
 
 
+class CpvTemplateReportRequest(BaseModel):
+    """CA inputs for the firm-template CPV report; everything else comes from the case record."""
+    udin: Optional[str] = None
+    overall_status: Optional[str] = None
+    file_allotted_by: Optional[str] = None
+    verifier_names: Optional[List[str]] = None
+    include_co_applicant: Optional[bool] = None  # None = auto-detect from scanned documents
+
+
 class ReportResponse(BaseModel):
     id: uuid.UUID
     case_id: uuid.UUID

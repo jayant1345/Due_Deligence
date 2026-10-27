@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="630" viewBox="0 0 1000 630">
+  <rect width="1000" height="630" rx="24" fill="#f1f5f9" stroke="#94a3b8" stroke-width="6" stroke-dasharray="22 14"/>
+  <g transform="translate(440 150)" fill="none" stroke="#64748b" stroke-width="10" stroke-linejoin="round">
+    <path d="M10 0h80l40 40v140H10z"/><path d="M90 0v40h40"/><path d="M35 85h70M35 115h70M35 145h45"/>
+  </g>
+  <text x="500" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" font-weight="700" fill="#334155">No document scanned yet</text>
+  <text x="500" y="480" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#64748b">Scan the bank folder PDF with Gemini AI to show the original copy</text>
+</svg>

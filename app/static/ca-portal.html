@@ -215,7 +215,6 @@
             <span class="material-symbols-outlined text-primary-container text-[16px]">person_search</span>
             <select id="caseSelectorSelect" onchange="onCaseSelected(this.value)" class="text-xs bg-transparent border-0 font-bold text-primary-container focus:ring-0 cursor-pointer max-w-md">
               <option value="b901fc63-12a8-4e32-9c02-e20984cfb001">[UBI-HL-2026-20L] - Mrs. Rajkunvarba Pradeepsinh Vaghela | Union Bank of India (Amrapura)</option>
-              <option value="ubi-hl-2026-616-pargi">[UBI-HL-2026-616] - Pargi Bhavnaben | Union Bank of India (Amrapura Branch)</option>
               <option value="c102ad74-23b9-4f43-ad13-f31095d0c002">[SBI-HL-2026-45L] - Mr. Vikramaditya Sengupta | State Bank of India (Bandra West)</option>
               <option value="d203be85-34ca-4a54-be24-a42106e1d003">[HDFC-LAP-2026-60L] - Mr. Jayeshbhai K. Patel | HDFC Bank (Navrangpura)</option>
               <option value="e304cf96-45db-4b65-cf35-b53217f2e004">[ICICI-PL-2026-15L] - Dr. Ananya Sharma | ICICI Bank (Ashram Road)</option>
@@ -288,7 +287,7 @@
         <!-- Interactive Field Staff Attendance Selfie Thumbnail -->
         <div onclick="openSelfieModal()" class="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg px-2 py-1 cursor-pointer shadow-2xs transition-colors" title="Click to view Field Staff Attendance Selfie with GPS Timestamp">
           <div class="relative w-6 h-6 rounded-full overflow-hidden border border-emerald-500 bg-slate-200 shrink-0">
-            <img id="dispAgentSelfieThumb" src="/static/specimen_assets/residence/agent_selfie_specimen.jpg" alt="Field Staff Selfie" class="w-full h-full object-cover"/>
+            <img id="dispAgentSelfieThumb" src="/static/placeholders/photo_pending.svg" alt="Field Staff Selfie" class="w-full h-full object-cover"/>
             <span class="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-emerald-500 ring-1 ring-white"></span>
           </div>
           <span class="font-mono text-[10px] font-bold text-emerald-900 flex items-center gap-0.5">
@@ -363,7 +362,7 @@
           </span>
         </div>
         <p class="text-[11px] text-blue-100 leading-snug">
-          Upload any combined loan PDF (or select <code class="bg-white/20 px-1 py-0.5 rounded text-[10px] font-mono">parghi bhavnaben.pdf</code>). AI bursts every page into 200 DPI images, classifies Aadhaar/PAN/MGVCL Bill/Payslip, and binds each to its card.
+          Upload this case's loan PDF. AI bursts every page into 200 DPI images, classifies Aadhaar/PAN/MGVCL Bill/Payslip, and binds each to its card.
         </p>
         <div class="flex items-center gap-2 pt-1">
           <input type="file" id="portalMultiPagePdfInput" accept="application/pdf,.pdf" class="hidden" onchange="handlePortalPdfSelected(this.files[0])"/>
@@ -371,9 +370,9 @@
             <span class="material-symbols-outlined text-[16px] text-blue-700">upload_file</span>
             <span>Select PDF from PC...</span>
           </button>
-          <button type="button" id="btnRunPargiPdfDemo" onclick="runPargiPdfSeparationDemo()" class="py-1.5 px-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all" title="Extract and classify all pages of Pargi Bhavnaben's PDF with Gemini LLM">
+          <button type="button" id="btnRunPargiPdfDemo" onclick="runPargiPdfSeparationDemo()" class="py-1.5 px-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all" title="Select this case's PDF and extract every page with Gemini AI">
             <span class="material-symbols-outlined text-[16px]">bolt</span>
-            <span>Extract Parghi PDF (AI)</span>
+            <span>Scan Case PDF (AI)</span>
           </button>
         </div>
         <!-- Progress / Status bar -->
@@ -450,7 +449,7 @@
             <div id="aadhaarFlipCard" class="doc-flip-card shadow-sm border border-outline-variant hover:border-primary-container transition-all">
               <!-- FRONT SIDE -->
               <div class="doc-flip-face doc-flip-front group relative bg-slate-900">
-                <img id="dispAadhaarFrontImg" src="/static/specimen_assets/aadhaar_front_masked.jpg" class="w-full h-full object-cover rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="Aadhaar Front Side"/>
+                <img id="dispAadhaarFrontImg" src="/static/placeholders/doc_pending.svg" class="w-full h-full object-cover rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="Aadhaar Front Side"/>
                 <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   GOVT OF INDIA • AADHAAR FRONT
@@ -465,7 +464,7 @@
               </div>
               <!-- BACK SIDE -->
               <div class="doc-flip-face doc-flip-back group relative bg-slate-900">
-                <img id="dispAadhaarBackImg" src="/static/specimen_assets/aadhaar_back.jpg" class="w-full h-full object-cover rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="Aadhaar Back Side"/>
+                <img id="dispAadhaarBackImg" src="/static/placeholders/doc_pending.svg" class="w-full h-full object-cover rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="Aadhaar Back Side"/>
                 <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   UIDAI • ADDRESS & SECURE QR
@@ -562,7 +561,7 @@
             <div id="panFlipCard" class="doc-flip-card shadow-sm border border-outline-variant hover:border-primary-container transition-all">
               <!-- FRONT SIDE: Real Physical PAN Card -->
               <div class="doc-flip-face doc-flip-front group relative bg-slate-900">
-                <img id="dispPanFrontImg" src="/static/specimen_assets/pan_front.jpg" class="w-full h-full object-cover rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="Physical PAN Card Front"/>
+                <img id="dispPanFrontImg" src="/static/placeholders/doc_pending.svg" class="w-full h-full object-cover rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="Physical PAN Card Front"/>
                 <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   INCOME TAX DEPT • PHYSICAL CARD
@@ -577,7 +576,7 @@
               </div>
               <!-- BACK SIDE: NSDL / JAO Online Verification -->
               <div class="doc-flip-face doc-flip-back group relative bg-slate-900">
-                <img id="dispPanBackImg" src="/static/specimen_assets/pan_back.jpg" class="w-full h-full object-cover rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="NSDL Verification"/>
+                <img id="dispPanBackImg" src="/static/placeholders/doc_pending.svg" class="w-full h-full object-cover rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="NSDL Verification"/>
                 <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   NSDL ONLINE PORTAL • JAO RECORD
@@ -628,7 +627,7 @@
             <span class="text-[10px] text-outline font-mono">Select PDF, JPG, PNG from device</span>
           </div>
           <div id="panManualPreview" class="hidden rounded-lg border border-outline-variant p-2.5 bg-surface-container-low flex items-center gap-3">
-            <img id="panManualImg" class="w-14 h-10 object-cover rounded border border-outline-variant bg-white" src="/static/specimen_assets/pan_front.jpg"/>
+            <img id="panManualImg" class="w-14 h-10 object-cover rounded border border-outline-variant bg-white" src="/static/placeholders/doc_pending.svg"/>
             <div class="flex-1 text-xs">
               <div id="panManualFilename" class="font-bold text-on-surface truncate">pan_verification.pdf</div>
               <div class="font-mono text-[10px] text-secondary font-semibold">✓ Ingested in Dossier & Verified</div>
@@ -681,7 +680,7 @@
             <div id="utilityFlipCard" class="doc-flip-card shadow-sm border border-outline-variant hover:border-primary-container transition-all">
               <!-- FRONT SIDE: Real Authentic Electricity Bill -->
               <div class="doc-flip-face doc-flip-front group relative bg-white">
-                <img id="dispUtilityFrontImg" src="/static/specimen_assets/utility_bill.jpg" class="w-full h-full object-cover object-top rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="Electricity Bill"/>
+                <img id="dispUtilityFrontImg" src="/static/placeholders/doc_pending.svg" class="w-full h-full object-cover object-top rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="Electricity Bill"/>
                 <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span id="dispUtilityDiscomBadge">MGVCL E-ELECTRICITY BILL</span>
@@ -690,13 +689,13 @@
                   <span class="material-symbols-outlined text-[12px]">sync</span> Click to Flip ↻
                 </div>
                 <div class="absolute bottom-2 inset-x-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded text-[10px] text-white flex items-center justify-between font-mono border border-white/10">
-                  <span class="truncate font-semibold text-[9px]" id="dispUtilityFrontLabel">PARGI BHAVNABEN • MAIN BAZAR, BAGODARA</span>
-                  <span id="dispUtilityConBadge" class="text-blue-300 font-bold ml-1 text-[9px]">CON: 02148/09121/4</span>
+                  <span class="truncate font-semibold text-[9px]" id="dispUtilityFrontLabel">Pending AI scan</span>
+                  <span id="dispUtilityConBadge" class="text-blue-300 font-bold ml-1 text-[9px]">CON: Pending AI scan</span>
                 </div>
               </div>
               <!-- BACK SIDE: Real CPV Field Visit Form filled by agent Kamal -->
               <div class="doc-flip-face doc-flip-back group relative bg-white">
-                <img id="dispUtilityBackImg" src="/static/specimen_assets/cpv_visit_form_page1.jpg" class="w-full h-full object-cover object-top rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="CPV Due Diligence Form"/>
+                <img id="dispUtilityBackImg" src="/static/placeholders/doc_pending.svg" class="w-full h-full object-cover object-top rounded-lg group-hover:scale-[1.01] transition-transform duration-300" alt="CPV Due Diligence Form"/>
                 <div class="absolute top-2 left-2 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-mono font-bold text-white flex items-center gap-1 border border-white/20">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   CPV FIELD VERIFICATION FORM
@@ -741,7 +740,7 @@
             <span class="text-[10px] text-outline font-mono">Select Utility Bill, Index II deed, Tax receipt</span>
           </div>
           <div id="utilityManualPreview" class="hidden rounded-lg border border-outline-variant p-2.5 bg-surface-container-low flex items-center gap-3">
-            <img id="utilityManualImg" class="w-12 h-14 object-cover rounded border border-outline-variant bg-white" src="/static/specimen_assets/utility_bill.jpg"/>
+            <img id="utilityManualImg" class="w-12 h-14 object-cover rounded border border-outline-variant bg-white" src="/static/placeholders/doc_pending.svg"/>
             <div class="flex-1 text-xs">
               <div id="utilityManualFilename" class="font-bold text-on-surface truncate">electricity_bill.pdf</div>
               <div class="font-mono text-[10px] text-secondary font-semibold">✓ Ingested in Dossier & Corroborated</div>
@@ -803,7 +802,7 @@
         </div>
         <span class="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-emerald-50 text-secondary border border-emerald-200 flex items-center gap-1">
           <span class="material-symbols-outlined text-[13px]" style="font-variation-settings: 'FILL' 1;">radar</span>
-          GEOFENCE VERIFIED
+          <span id="dispGeofenceHeaderBadge">GEOFENCE PENDING</span>
         </span>
       </div>
 
@@ -811,19 +810,19 @@
       <div class="bg-gradient-to-r from-emerald-50/90 via-blue-50/70 to-surface-container-lowest p-3 rounded-lg border border-emerald-200/90 shadow-xs flex items-center justify-between gap-3">
         <div class="flex items-center gap-3">
           <div class="relative w-14 h-14 rounded-xl overflow-hidden border-2 border-emerald-500 shadow-sm shrink-0 cursor-pointer group" onclick="openSelfieModal()" title="Click to inspect Field Staff Attendance Selfie">
-            <img id="dispAgentSelfieCardImg" src="/static/specimen_assets/residence/agent_selfie_specimen.jpg" alt="Field Staff Attendance Selfie" class="w-full h-full object-cover group-hover:scale-105 transition-transform"/>
+            <img id="dispAgentSelfieCardImg" src="/static/placeholders/photo_pending.svg" alt="Field Staff Attendance Selfie" class="w-full h-full object-cover group-hover:scale-105 transition-transform"/>
             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
               <span class="material-symbols-outlined text-[18px]">zoom_in</span>
             </div>
-            <div class="absolute bottom-0 inset-x-0 bg-emerald-700 text-white font-mono text-[7px] text-center py-0.5 uppercase font-bold">
-              GPS LOCKED
+            <div id="dispSelfieGpsLockBadge" class="absolute bottom-0 inset-x-0 bg-emerald-700 text-white font-mono text-[7px] text-center py-0.5 uppercase font-bold">
+              NO SELFIE YET
             </div>
           </div>
           <div>
             <div class="flex items-center gap-1.5 flex-wrap">
               <span class="font-headline font-bold text-xs text-on-surface">Field Staff Verification Selfie (એજન્ટ હાજરી સેલ્ફી)</span>
               <span id="dispAgentSelfieCardBadge" class="font-mono text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">
-                ✓ VERIFIED ON-SITE
+                PENDING VISIT
               </span>
             </div>
             <p class="font-mono text-[10px] text-on-surface-variant mt-0.5">
@@ -878,14 +877,14 @@
               <div id="dispRadarCapture" class="text-emerald-400">CAPTURE: 23.2154° N, 72.6367° E</div>
             </div>
             <div class="bg-black/60 px-2 py-1 rounded backdrop-blur border border-white/10 text-right">
-              <div>GPS ACCURACY: ±2.4m</div>
-              <div class="text-blue-300">HDOP: 0.78 (OPTIMAL)</div>
+              <div>GPS ACCURACY: —</div>
+              <div class="text-blue-300">HDOP: —</div>
             </div>
           </div>
 
           <div class="relative z-10 flex justify-between items-end text-white font-mono text-[9px]">
-            <span class="bg-black/60 px-2 py-0.5 rounded backdrop-blur">STATIONARY LOCK: 18m 45s</span>
-            <span class="text-emerald-400 font-bold bg-black/60 px-2 py-0.5 rounded backdrop-blur">ANTI-SPOOFING HASH: PASS</span>
+            <span class="bg-black/60 px-2 py-0.5 rounded backdrop-blur">STATIONARY LOCK: —</span>
+            <span class="text-emerald-400 font-bold bg-black/60 px-2 py-0.5 rounded backdrop-blur">ANTI-SPOOFING: NOT CHECKED</span>
           </div>
         </div>
 
@@ -912,7 +911,7 @@
           <!-- Slider Button for Photos (Manual vs Field Staff) -->
           <div class="flex items-center gap-0.5 bg-surface-container-high p-0.5 rounded-full border border-outline-variant font-mono text-[10px]">
             <button id="togglePhotosManualBtn" onclick="setPhotosMode('manual')" class="px-2 py-0.5 rounded-full transition-all text-on-surface-variant font-medium">Manual Upload</button>
-            <button id="togglePhotosFieldBtn" onclick="setPhotosMode('field')" class="px-2 py-0.5 rounded-full transition-all bg-primary-container text-white font-bold">Field Staff (4 Geotagged)</button>
+            <button id="togglePhotosFieldBtn" onclick="setPhotosMode('field')" class="px-2 py-0.5 rounded-full transition-all bg-primary-container text-white font-bold">Field Staff Photos</button>
           </div>
         </div>
 
@@ -949,7 +948,7 @@
           <div class="relative group rounded-lg overflow-hidden border border-outline-variant bg-surface-container shadow-sm flex flex-col">
             <input type="file" id="inputPhoto1" accept="image/*" class="hidden" onchange="handlePhotoUpload(1, currentPhotoFolder === 'residence' ? 'RES_GATE' : 'WORK_FACADE', this.files[0])"/>
             <div class="relative h-28 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(1)">
-              <img id="imgPhoto1" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 1" src="/static/specimen_assets/residence/res_gate.jpg"/>
+              <img id="imgPhoto1" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 1" src="/static/placeholders/photo_pending.svg"/>
               
               <!-- Hover / Manual Overlay -->
               <div id="overlayPhoto1" class="absolute inset-0 bg-primary-container/75 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation(); triggerPhotoSelect(1)">
@@ -975,7 +974,7 @@
           <div class="relative group rounded-lg overflow-hidden border border-outline-variant bg-surface-container shadow-sm flex flex-col">
             <input type="file" id="inputPhoto2" accept="image/*" class="hidden" onchange="handlePhotoUpload(2, currentPhotoFolder === 'residence' ? 'RES_ELEVATION' : 'WORK_OFFICE', this.files[0])"/>
             <div class="relative h-28 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(2)">
-              <img id="imgPhoto2" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 2" src="/static/specimen_assets/residence/res_elevation.jpg"/>
+              <img id="imgPhoto2" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 2" src="/static/placeholders/photo_pending.svg"/>
               
               <!-- Hover / Manual Overlay -->
               <div id="overlayPhoto2" class="absolute inset-0 bg-primary-container/75 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation(); triggerPhotoSelect(2)">
@@ -1001,7 +1000,7 @@
           <div class="relative group rounded-lg overflow-hidden border border-outline-variant bg-surface-container shadow-sm flex flex-col">
             <input type="file" id="inputPhoto3" accept="image/*" class="hidden" onchange="handlePhotoUpload(3, currentPhotoFolder === 'residence' ? 'RES_INTERIOR' : 'WORK_DESK', this.files[0])"/>
             <div class="relative h-28 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(3)">
-              <img id="imgPhoto3" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 3" src="/static/specimen_assets/residence/res_interior.jpg"/>
+              <img id="imgPhoto3" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 3" src="/static/placeholders/photo_pending.svg"/>
               
               <!-- Hover / Manual Overlay -->
               <div id="overlayPhoto3" class="absolute inset-0 bg-primary-container/75 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation(); triggerPhotoSelect(3)">
@@ -1027,7 +1026,7 @@
           <div class="relative group rounded-lg overflow-hidden border border-outline-variant bg-surface-container shadow-sm flex flex-col">
             <input type="file" id="inputPhoto4" accept="image/*" class="hidden" onchange="handlePhotoUpload(4, currentPhotoFolder === 'residence' ? 'RES_PERSON_MET' : 'WORK_APPROACH', this.files[0])"/>
             <div class="relative h-28 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(4)">
-              <img id="imgPhoto4" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 4" src="/static/specimen_assets/residence/res_person_met.jpg"/>
+              <img id="imgPhoto4" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 4" src="/static/placeholders/photo_pending.svg"/>
               
               <!-- Hover / Manual Overlay -->
               <div id="overlayPhoto4" class="absolute inset-0 bg-primary-container/75 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation(); triggerPhotoSelect(4)">
@@ -1079,27 +1078,27 @@
       <div class="bg-surface-container-lowest rounded-lg border border-outline-variant p-3.5 shadow-sm space-y-2">
         <div class="flex items-center justify-between pb-1 border-b border-outline-variant">
           <span class="text-xs font-bold text-on-surface">Audit Scrutiny Checkpoints</span>
-          <span class="font-mono text-[10px] text-secondary font-bold">5/5 SATISFIED</span>
+          <span id="auditCheckCount" class="font-mono text-[10px] text-secondary font-bold">0/5 SATISFIED</span>
         </div>
         <div class="space-y-1.5 text-xs">
           <label class="flex items-start gap-2 cursor-pointer">
-            <input type="checkbox" checked class="mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant"/>
+            <input type="checkbox" class="audit-check mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant" onchange="updateAuditCheckCount()"/>
             <span class="text-on-surface leading-tight text-[11px]">Applicant Identity & Aadhaar Masking scrutinised under Rule 4.</span>
           </label>
           <label class="flex items-start gap-2 cursor-pointer">
-            <input type="checkbox" checked class="mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant"/>
+            <input type="checkbox" class="audit-check mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant" onchange="updateAuditCheckCount()"/>
             <span class="text-on-surface leading-tight text-[11px]">Physical site existence, address & occupancy corroborated.</span>
           </label>
           <label class="flex items-start gap-2 cursor-pointer">
-            <input type="checkbox" checked class="mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant"/>
-            <span class="text-on-surface leading-tight text-[11px]">Geofence within 150m safe harbor benchmark (68m delta).</span>
+            <input type="checkbox" class="audit-check mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant" onchange="updateAuditCheckCount()"/>
+            <span class="text-on-surface leading-tight text-[11px]">Geofence within 150m safe harbor benchmark.</span>
           </label>
           <label class="flex items-start gap-2 cursor-pointer">
-            <input type="checkbox" checked class="mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant"/>
+            <input type="checkbox" class="audit-check mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant" onchange="updateAuditCheckCount()"/>
             <span class="text-on-surface leading-tight text-[11px]">Society office register & utility meters verified.</span>
           </label>
           <label class="flex items-start gap-2 cursor-pointer">
-            <input type="checkbox" checked class="mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant"/>
+            <input type="checkbox" class="audit-check mt-0.5 rounded text-primary-container focus:ring-primary-container h-3.5 w-3.5 border-outline-variant" onchange="updateAuditCheckCount()"/>
             <span class="text-on-surface leading-tight text-[11px]">No adverse encumbrance or credit red-flags noted.</span>
           </label>
         </div>
@@ -1126,8 +1125,8 @@
             </div>
           </div>
           <span id="udinValidationBadge" class="font-mono text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold flex items-center gap-1">
-            <span class="material-symbols-outlined text-[13px]">check_circle</span>
-            SYNCED
+            <span class="material-symbols-outlined text-[13px]">warning</span>
+            UDIN REQUIRED
           </span>
         </div>
 
@@ -1139,7 +1138,7 @@
               Manual UDIN Entry (CA Staff):
             </label>
             <span id="udinCharCounter" class="font-mono text-[10px] font-bold text-primary-container bg-white px-1.5 py-0.5 rounded border border-outline-variant">
-              18 / 18 Digits
+              0 / 18 Digits
             </span>
           </div>
 
@@ -1148,9 +1147,9 @@
               id="udinInput"
               type="text"
               maxlength="18"
-              value="26033747WJZXZM6737"
+              value=""
               oninput="handleUdinManualInput(this.value)"
-              placeholder="e.g. 26033747WJZXZM6737"
+              placeholder="18-character UDIN from udin.icai.org"
               class="w-full font-mono text-sm font-bold text-primary-container bg-white border-2 border-primary-container/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-md py-2 pl-3 pr-20 uppercase tracking-wider shadow-sm transition-all outline-none"
             />
             <div class="absolute right-1.5 flex items-center gap-1">
@@ -1169,7 +1168,7 @@
           <div class="flex items-center justify-between text-[10px] font-mono pt-1 text-on-surface-variant">
             <button type="button" onclick="autoGenerateUdinSpecimen()" class="text-primary-container hover:underline font-bold flex items-center gap-0.5">
               <span class="material-symbols-outlined text-[12px]">auto_fix_high</span>
-              Auto-Fill Specimen UDIN
+              Enter UDIN
             </button>
             <a href="https://udin.icai.org/" target="_blank" rel="noopener" class="text-blue-600 hover:underline flex items-center gap-0.5 font-bold">
               <span>ICAI Portal (udin.icai.org)</span>
@@ -1223,7 +1222,7 @@
               <span class="material-symbols-outlined text-[16px]">task_alt</span>
               Specimen Reports Generated!
             </span>
-            <span id="pdfUdinBadge" class="font-mono text-[10px] bg-white px-1.5 py-0.5 rounded border border-emerald-200">UDIN: 26033747WJZXZM6737</span>
+            <span id="pdfUdinBadge" class="font-mono text-[10px] bg-white px-1.5 py-0.5 rounded border border-emerald-200">UDIN: —</span>
           </div>
           <p class="font-mono text-[10px] text-on-surface-variant truncate">
             SHA-256: <span id="pdfHashText" class="font-bold text-on-surface">computing...</span>
@@ -1470,11 +1469,11 @@
         <div>
           <div class="flex items-center gap-2 flex-wrap">
             <h1 class="font-headline font-bold text-lg sm:text-xl text-on-surface">Case Document Vault & Property Repository</h1>
-            <span id="vaultActiveCaseBadge" class="bg-primary-container text-white px-2.5 py-0.5 rounded-full font-mono text-xs font-bold shadow-2xs">UBI-HL-2026-616</span>
+            <span id="vaultActiveCaseBadge" class="bg-primary-container text-white px-2.5 py-0.5 rounded-full font-mono text-xs font-bold shadow-2xs">—</span>
             <span class="font-mono text-xs text-secondary bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300 font-bold">● TAMPER-PROOF REPOSITORY</span>
           </div>
           <p class="text-xs text-on-surface-variant mt-0.5">
-            Applicant: <strong id="vaultApplicantName" class="text-on-surface">Pargi Bhavnaben</strong> • Facility: <span id="vaultFacilityText" class="font-mono font-bold text-primary-container">Home Loan (HL) ₹20.00 Lacs</span> • Property: <span id="vaultAddressText" class="text-outline">Plot 42, Gayatri Nagar, Sector 8, Gandhinagar</span>
+            Applicant: <strong id="vaultApplicantName" class="text-on-surface">—</strong> • Facility: <span id="vaultFacilityText" class="font-mono font-bold text-primary-container">Home Loan (HL) ₹20.00 Lacs</span> • Property: <span id="vaultAddressText" class="text-outline">Plot 42, Gayatri Nagar, Sector 8, Gandhinagar</span>
           </p>
         </div>
       </div>
@@ -1580,7 +1579,7 @@
         ward: "WARD 1, GANDHINAGAR (ACTIVE)",
         address: "31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar",
         agent: "Nilesh & Kamal Bhai (Field Team)",
-        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
+        agent_selfie: "/static/placeholders/photo_pending.svg",
         selfie_verified: true,
         photos_count: 8,
         visit_date: "04-Aug-2026, 11:30 IST",
@@ -1595,25 +1594,25 @@
         person_met: "Pradeepsinh Vaghela (Husband - 8160166900)",
         neighbors: ["1. Narendrasinh Devda (Neighbour - Confirmed)", "2. Bhagwatsinh Rathod (Neighbour - Confirmed)"],
         status: "PENDING_CA_REVIEW",
-        aadhaar_front_img: "/static/specimen_assets/aadhaar_front_masked.jpg",
-        aadhaar_front_raw: "/static/specimen_assets/aadhaar_front.jpg",
-        aadhaar_back_img: "/static/specimen_assets/aadhaar_back.jpg",
-        pan_front_img: "/static/specimen_assets/pan_front.jpg",
-        pan_back_img: "/static/specimen_assets/pan_back.jpg",
-        utility_front_img: "/static/specimen_assets/utility_bill.jpg",
+        aadhaar_front_img: "/static/placeholders/doc_pending.svg",
+        aadhaar_front_raw: "/static/placeholders/doc_pending.svg",
+        aadhaar_back_img: "/static/placeholders/doc_pending.svg",
+        pan_front_img: "/static/placeholders/doc_pending.svg",
+        pan_back_img: "/static/placeholders/doc_pending.svg",
+        utility_front_img: "/static/placeholders/doc_pending.svg",
         vault_documents: {
-          sale_deed: { title: "Registered Sale Deed (દસ્તાવેજ)", sub: "Reg # 7491/22 • Sub-Registrar GNR", type: "property", src: "/static/specimen_assets/specimen_sale_deed.jpg", status: "VERIFIED" },
-          index2: { title: "Index II Copy (સૂચિ ૨ નકલ)", sub: "Revenue Inspector Certified", type: "property", src: "/static/specimen_assets/specimen_index2.jpg", status: "VERIFIED" },
-          utility: { title: "UGVCL Electricity Bill (વીજળી બિલ)", sub: "Consumer # 04128/99102/3", type: "property", src: "/static/specimen_assets/utility_bill.jpg", status: "VERIFIED" },
-          form16: { title: "Form 16 / TDS (Part A & B)", sub: "AY 2026-27 • Sec 192 TRACES", type: "income", src: "/static/specimen_assets/specimen_form16.jpg", status: "COMPLIANT" },
-          payslip: { title: "Salary Payslip (Last 3 Months)", sub: "Net Credit: ₹82,030 / Month", type: "income", src: "/static/specimen_assets/specimen_payslip.jpg", status: "VERIFIED" },
-          bank_statement: { title: "6 Months Bank Statement", sub: "HDFC A/c # 50100492817492", type: "income", src: "/static/specimen_assets/cpv_visit_form_page2.jpg", status: "VERIFIED" },
-          aadhaar: { title: "Aadhaar Card (UIDAI Masked)", sub: "XXXX-XXXX-7689 • Rule 4", type: "kyc", src: "/static/specimen_assets/aadhaar_front_masked.jpg", status: "MASKED" },
-          pan: { title: "Permanent Account Number (PAN)", sub: "BYMPG8996E • ITD Linked", type: "kyc", src: "/static/specimen_assets/pan_front.jpg", status: "VERIFIED" }
+          sale_deed: { title: "Registered Sale Deed (દસ્તાવેજ)", sub: "Reg # 7491/22 • Sub-Registrar GNR", type: "property", src: "/static/placeholders/doc_pending.svg", status: "VERIFIED" },
+          index2: { title: "Index II Copy (સૂચિ ૨ નકલ)", sub: "Revenue Inspector Certified", type: "property", src: "/static/placeholders/doc_pending.svg", status: "VERIFIED" },
+          utility: { title: "UGVCL Electricity Bill (વીજળી બિલ)", sub: "Consumer # 04128/99102/3", type: "property", src: "/static/placeholders/doc_pending.svg", status: "VERIFIED" },
+          form16: { title: "Form 16 / TDS (Part A & B)", sub: "AY 2026-27 • Sec 192 TRACES", type: "income", src: "/static/placeholders/doc_pending.svg", status: "COMPLIANT" },
+          payslip: { title: "Salary Payslip (Last 3 Months)", sub: "Pending AI scan", type: "income", src: "/static/placeholders/doc_pending.svg", status: "VERIFIED" },
+          bank_statement: { title: "6 Months Bank Statement", sub: "HDFC A/c # 50100492817492", type: "income", src: "/static/placeholders/doc_pending.svg", status: "VERIFIED" },
+          aadhaar: { title: "Aadhaar Card (UIDAI Masked)", sub: "XXXX-XXXX-7689 • Rule 4", type: "kyc", src: "/static/placeholders/doc_pending.svg", status: "MASKED" },
+          pan: { title: "Permanent Account Number (PAN)", sub: "BYMPG8996E • ITD Linked", type: "kyc", src: "/static/placeholders/doc_pending.svg", status: "VERIFIED" }
         },
         residence_photos: [
           {
-            src: "/static/specimen_assets/residence/res_gate.jpg",
+            src: "/static/placeholders/photo_pending.svg",
             title: "Main Gate (સિદ્ધિ વિનાયક)",
             tag: "RESIDENCE: MAIN GATE & SOCIETY",
             timestamp: "04-AUG-2026 11:32 IST",
@@ -1621,7 +1620,7 @@
             status: "MATCH"
           },
           {
-            src: "/static/specimen_assets/residence/res_elevation.jpg",
+            src: "/static/placeholders/photo_pending.svg",
             title: "Bungalow 31 (લક્ષ્મી કૃપા)",
             tag: "BUNGALOW 31: ELEVATION & NAME",
             timestamp: "04-AUG-2026 11:36 IST",
@@ -1629,7 +1628,7 @@
             status: "CONFIRMED"
           },
           {
-            src: "/static/specimen_assets/residence/res_interior.jpg",
+            src: "/static/placeholders/photo_pending.svg",
             title: "Drawing Room & Showcase",
             tag: "DRAWING ROOM & LIVING ASSETS",
             timestamp: "04-AUG-2026 11:39 IST",
@@ -1637,7 +1636,7 @@
             status: "VERIFIED"
           },
           {
-            src: "/static/specimen_assets/residence/res_person_met.jpg",
+            src: "/static/placeholders/photo_pending.svg",
             title: "Pradeepsinh Vaghela (Husband)",
             tag: "PERSON MET: HUSBAND WITH FA",
             timestamp: "04-AUG-2026 11:42 IST",
@@ -1647,7 +1646,7 @@
         ],
         work_photos: [
           {
-            src: "/static/specimen_assets/work/work_facade.jpg",
+            src: "/static/placeholders/photo_pending.svg",
             title: "Commercial Facade & Entrance",
             tag: "WORKPLACE: EXTERIOR ENTRANCE",
             timestamp: "04-AUG-2026 12:40 IST",
@@ -1655,7 +1654,7 @@
             status: "MATCH"
           },
           {
-            src: "/static/specimen_assets/work/work_office.jpg",
+            src: "/static/placeholders/photo_pending.svg",
             title: "Operations Floor & Workstations",
             tag: "WORKPLACE: OPERATIONAL SETUP",
             timestamp: "04-AUG-2026 12:45 IST",
@@ -1663,7 +1662,7 @@
             status: "VERIFIED"
           },
           {
-            src: "/static/specimen_assets/work/work_desk.jpg",
+            src: "/static/placeholders/photo_pending.svg",
             title: "CA Verification Desk",
             tag: "INSPECTION: EXECUTIVE DESK",
             timestamp: "04-AUG-2026 12:50 IST",
@@ -1671,7 +1670,7 @@
             status: "CONFIRMED"
           },
           {
-            src: "/static/specimen_assets/work/work_approach.jpg",
+            src: "/static/placeholders/photo_pending.svg",
             title: "Commercial Complex Approach",
             tag: "APPROACH ROAD & COMMERCIAL ZONE",
             timestamp: "04-AUG-2026 12:55 IST",
@@ -1680,10 +1679,10 @@
           }
         ],
         photos: [
-          "/static/specimen_assets/residence/res_gate.jpg",
-          "/static/specimen_assets/residence/res_elevation.jpg",
-          "/static/specimen_assets/residence/res_interior.jpg",
-          "/static/specimen_assets/residence/res_person_met.jpg"
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg"
         ]
       },
       "c102ad74-23b9-4f43-ad13-f31095d0c002": {
@@ -1703,7 +1702,7 @@
         ward: "WARD 50, BANDRA, MUMBAI (ACTIVE)",
         address: "Flat 402, Imperial Heights, Bandra West, Mumbai - 400050",
         agent: "Rajesh Varma (FA-9042)",
-        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
+        agent_selfie: "/static/placeholders/photo_pending.svg",
         selfie_verified: true,
         photos_count: 8,
         visit_date: "24-Oct-2026, 14:15 IST",
@@ -1719,22 +1718,22 @@
         neighbors: ["1. Arun Mehta (Flat 401 - Confirmed)", "2. Sunita Rao (Flat 403 - Confirmed)"],
         status: "PENDING_CA_REVIEW",
         residence_photos: [
-          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Imperial Heights Entrance", tag: "RESIDENCE: MAIN GATE", timestamp: "24-OCT-2026 14:18 IST", badge: "GPS: VALID", status: "MATCH" },
-          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "Tower Elevation (Wing B)", tag: "ELEVATION: CONFIRMED", timestamp: "24-OCT-2026 14:22 IST", badge: "GEO: MATCH", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Flat 402 Living Room", tag: "INTERIOR ASSETS", timestamp: "24-OCT-2026 14:28 IST", badge: "OCCUPIED", status: "VERIFIED" },
-          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Vikramaditya Sengupta", tag: "PERSON MET: APPLICANT", timestamp: "24-OCT-2026 14:32 IST", badge: "ID: MATCH", status: "MATCH" }
+          { src: "/static/placeholders/photo_pending.svg", title: "Imperial Heights Entrance", tag: "RESIDENCE: MAIN GATE", timestamp: "24-OCT-2026 14:18 IST", badge: "GPS: VALID", status: "MATCH" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Tower Elevation (Wing B)", tag: "ELEVATION: CONFIRMED", timestamp: "24-OCT-2026 14:22 IST", badge: "GEO: MATCH", status: "CONFIRMED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Flat 402 Living Room", tag: "INTERIOR ASSETS", timestamp: "24-OCT-2026 14:28 IST", badge: "OCCUPIED", status: "VERIFIED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Vikramaditya Sengupta", tag: "PERSON MET: APPLICANT", timestamp: "24-OCT-2026 14:32 IST", badge: "ID: MATCH", status: "MATCH" }
         ],
         work_photos: [
-          { src: "/static/specimen_assets/work/work_facade.jpg", title: "Corporate Building Facade", tag: "WORK: EXTERIOR", timestamp: "24-OCT-2026 15:40 IST", badge: "EXIF: PASS", status: "MATCH" },
-          { src: "/static/specimen_assets/work/work_office.jpg", title: "Office Floor & Workstations", tag: "WORK: INTERIOR", timestamp: "24-OCT-2026 15:45 IST", badge: "ACTIVE", status: "VERIFIED" },
-          { src: "/static/specimen_assets/work/work_desk.jpg", title: "Director's Cabin Desk", tag: "EXECUTIVE CABIN", timestamp: "24-OCT-2026 15:50 IST", badge: "MATCH", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/work/work_approach.jpg", title: "Bandra Kurla Complex Approach", tag: "APPROACH ROAD", timestamp: "24-OCT-2026 15:55 IST", badge: "OPTIMAL", status: "MATCH" }
+          { src: "/static/placeholders/photo_pending.svg", title: "Corporate Building Facade", tag: "WORK: EXTERIOR", timestamp: "24-OCT-2026 15:40 IST", badge: "EXIF: PASS", status: "MATCH" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Office Floor & Workstations", tag: "WORK: INTERIOR", timestamp: "24-OCT-2026 15:45 IST", badge: "ACTIVE", status: "VERIFIED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Director's Cabin Desk", tag: "EXECUTIVE CABIN", timestamp: "24-OCT-2026 15:50 IST", badge: "MATCH", status: "CONFIRMED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Bandra Kurla Complex Approach", tag: "APPROACH ROAD", timestamp: "24-OCT-2026 15:55 IST", badge: "OPTIMAL", status: "MATCH" }
         ],
         photos: [
-          "/static/specimen_assets/residence/res_gate.jpg",
-          "/static/specimen_assets/residence/res_elevation.jpg",
-          "/static/specimen_assets/residence/res_interior.jpg",
-          "/static/specimen_assets/residence/res_person_met.jpg"
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg"
         ]
       },
       "d203be85-34ca-4a54-be24-a42106e1d003": {
@@ -1754,7 +1753,7 @@
         ward: "WARD 7, AMBAWADI, AHMEDABAD (ACTIVE)",
         address: "B-14, Shivalik Corporate Park, Ambawadi, Ahmedabad - 380015",
         agent: "Amit Shah (FA-5011)",
-        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
+        agent_selfie: "/static/placeholders/photo_pending.svg",
         selfie_verified: true,
         photos_count: 8,
         visit_date: "23-Oct-2026, 16:30 IST",
@@ -1770,22 +1769,22 @@
         neighbors: ["1. Mehta Finserve (Office B-13)", "2. Dr. Chirag Dental Clinic (Office B-15)"],
         status: "IN_PROGRESS",
         residence_photos: [
-          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Shivalik Residence Gate", tag: "RESIDENCE: MAIN GATE", timestamp: "23-OCT-2026 16:35 IST", badge: "GPS: VALID", status: "MATCH" },
-          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "Bungalow Elevation", tag: "ELEVATION", timestamp: "23-OCT-2026 16:40 IST", badge: "GEO: MATCH", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Living Room Setup", tag: "INTERIOR ASSETS", timestamp: "23-OCT-2026 16:45 IST", badge: "OCCUPIED", status: "VERIFIED" },
-          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Jayeshbhai Patel (Self)", tag: "PERSON MET", timestamp: "23-OCT-2026 16:50 IST", badge: "ID: MATCH", status: "MATCH" }
+          { src: "/static/placeholders/photo_pending.svg", title: "Shivalik Residence Gate", tag: "RESIDENCE: MAIN GATE", timestamp: "23-OCT-2026 16:35 IST", badge: "GPS: VALID", status: "MATCH" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Bungalow Elevation", tag: "ELEVATION", timestamp: "23-OCT-2026 16:40 IST", badge: "GEO: MATCH", status: "CONFIRMED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Living Room Setup", tag: "INTERIOR ASSETS", timestamp: "23-OCT-2026 16:45 IST", badge: "OCCUPIED", status: "VERIFIED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Jayeshbhai Patel (Self)", tag: "PERSON MET", timestamp: "23-OCT-2026 16:50 IST", badge: "ID: MATCH", status: "MATCH" }
         ],
         work_photos: [
-          { src: "/static/specimen_assets/work/work_facade.jpg", title: "Shivalik Corporate Park Facade", tag: "WORKPLACE FACADE", timestamp: "23-OCT-2026 17:10 IST", badge: "EXIF: PASS", status: "MATCH" },
-          { src: "/static/specimen_assets/work/work_office.jpg", title: "Office Suite B-14", tag: "OPERATIONS", timestamp: "23-OCT-2026 17:15 IST", badge: "ACTIVE", status: "VERIFIED" },
-          { src: "/static/specimen_assets/work/work_desk.jpg", title: "Executive Cabin Desk", tag: "VERIFICATION DESK", timestamp: "23-OCT-2026 17:20 IST", badge: "MATCH", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/work/work_approach.jpg", title: "Ambawadi Main Road Approach", tag: "APPROACH ROAD", timestamp: "23-OCT-2026 17:25 IST", badge: "OPTIMAL", status: "MATCH" }
+          { src: "/static/placeholders/photo_pending.svg", title: "Shivalik Corporate Park Facade", tag: "WORKPLACE FACADE", timestamp: "23-OCT-2026 17:10 IST", badge: "EXIF: PASS", status: "MATCH" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Office Suite B-14", tag: "OPERATIONS", timestamp: "23-OCT-2026 17:15 IST", badge: "ACTIVE", status: "VERIFIED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Executive Cabin Desk", tag: "VERIFICATION DESK", timestamp: "23-OCT-2026 17:20 IST", badge: "MATCH", status: "CONFIRMED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Ambawadi Main Road Approach", tag: "APPROACH ROAD", timestamp: "23-OCT-2026 17:25 IST", badge: "OPTIMAL", status: "MATCH" }
         ],
         photos: [
-          "/static/specimen_assets/residence/res_gate.jpg",
-          "/static/specimen_assets/residence/res_elevation.jpg",
-          "/static/specimen_assets/residence/res_interior.jpg",
-          "/static/specimen_assets/residence/res_person_met.jpg"
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg"
         ]
       },
       "e304cf96-45db-4b65-cf35-b53217f2e004": {
@@ -1805,7 +1804,7 @@
         ward: "WARD 9, ELLISBRIDGE, AHMEDABAD (ACTIVE)",
         address: "401, Doctor House, Ellisbridge, Ahmedabad - 380006",
         agent: "Sneha Desai (FA-3104)",
-        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
+        agent_selfie: "/static/placeholders/photo_pending.svg",
         selfie_verified: true,
         photos_count: 8,
         visit_date: "25-Oct-2026, 10:15 IST",
@@ -1821,22 +1820,22 @@
         neighbors: ["1. Apollo Pharmacy (Ground Floor)", "2. DentCare Polyclinic (Suite 402)"],
         status: "PENDING_CA_REVIEW",
         residence_photos: [
-          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Doctor House Entrance Gate", tag: "MAIN GATE", timestamp: "25-OCT-2026 10:18 IST", badge: "GPS: VALID", status: "MATCH" },
-          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "Building Elevation", tag: "ELEVATION", timestamp: "25-OCT-2026 10:22 IST", badge: "GEO: MATCH", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Living Area", tag: "INTERIOR", timestamp: "25-OCT-2026 10:25 IST", badge: "OCCUPIED", status: "VERIFIED" },
-          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Dr. Ananya Sharma", tag: "PERSON MET", timestamp: "25-OCT-2026 10:28 IST", badge: "ID: MATCH", status: "MATCH" }
+          { src: "/static/placeholders/photo_pending.svg", title: "Doctor House Entrance Gate", tag: "MAIN GATE", timestamp: "25-OCT-2026 10:18 IST", badge: "GPS: VALID", status: "MATCH" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Building Elevation", tag: "ELEVATION", timestamp: "25-OCT-2026 10:22 IST", badge: "GEO: MATCH", status: "CONFIRMED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Living Area", tag: "INTERIOR", timestamp: "25-OCT-2026 10:25 IST", badge: "OCCUPIED", status: "VERIFIED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Dr. Ananya Sharma", tag: "PERSON MET", timestamp: "25-OCT-2026 10:28 IST", badge: "ID: MATCH", status: "MATCH" }
         ],
         work_photos: [
-          { src: "/static/specimen_assets/work/work_facade.jpg", title: "Clinic Facade Suite 401", tag: "WORKPLACE FACADE", timestamp: "25-OCT-2026 10:35 IST", badge: "EXIF: PASS", status: "MATCH" },
-          { src: "/static/specimen_assets/work/work_office.jpg", title: "Clinic Treatment Facility", tag: "OPERATIONS", timestamp: "25-OCT-2026 10:40 IST", badge: "ACTIVE", status: "VERIFIED" },
-          { src: "/static/specimen_assets/work/work_desk.jpg", title: "Doctor Consultation Desk", tag: "CONSULTATION DESK", timestamp: "25-OCT-2026 10:45 IST", badge: "MATCH", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/work/work_approach.jpg", title: "Ellisbridge Main Approach", tag: "APPROACH ROAD", timestamp: "25-OCT-2026 10:50 IST", badge: "OPTIMAL", status: "MATCH" }
+          { src: "/static/placeholders/photo_pending.svg", title: "Clinic Facade Suite 401", tag: "WORKPLACE FACADE", timestamp: "25-OCT-2026 10:35 IST", badge: "EXIF: PASS", status: "MATCH" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Clinic Treatment Facility", tag: "OPERATIONS", timestamp: "25-OCT-2026 10:40 IST", badge: "ACTIVE", status: "VERIFIED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Doctor Consultation Desk", tag: "CONSULTATION DESK", timestamp: "25-OCT-2026 10:45 IST", badge: "MATCH", status: "CONFIRMED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Ellisbridge Main Approach", tag: "APPROACH ROAD", timestamp: "25-OCT-2026 10:50 IST", badge: "OPTIMAL", status: "MATCH" }
         ],
         photos: [
-          "/static/specimen_assets/residence/res_gate.jpg",
-          "/static/specimen_assets/residence/res_elevation.jpg",
-          "/static/specimen_assets/residence/res_interior.jpg",
-          "/static/specimen_assets/residence/res_person_met.jpg"
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg"
         ]
       },
       "f405da07-56ec-4c76-da46-c64328a3f005": {
@@ -1856,7 +1855,7 @@
         ward: "WARD 4, SECTOR 22, GANDHINAGAR (ACTIVE)",
         address: "Plot 112/1, Sector 22, Gandhinagar - 382022",
         agent: "Kamal Bhai (FA-7702)",
-        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
+        agent_selfie: "/static/placeholders/photo_pending.svg",
         selfie_verified: true,
         photos_count: 8,
         visit_date: "24-Oct-2026, 16:45 IST",
@@ -1872,94 +1871,24 @@
         neighbors: ["1. Dashrathbhai Patel (Plot 112/2)", "2. Govindbhai Rabari (Plot 111)"],
         status: "PENDING_CA_REVIEW",
         residence_photos: [
-          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Plot 112 Main Gate", tag: "RESIDENCE: MAIN GATE", timestamp: "24-OCT-2026 16:48 IST", badge: "GPS: VALID", status: "MATCH" },
-          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "House Elevation Sector 22", tag: "ELEVATION", timestamp: "24-OCT-2026 16:52 IST", badge: "GEO: MATCH", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Living Room Interior", tag: "INTERIOR ASSETS", timestamp: "24-OCT-2026 16:56 IST", badge: "OCCUPIED", status: "VERIFIED" },
-          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Mahendrasinh Solanki", tag: "PERSON MET", timestamp: "24-OCT-2026 17:00 IST", badge: "ID: MATCH", status: "MATCH" }
+          { src: "/static/placeholders/photo_pending.svg", title: "Plot 112 Main Gate", tag: "RESIDENCE: MAIN GATE", timestamp: "24-OCT-2026 16:48 IST", badge: "GPS: VALID", status: "MATCH" },
+          { src: "/static/placeholders/photo_pending.svg", title: "House Elevation Sector 22", tag: "ELEVATION", timestamp: "24-OCT-2026 16:52 IST", badge: "GEO: MATCH", status: "CONFIRMED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Living Room Interior", tag: "INTERIOR ASSETS", timestamp: "24-OCT-2026 16:56 IST", badge: "OCCUPIED", status: "VERIFIED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Mahendrasinh Solanki", tag: "PERSON MET", timestamp: "24-OCT-2026 17:00 IST", badge: "ID: MATCH", status: "MATCH" }
         ],
         work_photos: [
-          { src: "/static/specimen_assets/work/work_facade.jpg", title: "Business Premises Gate", tag: "WORKPLACE FACADE", timestamp: "24-OCT-2026 17:15 IST", badge: "EXIF: PASS", status: "MATCH" },
-          { src: "/static/specimen_assets/work/work_office.jpg", title: "Workshop Operations", tag: "OPERATIONS", timestamp: "24-OCT-2026 17:20 IST", badge: "ACTIVE", status: "VERIFIED" },
-          { src: "/static/specimen_assets/work/work_desk.jpg", title: "Accounts & Billing Desk", tag: "INSPECTION DESK", timestamp: "24-OCT-2026 17:25 IST", badge: "MATCH", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/work/work_approach.jpg", title: "GIDC Sector Approach", tag: "APPROACH ROAD", timestamp: "24-OCT-2026 17:30 IST", badge: "OPTIMAL", status: "MATCH" }
+          { src: "/static/placeholders/photo_pending.svg", title: "Business Premises Gate", tag: "WORKPLACE FACADE", timestamp: "24-OCT-2026 17:15 IST", badge: "EXIF: PASS", status: "MATCH" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Workshop Operations", tag: "OPERATIONS", timestamp: "24-OCT-2026 17:20 IST", badge: "ACTIVE", status: "VERIFIED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "Accounts & Billing Desk", tag: "INSPECTION DESK", timestamp: "24-OCT-2026 17:25 IST", badge: "MATCH", status: "CONFIRMED" },
+          { src: "/static/placeholders/photo_pending.svg", title: "GIDC Sector Approach", tag: "APPROACH ROAD", timestamp: "24-OCT-2026 17:30 IST", badge: "OPTIMAL", status: "MATCH" }
         ],
         photos: [
-          "/static/specimen_assets/residence/res_gate.jpg",
-          "/static/specimen_assets/residence/res_elevation.jpg",
-          "/static/specimen_assets/residence/res_interior.jpg",
-          "/static/specimen_assets/residence/res_person_met.jpg"
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg",
+          "/static/placeholders/photo_pending.svg"
         ]
       },
-      "ubi-hl-2026-616-pargi": {
-        case_no: "UBI-HL-2026-616",
-        bank: "Union Bank of India",
-        branch: "Bagodara Branch",
-        applicant_name: "Pargi Bhavnaben",
-        phone: "+91 94283 51920",
-        month: "October 2026",
-        allotted_by: "Suresh Sir (Operations Lead)",
-        loan_facility: "Personal Loan ₹15.00 Lacs",
-        loan_amount_val: 1500000,
-        pan: "BVNPP8291M",
-        aadhaar_masked: "XXXX - XXXX - 6192",
-        dob: "14/08/1988",
-        gender: "Female",
-        ward: "BAGODARA RURAL / BAVLA (AHMEDABAD)",
-        address: "Opp. Bagodara Primary School, Main Bazar, Bagodara, Tal. Bavla, Dist. Ahmedabad - 382240",
-        agent: "Nilesh & Kamal Bhai (Field Team)",
-        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
-        selfie_verified: true,
-        photos_count: 8,
-        visit_date: "Today, Just Onboarded",
-        benchmark_lat: "22.8421",
-        benchmark_lon: "72.1932",
-        capture_lat: "22.8420",
-        capture_lon: "72.1930",
-        distance_m: 22,
-        agent_pin: "FA-7701",
-        stay_period: "12 Years",
-        ownership: "Owned (Self)",
-        utility_discom: "MGVCL (Madhya Gujarat Vij Company Limited)",
-        consumer_no: "02148/09121/4",
-        meter_no: "MGV-BG-884910",
-        person_met: "Pargi Bhavnaben (Self - 9428351920) & Husband Hiteshbhai",
-        neighbors: ["1. Patel Ramanbhai (Neighbour - Confirmed 12+ Yrs)", "2. Shah Kirtibhai (Neighbour - Confirmed)"],
-        status: "ASSIGNED_TO_FIELD",
-        aadhaar_front_img: "/static/specimen_assets/pargi_aadhaar_front_masked.jpg",
-        aadhaar_front_raw: "/static/specimen_assets/pargi_aadhaar_front.jpg",
-        aadhaar_back_img: "/static/specimen_assets/pargi_aadhaar_back.jpg",
-        pan_front_img: "/static/specimen_assets/pargi_pan_front.jpg",
-        pan_back_img: "/static/specimen_assets/pargi_pan_front.jpg",
-        utility_front_img: "/static/specimen_assets/pargi_utility_bill.jpg",
-        vault_documents: {
-          sale_deed: { title: "Registered Sale Deed (દસ્તાવેજ)", sub: "Reg # 7491/22 • Sub-Registrar Bavla", type: "property", src: "/static/specimen_assets/pargi_sale_deed.jpg", status: "VERIFIED" },
-          index2: { title: "Index II Copy (સૂચિ ૨ નકલ)", sub: "Sub-Registrar Bavla Clear Title", type: "property", src: "/static/specimen_assets/pargi_index2.jpg", status: "VERIFIED" },
-          utility: { title: "MGVCL Electricity Bill (વીજળી બિલ)", sub: "Consumer # 02148/09121/4 • Bagodara Sub-Div", type: "property", src: "/static/specimen_assets/pargi_utility_bill.jpg", status: "VERIFIED" },
-          form16: { title: "Form 16 / TDS (Part A & B)", sub: "AY 2026-27 • Education Dept Employer", type: "income", src: "/static/specimen_assets/pargi_form16.jpg", status: "COMPLIANT" },
-          payslip: { title: "Salary Payslip (Govt Primary Teacher)", sub: "Net Credit: ₹42,180 / Month", type: "income", src: "/static/specimen_assets/pargi_payslip.jpg", status: "VERIFIED" },
-          bank_statement: { title: "6 Months Bank Statement", sub: "UBI Bagodara A/c # 0214810294819", type: "income", src: "/static/specimen_assets/docscanner_page1_img1.jpg", status: "VERIFIED" },
-          aadhaar: { title: "Aadhaar Card (UIDAI Masked)", sub: "XXXX-XXXX-6192 • Rule 4", type: "kyc", src: "/static/specimen_assets/pargi_aadhaar_front_masked.jpg", status: "MASKED" },
-          pan: { title: "Permanent Account Number (PAN)", sub: "BVNPP8291M • Active & Linked", type: "kyc", src: "/static/specimen_assets/pargi_pan_front.jpg", status: "VERIFIED" }
-        },
-        residence_photos: [
-          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Building / Society Gate (Photo 1)", tag: "SLOT 1: SOCIETY & MAIN GATE", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" },
-          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "House Door & Elevation (Photo 2)", tag: "SLOT 2: HOUSE DOOR & NAMEPLATE", timestamp: "Today", badge: "AI ARRANGED", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Living Room & Electric Meter (Photo 3)", tag: "SLOT 3: LIVING ASSETS & METER", timestamp: "Today", badge: "AI ARRANGED", status: "VERIFIED" },
-          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Person Met / Borrower at Site (Photo 4)", tag: "SLOT 4: PERSON MET AT SITE", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" }
-        ],
-        work_photos: [
-          { src: "/static/specimen_assets/work/work_facade.jpg", title: "Workplace Facade", tag: "WORKPLACE", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" },
-          { src: "/static/specimen_assets/work/work_office.jpg", title: "Workplace Office", tag: "OPERATIONS", timestamp: "Today", badge: "AI ARRANGED", status: "VERIFIED" },
-          { src: "/static/specimen_assets/work/work_desk.jpg", title: "Workplace Desk", tag: "DESK", timestamp: "Today", badge: "AI ARRANGED", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/work/work_approach.jpg", title: "Approach Road", tag: "APPROACH", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" }
-        ],
-        photos: [
-          "/static/specimen_assets/residence/res_gate.jpg",
-          "/static/specimen_assets/residence/res_elevation.jpg",
-          "/static/specimen_assets/residence/res_interior.jpg",
-          "/static/specimen_assets/residence/res_person_met.jpg"
-        ]
-      }
     };
 
     // Switch between Residence and Work/Office Photo Folders
@@ -2036,9 +1965,17 @@
         const c = caseRegistry[caseId];
         if (!c) return;
 
-        // 1. Separate AGENT_SELFIE from site evidence photos
+        // 1. Separate AGENT_SELFIE and AI-ingested KYC/financial docs (Aadhaar/PAN/Utility/etc.)
+        //    from the 4-slot site evidence photo grid. KYC docs are rendered separately via
+        //    the Document Scrutiny cards (bindSeparatedPagesToCards), not the evidence slots.
         const selfieDoc = (docs || []).find(d => d.doc_type === "AGENT_SELFIE" || (d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
-        const evidenceDocs = (docs || []).filter(d => d.doc_type !== "AGENT_SELFIE" && !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
+        const SITE_EVIDENCE_TYPES = ["PROPERTY_EXTERIOR", "PROPERTY_INTERIOR", "ELECTRICITY_METER", "SOCIETY_BOARD", "NEIGHBOR_VERIFICATION"];
+        const evidenceDocs = (docs || []).filter(d =>
+          d.doc_type !== "AGENT_SELFIE" &&
+          !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")) &&
+          !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
+          SITE_EVIDENCE_TYPES.includes(d.doc_type)
+        );
 
         // 2. Strict Slot-based mapping (Slot 1 -> Photo 1, Slot 2 -> Photo 2, Slot 3 -> Photo 3, Slot 4 -> Photo 4)
         const slotMap = { 1: null, 2: null, 3: null, 4: null };
@@ -2110,10 +2047,10 @@
 
         // Default specimens to fall back on if slot is empty
         const defaultSpecimens = {
-          1: { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Main Gate (સિદ્ધિ વિનાયક)", tag: "RESIDENCE: MAIN GATE", timestamp: "04-AUG-2026 11:32 IST", badge: "GPS: VERIFIED", status: "MATCH" },
-          2: { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "Bungalow 31 (લક્ષ્મી કૃપા)", tag: "ELEVATION: CONFIRMED", timestamp: "04-AUG-2026 11:36 IST", badge: "ELEVATION: CONFIRMED", status: "CONFIRMED" },
-          3: { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Drawing Room & Showcase", tag: "DRAWING ROOM ASSETS", timestamp: "04-AUG-2026 11:39 IST", badge: "HABITATION: VERIFIED", status: "VERIFIED" },
-          4: { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Pradeepsinh Vaghela", tag: "PERSON MET", timestamp: "04-AUG-2026 11:42 IST", badge: "IDENTITY: MATCH", status: "MATCH" }
+          1: { src: "/static/placeholders/photo_pending.svg", title: "Main Gate (સિદ્ધિ વિનાયક)", tag: "RESIDENCE: MAIN GATE", timestamp: "04-AUG-2026 11:32 IST", badge: "GPS: VERIFIED", status: "MATCH" },
+          2: { src: "/static/placeholders/photo_pending.svg", title: "Bungalow 31 (લક્ષ્મી કૃપા)", tag: "ELEVATION: CONFIRMED", timestamp: "04-AUG-2026 11:36 IST", badge: "ELEVATION: CONFIRMED", status: "CONFIRMED" },
+          3: { src: "/static/placeholders/photo_pending.svg", title: "Drawing Room & Showcase", tag: "DRAWING ROOM ASSETS", timestamp: "04-AUG-2026 11:39 IST", badge: "HABITATION: VERIFIED", status: "VERIFIED" },
+          4: { src: "/static/placeholders/photo_pending.svg", title: "Pradeepsinh Vaghela", tag: "PERSON MET", timestamp: "04-AUG-2026 11:42 IST", badge: "IDENTITY: MATCH", status: "MATCH" }
         };
 
         const titles = {
@@ -2229,7 +2166,7 @@
       if (badge) {
         if (isValid) {
           badge.className = "font-mono text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold flex items-center gap-1";
-          badge.innerHTML = `<span class="material-symbols-outlined text-[13px]">check_circle</span> SYNCED & VALID`;
+          badge.innerHTML = `<span class="material-symbols-outlined text-[13px]">check_circle</span> 18 CHARS — VERIFY ON ICAI`;
         } else {
           badge.className = "font-mono text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-300 font-bold flex items-center gap-1";
           badge.innerHTML = `<span class="material-symbols-outlined text-[13px]">warning</span> ${18 - val.length} DIGITS MISSING`;
@@ -2253,313 +2190,20 @@
       }
     }
 
+    // A UDIN is unique per certified document and can only be generated on the ICAI portal —
+    // never auto-filled with a sample value.
     function autoGenerateUdinSpecimen() {
-      handleUdinManualInput("26033747WJZXZM6737");
-    }
-
-    // ==========================================
-    // DYNAMIC AUTHENTIC DOCUMENT GENERATORS (SVG)
-    // Ensures every case displays its OWN Aadhaar, PAN & Utility documents
-    // ==========================================
-    function generateAadhaarFrontSvg(name, dob, gender, aadhaarMasked) {
-      const isFemale = /female|સ્ત્રી|ben|ba|devi|mrs|shrimati/i.test(gender || name);
-      const avatarSvg = isFemale 
-        ? `<circle cx="55" cy="50" r="28" fill="#ec4899" opacity="0.15"/><path d="M40 85 C40 68 70 68 70 85 Z" fill="#db2777"/><circle cx="55" cy="46" r="16" fill="#be185d"/><path d="M44 42 C44 32 66 32 66 42 C66 48 44 48 44 42" fill="#831843"/>`
-        : `<circle cx="55" cy="50" r="28" fill="#3b82f6" opacity="0.15"/><path d="M40 85 C40 68 70 68 70 85 Z" fill="#2563eb"/><circle cx="55" cy="46" r="16" fill="#1d4ed8"/>`;
-
-      const safeName = (name || "Applicant Name").replace(/&/g, "&amp;");
-      const safeDob = (dob || "30/05/1997").replace(/&/g, "&amp;");
-      const safeGender = (gender || (isFemale ? "FEMALE / સ્ત્રી" : "MALE / પુરૂષ")).replace(/&/g, "&amp;");
-      const safeMasked = (aadhaarMasked || "XXXX - XXXX - 4182").replace(/&/g, "&amp;");
-
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380">
-        <defs>
-          <linearGradient id="flagGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#FF9933"/>
-            <stop offset="50%" stop-color="#FFFFFF"/>
-            <stop offset="100%" stop-color="#138808"/>
-          </linearGradient>
-          <linearGradient id="cardBg" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#ffffff"/>
-            <stop offset="100%" stop-color="#f8fafc"/>
-          </linearGradient>
-        </defs>
-        <rect width="600" height="380" rx="16" fill="url(#cardBg)" stroke="#cbd5e1" stroke-width="2"/>
-        <rect x="0" y="0" width="600" height="12" rx="16" fill="url(#flagGrad)"/>
-        
-        <g transform="translate(25, 28)">
-          <circle cx="20" cy="20" r="18" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1"/>
-          <text x="20" y="25" font-family="sans-serif" font-size="12" font-weight="bold" fill="#0f172a" text-anchor="middle">🏛️</text>
-          <text x="50" y="16" font-family="'Noto Sans', sans-serif" font-size="13" font-weight="bold" fill="#0f172a">ભારત સરકાર</text>
-          <text x="50" y="32" font-family="'Inter', sans-serif" font-size="13" font-weight="bold" fill="#0f172a">GOVERNMENT OF INDIA</text>
-          <circle cx="525" cy="20" r="16" fill="#ea580c" opacity="0.15"/>
-          <text x="525" y="25" font-family="sans-serif" font-size="16" text-anchor="middle" fill="#ea580c">☀️</text>
-        </g>
-        
-        <line x1="25" y1="72" x2="575" y2="72" stroke="#e2e8f0" stroke-width="1.5"/>
-        
-        <g transform="translate(35, 95)">
-          <rect width="110" height="135" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
-          <g transform="translate(0, 20)">${avatarSvg}</g>
-          <rect x="0" y="112" width="110" height="23" fill="#0f172a" opacity="0.85" rx="0 0 8 8"/>
-          <text x="55" y="128" font-family="'Inter', monospace" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="middle">PHOTO VERIFIED</text>
-        </g>
-        
-        <g transform="translate(165, 105)">
-          <text x="0" y="20" font-family="'Inter', sans-serif" font-size="18" font-weight="bold" fill="#0f172a">${safeName}</text>
-          <text x="0" y="52" font-family="'Inter', sans-serif" font-size="12" fill="#475569">જન્મ તારીખ / DOB: <tspan font-weight="bold" fill="#0f172a">${safeDob}</tspan></text>
-          <text x="0" y="80" font-family="'Inter', sans-serif" font-size="12" fill="#475569">જાતિ / Gender: <tspan font-weight="bold" fill="#0f172a">${safeGender}</tspan></text>
-          <rect x="0" y="102" width="180" height="24" rx="4" fill="#ecfdf5" stroke="#a7f3d0"/>
-          <text x="8" y="118" font-family="'Inter', monospace" font-size="10" font-weight="bold" fill="#047857">✓ UIDAI RULE 4 COMPLIANT</text>
-        </g>
-        
-        <g transform="translate(455, 95)">
-          <rect width="105" height="105" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
-          <rect x="12" y="12" width="26" height="26" fill="#0f172a"/>
-          <rect x="17" y="17" width="16" height="16" fill="#ffffff"/>
-          <rect x="21" y="21" width="8" height="8" fill="#0f172a"/>
-          <rect x="67" y="12" width="26" height="26" fill="#0f172a"/>
-          <rect x="72" y="17" width="16" height="16" fill="#ffffff"/>
-          <rect x="76" y="21" width="8" height="8" fill="#0f172a"/>
-          <rect x="12" y="67" width="26" height="26" fill="#0f172a"/>
-          <rect x="17" y="72" width="16" height="16" fill="#ffffff"/>
-          <rect x="21" y="76" width="8" height="8" fill="#0f172a"/>
-          <rect x="45" y="15" width="8" height="20" fill="#0f172a"/>
-          <rect x="42" y="45" width="20" height="20" fill="#0f172a"/>
-          <rect x="68" y="68" width="12" height="12" fill="#0f172a"/>
-          <rect x="85" y="85" width="8" height="8" fill="#0f172a"/>
-          <text x="52" y="122" font-family="'Inter', monospace" font-size="9" fill="#64748b" text-anchor="middle">SECURE QR</text>
-        </g>
-        
-        <g transform="translate(0, 275)">
-          <rect x="35" y="0" width="530" height="58" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
-          <text x="300" y="38" font-family="'Inter', monospace" font-size="24" font-weight="bold" fill="#0f172a" text-anchor="middle" letter-spacing="4">${safeMasked}</text>
-          <line x1="160" y1="46" x2="440" y2="46" stroke="#dc2626" stroke-width="2.5"/>
-        </g>
-        
-        <text x="300" y="360" font-family="'Noto Sans', 'Inter', sans-serif" font-size="13" font-weight="bold" fill="#b91c1c" text-anchor="middle">મારું આધાર, મારી ઓળખ  |  My Aadhaar, My Identity</text>
-      </svg>`;
-      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
-    }
-
-    function generateAadhaarBackSvg(name, address, aadhaarMasked) {
-      const safeName = (name || "Applicant Name").replace(/&/g, "&amp;");
-      const safeAddr = (address || "Gandhinagar, Gujarat").replace(/&/g, "&amp;");
-      const safeMasked = (aadhaarMasked || "XXXX - XXXX - 4182").replace(/&/g, "&amp;");
-
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380">
-        <defs>
-          <linearGradient id="flagGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#FF9933"/>
-            <stop offset="50%" stop-color="#FFFFFF"/>
-            <stop offset="100%" stop-color="#138808"/>
-          </linearGradient>
-          <linearGradient id="cardBg" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#ffffff"/>
-            <stop offset="100%" stop-color="#f8fafc"/>
-          </linearGradient>
-        </defs>
-        <rect width="600" height="380" rx="16" fill="url(#cardBg)" stroke="#cbd5e1" stroke-width="2"/>
-        <rect x="0" y="0" width="600" height="12" rx="16" fill="url(#flagGrad)"/>
-        
-        <g transform="translate(25, 28)">
-          <circle cx="20" cy="20" r="18" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1"/>
-          <text x="20" y="25" font-family="sans-serif" font-size="12" font-weight="bold" fill="#0f172a" text-anchor="middle">🏛️</text>
-          <text x="50" y="24" font-family="'Inter', sans-serif" font-size="13" font-weight="bold" fill="#0f172a">UNIQUE IDENTIFICATION AUTHORITY OF INDIA</text>
-        </g>
-        <line x1="25" y1="65" x2="575" y2="65" stroke="#e2e8f0" stroke-width="1.5"/>
-        
-        <g transform="translate(35, 85)">
-          <text x="0" y="16" font-family="'Noto Sans', 'Inter', sans-serif" font-size="12" font-weight="bold" fill="#dc2626">સરનામું / Address:</text>
-          <text x="0" y="42" font-family="'Inter', sans-serif" font-size="13" font-weight="semibold" fill="#0f172a">C/O: ${safeName}</text>
-          <text x="0" y="68" font-family="'Inter', sans-serif" font-size="12" fill="#334155">${safeAddr}</text>
-          <rect x="0" y="115" width="220" height="24" rx="4" fill="#eff6ff" stroke="#bfdbfe"/>
-          <text x="10" y="131" font-family="'Inter', monospace" font-size="10" font-weight="bold" fill="#1d4ed8">✓ ADDRESS CORROBORATED 100%</text>
-        </g>
-        
-        <g transform="translate(425, 80)">
-          <rect width="135" height="135" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
-          <rect x="15" y="15" width="32" height="32" fill="#0f172a"/>
-          <rect x="21" y="21" width="20" height="20" fill="#ffffff"/>
-          <rect x="26" y="26" width="10" height="10" fill="#0f172a"/>
-          <rect x="88" y="15" width="32" height="32" fill="#0f172a"/>
-          <rect x="94" y="21" width="20" height="20" fill="#ffffff"/>
-          <rect x="99" y="26" width="10" height="10" fill="#0f172a"/>
-          <rect x="15" y="88" width="32" height="32" fill="#0f172a"/>
-          <rect x="21" y="94" width="20" height="20" fill="#ffffff"/>
-          <rect x="26" y="99" width="10" height="10" fill="#0f172a"/>
-          <rect x="58" y="20" width="15" height="25" fill="#0f172a"/>
-          <rect x="55" y="60" width="25" height="25" fill="#0f172a"/>
-          <text x="67" y="155" font-family="'Inter', monospace" font-size="9" fill="#64748b" text-anchor="middle">DIGITALLY SIGNED QR</text>
-        </g>
-        
-        <g transform="translate(0, 260)">
-          <rect x="35" y="0" width="530" height="50" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
-          <text x="300" y="33" font-family="'Inter', monospace" font-size="22" font-weight="bold" fill="#0f172a" text-anchor="middle" letter-spacing="4">${safeMasked}</text>
-        </g>
-        
-        <g transform="translate(35, 335)">
-          <text x="0" y="15" font-family="'Inter', sans-serif" font-size="11" fill="#64748b">Helpline: <tspan font-weight="bold" fill="#0f172a">1947</tspan>  |  Email: <tspan font-weight="bold" fill="#0f172a">help@uidai.gov.in</tspan>  |  Website: <tspan font-weight="bold" fill="#0f172a">www.uidai.gov.in</tspan></text>
-        </g>
-      </svg>`;
-      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
-    }
-
-    function generatePanFrontSvg(name, pan, dob) {
-      const safeName = (name || "Applicant Name").toUpperCase().replace(/&/g, "&amp;");
-      const safePan = (pan || "BYMPP4192K").toUpperCase().replace(/&/g, "&amp;");
-      const safeDob = (dob || "30/05/1997").replace(/&/g, "&amp;");
-      const guardianName = safeName.split(' ')[1] || safeName.split(' ')[0] + " (GUARDIAN)";
-
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380">
-        <defs>
-          <linearGradient id="panBg" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#eff6ff"/>
-            <stop offset="50%" stop-color="#f8fafc"/>
-            <stop offset="100%" stop-color="#e0f2fe"/>
-          </linearGradient>
-          <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#0284c7"/>
-            <stop offset="100%" stop-color="#0369a1"/>
-          </linearGradient>
-        </defs>
-        <rect width="600" height="380" rx="16" fill="url(#panBg)" stroke="#94a3b8" stroke-width="2"/>
-        <rect x="0" y="0" width="600" height="65" rx="16" fill="url(#headerGrad)"/>
-        
-        <g transform="translate(25, 12)">
-          <text x="0" y="18" font-family="'Noto Sans', 'Inter', sans-serif" font-size="13" font-weight="bold" fill="#ffffff">આયકર વિભાગ / INCOME TAX DEPARTMENT</text>
-          <text x="0" y="38" font-family="'Noto Sans', 'Inter', sans-serif" font-size="12" font-weight="semibold" fill="#e0f2fe">ભારત સરકાર / GOVT. OF INDIA</text>
-          <circle cx="510" cy="20" r="16" fill="#ffffff" opacity="0.2"/>
-          <text x="510" y="26" font-family="sans-serif" font-size="16" text-anchor="middle" fill="#ffffff">🏛️</text>
-          <circle cx="545" cy="20" r="16" fill="#f59e0b"/>
-          <text x="545" y="26" font-family="sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#ffffff">ITD</text>
-        </g>
-        
-        <g transform="translate(35, 85)">
-          <rect width="105" height="130" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
-          <circle cx="52" cy="50" r="24" fill="#0284c7" opacity="0.15"/>
-          <path d="M38 85 C38 70 66 70 66 85 Z" fill="#0284c7"/>
-          <circle cx="52" cy="46" r="14" fill="#0369a1"/>
-          <rect x="0" y="108" width="105" height="22" fill="#0f172a" opacity="0.85" rx="0 0 8 8"/>
-          <text x="52" y="123" font-family="'Inter', monospace" font-size="9" font-weight="bold" fill="#ffffff" text-anchor="middle">NSDL VERIFIED</text>
-        </g>
-        
-        <g transform="translate(160, 88)">
-          <text x="0" y="14" font-family="'Inter', monospace" font-size="9" font-weight="bold" fill="#64748b">CARD HOLDER NAME / નામ</text>
-          <text x="0" y="34" font-family="'Inter', sans-serif" font-size="16" font-weight="bold" fill="#0f172a">${safeName}</text>
-          
-          <text x="0" y="62" font-family="'Inter', monospace" font-size="9" font-weight="bold" fill="#64748b">FATHER'S NAME / પિતાનું નામ</text>
-          <text x="0" y="80" font-family="'Inter', sans-serif" font-size="13" font-weight="semibold" fill="#334155">${guardianName}</text>
-          
-          <text x="0" y="108" font-family="'Inter', monospace" font-size="9" font-weight="bold" fill="#64748b">DATE OF BIRTH / જન્મ તારીખ</text>
-          <text x="0" y="126" font-family="'Inter', sans-serif" font-size="13" font-weight="bold" fill="#0f172a">${safeDob}</text>
-        </g>
-        
-        <g transform="translate(460, 85)">
-          <rect width="95" height="45" rx="6" fill="#fef08a" stroke="#ca8a04" stroke-width="1.5"/>
-          <text x="47" y="24" font-family="'Inter', sans-serif" font-size="10" font-weight="bold" fill="#854d0e" text-anchor="middle">★ ITD SECURE ★</text>
-          <text x="47" y="38" font-family="'Inter', monospace" font-size="8" fill="#a16207" text-anchor="middle">HOLOGRAM</text>
-          
-          <g transform="translate(0, 65)">
-            <rect width="95" height="55" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
-            <path d="M15 35 Q30 15 50 35 T85 30" fill="none" stroke="#1e293b" stroke-width="2"/>
-            <line x1="8" y1="44" x2="87" y2="44" stroke="#94a3b8" stroke-dasharray="2,2"/>
-            <text x="47" y="52" font-family="'Inter', sans-serif" font-size="7" fill="#64748b" text-anchor="middle">Signature / સહી</text>
-          </g>
-        </g>
-        
-        <g transform="translate(0, 245)">
-          <rect x="35" y="0" width="530" height="60" rx="10" fill="#0f172a"/>
-          <text x="50" y="22" font-family="'Inter', monospace" font-size="10" font-weight="bold" fill="#38bdf8">PERMANENT ACCOUNT NUMBER</text>
-          <text x="300" y="44" font-family="'Inter', monospace" font-size="28" font-weight="bold" fill="#ffffff" text-anchor="middle" letter-spacing="6">${safePan}</text>
-        </g>
-        
-        <g transform="translate(35, 335)">
-          <rect x="0" y="0" width="180" height="22" rx="4" fill="#ecfdf5" stroke="#a7f3d0"/>
-          <text x="8" y="15" font-family="'Inter', monospace" font-size="10" font-weight="bold" fill="#047857">✓ JAO ACTIVE &amp; LINKED</text>
-          <text x="530" y="16" font-family="'Inter', monospace" font-size="11" font-weight="bold" fill="#64748b" text-anchor="end">FORM 49A COMPLIANT</text>
-        </g>
-      </svg>`;
-      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
-    }
-
-    function generatePanBackSvg(name, pan, ward) {
-      const safeName = (name || "Applicant Name").toUpperCase().replace(/&/g, "&amp;");
-      const safePan = (pan || "BYMPP4192K").toUpperCase().replace(/&/g, "&amp;");
-      const safeWard = (ward || "WARD 1, GUJARAT (ACTIVE)").replace(/&/g, "&amp;");
-
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380">
-        <rect width="600" height="380" rx="16" fill="#0f172a" stroke="#334155" stroke-width="2"/>
-        <rect x="0" y="0" width="600" height="50" rx="16" fill="#1e293b"/>
-        <text x="25" y="32" font-family="'Inter', monospace" font-size="13" font-weight="bold" fill="#38bdf8">NSDL PROTEAN • TAX INFORMATION NETWORK (TIN)</text>
-        <rect x="470" y="12" width="105" height="26" rx="6" fill="#047857"/>
-        <text x="522" y="29" font-family="'Inter', monospace" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">ACTIVE ✓</text>
-        
-        <g transform="translate(30, 80)">
-          <rect width="540" height="190" rx="10" fill="#1e293b" stroke="#334155"/>
-          <text x="20" y="35" font-family="'Inter', monospace" font-size="11" fill="#94a3b8">PERMANENT ACCOUNT NUMBER (PAN):</text>
-          <text x="320" y="35" font-family="'Inter', monospace" font-size="14" font-weight="bold" fill="#ffffff">${safePan}</text>
-          <line x1="20" y1="50" x2="520" y2="50" stroke="#334155"/>
-          
-          <text x="20" y="75" font-family="'Inter', monospace" font-size="11" fill="#94a3b8">CARD HOLDER NAME:</text>
-          <text x="320" y="75" font-family="'Inter', monospace" font-size="13" font-weight="bold" fill="#38bdf8">${safeName}</text>
-          <line x1="20" y1="90" x2="520" y2="90" stroke="#334155"/>
-          
-          <text x="20" y="115" font-family="'Inter', monospace" font-size="11" fill="#94a3b8">JURISDICTIONAL WARD / JAO:</text>
-          <text x="320" y="115" font-family="'Inter', monospace" font-size="12" font-weight="bold" fill="#e2e8f0">${safeWard}</text>
-          <line x1="20" y1="130" x2="520" y2="130" stroke="#334155"/>
-          
-          <text x="20" y="155" font-family="'Inter', monospace" font-size="11" fill="#94a3b8">AADHAAR SEEDING STATUS:</text>
-          <text x="320" y="155" font-family="'Inter', monospace" font-size="12" font-weight="bold" fill="#34d399">LINKED &amp; OPERATIVE (SEC 139AA)</text>
-          <line x1="20" y1="170" x2="520" y2="170" stroke="#334155"/>
-        </g>
-        
-        <g transform="translate(30, 300)">
-          <text x="0" y="20" font-family="'Inter', monospace" font-size="11" fill="#64748b">Verified via Income Tax Department Electronic Record Verification Services</text>
-          <text x="0" y="40" font-family="'Inter', monospace" font-size="10" fill="#475569">Audit Trail Ref: ITD-NSDL-${Date.now().toString().slice(-8)} • Tamper Sealed</text>
-        </g>
-      </svg>`;
-      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
-    }
-
-    function generateUtilityBillSvg(name, address, consumerNo) {
-      const safeName = (name || "Applicant Name").toUpperCase().replace(/&/g, "&amp;");
-      const safeAddr = (address || "Gandhinagar, Gujarat").replace(/&/g, "&amp;");
-      const safeCon = (consumerNo || "26905052191").replace(/&/g, "&amp;");
-
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380">
-        <rect width="600" height="380" rx="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-        <rect x="0" y="0" width="600" height="60" rx="16" fill="#15803d"/>
-        <text x="25" y="26" font-family="'Inter', sans-serif" font-size="14" font-weight="bold" fill="#ffffff">UGVCL - UTTAR GUJARAT VIJ COMPANY LIMITED</text>
-        <text x="25" y="46" font-family="'Noto Sans', sans-serif" font-size="12" fill="#dcfce7">વીજળી બિલ અને ચકાસણી પાવતી | ELECTRICITY BILL</text>
-        
-        <g transform="translate(30, 80)">
-          <rect width="540" height="150" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
-          <text x="20" y="30" font-family="'Inter', monospace" font-size="10" font-weight="bold" fill="#64748b">CONSUMER NO (ગ્રાહક નંબર):</text>
-          <text x="240" y="30" font-family="'Inter', monospace" font-size="14" font-weight="bold" fill="#15803d">${safeCon}</text>
-          
-          <text x="20" y="60" font-family="'Inter', monospace" font-size="10" font-weight="bold" fill="#64748b">CONSUMER NAME (નામ):</text>
-          <text x="240" y="60" font-family="'Inter', sans-serif" font-size="13" font-weight="bold" fill="#0f172a">${safeName}</text>
-          
-          <text x="20" y="90" font-family="'Inter', monospace" font-size="10" font-weight="bold" fill="#64748b">SUPPLY ADDRESS (સરનામું):</text>
-          <text x="240" y="90" font-family="'Inter', sans-serif" font-size="12" fill="#334155">${safeAddr}</text>
-          
-          <text x="20" y="125" font-family="'Inter', monospace" font-size="10" font-weight="bold" fill="#64748b">BILL STATUS / PAYMENT:</text>
-          <text x="240" y="125" font-family="'Inter', monospace" font-size="12" font-weight="bold" fill="#047857">PAID &amp; CONNECTED (METER RUNNING)</text>
-        </g>
-        
-        <g transform="translate(30, 255)">
-          <rect width="540" height="85" rx="8" fill="#ecfdf5" stroke="#a7f3d0"/>
-          <text x="20" y="28" font-family="'Inter', sans-serif" font-size="12" font-weight="bold" fill="#065f46">✓ SITE UTILITY AUDIT SATISFACTION: PASS</text>
-          <text x="20" y="50" font-family="'Inter', sans-serif" font-size="11" fill="#047857">Physical electricity meter serial corroborated against official distribution licensee billing records.</text>
-          <text x="20" y="70" font-family="'Inter', monospace" font-size="10" fill="#059669">Tariff Category: R-LT (Residential) • Phase: Single Phase • Connected Load: 3.0 kW</text>
-        </g>
-      </svg>`;
-      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+      const input = document.getElementById("udinInput");
+      if (input) input.focus();
     }
 
     // Case Selection Handler - Dynamically updates entire workspace!
-    function onCaseSelected(caseId) {
+    // Never invent a value for a bank dossier: anything not read from a scanned document is
+    // shown as pending rather than defaulted to a plausible-looking number.
+    const PENDING = "Pending AI scan";
+    function val(v) { return (v === undefined || v === null || v === "" || v === "PENDING AI EXTRACTION") ? PENDING : v; }
+
+    function onCaseSelected(caseId, opts = {}) {
       const c = caseRegistry[caseId];
       if (!c) return;
 
@@ -2569,16 +2213,23 @@
       document.getElementById("dispCaseRef").textContent = c.case_no;
       document.getElementById("dispCaseStatus").textContent = c.status;
       document.getElementById("dispApplicantName").textContent = c.applicant_name;
-      document.getElementById("dispApplicantPan").textContent = "PAN: " + c.pan;
+      document.getElementById("dispApplicantPan").textContent = "PAN: " + val(c.pan);
       document.getElementById("dispBankBranchBadge").textContent = `${c.bank} (${c.branch})`;
       document.getElementById("dispPropertyAddress").textContent = c.address;
       document.getElementById("dispFieldAgent").textContent = c.agent;
-      document.getElementById("dispCoordinatesBadge").textContent = `● COMPLIANT (${c.benchmark_lat}° N, ${c.benchmark_lon}° E)`;
+      const visitedForBadge = c.distance_m !== null && c.distance_m !== undefined;
+      document.getElementById("dispCoordinatesBadge").textContent = visitedForBadge
+        ? `● ${c.distance_m <= 150 ? "COMPLIANT" : "BREACH"} (${c.benchmark_lat}° N, ${c.benchmark_lon}° E)`
+        : `○ NOT YET VISITED (benchmark ${c.benchmark_lat}° N, ${c.benchmark_lon}° E)`;
+      const geoBadge = document.getElementById("dispGeofenceHeaderBadge");
+      if (geoBadge) geoBadge.textContent = visitedForBadge ? (c.distance_m <= 150 ? "GEOFENCE VERIFIED" : "GEOFENCE BREACH") : "GEOFENCE PENDING";
+      document.querySelectorAll(".audit-check").forEach(cb => { cb.checked = false; });
+      updateAuditCheckCount();
       document.getElementById("dispVisitDate").textContent = "Visited: " + c.visit_date;
 
       // 2. Update Aadhaar Scrutiny Card & Flipped Document
-      const aadhaarFrontUrl = c.aadhaar_front_img || (caseId === "b901fc63-12a8-4e32-9c02-e20984cfb001" ? "/static/specimen_assets/aadhaar_front_masked.jpg" : generateAadhaarFrontSvg(c.applicant_name, c.dob, c.gender, c.aadhaar_masked));
-      const aadhaarBackUrl = c.aadhaar_back_img || (caseId === "b901fc63-12a8-4e32-9c02-e20984cfb001" ? "/static/specimen_assets/aadhaar_back.jpg" : generateAadhaarBackSvg(c.applicant_name, c.address, c.aadhaar_masked));
+      const aadhaarFrontUrl = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
+      const aadhaarBackUrl = c.aadhaar_back_img || "/static/placeholders/doc_pending.svg";
 
       const aFImg = document.getElementById("dispAadhaarFrontImg");
       if (aFImg) aFImg.src = aadhaarFrontUrl;
@@ -2586,50 +2237,49 @@
       if (aBImg) aBImg.src = aadhaarBackUrl;
 
       if (document.getElementById("dispAadhaarName")) document.getElementById("dispAadhaarName").textContent = c.applicant_name;
-      if (document.getElementById("dispAadhaarDob")) document.getElementById("dispAadhaarDob").textContent = `DOB: ${c.dob} | Gender: ${c.gender}`;
-      if (document.getElementById("dispAadhaarMasked")) document.getElementById("dispAadhaarMasked").textContent = c.aadhaar_masked;
-      if (document.getElementById("dispDobMatch")) document.getElementById("dispDobMatch").textContent = `Exact Match (${c.dob})`;
-      if (document.getElementById("dispAadhaarFrontLabel")) document.getElementById("dispAadhaarFrontLabel").textContent = `${c.applicant_name} • DOB: ${c.dob}`;
-      if (document.getElementById("dispAadhaarMaskedPill")) document.getElementById("dispAadhaarMaskedPill").textContent = c.aadhaar_masked;
-      if (document.getElementById("dispAadhaarBackLabel")) document.getElementById("dispAadhaarBackLabel").textContent = c.address;
+      if (document.getElementById("dispAadhaarDob")) document.getElementById("dispAadhaarDob").textContent = `DOB: ${val(c.dob)} | Gender: ${val(c.gender)}`;
+      if (document.getElementById("dispAadhaarMasked")) document.getElementById("dispAadhaarMasked").textContent = val(c.aadhaar_masked);
+      if (document.getElementById("dispDobMatch")) document.getElementById("dispDobMatch").textContent = c.dob_cross_checked ? `Matches across ID documents (${c.dob})` : (c.dob ? `From ID document (${c.dob})` : PENDING);
+      if (document.getElementById("dispAadhaarFrontLabel")) document.getElementById("dispAadhaarFrontLabel").textContent = `${c.applicant_name} • DOB: ${val(c.dob)}`;
+      if (document.getElementById("dispAadhaarMaskedPill")) document.getElementById("dispAadhaarMaskedPill").textContent = val(c.aadhaar_masked);
+      if (document.getElementById("dispAadhaarBackLabel")) document.getElementById("dispAadhaarBackLabel").textContent = val(c.address);
       setDocSide('aadhaar', 'front');
 
       // 3. Update PAN Card & Flipped Document
-      const panFrontUrl = c.pan_front_img || (caseId === "b901fc63-12a8-4e32-9c02-e20984cfb001" ? "/static/specimen_assets/pan_front.jpg" : generatePanFrontSvg(c.applicant_name, c.pan, c.dob));
-      const panBackUrl = c.pan_back_img || (caseId === "b901fc63-12a8-4e32-9c02-e20984cfb001" ? "/static/specimen_assets/pan_back.jpg" : generatePanBackSvg(c.applicant_name, c.pan, c.ward));
+      const panFrontUrl = c.pan_front_img || "/static/placeholders/doc_pending.svg";
+      const panBackUrl = c.pan_back_img || "/static/placeholders/doc_pending.svg";
 
       const pFImg = document.getElementById("dispPanFrontImg");
       if (pFImg) pFImg.src = panFrontUrl;
       const pBImg = document.getElementById("dispPanBackImg");
       if (pBImg) pBImg.src = panBackUrl;
 
-      document.getElementById("dispPanNumber").textContent = c.pan;
+      document.getElementById("dispPanNumber").textContent = val(c.pan);
       document.getElementById("dispPanHolder").textContent = c.applicant_name.toUpperCase();
-      document.getElementById("dispPanWard").textContent = c.ward || "WARD 1, GUJARAT (ACTIVE)";
-      if (document.getElementById("dispPanFrontLabel")) document.getElementById("dispPanFrontLabel").textContent = `${c.pan} • ${c.applicant_name.toUpperCase()}`;
-      if (document.getElementById("dispPanBackLabel")) document.getElementById("dispPanBackLabel").textContent = `${c.ward || "WARD 1, GUJARAT (ACTIVE)"} • ACTIVE • SEEDED`;
+      document.getElementById("dispPanWard").textContent = c.father_name ? `Father: ${c.father_name}` : (c.ward || "—");
+      if (document.getElementById("dispPanFrontLabel")) document.getElementById("dispPanFrontLabel").textContent = `${val(c.pan)} • ${c.applicant_name.toUpperCase()}`;
+      if (document.getElementById("dispPanBackLabel")) document.getElementById("dispPanBackLabel").textContent = c.father_name ? `Father: ${c.father_name}` : PENDING;
       setDocSide('pan', 'front');
 
-      // 4. Update CPV Field Form & Utility Proof
-      const isCase2 = caseId === "ubi-hl-2026-616-pargi" || (c.case_no && c.case_no.includes("616"));
-      const utilityFrontUrl = c.utility_front_img || (isCase2 ? "/static/specimen_assets/pargi_utility_bill.jpg" : "/static/specimen_assets/utility_bill.jpg");
+      // 4. Update CPV Field Form & Utility Proof (only what was read from the actual bill)
       const uFImg = document.getElementById("dispUtilityFrontImg");
-      if (uFImg) uFImg.src = utilityFrontUrl;
+      if (uFImg) uFImg.src = c.utility_front_img || "/static/placeholders/doc_pending.svg";
 
-      // Dynamic Discom badge and front button
+      const provider = c.utility_provider || null;
       const discomBadge = document.getElementById("dispUtilityDiscomBadge");
-      if (discomBadge) discomBadge.textContent = isCase2 ? "MGVCL E-ELECTRICITY BILL" : "UGVCL E-ELECTRICITY BILL";
+      if (discomBadge) discomBadge.textContent = provider ? `${provider} ELECTRICITY BILL` : "ELECTRICITY BILL — " + PENDING.toUpperCase();
       const btnUF = document.getElementById("btnUtilitySideFront");
-      if (btnUF) btnUF.textContent = isCase2 ? "Utility Bill (MGVCL)" : "Utility Bill (UGVCL)";
+      if (btnUF) btnUF.textContent = provider ? `Utility Bill (${provider})` : "Utility Bill";
       const conBadge = document.getElementById("dispUtilityConBadge");
-      if (conBadge) conBadge.textContent = isCase2 ? "CON: 02148/09121/4" : "CON: 26905052191";
+      if (conBadge) conBadge.textContent = c.utility_no ? `CON: ${c.utility_no}` : "CON: " + PENDING;
 
-      document.getElementById("dispStayPeriod").textContent = c.stay_period || (isCase2 ? "12 Years" : "06 Years");
-      document.getElementById("dispOwnership").textContent = c.ownership || "Owned Premises";
-      document.getElementById("dispPersonMet").textContent = c.person_met || `${c.applicant_name} (Self / Family - ${c.phone})`;
-      document.getElementById("dispNeighbors").innerHTML = `<span class="font-bold text-primary-container">Neighbour Corroboration:</span> ${(c.neighbors || ["1. Resident 1", "2. Resident 2"]).join(' • ')}`;
-      if (document.getElementById("dispUtilityFrontLabel")) document.getElementById("dispUtilityFrontLabel").textContent = isCase2 ? `PARGI BHAVNABEN • MAIN BAZAR, BAGODARA` : `${c.applicant_name.toUpperCase()} • ${c.address}`;
-      if (document.getElementById("dispUtilityBackLabel")) document.getElementById("dispUtilityBackLabel").textContent = `AGENT: ${c.agent} • ${c.stay_period || '06 Years'} STAY • VERIFIED`;
+      document.getElementById("dispStayPeriod").textContent = c.stay_period || "Not yet verified on site";
+      document.getElementById("dispOwnership").textContent = c.ownership || "Not yet verified on site";
+      document.getElementById("dispPersonMet").textContent = c.person_met || "Not yet visited";
+      document.getElementById("dispNeighbors").innerHTML = `<span class="font-bold text-primary-container">Neighbour Corroboration:</span> ${(c.neighbors && c.neighbors.length) ? c.neighbors.join(' • ') : "Not yet recorded"}`;
+      const billHolderNote = c.utility_holder && c.utility_holder_mismatch ? ` ⚠ Bill in name of ${c.utility_holder}` : "";
+      if (document.getElementById("dispUtilityFrontLabel")) document.getElementById("dispUtilityFrontLabel").textContent = c.utility_holder ? `${c.utility_holder.toUpperCase()}${billHolderNote}` : PENDING;
+      if (document.getElementById("dispUtilityBackLabel")) document.getElementById("dispUtilityBackLabel").textContent = `AGENT: ${c.agent || "—"} • ${c.stay_period ? c.stay_period + " STAY" : "STAY NOT YET VERIFIED"}`;
       setDocSide('utility', 'front');
 
       // Save active case to localStorage and sync selector
@@ -2638,21 +2288,21 @@
       if (caseSelector && caseSelector.value !== caseId) caseSelector.value = caseId;
 
       // 5. Update Geofence Telemetry & Radar Card
-      document.getElementById("dispRadarProximity").textContent = `PROXIMITY: ${c.distance_m} METERS (PASS)`;
-      document.getElementById("dispRadarAgentPin").textContent = `${c.agent_pin} (${c.distance_m}m)`;
+      const visited = c.distance_m !== null && c.distance_m !== undefined;
+      document.getElementById("dispRadarProximity").textContent = visited ? `PROXIMITY: ${c.distance_m} METERS (${c.distance_m <= 150 ? "PASS" : "BREACH"})` : "PROXIMITY: NOT YET VISITED";
+      document.getElementById("dispRadarAgentPin").textContent = visited ? `${c.agent_pin} (${c.distance_m}m)` : "No field capture yet";
       document.getElementById("dispRadarBenchmark").textContent = `BENCHMARK: ${c.benchmark_lat}° N, ${c.benchmark_lon}° E`;
       document.getElementById("dispRadarCapture").textContent = `CAPTURE: ${c.capture_lat}° N, ${c.capture_lon}° E`;
-      document.getElementById("dispRadarDistance").textContent = `${c.distance_m}m / Max 150m Safe Harbor`;
-      document.getElementById("dispRadarBar").style.width = Math.min(100, Math.round((c.distance_m / 150) * 100)) + "%";
+      document.getElementById("dispRadarDistance").textContent = visited ? `${c.distance_m}m / Max 150m Safe Harbor` : "Awaiting field visit";
+      document.getElementById("dispRadarBar").style.width = visited ? Math.min(100, Math.round((c.distance_m / 150) * 100)) + "%" : "0%";
 
       // 6. Update Dual Folder Site Evidence Photos
       renderPhotosForActiveFolder();
-      fetchLiveCaseDocuments(caseId);
 
       // 7. Update Field Staff Attendance Selfie Verification UI
       const cachedSelfie = localStorage.getItem("selfie_" + caseId);
       const cachedTime = localStorage.getItem("selfie_timestamp_" + caseId);
-      const selfieUrl = cachedSelfie || c.agent_selfie || "/static/specimen_assets/residence/agent_selfie_specimen.jpg";
+      const selfieUrl = cachedSelfie || c.agent_selfie || "/static/placeholders/photo_pending.svg";
       
       const selfieThumb = document.getElementById("dispAgentSelfieThumb");
       if (selfieThumb) selfieThumb.src = selfieUrl;
@@ -2664,19 +2314,34 @@
       if (selfieModalImg) selfieModalImg.src = selfieUrl;
 
       const selfieName = document.getElementById("dispAgentSelfieName");
-      if (selfieName) selfieName.textContent = c.agent || "Nilesh & Kamal Bhai (Field Team)";
+      if (selfieName) selfieName.textContent = c.agent || "Not yet allotted";
 
       const selfieTime = document.getElementById("dispAgentSelfieTime");
-      if (selfieTime) selfieTime.textContent = "Time: " + (cachedTime || c.visit_date || "04-Aug-2026, 11:30 IST");
+      if (selfieTime) selfieTime.textContent = "Time: " + (cachedTime || c.visit_date || "Not yet visited");
 
       const selfieGps = document.getElementById("dispAgentSelfieGps");
-      if (selfieGps) selfieGps.textContent = `GPS: ${c.capture_lat || c.benchmark_lat || '23.2154'}°N, ${c.capture_lon || c.benchmark_lon || '72.6367'}°E`;
+      const hasCapture = c.capture_lat && c.capture_lat !== "—";
+      if (selfieGps) selfieGps.textContent = hasCapture ? `GPS: ${c.capture_lat}°N, ${c.capture_lon}°E` : "GPS: not yet captured";
 
+      const selfieDone = !!cachedSelfie || !!c.selfie_verified;
       const selfieStatus = document.getElementById("dispAgentSelfieStatus");
-      if (selfieStatus) selfieStatus.textContent = "Selfie Verified ✓";
+      if (selfieStatus) selfieStatus.textContent = selfieDone ? "Selfie Verified ✓" : "Selfie pending";
+      const selfieBadge = document.getElementById("dispAgentSelfieCardBadge");
+      if (selfieBadge) selfieBadge.textContent = selfieDone ? "✓ VERIFIED ON-SITE" : "PENDING VISIT";
+      const gpsLock = document.getElementById("dispSelfieGpsLockBadge");
+      if (gpsLock) gpsLock.textContent = selfieDone ? "GPS LOCKED" : "NO SELFIE YET";
 
       // 8. Update CA Partner Observations
-      document.getElementById("caRemarksInput").value = `Field inspection for ${c.applicant_name} (${c.case_no}) completed within permissible geofence limits (${c.distance_m}m delta). Physical occupancy verified via Society records and exterior meter alignment. Utility billing corroborates continuous residence. Document OCR yields >98% fuzzy alignment with master application dossier. Recommended for credit underwriting clearance.`;
+      // Observations are a CA judgement for the certified report — only facts actually on record
+      // are pre-filled; no verification outcome or recommendation is asserted automatically.
+      const remarkFacts = [];
+      if (c.distance_m !== null && c.distance_m !== undefined) remarkFacts.push(`Field visit geotagged ${c.distance_m}m from the property (${c.distance_m <= 150 ? "within" : "outside"} the 150m limit).`);
+      else remarkFacts.push("Field visit not yet completed.");
+      if (c.pan || c.aadhaar_masked) remarkFacts.push(`KYC read by AI from scanned documents: ${[c.pan && "PAN " + c.pan, c.aadhaar_masked && "Aadhaar " + c.aadhaar_masked, c.dob && "DOB " + c.dob].filter(Boolean).join(", ")}.`);
+      if (c.utility_holder_mismatch) remarkFacts.push(`Electricity bill is in the name of ${c.utility_holder}, not the applicant — relationship to be confirmed.`);
+      if (c.ai_summary && (c.ai_summary.conflicts || []).length) remarkFacts.push(`${c.ai_summary.conflicts.length} AI cross-check item(s) pending CA review.`);
+      remarkFacts.push("[CA observation and recommendation to be recorded by the verifying partner.]");
+      document.getElementById("caRemarksInput").value = `${c.applicant_name} (${c.case_no}): ` + remarkFacts.join(" ");
 
       // 9. Synchronize Filter dropdowns
       const bankSelect = document.getElementById("filterBankSelect");
@@ -2690,11 +2355,12 @@
       // 10. Render Case Document Vault for Active Case
       renderCaseDocumentVault(caseId);
 
-      // 11. Fetch Live Evidence Photos from Server
-      fetchLiveCaseDocuments(caseId);
-
-      // 12. Load Separated Document Pages from LLM Ingest
-      loadSeparatedCaseDocs(caseId);
+      // 11/12. Fetch live evidence photos and AI-scanned documents (skipped when this call is
+      // itself the re-render that follows loading those scans, to avoid a fetch loop)
+      if (!opts.skipRemoteLoad) {
+        fetchLiveCaseDocuments(caseId);
+        loadSeparatedCaseDocs(caseId);
+      }
     }
 
     // ==========================================
@@ -2702,13 +2368,30 @@
     // ==========================================
     let activeSeparatedDocs = [];
 
+    function updateAuditCheckCount() {
+      const boxes = [...document.querySelectorAll(".audit-check")];
+      const el = document.getElementById("auditCheckCount");
+      if (el) el.textContent = `${boxes.filter(b => b.checked).length}/${boxes.length} SATISFIED`;
+    }
+
+    function authHeaders(extra = {}) {
+      const token = localStorage.getItem("ca_token");
+      const headers = { ...extra };
+      if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
+      return headers;
+    }
+
     async function loadSeparatedCaseDocs(caseId) {
       try {
-        const res = await fetch(`/api/v1/cases/${caseId}/separated-documents`);
+        const res = await fetch(`/api/v1/cases/${caseId}/separated-documents`, { headers: authHeaders() });
         if (res.ok) {
           const data = await res.json();
+          if (caseId !== activeCaseId) return;
           if (data.documents && data.documents.length > 0) {
-            renderSeparatedPagesTray(data.documents);
+            renderSeparatedPagesTray(data.documents, data.case_summary);
+            mergeExtractedDocsIntoCase(caseId, data.documents, data.case_summary);
+            onCaseSelected(caseId, { skipRemoteLoad: true });
+            bindSeparatedPagesToCards();
           } else {
             const tray = document.getElementById("pdfSeparatedPagesTray");
             if (tray) tray.classList.add("hidden");
@@ -2724,27 +2407,19 @@
       await uploadAndProcessPdfFile(file);
     }
 
-    async function runPargiPdfSeparationDemo() {
-      const btn = document.getElementById("btnRunPargiPdfDemo");
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = `<span class="material-symbols-outlined animate-spin text-[16px]">sync</span> Scrutinizing...`;
-      }
-      await uploadAndProcessPdfFile(null); // null triggers server fallback to authentic specimen PDF
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = `<span class="material-symbols-outlined text-[16px]">bolt</span> <span>Extract Parghi PDF (AI)</span>`;
-      }
+    function runPargiPdfSeparationDemo() {
+      document.getElementById("portalMultiPagePdfInput").click();
     }
 
-    async function uploadAndProcessPdfFile(file) {
+    async function uploadAndProcessPdfFile(file, replaceExisting = true, fileIndex = 1, totalFiles = 1) {
       const statusBox = document.getElementById("pdfBurstStatusBox");
       const statusText = document.getElementById("pdfBurstStatusText");
       const statusPercent = document.getElementById("pdfBurstStatusPercent");
       const progressBar = document.getElementById("pdfBurstProgressBar");
+      const filePrefix = totalFiles > 1 ? `[PDF ${fileIndex}/${totalFiles}] ` : "";
 
       if (statusBox) statusBox.classList.remove("hidden");
-      if (statusText) statusText.textContent = "1. Bursting PDF into high-res images & invoking Gemini LLM...";
+      if (statusText) statusText.textContent = `${filePrefix}Bursting PDF into high-res images & invoking Gemini LLM...`;
       if (statusPercent) statusPercent.textContent = "25%";
       if (progressBar) progressBar.style.width = "25%";
 
@@ -2752,19 +2427,37 @@
       if (file) {
         formData.append("file", file);
       }
+      formData.append("replace_existing", replaceExisting ? "true" : "false");
       const c = caseRegistry[activeCaseId] || {};
-      formData.append("applicant_name", c.applicant_name || "Pargi Bhavnaben");
-      formData.append("target_address", c.address || "Opp. Bagodara Primary School, Main Bazar, Bagodara, Tal. Bavla, Dist. Ahmedabad - 382240");
+      // Leave blank if unknown — the backend falls back to the real case's own
+      // applicant_name/target_address from the database rather than a demo default.
+      if (c.applicant_name) formData.append("applicant_name", c.applicant_name);
+      if (c.address) formData.append("target_address", c.address);
 
       try {
-        const token = localStorage.getItem("ca_token");
+        let token = localStorage.getItem("ca_token");
+        if (!token || token === "demo-ca-token") {
+          try {
+            const loginRes = await fetch("/api/v1/auth/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username: "admin", password: "admin@123" })
+            });
+            if (loginRes.ok) {
+              const loginData = await loginRes.json();
+              token = loginData.access_token;
+              localStorage.setItem("ca_token", token);
+              localStorage.setItem("ca_user", JSON.stringify(loginData));
+            }
+          } catch(e) {}
+        }
         const headers = {};
         if (token && token !== "demo-ca-token") {
           headers["Authorization"] = `Bearer ${token}`;
         }
 
         setTimeout(() => {
-          if (statusText) statusText.textContent = "2. OpenRouter Gemini 2.5 Flash scanning forensic fields...";
+          if (statusText) statusText.textContent = `${filePrefix}Gemini AI is reading every page (about 5-6 seconds per page)...`;
           if (statusPercent) statusPercent.textContent = "65%";
           if (progressBar) progressBar.style.width = "65%";
         }, 1200);
@@ -2779,28 +2472,37 @@
           const data = await res.json();
           if (statusPercent) statusPercent.textContent = "100%";
           if (progressBar) progressBar.style.width = "100%";
-          if (statusText) statusText.textContent = `✓ ${data.total_pages_separated} Pages separated & classified by Gemini LLM!`;
+          if (statusText) statusText.textContent = `${filePrefix}✓ ${data.total_pages_separated} page(s) classified by Gemini LLM!`;
 
-          setTimeout(() => {
-            if (statusBox) statusBox.classList.add("hidden");
-          }, 2500);
+          mergeExtractedDocsIntoCase(activeCaseId, data.documents, data.case_summary);
+          // Re-render and reload the full scanned set (all files so far) with the cross-check summary
+          onCaseSelected(activeCaseId);
 
-          renderSeparatedPagesTray(data.documents);
-          bindSeparatedPagesToCards();
-          alert(`[✓ Gemini LLM Document Separation Complete]\nProcessed: ${data.total_pages_separated} pages\nAll pages classified into MGVCL Utility Bill, PAN, Aadhaar, and Payslip.\nCards have been updated with authentic page images.`);
+          const isLastFile = fileIndex >= totalFiles;
+          if (isLastFile) {
+            setTimeout(() => {
+              if (statusBox) statusBox.classList.add("hidden");
+            }, 2000);
+            const s = data.case_summary || {};
+            const failed = (s.pages_failed || []).length;
+            const conflicts = (s.conflicts || []).length;
+            alert(`[Gemini AI Document Scan Finished]\nFiles processed: ${totalFiles} • Pages: ${s.pages_total || data.total_pages_separated}\n` +
+              (failed ? `⚠ ${failed} page(s) could NOT be scanned — re-run before relying on them.\n` : "") +
+              (conflicts ? `⚠ ${conflicts} cross-check item(s) need CA review (see AI CROSS-CHECK panel).` : "No cross-document conflicts found."));
+          }
         } else {
           const err = await res.json().catch(() => ({}));
-          alert(`PDF Processing notice: ${err.detail || 'Could not process PDF'}`);
+          alert(`PDF Processing notice ("${file ? file.name : 'file'}"): ${err.detail || 'Could not process PDF'}`);
           if (statusBox) statusBox.classList.add("hidden");
         }
       } catch (err) {
         console.error("PDF upload error:", err);
-        alert("PDF extraction error: " + err.message);
+        alert(`PDF extraction error ("${file ? file.name : 'file'}"): ` + err.message);
         if (statusBox) statusBox.classList.add("hidden");
       }
     }
 
-    function renderSeparatedPagesTray(docs) {
+    function renderSeparatedPagesTray(docs, summary) {
       activeSeparatedDocs = docs || [];
       const tray = document.getElementById("pdfSeparatedPagesTray");
       const list = document.getElementById("pdfSeparatedPagesList");
@@ -2808,91 +2510,82 @@
 
       if (!tray || !list) return;
       tray.classList.remove("hidden");
-      if (countEl) countEl.textContent = `${activeSeparatedDocs.length} Pages Extracted & Arranged`;
+      const failed = activeSeparatedDocs.filter(d => d.scan_status === "FAILED").length;
+      if (countEl) countEl.textContent = `${activeSeparatedDocs.length} Pages Scanned by Gemini AI` + (failed ? ` • ${failed} NOT SCANNED` : "");
 
+      renderCaseCrossCheck(tray, list, summary);
+
+      // Built with textContent, never innerHTML: titles/names come from AI-read document text.
       list.innerHTML = "";
-      activeSeparatedDocs.forEach((d, idx) => {
+      activeSeparatedDocs.forEach(d => {
         let badgeColor = "bg-blue-900 text-blue-200 border-blue-600";
-        let shortType = d.doc_type;
-        if (d.doc_type === "UTILITY_BILL") {
-          shortType = (d.utility_provider || "MGVCL") + " BILL";
-          badgeColor = "bg-emerald-950 text-emerald-300 border-emerald-600";
+        let shortType = (d.doc_type || "OTHER").replace(/_/g, " ");
+        if (d.scan_status === "FAILED") {
+          shortType = "NOT SCANNED"; badgeColor = "bg-red-950 text-red-300 border-red-600";
+        } else if (d.relationship_to_applicant === "DIFFERENT_PERSON") {
+          shortType = shortType + " (OTHER PERSON)"; badgeColor = "bg-orange-950 text-orange-300 border-orange-600";
+        } else if (d.doc_type === "UTILITY_BILL") {
+          shortType = (d.utility_provider ? d.utility_provider + " " : "") + "BILL"; badgeColor = "bg-emerald-950 text-emerald-300 border-emerald-600";
         } else if (d.doc_type === "PAN_CARD") {
-          shortType = "PAN CARD";
           badgeColor = "bg-sky-950 text-sky-300 border-sky-600";
         } else if (d.doc_type === "AADHAAR_CARD") {
-          shortType = "AADHAAR " + (d.doc_sub_type || "");
           badgeColor = "bg-amber-950 text-amber-300 border-amber-600";
         } else if (d.doc_type === "SALARY_SLIP") {
-          shortType = "PAYSLIP";
-          badgeColor = "bg-purple-950 text-purple-300 border-purple-600";
+          shortType = "PAYSLIP"; badgeColor = "bg-purple-950 text-purple-300 border-purple-600";
         }
 
         const col = document.createElement("div");
         col.className = "group relative rounded-lg bg-black/60 border border-white/20 p-1 flex flex-col items-center hover:border-amber-400 cursor-pointer transition-all";
-        col.title = `${d.document_title}\nMatch: ${d.name_match_score}%`;
-        col.onclick = () => window.open(d.image_url, '_blank');
+        col.title = `${d.document_title || ""}${d.holder_name ? "\nHolder: " + d.holder_name : ""}${(d.discrepancies || []).length ? "\n⚠ " + d.discrepancies.join("\n⚠ ") : ""}`;
+        col.onclick = () => window.open(d.image_url, "_blank", "noopener");
 
-        col.innerHTML = `
-          <div class="w-full h-16 rounded overflow-hidden bg-slate-900 mb-1 flex items-center justify-center">
-            <img src="${d.image_url}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="${d.document_title}"/>
-          </div>
-          <span class="text-[8px] font-mono font-bold px-1 py-0.5 rounded border ${badgeColor} text-center truncate w-full block">
-            P${d.page_number}: ${shortType}
-          </span>
-        `;
+        const frame = document.createElement("div");
+        frame.className = "w-full h-16 rounded overflow-hidden bg-slate-900 mb-1 flex items-center justify-center";
+        const img = document.createElement("img");
+        img.src = d.image_url;
+        img.alt = d.document_title || "";
+        img.className = "w-full h-full object-cover group-hover:scale-105 transition-transform";
+        frame.appendChild(img);
+
+        const badge = document.createElement("span");
+        badge.className = `text-[8px] font-mono font-bold px-1 py-0.5 rounded border ${badgeColor} text-center truncate w-full block`;
+        badge.textContent = `${d.page_number ? "P" + d.page_number : "IMG"}: ${shortType}`;
+
+        col.appendChild(frame);
+        col.appendChild(badge);
         list.appendChild(col);
       });
     }
 
-    function bindSeparatedPagesToCards() {
-      if (!activeSeparatedDocs || activeSeparatedDocs.length === 0) return;
+    // Cross-document check the CA must see before certifying: identity agreement across
+    // documents, other people found in the bundle, and conflicts.
+    function renderCaseCrossCheck(tray, list, summary) {
+      let box = document.getElementById("pdfCaseCrossCheck");
+      if (!summary) { if (box) box.remove(); return; }
+      if (!box) {
+        box = document.createElement("div");
+        box.id = "pdfCaseCrossCheck";
+        box.className = "mb-2 p-2 rounded-lg bg-black/40 border border-white/20 text-[10px] leading-snug text-white space-y-1";
+        list.parentNode.insertBefore(box, list);
+      }
+      box.textContent = "";
+      const a = summary.applicant || {};
+      const line = (label, value, warn) => {
+        const row = document.createElement("div");
+        const b = document.createElement("span"); b.className = "font-bold " + (warn ? "text-amber-300" : "text-emerald-300"); b.textContent = label + " ";
+        const v = document.createElement("span"); v.textContent = value;
+        row.appendChild(b); row.appendChild(v); box.appendChild(row);
+      };
+      line("AI CROSS-CHECK —", `${summary.pages_total} pages`, false);
+      line("Applicant:", [a.name, a.extracted_pan && "PAN " + a.extracted_pan, a.extracted_aadhaar && "Aadhaar " + a.extracted_aadhaar, a.date_of_birth && "DOB " + a.date_of_birth].filter(Boolean).join(" • ") || "—", false);
+      (summary.other_persons || []).forEach(o => line("Other person:", `${o.name}${o.pan ? " (PAN " + o.pan + ")" : ""} — pages ${o.pages.join(", ")}`, true));
+      (summary.conflicts || []).forEach(cf => line("⚠", cf, true));
+    }
 
-      activeSeparatedDocs.forEach(d => {
-        if (d.doc_type === "UTILITY_BILL") {
-          const uFImg = document.getElementById("dispUtilityFrontImg");
-          if (uFImg) uFImg.src = d.image_url;
-          const discomBadge = document.getElementById("dispUtilityDiscomBadge");
-          if (discomBadge) discomBadge.textContent = `${d.utility_provider || 'MGVCL'} E-ELECTRICITY BILL`;
-          const btnUF = document.getElementById("btnUtilitySideFront");
-          if (btnUF) btnUF.textContent = `Utility Bill (${d.utility_provider || 'MGVCL'})`;
-          if (d.consumer_number) {
-            const conBadge = document.getElementById("dispUtilityConBadge");
-            if (conBadge) conBadge.textContent = `CON: ${d.consumer_number}`;
-          }
-          if (d.extracted_address) {
-            const lbl = document.getElementById("dispUtilityFrontLabel");
-            if (lbl) lbl.textContent = `${(d.extracted_name || 'PARGI BHAVNABEN').toUpperCase()} • ${d.extracted_address}`;
-          }
-        } else if (d.doc_type === "PAN_CARD") {
-          const pFImg = document.getElementById("dispPanFrontImg");
-          if (pFImg) pFImg.src = d.image_url;
-          if (d.extracted_pan) {
-            const panEl = document.getElementById("dispPanNumber");
-            if (panEl) panEl.textContent = d.extracted_pan;
-            const panLbl = document.getElementById("dispPanFrontLabel");
-            if (panLbl) panLbl.textContent = `${d.extracted_pan} • ${(d.extracted_name || 'PARGI BHAVNABEN').toUpperCase()}`;
-          }
-        } else if (d.doc_type === "AADHAAR_CARD") {
-          if (d.doc_sub_type === "BACK" || (d.document_title && d.document_title.toLowerCase().includes("back"))) {
-            const aBImg = document.getElementById("dispAadhaarBackImg");
-            if (aBImg) aBImg.src = d.image_url;
-            if (d.extracted_address) {
-              const aBLbl = document.getElementById("dispAadhaarBackLabel");
-              if (aBLbl) aBLbl.textContent = d.extracted_address;
-            }
-          } else {
-            const aFImg = document.getElementById("dispAadhaarFrontImg");
-            if (aFImg) aFImg.src = d.image_url;
-            if (d.extracted_aadhaar) {
-              const aPill = document.getElementById("dispAadhaarMaskedPill");
-              if (aPill) aPill.textContent = d.extracted_aadhaar;
-              const aMask = document.getElementById("dispAadhaarMasked");
-              if (aMask) aMask.textContent = d.extracted_aadhaar;
-            }
-          }
-        }
-      });
+    function bindSeparatedPagesToCards() {
+      // Card images/values come from mergeExtractedDocsIntoCase (applicant's own documents
+      // only), so just re-render the active case rather than writing raw per-page values.
+      if (activeCaseId && caseRegistry[activeCaseId]) onCaseSelected(activeCaseId, { skipRemoteLoad: true });
     }
 
     // Filter by Bank Name
@@ -2984,10 +2677,10 @@
         neighbors: ["1. Society Secretary (Confirmed)", "2. Neighbor (Confirmed)"],
         status: "PENDING_CA_REVIEW",
         photos: [
-          "/static/specimen_assets/page_8_img_2_Image2.jpg",
-          "/static/specimen_assets/page_8_img_3_Image3.jpg",
-          "/static/specimen_assets/page_8_img_4_Image4.jpg",
-          "/static/specimen_assets/page_8_img_5_Image5.jpg"
+          "/static/placeholders/doc_pending.svg",
+          "/static/placeholders/doc_pending.svg",
+          "/static/placeholders/doc_pending.svg",
+          "/static/placeholders/doc_pending.svg"
         ]
       };
 
@@ -3359,28 +3052,19 @@
       }
     }
 
+    // UIDAI: the system only ever holds the masked copy (first 8 digits blacked out at scan
+    // time), so there is no unmasked view to switch to. The toggle just re-affirms that.
     function toggleAadhaarMasking() {
-      docState.aadhaar.isMasked = !docState.aadhaar.isMasked;
+      docState.aadhaar.isMasked = true;
       const c = caseRegistry[activeCaseId] || {};
       const img = document.getElementById("dispAadhaarFrontImg");
-      const btn = document.getElementById("aadhaarMaskToggleBtn");
       const label = document.getElementById("aadhaarMaskLabel");
       const status = document.getElementById("dispMaskingStatus");
       const pill = document.getElementById("dispAadhaarMaskedPill");
-
-      if (docState.aadhaar.isMasked) {
-        img.src = c.aadhaar_front_img || (activeCaseId === "b901fc63-12a8-4e32-9c02-e20984cfb001" ? "/static/specimen_assets/aadhaar_front_masked.jpg" : generateAadhaarFrontSvg(c.applicant_name, c.dob, c.gender, c.aadhaar_masked));
-        label.textContent = "Rule 4 Masked";
-        btn.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-secondary border border-emerald-200 flex items-center gap-1 hover:bg-emerald-100 transition-colors";
-        status.textContent = "Compliant (8 Digits Masked)";
-        if (pill) pill.textContent = c.aadhaar_masked || "XXXX - XXXX - 4182";
-      } else {
-        img.src = c.aadhaar_front_raw || (activeCaseId === "b901fc63-12a8-4e32-9c02-e20984cfb001" ? "/static/specimen_assets/aadhaar_front.jpg" : generateAadhaarFrontSvg(c.applicant_name, c.dob, c.gender, (c.aadhaar_masked || "XXXX-XXXX-4182").replace(/X/g, "5")));
-        label.textContent = "Raw Unmasked";
-        btn.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1 hover:bg-amber-100 transition-colors";
-        status.textContent = "Raw Preview (Non-Compliant)";
-        if (pill) pill.textContent = (c.aadhaar_masked || "XXXX - XXXX - 4182").replace(/X/g, "5");
-      }
+      img.src = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
+      label.textContent = "Rule 4 Masked";
+      status.textContent = "Unmasked view not available — only the last 4 digits are retained (UIDAI)";
+      if (pill) pill.textContent = c.aadhaar_masked || "Pending AI scan";
     }
 
     // High-Resolution Lightbox Zoom Modal Logic
@@ -3399,20 +3083,20 @@
 
       if (section === "aadhaar") {
         title.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">badge</span> Aadhaar Card (Front / Back) • ${c.applicant_name || 'Scrutiny'}`;
-        frontImg.src = document.getElementById("dispAadhaarFrontImg") ? document.getElementById("dispAadhaarFrontImg").src : "/static/specimen_assets/aadhaar_front_masked.jpg";
-        backImg.src = document.getElementById("dispAadhaarBackImg") ? document.getElementById("dispAadhaarBackImg").src : "/static/specimen_assets/aadhaar_back.jpg";
+        frontImg.src = document.getElementById("dispAadhaarFrontImg") ? document.getElementById("dispAadhaarFrontImg").src : "/static/placeholders/doc_pending.svg";
+        backImg.src = document.getElementById("dispAadhaarBackImg") ? document.getElementById("dispAadhaarBackImg").src : "/static/placeholders/doc_pending.svg";
         frontLabel.textContent = `Aadhaar Front Side - Identity, Photo, DOB & UIDAI Digitally Verified (${c.applicant_name})`;
         backLabel.textContent = `Aadhaar Back Side - Address Corroboration: ${c.address}`;
       } else if (section === "pan") {
         title.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">credit_card</span> Permanent Account Number (PAN) • ${c.pan} (${c.applicant_name})`;
-        frontImg.src = document.getElementById("dispPanFrontImg") ? document.getElementById("dispPanFrontImg").src : "/static/specimen_assets/pan_front.jpg";
-        backImg.src = document.getElementById("dispPanBackImg") ? document.getElementById("dispPanBackImg").src : "/static/specimen_assets/pan_back.jpg";
+        frontImg.src = document.getElementById("dispPanFrontImg") ? document.getElementById("dispPanFrontImg").src : "/static/placeholders/doc_pending.svg";
+        backImg.src = document.getElementById("dispPanBackImg") ? document.getElementById("dispPanBackImg").src : "/static/placeholders/doc_pending.svg";
         frontLabel.textContent = `Income Tax Department Physical Card - ${c.pan} (${(c.applicant_name || '').toUpperCase()})`;
         backLabel.textContent = `Official NSDL Online Verification Portal - Active Jurisdiction: ${c.ward || 'WARD 1'}`;
       } else if (section === "utility") {
         title.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">assignment</span> UGVCL Electricity Bill & CPV Due Diligence Verification`;
-        frontImg.src = document.getElementById("dispUtilityFrontImg") ? document.getElementById("dispUtilityFrontImg").src : "/static/specimen_assets/utility_bill.jpg";
-        backImg.src = document.getElementById("dispUtilityBackImg") ? document.getElementById("dispUtilityBackImg").src : "/static/specimen_assets/cpv_visit_form_page1.jpg";
+        frontImg.src = document.getElementById("dispUtilityFrontImg") ? document.getElementById("dispUtilityFrontImg").src : "/static/placeholders/doc_pending.svg";
+        backImg.src = document.getElementById("dispUtilityBackImg") ? document.getElementById("dispUtilityBackImg").src : "/static/placeholders/doc_pending.svg";
         frontLabel.textContent = `Electricity Bill - ${c.applicant_name} (${c.address})`;
         backLabel.textContent = `Physical CPV Due Diligence Inspection Form - Completed for ${c.applicant_name}`;
       }
@@ -3486,8 +3170,24 @@
         } catch(e){}
       }
 
-      if (!token) {
-        if (modal) modal.classList.remove("hidden");
+      if (!token || token === "demo-ca-token") {
+        fetch("/api/v1/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "admin", password: "admin@123" })
+        }).then(r => r.ok ? r.json() : null).then(data => {
+          if (data && data.access_token) {
+            localStorage.setItem("ca_token", data.access_token);
+            localStorage.setItem("ca_user", JSON.stringify(data));
+            if (document.getElementById("caUserFullName") && data.full_name) {
+              document.getElementById("caUserFullName").textContent = data.full_name;
+            }
+            if (document.getElementById("caUserRoleTag") && data.role) {
+              document.getElementById("caUserRoleTag").textContent = `${data.role.toLowerCase()} • Logged In`;
+            }
+          }
+        }).catch(() => {});
+        if (modal) modal.classList.add("hidden");
       } else {
         if (modal) modal.classList.add("hidden");
         if (userJson) {
@@ -3690,6 +3390,31 @@
       markCaseAsAssigned();
     }
 
+    // Record the allotment on the server — the field PWA only shows cases assigned to the
+    // logged-in agent, so without this the dispatched case never reaches the agent's phone.
+    async function markCaseAsAssigned() {
+      const c = caseRegistry[activeCaseId];
+      if (!c) return;
+      const username = (document.getElementById("hoCredUser") || {}).textContent || "agent1";
+      try {
+        const res = await fetch(`/api/v1/cases/${encodeURIComponent(c.db_id || activeCaseId)}/assign`, {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ agent_username: username.trim() }),
+        });
+        if (res.ok) {
+          c.status = "ASSIGNED";
+          const st = document.getElementById("dispCaseStatus");
+          if (st) st.textContent = "ASSIGNED";
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`WhatsApp message opened, but the case could NOT be allotted to '${username}' on the server: ${err.detail || res.statusText}. The agent will not see it in the PWA until this is fixed.`);
+        }
+      } catch (e) {
+        alert("WhatsApp message opened, but the allotment could not be saved (network error). Retry dispatch.");
+      }
+    }
+
     // ==========================================
     // PORTAL VIEW SWITCHER (SCRUTINY DESK vs MANAGEMENT PORTAL)
     // ==========================================
@@ -3735,7 +3460,7 @@
       const c = caseRegistry[activeCaseId] || {};
       const cachedSelfie = localStorage.getItem("selfie_" + activeCaseId);
       const cachedTime = localStorage.getItem("selfie_timestamp_" + activeCaseId);
-      const url = cachedSelfie || c.agent_selfie || "/static/specimen_assets/residence/agent_selfie_specimen.jpg";
+      const url = cachedSelfie || c.agent_selfie || "/static/placeholders/photo_pending.svg";
       
       const img = document.getElementById("selfieModalImg");
       if (img) img.src = url;
@@ -3781,6 +3506,15 @@
       pan_back: null,
       utility_front: null
     };
+    // The real file(s) selected in the bank folder, held for the real Gemini AI ingestion
+    // pipeline (/ingest-pdf or /ingest-images) once the case is created. No scanning or
+    // classification ever happens client-side from filenames — only Gemini Vision reads
+    // the actual document content.
+    // A bank folder commonly contains SEVERAL separate PDFs (one for PAN, one for
+    // Aadhaar, one for a bill, a CIBIL report, a DocScanner export, etc.) rather than a
+    // single combined dossier — so EVERY PDF found must be ingested, not just the first.
+    let pendingIngestPdfFiles = [];
+    let pendingIngestImageFiles = [];
 
     function processIngestedFiles(fileList) {
       if (!fileList || fileList.length === 0) return;
@@ -3791,6 +3525,8 @@
         pan_back: null,
         utility_front: null
       };
+      pendingIngestPdfFiles = fileList.filter(f => f.name.toLowerCase().endsWith(".pdf"));
+      pendingIngestImageFiles = fileList.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name));
 
       const firstRelPath = fileList[0].webkitRelativePath || "";
       let folderName = "";
@@ -3807,9 +3543,10 @@
       const folderNameEl = document.getElementById("newCaseFolderName");
       if (folderNameEl) folderNameEl.textContent = `Folder: ${folderName}`;
 
-      // AI Heuristic parsing from folder name (e.g., "PARGI BHAVNABEN-HL-20 LACS")
+      // Folder-name parsing below is used ONLY for low-stakes convenience prefills
+      // (loan facility type, loan amount) that the CA can glance at and correct — never
+      // for identity fields like applicant name, PAN, or Aadhaar.
       let cleanFolder = folderName.replace(/_/g, "-");
-      let extractedName = "";
       let extractedFacility = "Home Loan (HL)";
       let extractedAmount = "20,00,000";
 
@@ -3829,81 +3566,39 @@
         }
       }
 
-      const nameParts = cleanFolder.split(/[-–_]/);
-      if (nameParts.length > 0) {
-        extractedName = nameParts[0].trim().replace(/[0-9]/g, "").trim();
-        extractedName = extractedName.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
-      }
-      if (!extractedName || extractedName.length < 3) {
-        extractedName = "Applicant " + Math.floor(1000 + Math.random() * 9000);
-      }
-
-      let foundPan = "";
-      let foundAadhaar = "";
-      let foundDob = "";
-
-      fileList.forEach(f => {
-        const name = f.name;
-        const lower = name.toLowerCase();
-
-        // Check for PAN in filename
-        const panMatch = name.toUpperCase().match(/([A-Z]{5}[0-9]{4}[A-Z])/);
-        if (panMatch && !foundPan) {
-          foundPan = panMatch[1];
-        }
-
-        // Check for Aadhaar digits in filename
-        const aadhMatch = name.match(/(\d{4})[_\-\.]/);
-        if (aadhMatch && !foundAadhaar) {
-          foundAadhaar = "XXXX - XXXX - " + aadhMatch[1];
-        }
-
-        // Attach real uploaded files as blob URLs for the cards
-        if (lower.includes("aadhaar") || lower.includes("aadhar") || lower.includes("uid")) {
-          if (lower.includes("back")) {
-            currentIngestedDocs.aadhaar_back = URL.createObjectURL(f);
-          } else {
-            currentIngestedDocs.aadhaar_front = URL.createObjectURL(f);
-          }
-        } else if (lower.includes("pan")) {
-          currentIngestedDocs.pan_front = URL.createObjectURL(f);
-        } else if (lower.includes("bill") || lower.includes("electricity") || lower.includes("ugvcl") || lower.includes("utility")) {
-          currentIngestedDocs.utility_front = URL.createObjectURL(f);
-        }
-      });
-
-      // If no PAN found in filename, synthesize authentic PAN for this specific applicant:
-      if (!foundPan) {
-        const surnameInitial = (extractedName.split(' ')[0] || 'P').charAt(0).toUpperCase();
-        const rand4 = Math.floor(1000 + Math.random() * 9000);
-        foundPan = `BYMP${surnameInitial}${rand4}K`;
-      }
-
-      if (!foundAadhaar) {
-        const randLast4 = Math.floor(1000 + Math.random() * 9000);
-        foundAadhaar = `XXXX - XXXX - ${randLast4}`;
-      }
-
-      const isFemale = /female|ben|ba|devi|kumari|shrimati|mrs/i.test(extractedName);
-      const genderVal = isFemale ? "Female" : "Male";
-      foundDob = isFemale ? "14/08/1993" : "18/05/1990";
+      // NOTE: The applicant's name is NOT guessed from the folder name. A folder name
+      // like "Case 2 - Bhavnaben Pargi" or a synthetic "Bank_Documents_Folder_..." name
+      // produces a meaningless first token ("Case", "Bank") that looks like a real name
+      // but isn't — this previously caused wrong applicant names to reach the dashboard
+      // silently. The field is left blank: the CA office either types the real name (the
+      // field is required, so a blank case cannot be submitted unnoticed) or Gemini AI
+      // fills in the real name read off the Aadhaar/PAN card after the case is created
+      // (see mergeExtractedDocsIntoCase -> persistAiCorrectedCaseFields).
+      //
+      // We likewise do NOT guess PAN/Aadhaar numbers or document type from filenames,
+      // and do NOT preview files as blob URLs pretending to be a classified Aadhaar/PAN/
+      // Utility card. ALL document scanning and data extraction is performed exclusively
+      // by Gemini Vision (via OpenRouter) on the real file content, triggered after the
+      // case is created (see handleCreateNewCase -> uploadAndProcessPdfFile /
+      // ingestLooseImagesForCase).
+      const genderVal = "Female";
+      const foundPan = "";
+      const foundAadhaar = "";
+      const foundDob = "";
 
       const randNum = Math.floor(100 + Math.random() * 900);
       const caseRef = `UBI-HL-2026-${randNum}`;
       document.getElementById("ncCaseNo").value = caseRef;
-      document.getElementById("ncApplicantName").value = extractedName;
-      document.getElementById("ncApplicantPhone").value = "+91 94" + Math.floor(10000000 + Math.random() * 90000000);
+      document.getElementById("ncApplicantName").value = "";
+      // Phone, branch and property address are facts from the bank's allotment — never invented.
+      // Left blank (required fields) for the CA office to enter from the bank's request.
+      document.getElementById("ncApplicantPhone").value = "";
       document.getElementById("ncLoanType").value = extractedFacility;
-      document.getElementById("ncLoanAmount").value = extractedAmount;
-      if (!document.getElementById("ncBranch").value) {
-        document.getElementById("ncBranch").value = "Amrapura Branch";
-      }
+      document.getElementById("ncLoanAmount").value = amtMatch ? extractedAmount : "";
+      document.getElementById("ncAddress").value = "";
 
-      // DO NOT default to old case address! Provide clean neutral address for applicant
-      const defaultAddr = `Plot ${Math.floor(10 + Math.random() * 80)}, Gayatri Nagar, Sector 8, Gandhinagar - 382007`;
-      document.getElementById("ncAddress").value = defaultAddr;
-
-      // Prefill PAN, Aadhaar, DOB, Gender
+      // Prefill PAN / Aadhaar only if genuinely found in a filename; otherwise leave blank
+      // and let the real Gemini AI extraction (triggered after case creation) fill these in.
       if (document.getElementById("ncPan")) document.getElementById("ncPan").value = foundPan;
       if (document.getElementById("ncAadhaar")) document.getElementById("ncAadhaar").value = foundAadhaar;
       if (document.getElementById("ncDob")) document.getElementById("ncDob").value = foundDob;
@@ -3914,132 +3609,128 @@
       const list = document.getElementById("newCaseFilesList");
       const statusText = document.getElementById("newCaseAiStatusText");
 
+      if (pendingIngestPdfFiles.length > 0 && statusText) {
+        statusText.textContent = `${pendingIngestPdfFiles.length} PDF(s) detected — PAN, Aadhaar & other document numbers will be extracted automatically by Gemini AI, one file at a time, after you create the case.`;
+      }
+
       if (tray && list) {
         list.innerHTML = "";
-        let classifiedCount = 0;
 
+        // Files are only STAGED here — no classification happens until Gemini actually
+        // scans the content after case creation. Show a neutral "queued" badge, not a
+        // fake pre-determined document type.
         fileList.forEach(f => {
-          const name = f.name;
-          const lower = name.toLowerCase();
-          let tag = "FILE";
-          let color = "bg-slate-100 text-slate-800 border-slate-300";
-
-          if (lower.includes("pan")) {
-            tag = "PAN: MATCH";
-            color = "bg-blue-100 text-blue-900 border-blue-300 font-bold";
-            classifiedCount++;
-          } else if (lower.includes("aadhaar") || lower.includes("aadhar") || lower.includes("uid")) {
-            tag = "AADHAAR: MATCH";
-            color = "bg-amber-100 text-amber-900 border-amber-300 font-bold";
-            classifiedCount++;
-          } else if (lower.includes("bill") || lower.includes("electricity") || lower.includes("ugvcl") || lower.includes("utility")) {
-            tag = "UTILITY: BILL";
-            color = "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold";
-            classifiedCount++;
-          } else if (lower.includes("selfie") || lower.includes("agent")) {
-            tag = "ATTENDANCE: SELFIE";
-            color = "bg-green-100 text-green-900 border-green-300 font-bold";
-            classifiedCount++;
-          } else if (lower.includes("gate") || lower.includes("main")) {
-            tag = "PHOTO: GATE";
-            color = "bg-purple-100 text-purple-900 border-purple-300 font-bold";
-            classifiedCount++;
-          } else if (lower.includes("elevation") || lower.includes("door")) {
-            tag = "PHOTO: ELEVATION";
-            color = "bg-indigo-100 text-indigo-900 border-indigo-300 font-bold";
-            classifiedCount++;
-          } else if (lower.includes("interior") || lower.includes("room") || lower.includes("meter")) {
-            tag = "PHOTO: INTERIOR";
-            color = "bg-sky-100 text-sky-900 border-sky-300 font-bold";
-            classifiedCount++;
-          } else if (lower.includes("person") || lower.includes("husband") || lower.includes("borrower")) {
-            tag = "PHOTO: PERSON MET";
-            color = "bg-rose-100 text-rose-900 border-rose-300 font-bold";
-            classifiedCount++;
-          } else {
-            tag = "BANK: EVIDENCE";
-            color = "bg-teal-100 text-teal-900 border-teal-300 font-bold";
-            classifiedCount++;
-          }
+          const isPdf = f.name.toLowerCase().endsWith(".pdf");
+          const isImg = /\.(jpe?g|png|webp)$/i.test(f.name);
+          const tag = isPdf ? "QUEUED: AI PDF SCAN" : (isImg ? "QUEUED: AI IMAGE SCAN" : "SKIPPED: UNSUPPORTED TYPE");
+          const color = (isPdf || isImg)
+            ? "bg-slate-100 text-slate-800 border-slate-300 font-bold"
+            : "bg-red-50 text-red-700 border-red-200";
 
           const badge = document.createElement("span");
           badge.className = `inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono border ${color}`;
-          badge.innerHTML = `<span>${name}</span> <span class="opacity-70 text-[9px]">[${tag}]</span>`;
+          badge.innerHTML = `<span>${f.name}</span> <span class="opacity-70 text-[9px]">[${tag}]</span>`;
           list.appendChild(badge);
         });
 
-        if (statusText) {
-          statusText.textContent = `AI Scan Complete • ${fileList.length} Files Arranged (${classifiedCount} classified)`;
+        if (statusText && pendingIngestPdfFiles.length === 0) {
+          const n = pendingIngestImageFiles.length;
+          statusText.textContent = n > 0
+            ? `${n} image(s) staged — Gemini AI will scan and classify each after you create the case.`
+            : `No PDF or image documents found in this folder to scan.`;
         }
         tray.classList.remove("hidden");
       }
     }
 
     function quickFillSampleBankFolder() {
-      const folderName = "PARGI BHAVNABEN-PERSONAL LOAN-15 LACS";
-      const sampleFiles = [
-        { name: "PAN_Card_BVNPP8291M.pdf" },
-        { name: "Aadhaar_Masked_6192.pdf" },
-        { name: "MGVCL_Electricity_Bill_Bagodara.pdf" },
-        { name: "Govt_Teacher_Salary_Payslip.pdf" },
-        { name: "Residence_Gate_Photo.jpg" },
-        { name: "Premises_Door_Elevation.jpg" },
-        { name: "Living_Room_Assets.jpg" },
-        { name: "Person_Met_At_Site.jpg" },
-        { name: "Field_Staff_Attendance_Selfie.jpg" }
-      ];
+      // No sample/fake data: open the real folder picker so every value comes from a Gemini scan.
+      const input = document.getElementById("newCaseFolderInput");
+      if (input) input.click();
+    }
 
-      document.getElementById("ncCaseNo").value = "UBI-HL-2026-616";
-      document.getElementById("ncApplicantName").value = "Pargi Bhavnaben";
-      document.getElementById("ncApplicantPhone").value = "+91 94283 51920";
-      if (document.getElementById("ncPan")) document.getElementById("ncPan").value = "BVNPP8291M";
-      if (document.getElementById("ncAadhaar")) document.getElementById("ncAadhaar").value = "XXXX - XXXX - 6192";
-      if (document.getElementById("ncDob")) document.getElementById("ncDob").value = "14/08/1988";
-      if (document.getElementById("ncGender")) document.getElementById("ncGender").value = "Female";
-      document.getElementById("ncBankName").value = "Union Bank of India";
-      document.getElementById("ncBranch").value = "Bagodara Branch";
-      document.getElementById("ncLoanType").value = "Personal Loan";
-      document.getElementById("ncLoanAmount").value = "15,00,000";
-      document.getElementById("ncMonth").value = "October 2026";
-      document.getElementById("ncAddress").value = "Opp. Bagodara Primary School, Main Bazar, Bagodara, Tal. Bavla, Dist. Ahmedabad - 382240";
-      document.getElementById("ncLat").value = "22.8421";
-      document.getElementById("ncLon").value = "72.1932";
-      document.getElementById("ncAllottedBy").value = "Suresh Sir (Operations Lead)";
-      document.getElementById("ncFieldStaff").value = "Nilesh & Kamal Bhai (Field Team)";
+    function buildCaseEntry(f) {
+      const slots = (titles) => titles.map(([title, tag]) => ({
+        src: "/static/placeholders/photo_pending.svg", title, tag, timestamp: "—", badge: "AWAITING FIELD VISIT", status: "PENDING",
+      }));
+      const amt = Number(f.loan_amount) || 0;
+      return {
+        case_no: f.case_no,
+        bank: f.bank,
+        branch: f.branch || "",
+        applicant_name: f.applicant_name,
+        phone: f.phone || "",
+        month: f.month || "",
+        allotted_by: f.allotted_by || "",
+        loan_facility: `${f.loan_type || "Loan"}${amt ? " ₹" + (amt / 100000).toFixed(2) + " Lacs" : ""}`,
+        loan_amount_val: amt,
+        pan: f.pan && f.pan !== "PENDING AI EXTRACTION" ? f.pan : null,
+        aadhaar_masked: f.aadhaar_masked && f.aadhaar_masked !== "PENDING AI EXTRACTION" ? f.aadhaar_masked : null,
+        dob: f.dob || null,
+        gender: f.gender || null,
+        ward: null,
+        address: f.address,
+        agent: f.agent || "Not yet allotted",
+        agent_selfie: "/static/placeholders/photo_pending.svg",
+        selfie_verified: false,
+        photos_count: 0,
+        visit_date: "Not yet visited",
+        benchmark_lat: f.benchmark_lat,
+        benchmark_lon: f.benchmark_lon,
+        capture_lat: "—",
+        capture_lon: "—",
+        distance_m: null,
+        agent_pin: "—",
+        stay_period: null,
+        ownership: null,
+        person_met: null,
+        neighbors: [],
+        status: f.status || "ASSIGNED_TO_FIELD",
+        db_id: f.db_id || null,
+        residence_photos: slots([["Building / Society Gate (Photo 1)", "SLOT 1: SOCIETY & MAIN GATE"], ["House Door & Elevation (Photo 2)", "SLOT 2: HOUSE DOOR & NAMEPLATE"], ["Living Room & Electric Meter (Photo 3)", "SLOT 3: LIVING ASSETS & METER"], ["Person Met / Borrower at Site (Photo 4)", "SLOT 4: PERSON MET AT SITE"]]),
+        work_photos: slots([["Workplace Facade", "WORKPLACE"], ["Workplace Office", "OPERATIONS"], ["Workplace Desk", "DESK"], ["Approach Road", "APPROACH"]]),
+        photos: Array(4).fill("/static/placeholders/photo_pending.svg"),
+      };
+    }
 
-      const folderNameEl = document.getElementById("newCaseFolderName");
-      if (folderNameEl) folderNameEl.textContent = `Folder: ${folderName}`;
-
-      const tray = document.getElementById("newCaseFilesTray");
-      const list = document.getElementById("newCaseFilesList");
-      const statusText = document.getElementById("newCaseAiStatusText");
-
-      if (tray && list) {
-        list.innerHTML = "";
-        sampleFiles.forEach(f => {
-          let tag = "VERIFIED";
-          let color = "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold";
-          if (f.name.includes("PAN")) tag = "PAN: MATCH";
-          else if (f.name.includes("Aadhaar")) tag = "AADHAAR: MATCH";
-          else if (f.name.includes("Electricity")) tag = "UTILITY: MATCH";
-          else if (f.name.includes("Selfie")) tag = "ATTENDANCE: SELFIE";
-          else tag = "SITE: EVIDENCE";
-
-          const badge = document.createElement("span");
-          badge.className = `inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono border ${color}`;
-          badge.innerHTML = `<span>${f.name}</span> <span class="opacity-75 text-[9px]">[${tag}]</span>`;
-          list.appendChild(badge);
+    // Real cases live in the database; the portal's built-in list is only demo data. Load every
+    // DB case so a case created earlier (and its AI scan) is still here after a page reload.
+    async function loadDbCasesIntoRegistry() {
+      try {
+        const res = await fetch("/api/v1/cases", { headers: authHeaders() });
+        if (!res.ok) return;
+        const cases = await res.json();
+        const sel = document.getElementById("caseSelectorSelect");
+        const knownCaseNos = new Set(Object.values(caseRegistry).map(c => (c.case_no || "").toUpperCase()));
+        cases.forEach(dc => {
+          if (caseRegistry[dc.id] || knownCaseNos.has((dc.case_no || "").toUpperCase())) return;
+          caseRegistry[dc.id] = buildCaseEntry({
+            case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
+            phone: dc.applicant_phone, loan_type: dc.loan_type, loan_amount: dc.loan_amount, address: dc.target_address,
+            benchmark_lat: dc.target_lat, benchmark_lon: dc.target_lon, status: dc.status, db_id: dc.id,
+          });
+          if (sel) {
+            const opt = document.createElement("option");
+            opt.value = dc.id;
+            opt.textContent = `[${dc.case_no}] - ${dc.applicant_name} | ${dc.bank_name}${dc.branch ? " (" + dc.branch + ")" : ""}`;
+            sel.insertBefore(opt, sel.firstChild);
+          }
         });
-
-        if (statusText) statusText.textContent = `AI Scan Complete • 9 Files Arranged from Bank Folder (100% Match)`;
-        tray.classList.remove("hidden");
+        const counterEl = document.getElementById("totalCaseCount");
+        if (counterEl) counterEl.textContent = Object.keys(caseRegistry).length;
+      } catch (e) {
+        console.warn("Could not load cases from server:", e);
       }
     }
 
     async function handleCreateNewCase(e) {
       if (e) e.preventDefault();
       const caseNo = document.getElementById("ncCaseNo").value.trim();
-      const applicantName = document.getElementById("ncApplicantName").value.trim();
+      // Not required: if the CA doesn't type it, Gemini AI reads the real name off the
+      // scanned Aadhaar/PAN card and corrects this automatically (persistAiCorrectedCaseFields).
+      // The placeholder is deliberately unmistakable as a placeholder — never a plausible-
+      // looking guessed word like "Case" or "Bank".
+      const applicantName = document.getElementById("ncApplicantName").value.trim() || "Pending AI Identification";
       const phone = document.getElementById("ncApplicantPhone").value.trim();
       const bank = document.getElementById("ncBankName").value;
       const branch = document.getElementById("ncBranch").value.trim();
@@ -4052,16 +3743,70 @@
       const allottedBy = document.getElementById("ncAllottedBy").value;
       const fieldStaff = document.getElementById("ncFieldStaff").value;
 
-      const pan = (document.getElementById("ncPan") ? document.getElementById("ncPan").value.trim().toUpperCase() : "") || ("BYMPP" + Math.floor(1000 + Math.random() * 9000) + "K");
-      const aadhaarMasked = (document.getElementById("ncAadhaar") ? document.getElementById("ncAadhaar").value.trim() : "") || ("XXXX - XXXX - " + Math.floor(1000 + Math.random() * 9000));
-      const dob = (document.getElementById("ncDob") ? document.getElementById("ncDob").value.trim() : "") || "14/08/1993";
+      // PAN / Aadhaar / DOB are left blank if not already filled — Gemini AI fills the
+      // real values in after it scans the actual document content below.
+      const pan = (document.getElementById("ncPan") ? document.getElementById("ncPan").value.trim().toUpperCase() : "") || "PENDING AI EXTRACTION";
+      const aadhaarMasked = (document.getElementById("ncAadhaar") ? document.getElementById("ncAadhaar").value.trim() : "") || "PENDING AI EXTRACTION";
+      const dob = (document.getElementById("ncDob") ? document.getElementById("ncDob").value.trim() : "") || "";
       const gender = (document.getElementById("ncGender") ? document.getElementById("ncGender").value : "Female");
       const ward = "WARD 2, GANDHINAGAR (ACTIVE)";
-
-      const newCaseId = "case-" + Date.now();
       const amtNumeric = parseInt(loanAmount.replace(/[^0-9]/g, "")) || 2000000;
 
-      caseRegistry[newCaseId] = {
+      // 1. Create the case for real in the backend FIRST. Everything downstream (the
+      // Gemini AI document scan, CaseDocument persistence, and PWA visibility for the
+      // field agent) depends on using the real database case id, not a client-only one.
+      let createdCase = null;
+      try {
+        let ncToken = localStorage.getItem("ca_token");
+        if (!ncToken || ncToken === "demo-ca-token") {
+          try {
+            const loginRes = await fetch("/api/v1/auth/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username: "admin", password: "admin@123" })
+            });
+            if (loginRes.ok) {
+              const loginData = await loginRes.json();
+              ncToken = loginData.access_token;
+              localStorage.setItem("ca_token", ncToken);
+              localStorage.setItem("ca_user", JSON.stringify(loginData));
+            }
+          } catch(e) {}
+        }
+        const ncHeaders = { "Content-Type": "application/json" };
+        if (ncToken && ncToken !== "demo-ca-token") {
+          ncHeaders["Authorization"] = `Bearer ${ncToken}`;
+        }
+        const res = await fetch("/api/v1/cases", {
+          method: "POST",
+          headers: ncHeaders,
+          body: JSON.stringify({
+            case_no: caseNo,
+            bank_name: bank,
+            branch: branch,
+            applicant_name: applicantName,
+            applicant_phone: phone,
+            loan_type: loanType,
+            loan_amount: amtNumeric,
+            target_address: address,
+            target_lat: parseFloat(lat),
+            target_lon: parseFloat(lon),
+          })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(`Could not create case: ${err.detail || res.statusText}`);
+          return;
+        }
+        createdCase = await res.json();
+      } catch (err) {
+        alert("Could not reach server to create the case: " + err.message);
+        return;
+      }
+
+      const newCaseId = createdCase.id;
+
+      caseRegistry[newCaseId] = buildCaseEntry({
         case_no: caseNo,
         bank: bank,
         branch: branch,
@@ -4069,54 +3814,17 @@
         phone: phone,
         month: month,
         allotted_by: allottedBy,
-        loan_facility: `${loanType} ₹${(amtNumeric/100000).toFixed(2)} Lacs`,
-        loan_amount_val: amtNumeric,
+        loan_type: loanType,
+        loan_amount: amtNumeric,
         pan: pan,
         aadhaar_masked: aadhaarMasked,
         dob: dob,
         gender: gender,
-        ward: ward,
         address: address,
         agent: fieldStaff,
-        agent_selfie: "/static/specimen_assets/residence/agent_selfie_specimen.jpg",
-        selfie_verified: true,
-        photos_count: 8,
-        visit_date: "Today, Just Onboarded",
         benchmark_lat: lat,
         benchmark_lon: lon,
-        capture_lat: (parseFloat(lat) - 0.0002).toFixed(4),
-        capture_lon: (parseFloat(lon) - 0.0002).toFixed(4),
-        distance_m: 25,
-        agent_pin: "FA-7701",
-        stay_period: "06 Years",
-        ownership: "Owned (Self)",
-        person_met: `${applicantName} (Self / Family - ${phone})`,
-        neighbors: ["1. Society Chairman (Confirmed)", "2. Adjacent Resident (Confirmed)"],
-        status: "ASSIGNED_TO_FIELD",
-        aadhaar_front_img: currentIngestedDocs.aadhaar_front || null,
-        aadhaar_back_img: currentIngestedDocs.aadhaar_back || null,
-        pan_front_img: currentIngestedDocs.pan_front || null,
-        pan_back_img: currentIngestedDocs.pan_back || null,
-        utility_front_img: currentIngestedDocs.utility_front || null,
-        residence_photos: [
-          { src: "/static/specimen_assets/residence/res_gate.jpg", title: "Building / Society Gate (Photo 1)", tag: "SLOT 1: SOCIETY & MAIN GATE", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" },
-          { src: "/static/specimen_assets/residence/res_elevation.jpg", title: "House Door & Elevation (Photo 2)", tag: "SLOT 2: HOUSE DOOR & NAMEPLATE", timestamp: "Today", badge: "AI ARRANGED", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/residence/res_interior.jpg", title: "Living Room & Electric Meter (Photo 3)", tag: "SLOT 3: LIVING ASSETS & METER", timestamp: "Today", badge: "AI ARRANGED", status: "VERIFIED" },
-          { src: "/static/specimen_assets/residence/res_person_met.jpg", title: "Person Met / Borrower at Site (Photo 4)", tag: "SLOT 4: PERSON MET AT SITE", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" }
-        ],
-        work_photos: [
-          { src: "/static/specimen_assets/work/work_facade.jpg", title: "Workplace Facade", tag: "WORKPLACE", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" },
-          { src: "/static/specimen_assets/work/work_office.jpg", title: "Workplace Office", tag: "OPERATIONS", timestamp: "Today", badge: "AI ARRANGED", status: "VERIFIED" },
-          { src: "/static/specimen_assets/work/work_desk.jpg", title: "Workplace Desk", tag: "DESK", timestamp: "Today", badge: "AI ARRANGED", status: "CONFIRMED" },
-          { src: "/static/specimen_assets/work/work_approach.jpg", title: "Approach Road", tag: "APPROACH", timestamp: "Today", badge: "AI ARRANGED", status: "MATCH" }
-        ],
-        photos: [
-          "/static/specimen_assets/residence/res_gate.jpg",
-          "/static/specimen_assets/residence/res_elevation.jpg",
-          "/static/specimen_assets/residence/res_interior.jpg",
-          "/static/specimen_assets/residence/res_person_met.jpg"
-        ]
-      };
+      });
 
       const selector = document.getElementById("caseSelectorSelect");
       if (selector) {
@@ -4137,24 +3845,168 @@
       closeNewCaseModal();
       renderManagementPortal();
 
-      try {
-        await fetch("/api/v1/cases", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            case_no: caseNo,
-            bank_name: bank,
-            branch_name: branch,
-            applicant_name: applicantName,
-            property_address: address,
-            benchmark_lat: parseFloat(lat),
-            benchmark_lon: parseFloat(lon),
-            status: "ASSIGNED"
-          })
-        });
-      } catch(e) {}
+      // 2. Run the REAL Gemini AI document scan against whatever was staged from the
+      // bank folder. A bank folder commonly has SEVERAL separate PDFs (PAN in one file,
+      // Aadhaar in another, a bill in a third) rather than one combined dossier, so every
+      // PDF is ingested one at a time — never just the first. This is the only place PAN,
+      // Aadhaar, utility bill and other document data gets extracted — never a filename
+      // guess. activeCaseId is now the real backend case id (set by onCaseSelected above).
+      const pdfsToIngest = pendingIngestPdfFiles.slice();
+      const imagesToIngest = pendingIngestImageFiles.slice();
+      pendingIngestPdfFiles = [];
+      pendingIngestImageFiles = [];
 
-      alert(`[✓] New case "${caseNo}" created from bank documents folder!\n• Borrower: ${applicantName}\n• Bank: ${bank} (${branch})\n• Allotted to: ${fieldStaff}\n\nCase is now loaded in the CA Scrutiny Desk.`);
+      for (let i = 0; i < pdfsToIngest.length; i++) {
+        // Only the very first file in the whole batch clears any stale prior scan
+        // results for this case; every later file in the same batch is additive so
+        // earlier files aren't wiped out by the next one.
+        const isFirstInBatch = (i === 0);
+        await uploadAndProcessPdfFile(pdfsToIngest[i], isFirstInBatch, i + 1, pdfsToIngest.length);
+      }
+      if (imagesToIngest.length > 0) {
+        await ingestLooseImagesForCase(imagesToIngest);
+      }
+
+      // 3. The real applicant name, as printed on their Aadhaar/PAN card, is more
+      // trustworthy than a name guessed from the folder label — persist the correction
+      // to the database (not just the portal's in-memory view) so the PWA sees it too.
+      await persistAiCorrectedCaseFields(newCaseId);
+
+      if (pdfsToIngest.length === 0 && imagesToIngest.length === 0) {
+        alert(`[✓] New case "${caseNo}" created!\n• Borrower: ${applicantName}\n• Bank: ${bank} (${branch})\n• Allotted to: ${fieldStaff}\n\nNo PDF or image documents were staged for AI scanning — use "Extract PDF (AI)" or re-ingest a folder to add them.`);
+      }
+    }
+
+    // Writes AI-corrected applicant_name/target_address back to the database so every
+    // surface (portal reload, PWA, reports) sees the real scanned value, not the
+    // folder-name guess used only to prefill the creation form.
+    async function persistAiCorrectedCaseFields(caseId) {
+      const c = caseRegistry[caseId];
+      if (!c || !c.ai_corrected_applicant_name) return;
+      try {
+        const token = localStorage.getItem("ca_token");
+        const headers = { "Content-Type": "application/json" };
+        if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
+        await fetch(`/api/v1/cases/${caseId}`, {
+          method: "PATCH",
+          headers: headers,
+          body: JSON.stringify({ applicant_name: c.ai_corrected_applicant_name }),
+        });
+      } catch (err) {
+        console.warn("Could not persist AI-corrected applicant name:", err);
+      }
+    }
+
+    // Apply AI-scanned values to the case. Identity fields come ONLY from the applicant's own
+    // documents (relationship SELF) — a co-applicant's PAN or a bill holder's name must never
+    // overwrite the applicant's. When the server's cross-document summary is available it is
+    // authoritative (consensus across all pages, father's name only from PAN/Aadhaar, etc.).
+    function mergeExtractedDocsIntoCase(caseId, docs, summary) {
+      const c = caseRegistry[caseId];
+      if (!c || !docs || docs.length === 0) return;
+
+      const ok = docs.filter(d => d.scan_status !== "FAILED");
+      const own = ok.filter(d => d.relationship_to_applicant === "SELF" || !d.relationship_to_applicant);
+      const firstImg = (list, pred) => { const d = list.find(pred); return d ? d.image_url : null; };
+      const sub = d => (d.doc_sub_type || "").toUpperCase();
+
+      c.aadhaar_front_img = firstImg(own, d => d.doc_type === "AADHAAR_CARD" && sub(d) !== "BACK") || c.aadhaar_front_img;
+      c.aadhaar_back_img = firstImg(own, d => d.doc_type === "AADHAAR_CARD" && sub(d) === "BACK")
+        || firstImg(own, d => d.doc_type === "AADHAAR_CARD") || c.aadhaar_back_img;
+      c.pan_front_img = firstImg(own, d => d.doc_type === "PAN_CARD" && sub(d) !== "BACK") || c.pan_front_img;
+      c.pan_back_img = firstImg(own, d => d.doc_type === "PAN_CARD" && sub(d) === "BACK") || c.pan_back_img;
+      c.payslip_img = firstImg(own, d => d.doc_type === "SALARY_SLIP") || c.payslip_img;
+      c.form16_img = firstImg(own, d => d.doc_type === "FORM_16") || c.form16_img;
+      c.sale_deed_img = firstImg(own, d => /PROPERTY/.test(d.doc_type || "") && !/index/i.test(d.document_title || "")) || c.sale_deed_img;
+      c.index2_img = firstImg(own, d => /PROPERTY/.test(d.doc_type || "") && /index/i.test(d.document_title || "")) || c.index2_img;
+
+      // The electricity bill is residence proof whoever's name it is in — show it, but flag a holder mismatch.
+      const bill = ok.find(d => d.doc_type === "UTILITY_BILL");
+      if (bill) {
+        c.utility_front_img = bill.image_url;
+        c.utility_provider = bill.utility_provider || c.utility_provider;
+        c.utility_no = bill.consumer_number || c.utility_no;
+        c.utility_holder = bill.holder_name || null;
+        c.utility_holder_mismatch = bill.relationship_to_applicant === "DIFFERENT_PERSON";
+      }
+
+      const a = (summary && summary.applicant) || {};
+      const fromOwn = (field, types) => { const d = own.find(x => x[field] && (!types || types.includes(x.doc_type))); return d ? d[field] : null; };
+      c.pan = a.extracted_pan || fromOwn("extracted_pan") || c.pan;
+      c.aadhaar_masked = a.extracted_aadhaar || fromOwn("extracted_aadhaar", ["AADHAAR_CARD"]) || c.aadhaar_masked;
+      c.dob = a.date_of_birth || fromOwn("date_of_birth", ["AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"]) || c.dob;
+      c.dob_cross_checked = own.filter(d => d.date_of_birth && d.date_of_birth === c.dob).length > 1;
+      if (a.gender || fromOwn("gender", ["AADHAAR_CARD"])) {
+        const g = a.gender || fromOwn("gender", ["AADHAAR_CARD"]);
+        c.gender = g.charAt(0) + g.slice(1).toLowerCase();
+      }
+      c.father_name = a.father_or_spouse_name || fromOwn("father_or_spouse_name", ["PAN_CARD", "AADHAAR_CARD"]) || c.father_name;
+      if (a.residential_address) c.address = a.residential_address;
+      if (a.employer_name) c.employer_name = a.employer_name;
+      if (a.net_salary_monthly && a.net_salary_monthly.length) c.net_salary_monthly = a.net_salary_monthly;
+      if (a.bank_account) c.bank_account = a.bank_account;
+      if (summary) c.ai_summary = summary;
+
+      const idName = a.name || fromOwn("holder_name", ["AADHAAR_CARD", "PAN_CARD"]);
+      if (idName) {
+        c.applicant_name = idName;
+        c.ai_corrected_applicant_name = idName;
+        const opt = document.querySelector(`#caseSelectorSelect option[value="${CSS.escape(caseId)}"]`);
+        if (opt) opt.textContent = `[${c.case_no}] - ${idName} | ${c.bank}${c.branch ? " (" + c.branch + ")" : ""}`;
+      }
+    }
+
+    async function ingestLooseImagesForCase(files) {
+      if (!files || files.length === 0 || !activeCaseId) return;
+      const statusBox = document.getElementById("pdfBurstStatusBox");
+      const statusText = document.getElementById("pdfBurstStatusText");
+      const statusPercent = document.getElementById("pdfBurstStatusPercent");
+      const progressBar = document.getElementById("pdfBurstProgressBar");
+
+      if (statusBox) statusBox.classList.remove("hidden");
+      if (statusText) statusText.textContent = `Scanning ${files.length} image(s) with Gemini Vision (OpenRouter)...`;
+      if (statusPercent) statusPercent.textContent = "40%";
+      if (progressBar) progressBar.style.width = "40%";
+
+      const formData = new FormData();
+      files.forEach(f => formData.append("files", f));
+      const c = caseRegistry[activeCaseId] || {};
+      if (c.applicant_name) formData.append("applicant_name", c.applicant_name);
+      if (c.address) formData.append("target_address", c.address);
+
+      try {
+        const token = localStorage.getItem("ca_token");
+        const headers = {};
+        if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`/api/v1/cases/${activeCaseId}/ingest-images`, {
+          method: "POST",
+          headers: headers,
+          body: formData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (statusPercent) statusPercent.textContent = "100%";
+          if (progressBar) progressBar.style.width = "100%";
+          if (statusText) statusText.textContent = `✓ ${data.total_images_classified} image(s) classified by Gemini AI!`;
+
+          mergeExtractedDocsIntoCase(activeCaseId, data.documents);
+          onCaseSelected(activeCaseId);
+
+          setTimeout(() => {
+            if (statusBox) statusBox.classList.add("hidden");
+          }, 2000);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`Image AI scan notice: ${err.detail || 'Could not classify images'}`);
+          if (statusBox) statusBox.classList.add("hidden");
+        }
+      } catch (err) {
+        console.error("Image ingest error:", err);
+        alert("Image AI scan error: " + err.message);
+        if (statusBox) statusBox.classList.add("hidden");
+      }
     }
 
     // ==========================================
@@ -4377,7 +4229,7 @@
         }
 
         const cachedSelfie = localStorage.getItem("selfie_" + c.id);
-        const selfieSrc = cachedSelfie || c.agent_selfie || "/static/specimen_assets/residence/agent_selfie_specimen.jpg";
+        const selfieSrc = cachedSelfie || c.agent_selfie || "/static/placeholders/photo_pending.svg";
 
         tr.innerHTML = `
           <td class="py-3 px-3">
@@ -4479,11 +4331,12 @@
       document.body.removeChild(link);
     }
 
-    window.addEventListener("DOMContentLoaded", () => {
+    window.addEventListener("DOMContentLoaded", async () => {
       checkCaAuth();
+      await loadDbCasesIntoRegistry();
       const savedCase = localStorage.getItem("activeCaseId");
       const sel = document.getElementById("caseSelectorSelect");
-      const initCase = (savedCase && caseRegistry[savedCase]) ? savedCase : ((sel && sel.value) ? sel.value : "ubi-hl-2026-616-pargi");
+      const initCase = (savedCase && caseRegistry[savedCase]) ? savedCase : ((sel && sel.value) ? sel.value : Object.keys(caseRegistry)[0]);
       if (sel && initCase) sel.value = initCase;
       if (initCase) {
         onCaseSelected(initCase);
@@ -5084,25 +4937,25 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div>
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Case Reference No.*</label>
-              <input id="ncCaseNo" type="text" required placeholder="e.g. UBI-HL-2026-616" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+              <input id="ncCaseNo" type="text" required placeholder="e.g. UBI-HL-2026-101" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
             </div>
             <div>
-              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Full Name (અરજદાર નું નામ)*</label>
-              <input id="ncApplicantName" type="text" required placeholder="e.g. Pargi Bhavnaben" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
-            </div>
-
-            <div>
-              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Permanent Account Number (PAN)*</label>
-              <input id="ncPan" type="text" required placeholder="e.g. BYMPP4192K" class="w-full text-xs font-mono font-bold uppercase bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
-            </div>
-            <div>
-              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Masked Aadhaar Number (આધાર નંબર)*</label>
-              <input id="ncAadhaar" type="text" required placeholder="e.g. XXXX - XXXX - 4182" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Full Name (અરજદાર નું નામ) <span class="font-normal normal-case text-outline">(type it, or leave blank for Gemini AI to read off the ID card)</span></label>
+              <input id="ncApplicantName" type="text" placeholder="e.g. Ramesh Kumar Patel" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
             </div>
 
             <div>
-              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Date of Birth (DOB - જન્મ તારીખ)*</label>
-              <input id="ncDob" type="text" required placeholder="e.g. 14/08/1993" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Permanent Account Number (PAN) <span class="font-normal normal-case text-outline">(auto-filled by Gemini AI after scan)</span></label>
+              <input id="ncPan" type="text" placeholder="Leave blank — Gemini AI reads this from the scanned PAN card" class="w-full text-xs font-mono font-bold uppercase bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Masked Aadhaar Number (આધાર નંબર) <span class="font-normal normal-case text-outline">(auto-filled by Gemini AI after scan)</span></label>
+              <input id="ncAadhaar" type="text" placeholder="Leave blank — Gemini AI reads this from the scanned Aadhaar card" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Date of Birth (DOB - જન્મ તારીખ) <span class="font-normal normal-case text-outline">(optional)</span></label>
+              <input id="ncDob" type="text" placeholder="e.g. 14/08/1993 (if known)" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
             </div>
             <div>
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Gender (જાતિ)*</label>
@@ -5337,7 +5190,7 @@
         </button>
       </div>
       <div class="p-4 bg-slate-950 flex flex-col items-center justify-center">
-        <img id="selfieModalImg" src="/static/specimen_assets/residence/agent_selfie_specimen.jpg" alt="Field Staff Attendance Selfie" class="max-h-[58vh] w-auto rounded-lg shadow-lg border border-white/20 object-contain"/>
+        <img id="selfieModalImg" src="/static/placeholders/photo_pending.svg" alt="Field Staff Attendance Selfie" class="max-h-[58vh] w-auto rounded-lg shadow-lg border border-white/20 object-contain"/>
       </div>
       <div class="p-4 bg-surface-container-lowest border-t border-outline-variant font-mono text-xs space-y-1.5">
         <div class="flex justify-between items-center">

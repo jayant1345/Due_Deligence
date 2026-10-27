@@ -22,11 +22,17 @@ class CaseCreate(BaseModel):
 class CaseUpdate(BaseModel):
     status: Optional[CaseStatus] = None
     assigned_agent_id: Optional[uuid.UUID] = None
+    applicant_name: Optional[str] = None
+    applicant_phone: Optional[str] = None
     branch: Optional[str] = None
     loan_amount: Optional[float] = None
     target_address: Optional[str] = None
     target_lat: Optional[float] = None
     target_lon: Optional[float] = None
+
+
+class CaseAssignRequest(BaseModel):
+    agent_username: str
 
 
 class CaseResponse(BaseModel):

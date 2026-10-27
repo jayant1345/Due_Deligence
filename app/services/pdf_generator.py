@@ -40,8 +40,9 @@ def generate_certified_cpv_report(
 
     partner = partner_name or "CA PRANAV N. SHAH"
     frn = firm_reg_no or "106829W"
-    effective_udin = udin or "26033747WJZXZM6737"
-    rep_date = case_data.get("report_date", "04-08-2026")
+    # A UDIN is unique per document (ICAI portal); without one the report must say so.
+    effective_udin = udin or "NOT YET GENERATED"
+    rep_date = case_data.get("report_date") or datetime.now().strftime("%d-%m-%Y")
 
     applicant_name = case_data.get("applicant_name", "Mrs. Rajkunvarba Pradeepsinh Vaghela")
     applicant_phone = case_data.get("applicant_phone", "8160166900")

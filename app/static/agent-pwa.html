@@ -104,13 +104,11 @@
         <span class="material-symbols-outlined text-[16px]">task_alt</span>
         <span>MY TASK:</span>
       </div>
-      <select id="pwaCaseSelector" onchange="switchPwaCase(this.value)" class="text-xs bg-surface-container-low border border-outline-variant rounded-lg font-semibold text-on-surface focus:ring-primary-container py-1.5 px-2 w-full truncate">
+      <!-- Field staff see ONLY the one case allocated to them — no case-switching control.
+           This is a read-only display (not a <select>), populated from the agent's real
+           assigned case(s) on the backend via loadAssignedCaseForAgent(). -->
+      <select id="pwaCaseSelector" disabled class="text-xs bg-surface-container-low border border-outline-variant rounded-lg font-semibold text-on-surface py-1.5 px-2 w-full truncate opacity-90 cursor-not-allowed">
         <option value="UBI-HL-2026-20L" selected>[UBI-HL-2026-20L] - Mrs. Rajkunvarba Vaghela (Gandhinagar)</option>
-        <option value="UBI-HL-2026-616">[UBI-HL-2026-616] - Pargi Bhavnaben (Gandhinagar)</option>
-        <option value="SBI-HL-2026-45L">[SBI-HL-2026-45L] - Mr. Vikramaditya Sengupta (Mumbai)</option>
-        <option value="HDFC-LAP-2026-60L">[HDFC-LAP-2026-60L] - Mr. Jayeshbhai K. Patel (Ahmedabad)</option>
-        <option value="ICICI-PL-2026-15L">[ICICI-PL-2026-15L] - Dr. Ananya Sharma (Ahmedabad)</option>
-        <option value="BOB-HL-2026-30L">[BOB-HL-2026-30L] - Mr. Mahendrasinh Solanki (Gandhinagar)</option>
       </select>
     </div>
 
@@ -143,7 +141,7 @@
       
       <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5 pt-1.5">
         <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-primary-container font-mono text-[11px] font-bold border border-blue-200">
-          RESIDENTIAL PROPERTY CPV
+          <span id="cpvTypeDisplay">CPV</span>
         </span>
         <span id="caseNoDisplay" class="font-mono text-xs bg-blue-50/90 text-primary-container px-2.5 py-1 rounded-lg border border-primary-container/30 font-bold tracking-wide shadow-2xs">
           CASE: UBI-HL-2026-20L
@@ -161,9 +159,9 @@
         <span class="material-symbols-outlined text-[16px] text-primary-container">account_balance</span>
         <span id="bankNameDisplay" class="font-medium text-on-surface">Union Bank of India</span>
         <span class="text-outline-variant">•</span>
-        <span>Gandhinagar Sector 16 Branch</span>
+        <span id="branchDisplay"></span>
         <span class="text-outline-variant">•</span>
-        <span class="text-secondary font-medium">Home Loan Facility</span>
+        <span id="loanTypeDisplay" class="text-secondary font-medium"></span>
       </div>
 
       <div class="p-2.5 rounded-lg bg-surface-container-low border border-outline-variant flex items-start gap-2">
@@ -173,10 +171,7 @@
             31, Siddhivinayak Bungalows, Near Amrapura Gam, Sector 16, Gandhinagar 382016
           </p>
           <div class="flex items-center gap-2 mt-1 font-mono text-[10px] text-outline">
-            <span>PIN: 382016</span>
-            <span>•</span>
-            <span>Gandhinagar Capital Area</span>
-            <span>•</span>
+            <span id="pinDisplay"></span>
             <span id="targetLatLonText" class="text-secondary font-bold">Target Lat: 23.2536°, Lon: 72.6322°</span>
           </div>
         </div>
@@ -211,7 +206,7 @@
           <div class="flex items-start gap-3 w-full sm:w-auto">
             <!-- Visual Document Thumbnail with Flip Preview -->
             <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('aadhaar')">
-              <img id="pwaDocInlineAadhaarImg" src="/static/specimen_assets/aadhaar_front.jpg" alt="Aadhaar Card" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.onerror=null;"/>
+              <img id="pwaDocInlineAadhaarImg" src="/static/placeholders/doc_pending.svg" alt="Aadhaar Card" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.onerror=null;"/>
               <span id="pwaDocAadhaarSideBadge" class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">FRONT</span>
             </div>
             
@@ -243,7 +238,7 @@
           <div class="flex items-start gap-3 w-full sm:w-auto">
             <!-- Visual Document Thumbnail -->
             <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('pan')">
-              <img id="pwaDocInlinePanImg" src="/static/specimen_assets/pan_front.jpg" alt="PAN Card" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.onerror=null;"/>
+              <img id="pwaDocInlinePanImg" src="/static/placeholders/doc_pending.svg" alt="PAN Card" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.onerror=null;"/>
               <span id="pwaDocPanSideBadge" class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">FRONT</span>
             </div>
             
@@ -275,7 +270,7 @@
           <div class="flex items-start gap-3 w-full sm:w-auto">
             <!-- Visual Document Thumbnail -->
             <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('utility')">
-              <img id="pwaDocInlineUtilityImg" src="/static/specimen_assets/utility_bill.jpg" alt="Electricity Bill" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.onerror=null;"/>
+              <img id="pwaDocInlineUtilityImg" src="/static/placeholders/doc_pending.svg" alt="Electricity Bill" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.onerror=null;"/>
               <span id="pwaDocUtilitySideBadge" class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">UGVCL</span>
             </div>
             
@@ -302,7 +297,7 @@
         <div class="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
           <div class="flex items-start gap-3 w-full sm:w-auto">
             <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('form16')">
-              <img id="pwaDocInlineForm16Img" src="/static/specimen_assets/specimen_form16.jpg" alt="Form 16" class="w-full h-full object-cover transition-transform group-hover:scale-105"/>
+              <img id="pwaDocInlineForm16Img" src="/static/placeholders/doc_pending.svg" alt="Form 16" class="w-full h-full object-cover transition-transform group-hover:scale-105"/>
               <span class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">TDS-16</span>
             </div>
             
@@ -312,7 +307,7 @@
                 <span class="font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1 rounded border border-emerald-200 font-bold">TRACES VERIFIED</span>
               </div>
               <div id="pwaDocIncomeName" class="font-semibold text-on-surface">Form 16 (Part A & B) • AY 2026-27</div>
-              <div id="pwaDocIncomeSalary" class="font-mono text-[11px] text-emerald-700 font-bold">Net Salary: ₹82,030 / Month (GIDC)</div>
+              <div id="pwaDocIncomeSalary" class="font-mono text-[11px] text-emerald-700 font-bold">Net Salary: Pending AI scan</div>
               <div class="font-mono text-[10px] text-outline">Salary Payslip & Bank Statements Attached</div>
             </div>
           </div>
@@ -333,7 +328,7 @@
         <div class="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
           <div class="flex items-start gap-3 w-full sm:w-auto">
             <div class="relative w-24 h-16 rounded-lg overflow-hidden border border-outline-variant shrink-0 bg-slate-900 group cursor-pointer shadow-xs" onclick="openPwaDocModal('sale_deed')">
-              <img id="pwaDocInlineSaleDeedImg" src="/static/specimen_assets/specimen_sale_deed.jpg" alt="Sale Deed" class="w-full h-full object-cover transition-transform group-hover:scale-105"/>
+              <img id="pwaDocInlineSaleDeedImg" src="/static/placeholders/doc_pending.svg" alt="Sale Deed" class="w-full h-full object-cover transition-transform group-hover:scale-105"/>
               <span class="absolute bottom-1 right-1 bg-black/80 text-white font-mono text-[8px] px-1 py-0.2 rounded font-bold">SALE DEED</span>
             </div>
             
@@ -360,6 +355,25 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- ALL CASE DOCUMENTS (every document the CA has scanned for this case via Gemini AI,
+         including any types not covered by the 5 named cards above, e.g. bank statements,
+         application forms). Populated live from the server — never hidden from the agent. -->
+    <section id="pwaAllDocsSection" class="hidden bg-surface-container-lowest rounded-2xl border border-outline-variant p-4 sm:p-5 shadow-sm flex flex-col gap-3">
+      <div class="flex items-center justify-between pb-2 border-b border-outline-variant">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-100 text-primary-container flex items-center justify-center font-bold shadow-xs">
+            <span class="material-symbols-outlined text-[20px]">folder_copy</span>
+          </div>
+          <div>
+            <h3 class="font-headline font-bold text-sm sm:text-base text-on-surface">All Case Documents (તમામ દસ્તાવેજો)</h3>
+            <p class="font-mono text-[10px] text-outline">Every document scanned for this case by the CA office</p>
+          </div>
+        </div>
+        <span id="pwaAllDocsCount" class="font-mono text-[10px] text-primary-container bg-blue-50 px-2 py-0.5 rounded border border-blue-200 font-bold">0 DOCS</span>
+      </div>
+      <div id="pwaAllDocsGrid" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
     </section>
 
     <!-- DUE DILIGENCE FIELD VISIT QUESTIONNAIRE (GOOGLE FORM DETAILS.PDF REPLACEMENT) -->
@@ -1144,62 +1158,15 @@
           { name: "Ranjanba Vaghela", relation: "Mother-in-law", age: "58", occupation: "Senior Citizen", earning: "No" },
           { name: "Takshdevsinh", relation: "Son", age: "5", occupation: "Student", earning: "No" }
         ],
-        aadhaar_front_img: "/static/specimen_assets/aadhaar_front.jpg",
-        aadhaar_back_img: "/static/specimen_assets/aadhaar_back.jpg",
-        pan_front_img: "/static/specimen_assets/pan_front.jpg",
-        pan_back_img: "/static/specimen_assets/pan_back.jpg",
-        utility_front_img: "/static/specimen_assets/utility_bill.jpg",
-        form16_img: "/static/specimen_assets/specimen_form16.jpg",
-        payslip_img: "/static/specimen_assets/specimen_payslip.jpg",
-        sale_deed_img: "/static/specimen_assets/specimen_sale_deed.jpg",
-        index2_img: "/static/specimen_assets/specimen_index2.jpg"
-      },
-      "UBI-HL-2026-616": {
-        id: "b902fc74-33b9-4f54-ad24-f31095e0d616",
-        case_no: "UBI-HL-2026-616",
-        applicant: "Pargi Bhavnaben",
-        phone: "9428351920",
-        amount: "₹15.00 Lakhs",
-        loan_type: "PERSONAL LOAN CPV",
-        branch: "Bagodara Branch",
-        address: "Opp. Bagodara Primary School, Main Bazar, Bagodara, Tal. Bavla, Dist. Ahmedabad - 382240",
-        pin: "382240",
-        ward: "Bagodara / Bavla (Ahmedabad Rural)",
-        lat: 22.8421,
-        lon: 72.1932,
-        dev_lat: 22.8420,
-        dev_lon: 72.1930,
-        aadhaar_no: "XXXX - XXXX - 6192",
-        dob: "14/08/1988 | Female",
-        pan_no: "BVNPP8291M",
-        utility_provider: "MGVCL Electricity Bill",
-        utility_no: "Consumer # 02148/09121/4",
-        meter_name: "Meter: MGV-BG-884910",
-        age: "38 years",
-        marital: "Married (પરિણિત)",
-        qualification: "Graduate (Govt Teacher)",
-        ownership: "Owned",
-        building_type: "Independent House",
-        bhk: "2 BHK",
-        stay_period: "12 years",
-        owner_name: "Pargi Bhavnaben (Self)",
-        person_met: "Pargi Bhavnaben (Self - 9428351920) & Husband Hiteshbhai",
-        neighbors: ["1 - Patel Ramanbhai - Neighbour", "2 - Shah Kirtibhai - Neighbour"],
-        family_members: [
-          { name: "Pargi Bhavnaben", relation: "Self / Applicant", age: "38", occupation: "Govt Teacher", earning: "Yes" },
-          { name: "Pargi Hiteshbhai", relation: "Husband", age: "42", occupation: "Agriculture / Business", earning: "Yes" },
-          { name: "Pargi Dhruv", relation: "Son", age: "14", occupation: "Student", earning: "No" },
-          { name: "Pargi Hetal", relation: "Daughter", age: "11", occupation: "Student", earning: "No" }
-        ],
-        aadhaar_front_img: "/static/specimen_assets/pargi_aadhaar_front_masked.jpg",
-        aadhaar_back_img: "/static/specimen_assets/pargi_aadhaar_back.jpg",
-        pan_front_img: "/static/specimen_assets/pargi_pan_front.jpg",
-        pan_back_img: "/static/specimen_assets/pargi_pan_front.jpg",
-        utility_front_img: "/static/specimen_assets/pargi_utility_bill.jpg",
-        form16_img: "/static/specimen_assets/pargi_form16.jpg",
-        payslip_img: "/static/specimen_assets/pargi_payslip.jpg",
-        sale_deed_img: "/static/specimen_assets/pargi_sale_deed.jpg",
-        index2_img: "/static/specimen_assets/pargi_index2.jpg"
+        aadhaar_front_img: "/static/placeholders/doc_pending.svg",
+        aadhaar_back_img: "/static/placeholders/doc_pending.svg",
+        pan_front_img: "/static/placeholders/doc_pending.svg",
+        pan_back_img: "/static/placeholders/doc_pending.svg",
+        utility_front_img: "/static/placeholders/doc_pending.svg",
+        form16_img: "/static/placeholders/doc_pending.svg",
+        payslip_img: "/static/placeholders/doc_pending.svg",
+        sale_deed_img: "/static/placeholders/doc_pending.svg",
+        index2_img: "/static/placeholders/doc_pending.svg"
       },
       "SBI-HL-2026-45L": {
         id: "c102ad74-23b9-4f43-ad13-f31095d0c002",
@@ -1465,11 +1432,11 @@
       const c = caseRegistryPwa[activeCaseKey] || caseRegistryPwa["UBI-HL-2026-20L"];
       isAadhaarFlippedInline = !isAadhaarFlippedInline;
       if (isAadhaarFlippedInline) {
-        img.src = c.aadhaar_back_img || "/static/specimen_assets/aadhaar_back.jpg";
+        img.src = c.aadhaar_back_img || "/static/placeholders/doc_pending.svg";
         if (badge) badge.textContent = "BACK";
         if (btn) btn.textContent = "View Front";
       } else {
-        img.src = c.aadhaar_front_img || "/static/specimen_assets/aadhaar_front.jpg";
+        img.src = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
         if (badge) badge.textContent = "FRONT";
         if (btn) btn.textContent = "Flip Side";
       }
@@ -1484,11 +1451,11 @@
       const c = caseRegistryPwa[activeCaseKey] || caseRegistryPwa["UBI-HL-2026-20L"];
       isPanFlippedInline = !isPanFlippedInline;
       if (isPanFlippedInline) {
-        img.src = c.pan_back_img || "/static/specimen_assets/pan_back.jpg";
+        img.src = c.pan_back_img || "/static/placeholders/doc_pending.svg";
         if (badge) badge.textContent = "BACK";
         if (btn) btn.textContent = "View Front";
       } else {
-        img.src = c.pan_front_img || "/static/specimen_assets/pan_front.jpg";
+        img.src = c.pan_front_img || "/static/placeholders/doc_pending.svg";
         if (badge) badge.textContent = "FRONT";
         if (btn) btn.textContent = "Flip Side";
       }
@@ -1509,44 +1476,44 @@
       if (docType === "aadhaar") {
         title.textContent = "Aadhaar Card (UIDAI Masked)";
         desc.textContent = `Name: ${c.applicant} | Masked No: ${c.aadhaar_no || 'XXXX-XXXX-7689'} | DOB: ${c.dob || '30/05/1997'}`;
-        imgFront.src = c.aadhaar_front_img || "/static/specimen_assets/aadhaar_front.jpg";
-        imgBack.src = c.aadhaar_back_img || "/static/specimen_assets/aadhaar_back.jpg";
+        imgFront.src = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
+        imgBack.src = c.aadhaar_back_img || "/static/placeholders/doc_pending.svg";
         if (flipBtn) flipBtn.classList.remove("hidden");
       } else if (docType === "pan") {
         title.textContent = "PAN Card (Income Tax Dept)";
         desc.textContent = `Name: ${c.applicant} | PAN: ${c.pan_no || 'BYMPG8996E'} | Ward: ${c.ward || 'Gandhinagar'}`;
-        imgFront.src = c.pan_front_img || "/static/specimen_assets/pan_front.jpg";
-        imgBack.src = c.pan_back_img || "/static/specimen_assets/pan_back.jpg";
+        imgFront.src = c.pan_front_img || "/static/placeholders/doc_pending.svg";
+        imgBack.src = c.pan_back_img || "/static/placeholders/doc_pending.svg";
         if (flipBtn) flipBtn.classList.remove("hidden");
       } else if (docType === "utility") {
         title.textContent = "Electricity / Utility Bill";
         desc.textContent = `Provider: ${c.utility_provider || 'UGVCL'} | Consumer No: ${c.utility_no || '04128/99102/3'} | Meter: ${c.meter_name || c.applicant}`;
-        imgFront.src = c.utility_front_img || "/static/specimen_assets/utility_bill.jpg";
-        imgBack.src = c.utility_front_img || "/static/specimen_assets/utility_bill.jpg";
+        imgFront.src = c.utility_front_img || "/static/placeholders/doc_pending.svg";
+        imgBack.src = c.utility_front_img || "/static/placeholders/doc_pending.svg";
         if (flipBtn) flipBtn.classList.add("hidden");
       } else if (docType === "form16") {
         title.textContent = "Form 16 (Part A & B / TDS Certificate)";
-        desc.textContent = `Employee: ${c.applicant} | AY 2026-27 | Employer: Gujarat Infra Dev Corp`;
-        imgFront.src = c.form16_img || "/static/specimen_assets/specimen_form16.jpg";
-        imgBack.src = c.form16_img || "/static/specimen_assets/specimen_form16.jpg";
+        desc.textContent = `Employee: ${c.applicant}${c.employer_name ? ' | Employer: ' + c.employer_name : ''}`;
+        imgFront.src = c.form16_img || "/static/placeholders/doc_pending.svg";
+        imgBack.src = c.form16_img || "/static/placeholders/doc_pending.svg";
         if (flipBtn) flipBtn.classList.add("hidden");
       } else if (docType === "payslip") {
         title.textContent = "Salary Payslip (Last Month)";
-        desc.textContent = `Employee: ${c.applicant} | Net Take-Home: ₹82,030 / Month | Verified Bank Credit`;
-        imgFront.src = c.payslip_img || "/static/specimen_assets/specimen_payslip.jpg";
-        imgBack.src = c.payslip_img || "/static/specimen_assets/specimen_payslip.jpg";
+        desc.textContent = `Employee: ${c.applicant} | ${c.net_salary_text || 'Net salary: Pending AI scan'}`;
+        imgFront.src = c.payslip_img || "/static/placeholders/doc_pending.svg";
+        imgBack.src = c.payslip_img || "/static/placeholders/doc_pending.svg";
         if (flipBtn) flipBtn.classList.add("hidden");
       } else if (docType === "sale_deed") {
         title.textContent = "Registered Sale Deed (દસ્તાવેજ)";
         desc.textContent = `Buyer: ${c.applicant} | Consideration: ₹48.00 Lacs | Sub-Registrar Reg # 7491/22`;
-        imgFront.src = c.sale_deed_img || "/static/specimen_assets/specimen_sale_deed.jpg";
-        imgBack.src = c.sale_deed_img || "/static/specimen_assets/specimen_sale_deed.jpg";
+        imgFront.src = c.sale_deed_img || "/static/placeholders/doc_pending.svg";
+        imgBack.src = c.sale_deed_img || "/static/placeholders/doc_pending.svg";
         if (flipBtn) flipBtn.classList.add("hidden");
       } else if (docType === "index2") {
         title.textContent = "Index II Copy (સૂચિ ૨ નકલ)";
         desc.textContent = `Claimant: ${c.applicant} | Sub-Registrar Gandhinagar | Clear Marketable Title`;
-        imgFront.src = c.index2_img || "/static/specimen_assets/specimen_index2.jpg";
-        imgBack.src = c.index2_img || "/static/specimen_assets/specimen_index2.jpg";
+        imgFront.src = c.index2_img || "/static/placeholders/doc_pending.svg";
+        imgBack.src = c.index2_img || "/static/placeholders/doc_pending.svg";
         if (flipBtn) flipBtn.classList.add("hidden");
       }
 
@@ -1871,13 +1838,13 @@
     // INTERACTIVE ASSETS VISIBLE CHIPS MANAGER
     // ==========================================
     let visibleAssets = [
-      { id: "ac", name: "AC", active: true },
-      { id: "fan", name: "FAN", active: true },
-      { id: "light", name: "LIGHT", active: true },
-      { id: "sofa", name: "SOFA", active: true },
-      { id: "fridge", name: "FRIDGE", active: true },
-      { id: "ro", name: "RO", active: true },
-      { id: "cctv", name: "CCTV", active: true },
+      { id: "ac", name: "AC", active: false },
+      { id: "fan", name: "FAN", active: false },
+      { id: "light", name: "LIGHT", active: false },
+      { id: "sofa", name: "SOFA", active: false },
+      { id: "fridge", name: "FRIDGE", active: false },
+      { id: "ro", name: "RO", active: false },
+      { id: "cctv", name: "CCTV", active: false },
       { id: "tv", name: "TV (ટેલિવિઝન)", active: false },
       { id: "wm", name: "WASHING MACHINE (વોશિંગ મશીન)", active: false },
       { id: "bike", name: "TWO WHEELER (બાઇક / એક્ટિવા)", active: false },
@@ -2025,7 +1992,7 @@
       const exec = document.getElementById("formExecutive").value;
       const persona = document.getElementById("formPersona").value;
       const marital = document.getElementById("formMarital").value;
-      const ageComm = (document.getElementById("formAge") || {}).value || "29 years";
+      const ageComm = (document.getElementById("formAge") || {}).value || "";
       const family = document.getElementById("formFamily").value;
       const bType = document.getElementById("formBuildingType").value;
       const bhk = document.getElementById("formBhk").value;
@@ -2035,7 +2002,8 @@
       const refs = document.getElementById("formReferences").value;
       const personMet = document.getElementById("formPersonMet").value;
       const occupation = document.getElementById("formOccupation").value;
-      const assetsObserved = (document.getElementById("formAssetsObserved") || {}).value || "AC, FAN, LIGHT, SOFA, FRIDGE, RO, CCTV";
+      const assetsObserved = (document.getElementById("formAssetsObserved") || {}).value
+        || visibleAssets.filter(a => a.active).map(a => a.name || a.label || a.id).filter(Boolean).join(", ");
       
       const payload = {
         executive: exec,
@@ -2049,11 +2017,12 @@
         ownership: own,
         period_of_stay: stay,
         owner_name: owner,
-        neighbour_1: refs.split(",")[0] || "Neighbour 1",
-        neighbour_2: refs.split(",")[1] || "Neighbour 2",
+        // Only what the agent actually recorded on site — never placeholder answers
+        neighbour_1: (refs.split(",")[0] || "").trim(),
+        neighbour_2: (refs.split(",")[1] || "").trim(),
         person_met: personMet,
         assets_observed: assetsObserved,
-        nameboard_visible: "No (બોર્ડ નથી)",
+        nameboard_visible: "",
         office_details: `Occupation: ${occupation}. ${occupation === 'House Wife' ? 'Applicant is a Housewife (Co-applicant / Home Maker). Business verification is Not Applicable.' : 'Business verification conducted.'}`
       };
 
@@ -2101,35 +2070,41 @@
       document.getElementById("loanAmountDisplay").textContent = c.amount;
       document.getElementById("targetAddressDisplay").textContent = c.address;
       document.getElementById("targetLatLonText").textContent = `${c.lat.toFixed(4)}° N`;
+      const pin = (c.pin || ((c.address || "").match(/\b\d{6}\b/) || [])[0] || "");
+      document.getElementById("pinDisplay").textContent = pin ? `PIN: ${pin} •` : "";
+      document.getElementById("branchDisplay").textContent = c.branch || "—";
+      if (c.bank) document.getElementById("bankNameDisplay").textContent = c.bank;
+      document.getElementById("loanTypeDisplay").textContent = c.loan_type || "";
+      document.getElementById("cpvTypeDisplay").textContent = (c.loan_type || "CPV").toUpperCase();
 
       // Dynamically update CA-provided documents for this case
       if (document.getElementById("pwaDocAadhaarName")) {
         document.getElementById("pwaDocAadhaarName").textContent = c.applicant;
-        document.getElementById("pwaDocAadhaarNo").textContent = c.aadhaar_no || "XXXX - XXXX - 7689";
-        document.getElementById("pwaDocAadhaarDob").textContent = `DOB: ${c.dob || "30/05/1997"}`;
+        document.getElementById("pwaDocAadhaarNo").textContent = c.aadhaar_no || "Aadhaar: Pending AI scan";
+        document.getElementById("pwaDocAadhaarDob").textContent = `DOB: ${c.dob || "Pending AI scan"}`;
       }
       if (document.getElementById("pwaDocPanName")) {
         document.getElementById("pwaDocPanName").textContent = c.applicant.toUpperCase();
-        document.getElementById("pwaDocPanNo").textContent = `PAN: ${c.pan_no || "BYMPG8996E"}`;
-        document.getElementById("pwaDocPanWard").textContent = `WARD: ${c.ward || "GMC"}`;
+        document.getElementById("pwaDocPanNo").textContent = `PAN: ${c.pan_no || "Pending AI scan"}`;
+        document.getElementById("pwaDocPanWard").textContent = (c.father_name ? `Father: ${c.father_name}` : (c.ward ? `WARD: ${c.ward}` : ""));
       }
       if (document.getElementById("pwaDocUtilityProvider")) {
-        document.getElementById("pwaDocUtilityProvider").textContent = c.utility_provider || "UGVCL Electricity Bill";
-        document.getElementById("pwaDocUtilityNo").textContent = c.utility_no || "Consumer # 04128/99102/3";
-        document.getElementById("pwaDocUtilityMeter").textContent = c.meter_name || `Meter Name: ${c.applicant}`;
+        document.getElementById("pwaDocUtilityProvider").textContent = c.utility_provider || "Electricity bill: Pending AI scan";
+        document.getElementById("pwaDocUtilityNo").textContent = c.utility_no || "";
+        document.getElementById("pwaDocUtilityMeter").textContent = c.meter_name || "";
       }
 
       // Update All Document Image Sources for the Active Case
       const aadhImg = document.getElementById("pwaDocInlineAadhaarImg");
-      if (aadhImg) aadhImg.src = c.aadhaar_front_img || "/static/specimen_assets/aadhaar_front.jpg";
+      if (aadhImg) aadhImg.src = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
       const panImg = document.getElementById("pwaDocInlinePanImg");
-      if (panImg) panImg.src = c.pan_front_img || "/static/specimen_assets/pan_front.jpg";
+      if (panImg) panImg.src = c.pan_front_img || "/static/placeholders/doc_pending.svg";
       const utilImg = document.getElementById("pwaDocInlineUtilityImg");
-      if (utilImg) utilImg.src = c.utility_front_img || "/static/specimen_assets/utility_bill.jpg";
+      if (utilImg) utilImg.src = c.utility_front_img || "/static/placeholders/doc_pending.svg";
       const f16Img = document.getElementById("pwaDocInlineForm16Img");
-      if (f16Img) f16Img.src = c.form16_img || "/static/specimen_assets/specimen_form16.jpg";
+      if (f16Img) f16Img.src = c.form16_img || "/static/placeholders/doc_pending.svg";
       const deedImg = document.getElementById("pwaDocInlineSaleDeedImg");
-      if (deedImg) deedImg.src = c.sale_deed_img || "/static/specimen_assets/specimen_sale_deed.jpg";
+      if (deedImg) deedImg.src = c.sale_deed_img || "/static/placeholders/doc_pending.svg";
 
       if (document.getElementById("pwaDocIncomeName")) {
         document.getElementById("pwaDocIncomeName").textContent = `Form 16 • ${c.applicant}`;
@@ -2145,25 +2120,25 @@
       const fName = document.getElementById("formApplicantName");
       if (fName) fName.value = c.applicant;
       const fPhone = document.getElementById("formContactNumber");
-      if (fPhone) fPhone.value = c.phone || "9428351920";
+      if (fPhone) fPhone.value = c.phone || "";
       const fAge = document.getElementById("formAge");
-      if (fAge) fAge.value = c.age || "38 years";
+      if (fAge) fAge.value = c.age || "";
       const fMarital = document.getElementById("formMarital");
       if (fMarital && c.marital) fMarital.value = c.marital;
       const fAddr = document.getElementById("formAddressVisited");
       if (fAddr) fAddr.value = c.address;
       const fOwn = document.getElementById("formOwnership");
-      if (fOwn) fOwn.value = c.ownership || "Owned";
+      if (fOwn) fOwn.value = c.ownership || "";
       const fBType = document.getElementById("formBuildingType");
-      if (fBType) fBType.value = c.building_type || "Independent House";
+      if (fBType) fBType.value = c.building_type || "";
       const fBhk = document.getElementById("formBhk");
-      if (fBhk) fBhk.value = c.bhk || "2 BHK";
+      if (fBhk) fBhk.value = c.bhk || "";
       const fStay = document.getElementById("formStayDuration");
-      if (fStay) fStay.value = c.stay_period || "12 years";
+      if (fStay) fStay.value = c.stay_period || "";
       const fOwner = document.getElementById("formOwnerName");
-      if (fOwner) fOwner.value = c.owner_name || `${c.applicant} (Self)`;
+      if (fOwner) fOwner.value = c.owner_name || "";
       const fMet = document.getElementById("formPersonMet");
-      if (fMet) fMet.value = c.person_met || `${c.applicant} (Self)`;
+      if (fMet) fMet.value = c.person_met || "";
       const fRefs = document.getElementById("formReferences");
       if (fRefs) fRefs.value = (c.neighbors || []).join(", ");
       
@@ -2246,45 +2221,244 @@
     // ==========================================
     // FIELD AGENT AUTHENTICATION & LOGIN SCREEN
     // ==========================================
-    function checkAgentAuth() {
+    // ==========================================
+    // LIVE ASSIGNED-CASE LOADING (no case picker — field staff see only
+    // whatever case is actually allocated to them by the CA office)
+    // ==========================================
+    async function loadAssignedCaseForAgent(token, paramCase) {
+      if (!token || token === "demo-pwa-token") return false;
+      try {
+        const res = await fetch("/api/v1/cases", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (!res.ok) return false;
+        const cases = await res.json();
+        if (!Array.isArray(cases) || cases.length === 0) return false;
+
+        let target = null;
+        if (paramCase) {
+          target = cases.find(c =>
+            (c.case_no || "").toLowerCase() === paramCase.toLowerCase() ||
+            (c.id || "").toLowerCase() === paramCase.toLowerCase()
+          );
+        }
+        if (!target) {
+          target = cases.find(c => c.status === "IN_PROGRESS") || cases.find(c => c.status === "ASSIGNED") || cases[0];
+        }
+        if (!target) return false;
+
+        const key = target.case_no;
+        const amtLakhs = target.loan_amount ? (target.loan_amount / 100000).toFixed(2) : "0.00";
+        caseRegistryPwa[key] = Object.assign({}, caseRegistryPwa[key] || {}, {
+          id: target.id,
+          case_no: target.case_no,
+          applicant: target.applicant_name,
+          phone: target.applicant_phone,
+          amount: `₹${amtLakhs} Lakhs`,
+          loan_type: (target.loan_type || "LOAN") + " CPV",
+          branch: target.branch || "",
+          bank: target.bank_name,
+          address: target.target_address,
+          ward: target.branch || "",
+          lat: target.target_lat,
+          lon: target.target_lon,
+          dev_lat: target.target_lat,
+          dev_lon: target.target_lon,
+          is_live_case: true,
+        });
+
+        activeCaseKey = key;
+        sampleCaseId = target.id;
+
+        // The selector is read-only (disabled) and shows exactly this one allocated case
+        const selector = document.getElementById("pwaCaseSelector");
+        if (selector) {
+          selector.innerHTML = "";
+          const opt = document.createElement("option");
+          opt.value = key;
+          opt.textContent = `[${target.case_no}] - ${target.applicant_name}${target.branch ? " (" + target.branch + ")" : ""}`;
+          opt.selected = true;
+          selector.appendChild(opt);
+        }
+
+        switchPwaCase(key);
+        await loadCaseDocumentsIntoPwa(target.id);
+        return true;
+      } catch (err) {
+        console.warn("Could not load assigned case from server:", err);
+        return false;
+      }
+    }
+
+    // Fetches every document the CA office has scanned (via Gemini AI) for this case —
+    // real content, never a filename guess — and overlays it onto the document cards
+    // plus the full "All Case Documents" gallery.
+    async function loadCaseDocumentsIntoPwa(caseId) {
+      try {
+        const res = await fetch(`/api/v1/cases/${caseId}/documents`);
+        if (!res.ok) return;
+        const docs = await res.json();
+        if (!Array.isArray(docs) || docs.length === 0) {
+          renderAllCaseDocumentsGallery([]);
+          return;
+        }
+
+        const c = caseRegistryPwa[activeCaseKey];
+        const kycDocs = docs.filter(d => d.ocr_data && d.ocr_data.source === "pdf_ingest");
+        const scanned = kycDocs.filter(d => d.ocr_data.scan_status !== "FAILED");
+        // Identity values only from the applicant's OWN documents — never a co-applicant's PAN
+        // or the name of whoever the electricity bill happens to be in.
+        const own = scanned.filter(d => (d.ocr_data.relationship_to_applicant || "SELF") === "SELF");
+        const kind = d => d.ocr_data.llm_doc_type || d.ocr_data.doc_type || d.doc_type;
+        const sub = d => (d.ocr_data.doc_sub_type || "").toUpperCase();
+        const pick = (list, pred) => list.find(pred);
+        const field = (name, types) => { const d = own.find(x => x.ocr_data[name] && (!types || types.includes(kind(x)))); return d ? d.ocr_data[name] : null; };
+
+        if (c) {
+          const aFront = pick(own, d => kind(d) === "AADHAAR_CARD" && sub(d) !== "BACK");
+          const aBack = pick(own, d => kind(d) === "AADHAAR_CARD" && sub(d) === "BACK") || aFront;
+          if (aFront) c.aadhaar_front_img = aFront.url;
+          if (aBack) c.aadhaar_back_img = aBack.url;
+          const pFront = pick(own, d => kind(d) === "PAN_CARD" && sub(d) !== "BACK");
+          if (pFront) { c.pan_front_img = pFront.url; c.pan_back_img = (pick(own, d => kind(d) === "PAN_CARD" && sub(d) === "BACK") || pFront).url; }
+          const f16 = pick(own, d => kind(d) === "FORM_16");
+          if (f16) c.form16_img = f16.url;
+          const slip = pick(own, d => kind(d) === "SALARY_SLIP");
+          if (slip) c.payslip_img = slip.url;
+          const deed = pick(own, d => kind(d) === "PROPERTY_DOCUMENT" && !/index/i.test(d.ocr_data.document_title || ""));
+          if (deed) c.sale_deed_img = deed.url;
+          const idx2 = pick(own, d => kind(d) === "PROPERTY_DOCUMENT" && /index/i.test(d.ocr_data.document_title || ""));
+          if (idx2) c.index2_img = idx2.url;
+
+          c.aadhaar_no = field("extracted_aadhaar", ["AADHAAR_CARD"]) || c.aadhaar_no;
+          c.pan_no = field("extracted_pan") || c.pan_no;
+          const dob = field("date_of_birth", ["AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"]);
+          const gender = field("gender", ["AADHAAR_CARD"]);
+          if (dob) c.dob = gender ? `${dob} | ${gender.charAt(0)}${gender.slice(1).toLowerCase()}` : dob;
+          c.father_name = field("father_or_spouse_name", ["PAN_CARD", "AADHAAR_CARD"]) || c.father_name;
+          c.employer_name = field("employer_name") || c.employer_name;
+          const slips = own.filter(d => kind(d) === "SALARY_SLIP" && d.ocr_data.net_salary_monthly)
+            .sort((x, y) => (x.ocr_data.page_number || 0) - (y.ocr_data.page_number || 0));
+          if (slips.length) {
+            c.net_salary_text = "Net salary: " + slips.map(d => `₹${Number(d.ocr_data.net_salary_monthly).toLocaleString("en-IN")} (${d.ocr_data.pay_month || d.ocr_data.document_period || "—"})`).join(", ");
+          }
+
+          const bill = pick(scanned, d => kind(d) === "UTILITY_BILL");
+          if (bill) {
+            const od = bill.ocr_data;
+            c.utility_front_img = bill.url;
+            c.utility_provider = od.utility_provider ? `${od.utility_provider} Electricity Bill` : "Electricity Bill";
+            c.utility_no = od.consumer_number ? `Consumer # ${od.consumer_number}` : "";
+            c.meter_name = od.holder_name
+              ? `Bill holder: ${od.holder_name}${od.relationship_to_applicant === "DIFFERENT_PERSON" ? " ⚠ not the applicant" : ""}`
+              : "";
+          }
+
+          // Re-render the currently visible case so the real scanned documents show up
+          switchPwaCase(activeCaseKey);
+          const salaryEl = document.getElementById("pwaDocIncomeSalary");
+          if (salaryEl && c.net_salary_text) salaryEl.textContent = c.net_salary_text;
+        }
+
+        renderAllCaseDocumentsGallery(kycDocs);
+      } catch (err) {
+        console.warn("Could not load case documents:", err);
+      }
+    }
+
+    function renderAllCaseDocumentsGallery(docs) {
+      const section = document.getElementById("pwaAllDocsSection");
+      const grid = document.getElementById("pwaAllDocsGrid");
+      const countEl = document.getElementById("pwaAllDocsCount");
+      if (!section || !grid) return;
+
+      if (!docs || docs.length === 0) {
+        section.classList.add("hidden");
+        return;
+      }
+
+      // Built with textContent: titles come from AI-read document text.
+      grid.innerHTML = "";
+      docs.forEach(d => {
+        const od = d.ocr_data || {};
+        const failed = od.scan_status === "FAILED";
+        const other = od.relationship_to_applicant === "DIFFERENT_PERSON";
+        const title = failed ? "Not scanned" : `${od.document_title || d.doc_type}${other && od.holder_name ? " — " + od.holder_name : ""}`;
+        const item = document.createElement("div");
+        item.className = "rounded-lg overflow-hidden border border-outline-variant bg-slate-900 cursor-pointer group shadow-xs";
+        item.title = title;
+        item.onclick = () => window.open(d.url, "_blank", "noopener");
+
+        const frame = document.createElement("div");
+        frame.className = "w-full h-16 overflow-hidden bg-slate-800";
+        const img = document.createElement("img");
+        img.src = d.url; img.alt = title; img.loading = "lazy";
+        img.className = "w-full h-full object-cover group-hover:scale-105 transition-transform";
+        frame.appendChild(img);
+
+        const cap = document.createElement("div");
+        cap.className = "px-1 py-0.5 " + (failed ? "bg-red-900" : other ? "bg-orange-900" : "bg-black/80");
+        const span = document.createElement("span");
+        span.className = "text-[8px] font-mono text-white truncate block";
+        span.textContent = title;
+        cap.appendChild(span);
+
+        item.appendChild(frame);
+        item.appendChild(cap);
+        grid.appendChild(item);
+      });
+
+      if (countEl) countEl.textContent = `${docs.length} DOCS`;
+      section.classList.remove("hidden");
+    }
+
+    async function checkAgentAuth() {
       const token = localStorage.getItem("pwa_token");
       const modal = document.getElementById("agentLoginModal");
       if (!token) {
         if (modal) modal.classList.remove("hidden");
-      } else {
-        if (modal) modal.classList.add("hidden");
-        const userJson = localStorage.getItem("pwa_user");
-        if (userJson) {
-          try {
-            const u = JSON.parse(userJson);
-            if (u.full_name) {
-              if (document.getElementById("agentNameDisplay")) {
-                document.getElementById("agentNameDisplay").textContent = u.full_name;
-              }
-              const execInput = document.getElementById("formExecutive");
-              if (execInput && (!execInput.value || execInput.value.includes("Kamal"))) {
-                execInput.value = `${u.full_name} (Field Officer)`;
-              }
-            }
-          } catch(e){}
-        }
+        switchPwaCase(activeCaseKey || "UBI-HL-2026-20L");
+        return;
       }
 
-      // Check URL query parameter ?case=...
+      if (modal) modal.classList.add("hidden");
+      const userJson = localStorage.getItem("pwa_user");
+      if (userJson) {
+        try {
+          const u = JSON.parse(userJson);
+          if (u.full_name) {
+            if (document.getElementById("agentNameDisplay")) {
+              document.getElementById("agentNameDisplay").textContent = u.full_name;
+            }
+            const execInput = document.getElementById("formExecutive");
+            if (execInput && (!execInput.value || execInput.value.includes("Kamal"))) {
+              execInput.value = `${u.full_name} (Field Officer)`;
+            }
+          }
+        } catch(e){}
+      }
+
+      // Check URL query parameter ?case=... (how the CA office's WhatsApp dispatch link works)
       const urlParams = new URLSearchParams(window.location.search);
       const paramCase = urlParams.get("case") || urlParams.get("case_id");
-      let matchedCase = false;
-      if (paramCase) {
-        for (const [k, v] of Object.entries(caseRegistryPwa)) {
-          if (k.toLowerCase() === paramCase.toLowerCase() || v.case_no.toLowerCase() === paramCase.toLowerCase()) {
-            switchPwaCase(k);
-            matchedCase = true;
-            break;
+
+      const loadedLiveCase = await loadAssignedCaseForAgent(token, paramCase);
+      if (!loadedLiveCase) {
+        // No live assigned case found on the server (e.g. demo login) — fall back to the
+        // single built-in demo case. Field staff still never get a manual case switcher.
+        let matchedCase = false;
+        if (paramCase) {
+          for (const [k, v] of Object.entries(caseRegistryPwa)) {
+            if (k.toLowerCase() === paramCase.toLowerCase() || v.case_no.toLowerCase() === paramCase.toLowerCase()) {
+              switchPwaCase(k);
+              matchedCase = true;
+              break;
+            }
           }
         }
-      }
-      if (!matchedCase) {
-        switchPwaCase(activeCaseKey || "UBI-HL-2026-20L");
+        if (!matchedCase) {
+          switchPwaCase(activeCaseKey || "UBI-HL-2026-20L");
+        }
       }
     }
 
@@ -2316,6 +2490,7 @@
           if (document.getElementById("agentNameDisplay") && data.full_name) {
             document.getElementById("agentNameDisplay").textContent = data.full_name;
           }
+          await checkAgentAuth();
         } else {
           const err = await res.json().catch(() => ({}));
           alertEl.textContent = err.detail || "Invalid agent credentials. Use agent1 / agent1@123";
@@ -2326,6 +2501,7 @@
           localStorage.setItem("pwa_token", "demo-pwa-token");
           localStorage.setItem("pwa_user", JSON.stringify({ full_name: "Rajesh Varma", role: "FIELD_AGENT" }));
           document.getElementById("agentLoginModal").classList.add("hidden");
+          await checkAgentAuth();
         } else {
           alertEl.textContent = "Unable to connect to auth server. Try demo agent1 / agent1@123";
           alertEl.classList.remove("hidden");

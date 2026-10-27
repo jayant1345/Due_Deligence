@@ -9,15 +9,52 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_optional_current_user, require_role
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.loan_case import CaseStatus, LoanCase
+from app.models.loan_case import LoanCase
 from app.models.report import CertifiedReport
 from app.models.user import User, UserRole
-from app.schemas.report import ReportGenerateRequest, ReportResponse
-from app.services.pdf_generator import generate_certified_cpv_report
-from app.services.docx_generator import generate_certified_cpv_docx
+from app.schemas.report import CpvTemplateReportRequest, ReportGenerateRequest, ReportResponse
+from starlette.concurrency import run_in_threadpool
+from app.services.cpv_report_builder import build_cpv_report
+from app.services.cpv_report_data import assemble_cpv_report_data
 from app.workers.celery_tasks import generate_report_pdf_task
 
 router = APIRouter(prefix="/reports", tags=["Certified Bank Dossiers & UDIN Reports"])
+
+DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+@router.post("/cpv-template/{case_id}")
+async def generate_cpv_template_report(
+    case_id: str,
+    req: CpvTemplateReportRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.CA_VERIFIER, UserRole.SUPER_ADMIN)),
+):
+    """
+    Generate the CPV report in the firm's own Word template (single or dual applicant,
+    chosen automatically from the scanned documents) filled with this case's data.
+    """
+    from app.api.v1.cases import _ai_ingested_pages, resolve_loan_case
+
+    loan_case = await resolve_loan_case(db, case_id)
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
+
+    pages = await _ai_ingested_pages(db, loan_case)
+    data = await assemble_cpv_report_data(
+        db, loan_case, pages,
+        udin=req.udin, overall_status=req.overall_status, file_allotted_by=req.file_allotted_by,
+        verifier_names=req.verifier_names, include_co_applicant=req.include_co_applicant,
+    )
+    safe_no = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in loan_case.case_no)
+    out = os.path.join("reports_generated", f"CPV_Report_{safe_no}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx")
+    result = await run_in_threadpool(build_cpv_report, data, out)
+    return FileResponse(
+        path=out,
+        media_type=DOCX_MEDIA_TYPE,
+        filename=f"CPV_Report_{safe_no}.docx",
+        headers={"X-Report-Template": result["template"]},
+    )
 
 
 @router.post("/generate", response_model=ReportResponse, status_code=status.HTTP_201_CREATED)
@@ -33,26 +70,10 @@ async def generate_report(
     case_res = await db.execute(select(LoanCase).where(LoanCase.id == req.case_id))
     loan_case = case_res.scalar_one_or_none()
     
-    # If case does not exist in local DB (e.g. initial demo case), create it
+    # A certified report can only be generated for a case that really exists — never
+    # substituted with another applicant's data.
     if not loan_case:
-        loan_case = LoanCase(
-            id=req.case_id,
-            case_no="UBI-HL-2026-20L",
-            bank_name="Union Bank of India",
-            branch="Amrapura Branch",
-            applicant_name="Mrs. Rajkunvarba Pradeepsinh Vaghela",
-            applicant_phone="8160166900",
-            loan_type="Home Loan",
-            loan_amount=2000000.0,
-            target_address="31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar-382610",
-            target_lat=23.2156,
-            target_lon=72.6369,
-            status=CaseStatus.IN_PROGRESS,
-            created_by_id=current_user.id if current_user else uuid.uuid4(),
-        )
-        db.add(loan_case)
-        await db.commit()
-        await db.refresh(loan_case)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
 
     user_id_str = str(current_user.id) if current_user else str(uuid.uuid4())
 
@@ -101,7 +122,7 @@ async def download_report_pdf(
 ):
     """
     Download the certified bank-ready PDF report by ID.
-    Direct browser link without authentication hurdle. Supports on-the-fly demo compilation.
+    Direct link (no login) — only the exact report ID is served.
     """
     # 1. Try resolving as UUID from database
     report = None
@@ -124,81 +145,11 @@ async def download_report_pdf(
             },
         )
 
-    # 2. Check if a pre-compiled PDF already exists in reports_generated/
-    os.makedirs("reports_generated", exist_ok=True)
-    potential_files = [
-        f for f in os.listdir("reports_generated") if f.endswith(".pdf")
-    ]
-    if potential_files:
-        latest_file = os.path.join("reports_generated", sorted(potential_files)[-1])
-        return FileResponse(
-            path=latest_file,
-            media_type="application/pdf",
-            filename=os.path.basename(latest_file),
-        )
-
-    # 3. Generate on-the-fly bank report matching the real case from AMRAPURA
-    out_pdf = os.path.join("reports_generated", "Certified_Dossier_UBI_HL_2026_20L.pdf")
-    case_meta = {
-        "case_no": "UBI-HL-2026-20L",
-        "bank_name": "Union Bank of India",
-        "branch": "Amrapura Branch",
-        "loan_type": "Home Loan (20 Lacs)",
-        "applicant_name": "Mrs. Rajkunvarba Pradeepsinh Vaghela",
-        "applicant_phone": "8160166900",
-        "target_address": "31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar-382610",
-        "field_form": {
-            "period_of_stay": "09 Years",
-            "building_type": "Independent House / Bunglow",
-            "ownership": "Owned",
-            "assets_observed": "A.C., Refrigerator, Sofa Set, T.V., Two-Wheeler, RO Filter",
-            "person_met": "Mr. Pradeepsinh Vaghela (Husband - 8160166900)",
-            "neighbour_1": "Narendrasinh Devda (Neighbour - Confirmed)",
-            "neighbour_2": "Bhagwatsinh Rathod (Neighbour - Confirmed)",
-            "nameboard_visible": "Yes (Confirmed at entrance)",
-            "office_details": "Applicant is a Housewife (Co-applicant / Home Maker). Business verification is Not Applicable."
-        }
-    }
-    
-    meta = generate_certified_cpv_report(
-        output_pdf_path=out_pdf,
-        case_data=case_meta,
-        visit_data={
-            "check_in_time": datetime.now(timezone.utc).strftime("%d-%b-%Y %H:%M:%S IST"),
-            "start_lat": 23.2156,
-            "start_lon": 72.6369,
-        },
-        document_items=[],
-        ca_remarks="Physical inspection carried out at the verified property premises. Applicant family and residence confirmed with 100% KYC consistency. Recommended for Loan Sanction.",
-        udin="26033747WJZXZM6737",
-        partner_name="CA PRANAV N. SHAH",
-        firm_reg_no="106829W",
-    )
-
-    out_docx = os.path.join("reports_generated", "Certified_Dossier_UBI_HL_2026_20L.docx")
-    generate_certified_cpv_docx(
-        output_docx_path=out_docx,
-        case_data=case_meta,
-        visit_data={
-            "check_in_time": datetime.now(timezone.utc).strftime("%d-%b-%Y %H:%M:%S IST"),
-            "start_lat": 23.2156,
-            "start_lon": 72.6369,
-        },
-        document_items=[],
-        ca_remarks="Physical inspection carried out at the verified property premises. Applicant family and residence confirmed with 100% KYC consistency. Recommended for Loan Sanction.",
-        udin="26033747WJZXZM6737",
-        partner_name="CA PRANAV N. SHAH",
-        firm_reg_no="106829W",
-    )
-
-    return FileResponse(
-        path=out_pdf,
-        media_type="application/pdf",
-        filename="Certified_Dossier_Vaghela_Rajkunvarba_UBI.pdf",
-        headers={
-            "X-SHA256-Fingerprint": meta["sha256"],
-            "X-UDIN": meta["udin"],
-        },
+    # No fallback: serving "the latest PDF" or a sample dossier would hand one customer's
+    # certified report to whoever asked for another (and this link needs no login).
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Report not found or its file is no longer on the server — regenerate it.",
     )
 
 
@@ -209,7 +160,7 @@ async def download_report_docx(
 ):
     """
     Download the specimen-matching Word (.docx) CPV dossier by ID.
-    Direct browser link without authentication hurdle. Supports on-the-fly demo compilation.
+    Direct link (no login) — only the exact report ID is served.
     """
     report = None
     try:
@@ -227,41 +178,7 @@ async def download_report_docx(
             filename=filename,
         )
 
-    # Check if a pre-compiled DOCX exists in reports_generated/
-    os.makedirs("reports_generated", exist_ok=True)
-    potential_files = [
-        f for f in os.listdir("reports_generated") if f.endswith(".docx")
-    ]
-    if potential_files:
-        latest_file = os.path.join("reports_generated", sorted(potential_files)[-1])
-        return FileResponse(
-            path=latest_file,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            filename=os.path.basename(latest_file),
-        )
-
-    # Generate on-the-fly docx report
-    out_docx = os.path.join("reports_generated", "Certified_Dossier_UBI_HL_2026_20L.docx")
-    case_meta = {
-        "case_no": "UBI-HL-2026-20L",
-        "bank_name": "Union Bank of India",
-        "branch": "Amrapura Branch",
-        "loan_type": "Home Loan (20 Lacs)",
-        "applicant_name": "Mrs. Rajkunvarba Pradeepsinh Vaghela",
-        "applicant_phone": "8160166900",
-        "target_address": "31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar-382610",
-        "report_date": "04-08-2026",
-    }
-    generate_certified_cpv_docx(
-        output_docx_path=out_docx,
-        case_data=case_meta,
-        udin="26033747WJZXZM6737",
-        partner_name="CA PRANAV N. SHAH",
-        firm_reg_no="106829W",
-    )
-
-    return FileResponse(
-        path=out_docx,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        filename="Certified_Dossier_Vaghela_Rajkunvarba_UBI.docx",
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Report not found or its file is no longer on the server — regenerate it.",
     )

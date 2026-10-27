@@ -150,6 +150,31 @@ async def lifespan(app: FastAPI):
                 session.add(sc)
             await session.commit()
 
+        # 4. Guarantee Pargi Bhavnaben case (UBI-HL-2026-531) is seeded for live bank scrutiny
+        case_uuid_pargi = uuid.UUID("b8df82fd-e33a-493e-8d4b-a802861cf294")
+        res_pargi = await session.execute(
+            select(LoanCase).where((LoanCase.id == case_uuid_pargi) | (LoanCase.case_no == "UBI-HL-2026-531"))
+        )
+        if not res_pargi.scalar_one_or_none():
+            pargi_case = LoanCase(
+                id=case_uuid_pargi,
+                case_no="UBI-HL-2026-531",
+                bank_name="Union Bank of India",
+                branch="Dholka Branch",
+                applicant_name="Pargi Bhavnaben Sartanlal",
+                applicant_phone="+91 90000 11111",
+                loan_type="Personal Loan (PL)",
+                loan_amount=1500000.0,
+                target_address="3, Vaijnath Society, Opp Dev Vihar, Kalikund Saroda Road, Dholka, Ahmedabad - 382225",
+                target_lat=23.2156,
+                target_lon=72.6369,
+                status=CaseStatus.ASSIGNED,
+                created_by_id=admin_user.id,
+                assigned_agent_id=agent_user.id,
+            )
+            session.add(pargi_case)
+            await session.commit()
+
     yield
     # Shutdown
     await engine.dispose()
