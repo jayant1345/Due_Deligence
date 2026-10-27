@@ -1916,7 +1916,13 @@
         const badge = document.getElementById(`badgePhoto${i}`);
         const status = document.getElementById(`statusPhoto${i}`);
 
-        if (img) img.src = (typeof p === "string") ? p : p.src;
+        if (img) {
+          img.onerror = function() {
+            this.onerror = null;
+            this.src = "/static/placeholders/photo_pending.svg";
+          };
+          img.src = (typeof p === "string") ? p : p.src;
+        }
         if (title && p.title) title.textContent = p.title;
         if (tag && p.tag) tag.textContent = p.tag;
         if (ts && p.timestamp) ts.textContent = p.timestamp;
@@ -1964,19 +1970,22 @@
           if (d.slot_number && d.slot_number >= 1 && d.slot_number <= 4) {
             return d.slot_number;
           }
+          if (d.ocr_data && d.ocr_data.slot_number && d.ocr_data.slot_number >= 1 && d.ocr_data.slot_number <= 4) {
+            return d.ocr_data.slot_number;
+          }
           const dt = (d.doc_type || "").toUpperCase();
-          if (dt.includes("GATE") || dt.includes("SOCIETY")) return 1;
+          if (dt.includes("GATE") || dt.includes("SOCIETY") || dt.includes("EXTERIOR")) return 1;
           if (dt.includes("ELEVATION") || dt.includes("DOOR")) return 2;
           if (dt.includes("METER") || dt.includes("INTERIOR")) return 3;
           if (dt.includes("NEIGHBOR") || dt.includes("PERSON")) return 4;
           return fallbackIndex;
         };
 
-        // Sort evidenceDocs chronologically (oldest first: Slot 1 -> 2 -> 3 -> 4)
+        // Sort evidenceDocs NEWEST FIRST so latest uploaded photos take priority
         evidenceDocs.sort((a, b) => {
           const tA = new Date(a.created_at_raw || a.created_at || 0).getTime();
           const tB = new Date(b.created_at_raw || b.created_at || 0).getTime();
-          return tA - tB;
+          return tB - tA;
         });
 
         // Assign to slots by slot_number or doc_type
@@ -2004,6 +2013,10 @@
         for (let s = 1; s <= 4; s++) {
           if (!slotMap[s]) {
             const cachedPwa = localStorage.getItem(`pwa_evidence_${caseId}_slot_${s}`) || 
+                              (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_slot_${s}`) : null) ||
+                              (c.db_id ? localStorage.getItem(`pwa_evidence_${c.db_id}_slot_${s}`) : null) ||
+                              localStorage.getItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_slot_${s}`) ||
+                              localStorage.getItem(`pwa_evidence_UBI-HL-2026-531_slot_${s}`) ||
                               localStorage.getItem(`pwa_evidence_b901fc63-12a8-4e32-9c02-e20984cfb001_slot_${s}`);
             if (cachedPwa) {
               try {
@@ -2073,9 +2086,17 @@
           (WORK_EVIDENCE_TYPES.includes(d.doc_type) || d.folder === "work" || (d.doc_type || "").toUpperCase().includes("OFFICE") || (d.doc_type || "").toUpperCase().includes("WORK"))
         );
 
+        // Sort workDocs NEWEST FIRST
+        workDocs.sort((a, b) => {
+          const tA = new Date(a.created_at_raw || a.created_at || 0).getTime();
+          const tB = new Date(b.created_at_raw || b.created_at || 0).getTime();
+          return tB - tA;
+        });
+
         const workSlotMap = { 1: null, 2: null, 3: null, 4: null };
         const getWorkDocSlot = (d, fallbackIndex) => {
           if (d.slot_number && d.slot_number >= 1 && d.slot_number <= 4) return d.slot_number;
+          if (d.ocr_data && d.ocr_data.slot_number && d.ocr_data.slot_number >= 1 && d.ocr_data.slot_number <= 4) return d.ocr_data.slot_number;
           const dt = (d.doc_type || "").toUpperCase();
           if (dt.includes("FACADE") || dt.includes("GATE") || dt.includes("ENTRANCE")) return 1;
           if (dt.includes("BOARD") || dt.includes("NAME")) return 2;
@@ -2092,7 +2113,11 @@
         // Check local PWA office evidence cache
         for (let s = 1; s <= 4; s++) {
           if (!workSlotMap[s]) {
-            const cachedPwa = localStorage.getItem(`pwa_evidence_${caseId}_office_slot_${s}`);
+            const cachedPwa = localStorage.getItem(`pwa_evidence_${caseId}_office_slot_${s}`) ||
+                              (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_office_slot_${s}`) : null) ||
+                              (c.db_id ? localStorage.getItem(`pwa_evidence_${c.db_id}_office_slot_${s}`) : null) ||
+                              localStorage.getItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_office_slot_${s}`) ||
+                              localStorage.getItem(`pwa_evidence_UBI-HL-2026-531_office_slot_${s}`);
             if (cachedPwa) {
               try {
                 const parsed = JSON.parse(cachedPwa);
@@ -3980,17 +4005,22 @@
         const sel = document.getElementById("caseSelectorSelect");
         const knownCaseNos = new Set(Object.values(caseRegistry).map(c => (c.case_no || "").toUpperCase()));
         cases.forEach(dc => {
-          if (caseRegistry[dc.id] || knownCaseNos.has((dc.case_no || "").toUpperCase())) return;
-          caseRegistry[dc.id] = buildCaseEntry({
-            case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
-            phone: dc.applicant_phone, loan_type: dc.loan_type, loan_amount: dc.loan_amount, address: dc.target_address,
-            benchmark_lat: dc.target_lat, benchmark_lon: dc.target_lon, status: dc.status, db_id: dc.id,
-          });
-          if (sel) {
+          if (!caseRegistry[dc.id]) {
+            caseRegistry[dc.id] = buildCaseEntry({
+              case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
+              phone: dc.applicant_phone, loan_type: dc.loan_type, loan_amount: dc.loan_amount, address: dc.target_address,
+              benchmark_lat: dc.target_lat, benchmark_lon: dc.target_lon, status: dc.status, db_id: dc.id,
+            });
+          }
+          if (dc.case_no) {
+            caseRegistry[dc.case_no] = caseRegistry[dc.id];
+          }
+          if (sel && !knownCaseNos.has((dc.case_no || "").toUpperCase())) {
             const opt = document.createElement("option");
             opt.value = dc.id;
             opt.textContent = `[${dc.case_no}] - ${dc.applicant_name} | ${dc.bank_name}${dc.branch ? " (" + dc.branch + ")" : ""}`;
             sel.insertBefore(opt, sel.firstChild);
+            knownCaseNos.add((dc.case_no || "").toUpperCase());
           }
         });
         const counterEl = document.getElementById("totalCaseCount");
