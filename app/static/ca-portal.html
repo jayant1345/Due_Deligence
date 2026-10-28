@@ -5115,8 +5115,32 @@
     // ==========================================
     // CASE MANAGEMENT & PORTFOLIO INTELLIGENCE
     // ==========================================
+    function getUniqueCasesList() {
+      const uniqueMap = new Map();
+      Object.entries(caseRegistry).forEach(([key, c]) => {
+        if (!c) return;
+        const uKey = (c.case_no || c.db_id || key).toUpperCase();
+        if (!uniqueMap.has(uKey)) {
+          uniqueMap.set(uKey, { id: c.db_id || key, ...c });
+        }
+      });
+      return Array.from(uniqueMap.values());
+    }
+
+    function updateGlobalCaseCounters() {
+      const cases = getUniqueCasesList();
+      const count = cases.length;
+      const elTotal = document.getElementById("totalCaseCount");
+      if (elTotal) elTotal.textContent = count;
+      const elBadge = document.getElementById("navCaseCountBadge");
+      if (elBadge) elBadge.textContent = count;
+      const elKpi = document.getElementById("mgmtKpiTotal");
+      if (elKpi) elKpi.textContent = count;
+    }
+
     function renderManagementPortal() {
-      const cases = Object.entries(caseRegistry).map(([id, c]) => ({ id, ...c }));
+      updateGlobalCaseCounters();
+      const cases = getUniqueCasesList();
 
       // 1. Calculate KPIs
       const totalCases = cases.length;
@@ -5194,7 +5218,7 @@
       if (!tbody) return;
       tbody.innerHTML = "";
 
-      let filtered = Object.entries(caseRegistry).map(([id, c]) => ({ id, ...c }));
+      let filtered = getUniqueCasesList();
 
       if (monthFilter !== "ALL") {
         filtered = filtered.filter(c => (c.month || "").toLowerCase().includes(monthFilter.toLowerCase()));
@@ -5331,12 +5355,21 @@
           headers: headers
         });
         if (res.ok) {
+          // Remove all references from caseRegistry
           delete caseRegistry[caseId];
           if (caseNo) delete caseRegistry[caseNo];
+          Object.keys(caseRegistry).forEach(k => {
+            const entry = caseRegistry[k];
+            if (entry && (entry.case_no === caseNo || entry.id === caseId || entry.db_id === caseId)) {
+              delete caseRegistry[k];
+            }
+          });
+
+          // Remove option from dropdown
           const sel = document.getElementById("caseSelectorSelect");
           if (sel) {
             for (let i = 0; i < sel.options.length; i++) {
-              if (sel.options[i].value === caseId) {
+              if (sel.options[i].value === caseId || (caseNo && sel.options[i].textContent.includes(caseNo))) {
                 sel.remove(i);
                 break;
               }
@@ -5346,8 +5379,11 @@
               onCaseSelected(activeCaseId);
             }
           }
-          alert(`✓ Case ${caseNo} deleted successfully.`);
+
+          // Immediately update all counters (10 -> 9) and table without requiring page refresh
+          updateGlobalCaseCounters();
           renderManagementPortal();
+          alert(`✓ Case "${caseNo}" deleted successfully.`);
         } else {
           const err = await res.json().catch(() => ({}));
           alert(`Could not delete case: ${err.detail || res.statusText}`);
