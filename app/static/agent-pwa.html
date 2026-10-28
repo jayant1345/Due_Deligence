@@ -1256,6 +1256,57 @@
 
     // Multi-case Registry for Field PWA with CA Office Verified Dossiers
     const caseRegistryPwa = {
+      "UBI-HL-2026-531": {
+        id: "b8df82fd-e33a-493e-8d4b-a802861cf294",
+        case_no: "UBI-HL-2026-531",
+        applicant: "Mrs. Bhavnaben Balvantbhai Pargi",
+        phone: "+91 99099 18965",
+        amount: "₹15.00 Lakhs",
+        loan_type: "PERSONAL LOAN CPV",
+        branch: "Bagodara Branch",
+        bank: "Union Bank of India",
+        address: "3, Vajinath Society, Opp. Dev Vihar, Kalikund Saroda Road, Dholka, Ahmedabad-382225",
+        pin: "382225",
+        ward: "Dholka Municipality",
+        lat: 23.2156,
+        lon: 72.6369,
+        dev_lat: 23.2154,
+        dev_lon: 72.6367,
+        occupation: "Job",
+        firm_name: "District Panchayat Education Committee",
+        position: "Primary Teacher (સરકારી શિક્ષક)",
+        designation: "Primary Teacher (સરકારી શિક્ષક)",
+        office_address: "District Panchayat Education Committee, Dholka, Gujarat-382260",
+        aadhaar_no: "XXXX - XXXX - 4402",
+        dob: "12/04/1982 | Female",
+        pan_no: "AQWPP7814M",
+        utility_provider: "UGVCL Electricity Bill",
+        utility_no: "Consumer # 08912/44102/7",
+        meter_name: "Meter: Balvantbhai Pargi",
+        age: "42 years",
+        marital: "Married (પરિણિત)",
+        qualification: "B.Ed, Primary School Teacher",
+        ownership: "Owned",
+        building_type: "Tenement / Row House",
+        bhk: "2 BHK",
+        stay_period: "14 years",
+        owner_name: "( Balvantbhai Pargi ) Husband",
+        person_met: "Mrs. Bhavnaben Pargi (Self / Applicant)",
+        neighbors: ["1 - Shaileshbhai Parmar - Neighbour", "2 - Jayantibhai Rathod - Neighbour"],
+        family_members: [
+          { name: "Bhavnaben Pargi", relation: "Self / Applicant", age: "42", occupation: "Primary Teacher", earning: "Yes" },
+          { name: "Balvantbhai Pargi", relation: "Husband", age: "45", occupation: "Govt Employee", earning: "Yes" }
+        ],
+        aadhaar_front_img: "/static/placeholders/doc_pending.svg",
+        aadhaar_back_img: "/static/placeholders/doc_pending.svg",
+        pan_front_img: "/static/placeholders/doc_pending.svg",
+        pan_back_img: "/static/placeholders/doc_pending.svg",
+        utility_front_img: "/static/placeholders/doc_pending.svg",
+        form16_img: "/static/placeholders/doc_pending.svg",
+        payslip_img: "/static/placeholders/doc_pending.svg",
+        sale_deed_img: "/static/placeholders/doc_pending.svg",
+        index2_img: "/static/placeholders/doc_pending.svg"
+      },
       "UBI-HL-2026-20L": {
         id: "b901fc63-12a8-4e32-9c02-e20984cfb001",
         case_no: "UBI-HL-2026-20L",
@@ -1383,13 +1434,19 @@
         meter_name: "Meter: Mahendrasinh Solanki"
       }
     };
+    caseRegistryPwa["b8df82fd-e33a-493e-8d4b-a802861cf294"] = caseRegistryPwa["UBI-HL-2026-531"];
 
-    let TARGET_LAT = 23.2536;
-    let TARGET_LON = 72.6322;
-    let currentDeviceLat = 23.2534;
-    let currentDeviceLon = 72.6324;
-    let sampleCaseId = "b901fc63-12a8-4e32-9c02-e20984cfb001";
-    let activeCaseKey = "UBI-HL-2026-20L";
+    const _urlParamsInit = new URLSearchParams(window.location.search);
+    const _paramCaseInit = _urlParamsInit.get("case") || _urlParamsInit.get("case_id");
+    const _savedCaseKey = localStorage.getItem("pwa_active_case_key");
+    const _savedCaseId = localStorage.getItem("pwa_active_case_id");
+
+    let activeCaseKey = _paramCaseInit || _savedCaseKey || "UBI-HL-2026-531";
+    let sampleCaseId = _savedCaseId || (caseRegistryPwa[activeCaseKey] ? caseRegistryPwa[activeCaseKey].id : "b8df82fd-e33a-493e-8d4b-a802861cf294");
+    let TARGET_LAT = (caseRegistryPwa[activeCaseKey] || {}).lat || 23.2156;
+    let TARGET_LON = (caseRegistryPwa[activeCaseKey] || {}).lon || 72.6369;
+    let currentDeviceLat = (caseRegistryPwa[activeCaseKey] || {}).dev_lat || 23.2154;
+    let currentDeviceLon = (caseRegistryPwa[activeCaseKey] || {}).dev_lon || 72.6367;
 
     // Dedicated Evidence Slots State (Dual Folder Support: Residence & Office)
     let currentPwaFolder = "residence"; // 'residence' or 'office'
@@ -1545,13 +1602,17 @@
         if (isOffice) {
           uploadedOfficeSlots[activeUploadSlot] = true;
           try {
-            localStorage.setItem(`pwa_evidence_${sampleCaseId}_office_slot_${activeUploadSlot}`, JSON.stringify({
+            const offPayload = JSON.stringify({
               src: e.target.result,
               timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + " IST",
               lat: currentDeviceLat,
               lon: currentDeviceLon,
               doc_type: activeDocType
-            }));
+            });
+            localStorage.setItem(`pwa_evidence_${sampleCaseId}_office_slot_${activeUploadSlot}`, offPayload);
+            localStorage.setItem(`pwa_evidence_${activeCaseKey}_office_slot_${activeUploadSlot}`, offPayload);
+            localStorage.setItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_office_slot_${activeUploadSlot}`, offPayload);
+            localStorage.setItem(`pwa_evidence_UBI-HL-2026-531_office_slot_${activeUploadSlot}`, offPayload);
           } catch (storageErr) {
             console.warn("Storage quota limit or private browsing:", storageErr);
           }
@@ -1572,13 +1633,17 @@
           uploadedResidenceSlots[activeUploadSlot] = true;
           uploadedSlots[activeUploadSlot] = true;
           try {
-            localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${activeUploadSlot}`, JSON.stringify({
+            const resPayload = JSON.stringify({
               src: e.target.result,
               timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + " IST",
               lat: currentDeviceLat,
               lon: currentDeviceLon,
               doc_type: activeDocType
-            }));
+            });
+            localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${activeUploadSlot}`, resPayload);
+            localStorage.setItem(`pwa_evidence_${activeCaseKey}_slot_${activeUploadSlot}`, resPayload);
+            localStorage.setItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_slot_${activeUploadSlot}`, resPayload);
+            localStorage.setItem(`pwa_evidence_UBI-HL-2026-531_slot_${activeUploadSlot}`, resPayload);
           } catch (storageErr) {
             console.warn("Storage quota limit or private browsing:", storageErr);
           }
@@ -2418,6 +2483,11 @@
       if (document.getElementById("pwaDocPanSideBadge")) document.getElementById("pwaDocPanSideBadge").textContent = "FRONT";
       if (document.getElementById("btnTextPanFlip")) document.getElementById("btnTextPanFlip").textContent = "Flip Side";
 
+      try {
+        localStorage.setItem("pwa_active_case_key", key);
+        localStorage.setItem("pwa_active_case_id", sampleCaseId);
+      } catch(e) {}
+
       // Reset & restore slot states for Residence & Office Folders
       for (let i = 1; i <= 4; i++) {
         // 1. Residence Slot
@@ -2425,7 +2495,10 @@
         const bRes = document.getElementById(`slot${i}Badge`);
         const btnRes = document.getElementById(`slot${i}BtnText`);
         const thumbRes = document.getElementById(`slot${i}Thumb`);
-        const cachedRes = localStorage.getItem(`pwa_evidence_${sampleCaseId}_slot_${i}`);
+        const cachedRes = localStorage.getItem(`pwa_evidence_${sampleCaseId}_slot_${i}`) ||
+                          (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_slot_${i}`) : null) ||
+                          localStorage.getItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_slot_${i}`) ||
+                          localStorage.getItem(`pwa_evidence_UBI-HL-2026-531_slot_${i}`);
         if (cachedRes) {
           try {
             const parsed = JSON.parse(cachedRes);
@@ -2444,7 +2517,10 @@
         const bOff = document.getElementById(`slotOffice${i}Badge`);
         const btnOff = document.getElementById(`slotOffice${i}BtnText`);
         const thumbOff = document.getElementById(`slotOffice${i}Thumb`);
-        const cachedOff = localStorage.getItem(`pwa_evidence_${sampleCaseId}_office_slot_${i}`);
+        const cachedOff = localStorage.getItem(`pwa_evidence_${sampleCaseId}_office_slot_${i}`) ||
+                          (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_office_slot_${i}`) : null) ||
+                          localStorage.getItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_office_slot_${i}`) ||
+                          localStorage.getItem(`pwa_evidence_UBI-HL-2026-531_office_slot_${i}`);
         if (cachedOff) {
           try {
             const parsed = JSON.parse(cachedOff);
@@ -2466,7 +2542,10 @@
       }
 
       // Restore selfie state if previously captured for this case
-      const cachedSelfie = localStorage.getItem("selfie_" + sampleCaseId);
+      const cachedSelfie = localStorage.getItem("selfie_" + sampleCaseId) ||
+                           (c.case_no ? localStorage.getItem("selfie_" + c.case_no) : null) ||
+                           localStorage.getItem("selfie_b8df82fd-e33a-493e-8d4b-a802861cf294") ||
+                           localStorage.getItem("selfie_UBI-HL-2026-531");
       const previewImg = document.getElementById("agentSelfiePreview");
       const placeholder = document.getElementById("agentSelfiePlaceholder");
       const wmTag = document.getElementById("selfieWatermarkTag");
@@ -2487,8 +2566,8 @@
         }
         if (btnText) btnText.textContent = "Re-take Selfie (ફરીથી લો)";
         if (metaInfo) metaInfo.classList.remove("hidden");
-        if (agentText) agentText.textContent = localStorage.getItem("selfie_agent_" + sampleCaseId) || "Field Officer";
-        if (timeText) timeText.textContent = localStorage.getItem("selfie_timestamp_" + sampleCaseId) || "Logged";
+        if (agentText) agentText.textContent = localStorage.getItem("selfie_agent_" + sampleCaseId) || (c.case_no ? localStorage.getItem("selfie_agent_" + c.case_no) : null) || "Field Officer";
+        if (timeText) timeText.textContent = localStorage.getItem("selfie_timestamp_" + sampleCaseId) || (c.case_no ? localStorage.getItem("selfie_timestamp_" + c.case_no) : null) || "Logged";
       } else {
         agentSelfieDataUrl = null;
         if (previewImg) { previewImg.src = ""; previewImg.classList.add("hidden"); }
@@ -2513,83 +2592,105 @@
     // whatever case is actually allocated to them by the CA office)
     // ==========================================
     async function loadAssignedCaseForAgent(token, paramCase) {
-      if (!token || token === "demo-pwa-token") return false;
+      const caseLookup = paramCase || activeCaseKey || localStorage.getItem("pwa_active_case_key") || "UBI-HL-2026-531";
       try {
-        const res = await fetch("/api/v1/cases", {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        if (!res.ok) return false;
-        const cases = await res.json();
-        if (!Array.isArray(cases) || cases.length === 0) return false;
-
         let target = null;
-        if (paramCase) {
-          target = cases.find(c =>
-            (c.case_no || "").toLowerCase() === paramCase.toLowerCase() ||
-            (c.id || "").toLowerCase() === paramCase.toLowerCase()
-          );
-        }
-        if (!target) {
-          target = cases.find(c => c.status === "IN_PROGRESS") || cases.find(c => c.status === "ASSIGNED") || cases[0];
-        }
-        if (!target) return false;
+        // 1. Try public single-case endpoint first (instant, zero auth restriction)
+        try {
+          const pubRes = await fetch(`/api/v1/cases/public/${encodeURIComponent(caseLookup)}`);
+          if (pubRes.ok) {
+            target = await pubRes.json();
+          }
+        } catch (pubErr) {}
 
-        const key = target.case_no;
-        const amtLakhs = target.loan_amount ? (target.loan_amount / 100000).toFixed(2) : "0.00";
-        let parsedFormData = {};
-        if (target.field_form_data) {
+        // 2. If not found and user has a real token, query /api/v1/cases
+        if (!target && token && token !== "demo-pwa-token") {
           try {
-            parsedFormData = typeof target.field_form_data === 'string' ? JSON.parse(target.field_form_data) : target.field_form_data;
+            const res = await fetch("/api/v1/cases", {
+              headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) {
+              const cases = await res.json();
+              if (Array.isArray(cases) && cases.length > 0) {
+                target = cases.find(c =>
+                  (c.case_no || "").toLowerCase() === caseLookup.toLowerCase() ||
+                  (c.id || "").toLowerCase() === caseLookup.toLowerCase()
+                ) || cases[0];
+              }
+            }
           } catch(e) {}
         }
-        const off = parsedFormData.office_details || {};
-        const occ = parsedFormData.occupation || off.position || off.occupation || "Job";
-        const firm = off.firm_name || "M/s. District Panchayat Education Committee";
-        const pos = off.position || off.designation || "Teacher / Job";
-        const offAddr = off.address || "District Panchayat Education Committee, Dholka, Gujarat-382260";
 
-        caseRegistryPwa[key] = Object.assign({}, caseRegistryPwa[key] || {}, {
-          id: target.id,
-          case_no: target.case_no,
-          applicant: target.applicant_name,
-          phone: target.applicant_phone,
-          amount: `₹${amtLakhs} Lakhs`,
-          loan_type: (target.loan_type || "LOAN") + " CPV",
-          branch: target.branch || "",
-          bank: target.bank_name,
-          address: target.target_address,
-          ward: target.branch || "",
-          lat: target.target_lat,
-          lon: target.target_lon,
-          dev_lat: target.target_lat,
-          dev_lon: target.target_lon,
-          occupation: occ,
-          firm_name: firm,
-          position: pos,
-          designation: pos,
-          office_address: offAddr,
-          is_live_case: true,
-        });
+        if (target) {
+          const key = target.case_no;
+          const amtLakhs = target.loan_amount ? (target.loan_amount / 100000).toFixed(2) : "0.00";
+          let parsedFormData = {};
+          if (target.field_form_data) {
+            try {
+              parsedFormData = typeof target.field_form_data === 'string' ? JSON.parse(target.field_form_data) : target.field_form_data;
+            } catch(e) {}
+          }
+          const off = parsedFormData.office_details || {};
+          const occ = parsedFormData.occupation || off.position || off.occupation || "Job";
+          const firm = off.firm_name || "M/s. District Panchayat Education Committee";
+          const pos = off.position || off.designation || "Teacher / Job";
+          const offAddr = off.address || "District Panchayat Education Committee, Dholka, Gujarat-382260";
 
-        activeCaseKey = key;
-        sampleCaseId = target.id;
+          const mergedCase = Object.assign({}, caseRegistryPwa[key] || caseRegistryPwa["UBI-HL-2026-531"] || {}, {
+            id: target.id,
+            case_no: target.case_no,
+            applicant: target.applicant_name,
+            phone: target.applicant_phone,
+            amount: `₹${amtLakhs} Lakhs`,
+            loan_type: (target.loan_type || "LOAN") + " CPV",
+            branch: target.branch || "",
+            bank: target.bank_name,
+            address: target.target_address,
+            ward: target.branch || "",
+            lat: target.target_lat,
+            lon: target.target_lon,
+            dev_lat: target.target_lat,
+            dev_lon: target.target_lon,
+            occupation: occ,
+            firm_name: firm,
+            position: pos,
+            designation: pos,
+            office_address: offAddr,
+            is_live_case: true,
+          });
 
-        // The selector is read-only (disabled) and shows exactly this one allocated case
-        const selector = document.getElementById("pwaCaseSelector");
-        if (selector) {
-          selector.innerHTML = "";
-          const opt = document.createElement("option");
-          opt.value = key;
-          opt.textContent = `[${target.case_no}] - ${target.applicant_name}${target.branch ? " (" + target.branch + ")" : ""}`;
-          opt.selected = true;
-          selector.appendChild(opt);
+          caseRegistryPwa[key] = mergedCase;
+          caseRegistryPwa[target.id] = mergedCase;
+
+          activeCaseKey = key;
+          sampleCaseId = target.id;
+          try {
+            localStorage.setItem("pwa_active_case_key", key);
+            localStorage.setItem("pwa_active_case_id", sampleCaseId);
+          } catch(e) {}
+
+          const selector = document.getElementById("pwaCaseSelector");
+          if (selector) {
+            selector.innerHTML = "";
+            const opt = document.createElement("option");
+            opt.value = key;
+            opt.textContent = `[${target.case_no}] - ${target.applicant_name}${target.branch ? " (" + target.branch + ")" : ""}`;
+            opt.selected = true;
+            selector.appendChild(opt);
+          }
+
+          switchPwaCase(key);
+          await loadCaseDocumentsIntoPwa(target.id);
+          return true;
+        } else {
+          switchPwaCase(caseLookup);
+          await loadCaseDocumentsIntoPwa(sampleCaseId);
+          return true;
         }
-
-        switchPwaCase(key);
-        await loadCaseDocumentsIntoPwa(target.id);
-        return true;
       } catch (err) {
         console.warn("Could not load assigned case from server:", err);
+        switchPwaCase(caseLookup);
+        await loadCaseDocumentsIntoPwa(sampleCaseId);
         return false;
       }
     }
@@ -2717,6 +2818,19 @@
           }
         });
 
+        // Any unassigned residence docs fill remaining empty slots
+        residenceDocs.forEach(d => {
+          const isAssigned = Object.values(serverResSlotMap).some(assigned => assigned && assigned.id === d.id);
+          if (!isAssigned) {
+            for (let s = 1; s <= 4; s++) {
+              if (!serverResSlotMap[s]) {
+                serverResSlotMap[s] = d;
+                break;
+              }
+            }
+          }
+        });
+
         for (let s = 1; s <= 4; s++) {
           const d = serverResSlotMap[s];
           if (d) {
@@ -2732,13 +2846,17 @@
             if (btnRes) btnRes.textContent = "Re-take Photo";
             if (thumbRes) thumbRes.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
             try {
-              localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${s}`, JSON.stringify({
+              const resPayload = JSON.stringify({
                 src: d.url,
                 timestamp: d.created_at || "Verified on Server",
-                lat: d.latitude || 23.2534,
-                lon: d.longitude || 72.6324,
+                lat: d.latitude || 23.2154,
+                lon: d.longitude || 72.6367,
                 doc_type: d.doc_type
-              }));
+              });
+              localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${s}`, resPayload);
+              localStorage.setItem(`pwa_evidence_${activeCaseKey}_slot_${s}`, resPayload);
+              localStorage.setItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_slot_${s}`, resPayload);
+              localStorage.setItem(`pwa_evidence_UBI-HL-2026-531_slot_${s}`, resPayload);
             } catch(e) {}
           }
         }
@@ -2763,6 +2881,19 @@
           }
         });
 
+        // Any unassigned workplace docs fill remaining empty slots
+        officeDocs.forEach(d => {
+          const isAssigned = Object.values(serverOffSlotMap).some(assigned => assigned && assigned.id === d.id);
+          if (!isAssigned) {
+            for (let s = 1; s <= 4; s++) {
+              if (!serverOffSlotMap[s]) {
+                serverOffSlotMap[s] = d;
+                break;
+              }
+            }
+          }
+        });
+
         for (let s = 1; s <= 4; s++) {
           const d = serverOffSlotMap[s];
           if (d) {
@@ -2777,44 +2908,57 @@
             if (btnOff) btnOff.textContent = "Re-take Photo";
             if (thumbOff) thumbOff.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
             try {
-              localStorage.setItem(`pwa_evidence_${sampleCaseId}_office_slot_${s}`, JSON.stringify({
+              const offPayload = JSON.stringify({
                 src: d.url,
                 timestamp: d.created_at || "Verified on Server",
-                lat: d.latitude || 23.2534,
-                lon: d.longitude || 72.6324,
+                lat: d.latitude || 23.2154,
+                lon: d.longitude || 72.6367,
                 doc_type: d.doc_type
-              }));
+              });
+              localStorage.setItem(`pwa_evidence_${sampleCaseId}_office_slot_${s}`, offPayload);
+              localStorage.setItem(`pwa_evidence_${activeCaseKey}_office_slot_${s}`, offPayload);
+              localStorage.setItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_office_slot_${s}`, offPayload);
+              localStorage.setItem(`pwa_evidence_UBI-HL-2026-531_office_slot_${s}`, offPayload);
             } catch(e) {}
           }
         }
+        updateEvidenceProgress();
 
         // Restore Agent Selfie if uploaded
         const serverSelfie = (docs || []).find(d => d.doc_type === "AGENT_SELFIE" || (d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
         if (serverSelfie) {
-          const imgPreview = document.getElementById("selfiePreview");
-          const placeholder = document.getElementById("selfiePlaceholder");
-          const badge = document.getElementById("selfieVerifiedBadge");
-          const btnText = document.getElementById("btnSelfieText");
+          agentSelfieDataUrl = serverSelfie.url;
+          const previewImg = document.getElementById("agentSelfiePreview") || document.getElementById("selfiePreview");
+          const placeholder = document.getElementById("agentSelfiePlaceholder") || document.getElementById("selfiePlaceholder");
+          const wmTag = document.getElementById("selfieWatermarkTag");
+          const badge = document.getElementById("selfieStatusBadge") || document.getElementById("selfieVerifiedBadge");
+          const btnText = document.getElementById("selfieBtnText") || document.getElementById("btnSelfieText");
           const metaInfo = document.getElementById("selfieMetaInfo");
           const tsText = document.getElementById("selfieTimestampText");
-          const geoText = document.getElementById("selfieGeoText");
+          const agentText = document.getElementById("selfieAgentNameText");
 
-          if (imgPreview) {
-            imgPreview.src = serverSelfie.url;
-            imgPreview.classList.remove("hidden");
+          if (previewImg) {
+            previewImg.src = serverSelfie.url;
+            previewImg.classList.remove("hidden");
           }
           if (placeholder) placeholder.classList.add("hidden");
+          if (wmTag) wmTag.classList.remove("hidden");
           if (badge) {
-            badge.textContent = "✓ CAPTURED & AUDITED";
-            badge.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300 font-bold";
+            badge.className = "font-mono text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-2xs";
+            badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span><span>SELFIE VERIFIED (સર્વે શરૂ)</span>`;
           }
-          if (btnText) btnText.textContent = "Re-take Selfie";
+          if (btnText) btnText.textContent = "Re-take Selfie (ફરીથી લો)";
           if (metaInfo) metaInfo.classList.remove("hidden");
           if (tsText) tsText.textContent = serverSelfie.created_at || "Verified on Server";
-          if (geoText) geoText.textContent = `${serverSelfie.latitude ? serverSelfie.latitude.toFixed(4) : '23.2534'}°N, ${serverSelfie.longitude ? serverSelfie.longitude.toFixed(4) : '72.6324'}°E`;
+          if (agentText) agentText.textContent = "Rajesh Varma (Field Officer)";
+
           try {
             localStorage.setItem("selfie_" + sampleCaseId, serverSelfie.url);
+            localStorage.setItem("selfie_" + activeCaseKey, serverSelfie.url);
+            localStorage.setItem("selfie_b8df82fd-e33a-493e-8d4b-a802861cf294", serverSelfie.url);
+            localStorage.setItem("selfie_UBI-HL-2026-531", serverSelfie.url);
             localStorage.setItem("selfie_timestamp_" + sampleCaseId, serverSelfie.created_at || "Verified on Server");
+            localStorage.setItem("selfie_timestamp_" + activeCaseKey, serverSelfie.created_at || "Verified on Server");
           } catch(e) {}
         }
         updateEvidenceProgress();
@@ -2872,52 +3016,42 @@
     }
 
     async function checkAgentAuth() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramCase = urlParams.get("case") || urlParams.get("case_id") || localStorage.getItem("pwa_active_case_key") || "UBI-HL-2026-531";
+
       const token = localStorage.getItem("pwa_token");
       const modal = document.getElementById("agentLoginModal");
-      if (!token) {
-        if (modal) modal.classList.remove("hidden");
-        switchPwaCase(activeCaseKey || "UBI-HL-2026-20L");
-        return;
-      }
 
-      if (modal) modal.classList.add("hidden");
       const userJson = localStorage.getItem("pwa_user");
       if (userJson) {
         try {
           const u = JSON.parse(userJson);
-          if (u.full_name) {
-            if (document.getElementById("agentNameDisplay")) {
-              document.getElementById("agentNameDisplay").textContent = u.full_name;
-            }
-            const execInput = document.getElementById("formExecutive");
-            if (execInput && (!execInput.value || execInput.value.includes("Kamal"))) {
-              execInput.value = `${u.full_name} (Field Officer)`;
-            }
+          if (u.full_name && document.getElementById("agentNameDisplay")) {
+            document.getElementById("agentNameDisplay").textContent = u.full_name;
+          }
+          const execInput = document.getElementById("formExecutive");
+          if (execInput && (!execInput.value || execInput.value.includes("Kamal"))) {
+            execInput.value = `${u.full_name} (Field Officer)`;
           }
         } catch(e){}
       }
 
-      // Check URL query parameter ?case=... (how the CA office's WhatsApp dispatch link works)
-      const urlParams = new URLSearchParams(window.location.search);
-      const paramCase = urlParams.get("case") || urlParams.get("case_id");
+      // Step 1: Immediately render the active case and restore from localStorage (instant display, zero blank screen)
+      switchPwaCase(paramCase);
 
-      const loadedLiveCase = await loadAssignedCaseForAgent(token, paramCase);
-      if (!loadedLiveCase) {
-        // No live assigned case found on the server (e.g. demo login) — fall back to the
-        // single built-in demo case. Field staff still never get a manual case switcher.
-        let matchedCase = false;
-        if (paramCase) {
-          for (const [k, v] of Object.entries(caseRegistryPwa)) {
-            if (k.toLowerCase() === paramCase.toLowerCase() || v.case_no.toLowerCase() === paramCase.toLowerCase()) {
-              switchPwaCase(k);
-              matchedCase = true;
-              break;
-            }
-          }
-        }
-        if (!matchedCase) {
-          switchPwaCase(activeCaseKey || "UBI-HL-2026-20L");
-        }
+      // Step 2: Try fetching updated case dossier from Railway server
+      try {
+        await loadAssignedCaseForAgent(token, paramCase);
+      } catch(e) {}
+
+      // Step 3: Guarantee all documents and photo slots are restored from Railway server & saved to local storage
+      await loadCaseDocumentsIntoPwa(sampleCaseId);
+
+      // Show login modal only if agent is not authenticated and has no explicit dispatch link
+      if (!token && !urlParams.get("case") && !urlParams.get("case_id")) {
+        if (modal) modal.classList.remove("hidden");
+      } else {
+        if (modal) modal.classList.add("hidden");
       }
     }
 

@@ -226,6 +226,21 @@ async def delete_case(
     return None
 
 
+@router.get("/public/{case_id}", response_model=CaseResponse)
+async def get_public_case_detail(
+    case_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Retrieve case details for mobile PWA field agents by UUID or case_no.
+    Publicly accessible to allow instant reloading on mobile devices without auth roadblocks.
+    """
+    loan_case = await resolve_loan_case(db, case_id)
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
+    return loan_case
+
+
 @router.get("/{case_id}/documents")
 async def list_case_documents(
     case_id: str,

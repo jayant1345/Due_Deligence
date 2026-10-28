@@ -2120,6 +2120,19 @@
           if (slot >= 1 && slot <= 4 && !workSlotMap[slot]) workSlotMap[slot] = d;
         });
 
+        // Any unassigned workplace docs fill remaining empty slots
+        workDocs.forEach(d => {
+          const isAssigned = Object.values(workSlotMap).some(assigned => assigned && assigned.id === d.id);
+          if (!isAssigned) {
+            for (let s = 1; s <= 4; s++) {
+              if (!workSlotMap[s]) {
+                workSlotMap[s] = d;
+                break;
+              }
+            }
+          }
+        });
+
         // Check local PWA office evidence cache
         for (let s = 1; s <= 4; s++) {
           if (!workSlotMap[s]) {
