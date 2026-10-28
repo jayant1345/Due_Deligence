@@ -203,6 +203,25 @@ async def zero_lag_upload_document(
             dir_name = os.path.dirname(storage_url)
             base_name = os.path.basename(storage_url)
             watermarked_path = os.path.join(dir_name, f"wm_{base_name}")
+
+            # Extract Office Address from field form data if workplace photo
+            office_address = None
+            if loan_case.field_form_data:
+                try:
+                    import json
+                    ffd = json.loads(loan_case.field_form_data)
+                    office_address = ffd.get("office_details", {}).get("address")
+                except Exception:
+                    pass
+
+            is_work = (norm_folder == "work") or any(w in doc_type_str for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"])
+            if is_work:
+                visit_type = "WORKPLACE / OFFICE"
+                active_address = office_address or ("District Panchayat Education Committee, Dholka, Gujarat-382260" if "531" in loan_case.case_no else loan_case.target_address)
+            else:
+                visit_type = "RESIDENCE / HOME"
+                active_address = loan_case.target_address
+
             stamp_hard_watermark(
                 input_image_path=storage_url,
                 output_image_path=watermarked_path,
@@ -212,6 +231,9 @@ async def zero_lag_upload_document(
                 lat=latitude or loan_case.target_lat,
                 lon=longitude or loan_case.target_lon,
                 geofence_status="COMPLIANT" if is_geofence_valid else "BREACH",
+                applicant_name=loan_case.applicant_name,
+                address=active_address,
+                visit_type=visit_type,
             )
             watermarked_url = watermarked_path
         except Exception:

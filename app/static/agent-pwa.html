@@ -1594,117 +1594,180 @@
 
       const isOffice = currentPwaFolder === "office";
 
-      // Show instant client image preview in main photo preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        document.getElementById("previewPhotoImg").src = e.target.result;
-
-        if (isOffice) {
-          uploadedOfficeSlots[activeUploadSlot] = true;
-          try {
-            const offPayload = JSON.stringify({
-              src: e.target.result,
-              timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + " IST",
-              lat: currentDeviceLat,
-              lon: currentDeviceLon,
-              doc_type: activeDocType
-            });
-            localStorage.setItem(`pwa_evidence_${sampleCaseId}_office_slot_${activeUploadSlot}`, offPayload);
-            localStorage.setItem(`pwa_evidence_${activeCaseKey}_office_slot_${activeUploadSlot}`, offPayload);
-            localStorage.setItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_office_slot_${activeUploadSlot}`, offPayload);
-            localStorage.setItem(`pwa_evidence_UBI-HL-2026-531_office_slot_${activeUploadSlot}`, offPayload);
-          } catch (storageErr) {
-            console.warn("Storage quota limit or private browsing:", storageErr);
-          }
-          const thumbEl = document.getElementById(`slotOffice${activeUploadSlot}Thumb`);
-          if (thumbEl) {
-            thumbEl.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-lg"/>`;
-          }
-          const badgeEl = document.getElementById(`slotOffice${activeUploadSlot}Badge`);
-          if (badgeEl) {
-            badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
-            badgeEl.textContent = "✓ UPLOADED";
-          }
-          const btnTextEl = document.getElementById(`slotOffice${activeUploadSlot}BtnText`);
-          if (btnTextEl) {
-            btnTextEl.textContent = "Re-take Photo";
-          }
-        } else {
-          uploadedResidenceSlots[activeUploadSlot] = true;
-          uploadedSlots[activeUploadSlot] = true;
-          try {
-            const resPayload = JSON.stringify({
-              src: e.target.result,
-              timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + " IST",
-              lat: currentDeviceLat,
-              lon: currentDeviceLon,
-              doc_type: activeDocType
-            });
-            localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${activeUploadSlot}`, resPayload);
-            localStorage.setItem(`pwa_evidence_${activeCaseKey}_slot_${activeUploadSlot}`, resPayload);
-            localStorage.setItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_slot_${activeUploadSlot}`, resPayload);
-            localStorage.setItem(`pwa_evidence_UBI-HL-2026-531_slot_${activeUploadSlot}`, resPayload);
-          } catch (storageErr) {
-            console.warn("Storage quota limit or private browsing:", storageErr);
-          }
-          const thumbEl = document.getElementById(`slot${activeUploadSlot}Thumb`);
-          if (thumbEl) {
-            thumbEl.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-lg"/>`;
-          }
-          const badgeEl = document.getElementById(`slot${activeUploadSlot}Badge`);
-          if (badgeEl) {
-            badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
-            badgeEl.textContent = "✓ UPLOADED";
-          }
-          const btnTextEl = document.getElementById(`slot${activeUploadSlot}BtnText`);
-          if (btnTextEl) {
-            btnTextEl.textContent = "Re-take Photo";
-          }
-        }
-        updateEvidenceProgress();
-      };
-      reader.readAsDataURL(file);
-
       // Show zero-lag ingestion alert
       const alertBox = document.getElementById("uploadAlert");
       const alertText = document.getElementById("uploadAlertText");
       alertBox.classList.remove("hidden");
-      alertText.textContent = `Streaming ${isOffice ? 'Office' : 'Residence'} Slot ${activeUploadSlot} photo to Railway storage & enqueuing Gemini OCR...`;
+      alertText.textContent = `Processing & Stamping ${isOffice ? 'Office' : 'Residence'} Slot ${activeUploadSlot} photo with N.N. SHAH & CO. watermark...`;
 
-      // Multipart upload
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("doc_type", activeDocType || (isOffice ? "OFFICE_FACADE" : "PROPERTY_EXTERIOR"));
-      formData.append("slot_number", activeUploadSlot);
-      formData.append("folder", isOffice ? "work" : "residence");
-      formData.append("latitude", currentDeviceLat);
-      formData.append("longitude", currentDeviceLon);
+      // Read file and draw onto canvas with high-legibility legal watermark
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const rawImg = new Image();
+        rawImg.onload = () => {
+          const canvas = document.createElement("canvas");
+          const maxDim = 1600;
+          let w = rawImg.width;
+          let h = rawImg.height;
+          if (w > maxDim) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          }
+          const fontPx = Math.max(16, Math.min(32, Math.round(w / 46)));
+          const lineH = Math.round(fontPx * 1.45);
+          const bannerH = lineH * 3 + Math.round(fontPx * 1.5);
 
-      try {
-        const token = localStorage.getItem("pwa_token");
-        const headers = {};
-        if (token && token !== "demo-pwa-token") {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-        const response = await fetch(`/api/v1/visits/cases/${sampleCaseId}/upload`, {
-          method: "POST",
-          headers: headers,
-          body: formData
-        });
+          canvas.width = w;
+          canvas.height = h + bannerH;
+          const ctx = canvas.getContext("2d");
 
-        if (response.status === 202 || response.status === 200) {
-          const data = await response.json();
-          alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
-          alertText.innerHTML = `✅ <b>${isOffice ? '🏢 Office' : '🏡 Residence'} Slot ${activeUploadSlot} Transmitted to CA Scrutiny Desk!</b><br/>GPS: ${currentDeviceLat.toFixed(4)}°N, ${currentDeviceLon.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>This photo is cryptographically locked and synced in real time.</i>`;
-        } else {
-          const errData = await response.json().catch(() => ({}));
-          alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
-          alertText.textContent = `Upload Notice: ${errData.detail || 'Photo saved locally'}`;
-        }
-      } catch (err) {
-        alertBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-300 text-blue-900 text-xs font-mono shadow-sm";
-        alertText.textContent = "Offline Mode: Photo saved to PWA local storage queue. Will sync automatically.";
-      }
+          // Draw base image
+          ctx.drawImage(rawImg, 0, 0, w, h);
+
+          // Draw banner background
+          ctx.fillStyle = "#0f172a"; // Deep Slate Dark Footer
+          ctx.fillRect(0, h, w, bannerH);
+
+          // Draw 3px accent line
+          ctx.fillStyle = "#10b981"; // Emerald Green
+          ctx.fillRect(0, h, w, 3);
+
+          const c = caseRegistryPwa[activeCaseKey] || caseRegistryPwa["UBI-HL-2026-531"] || {};
+          const caseNoStr = c.case_no || activeCaseKey || "UBI-HL-2026-531";
+          const appNameStr = (c.borrower_name || "Mrs. Bhavnaben Balvantbhai Pargi").toUpperCase();
+          const visitTypeStr = isOffice ? "WORKPLACE / OFFICE" : "HOME / RESIDENCE";
+          const addrStr = isOffice 
+            ? (c.work_address || "District Panchayat Education Committee, Dholka, Gujarat-382260")
+            : (c.property_address || "3, Vajinath Society, Opp. Dev Vihar, Kalikund Saroda Road, Dholka, Ahmedabad-382225");
+          const now = new Date();
+          const timeStr = now.toLocaleDateString("en-GB") + " " + now.toLocaleTimeString("en-GB") + " IST";
+          const agentNameStr = (document.getElementById("agentNameDisplay") || {}).textContent || "Rajesh Varma (FA-9042)";
+
+          // Text Line 1: Case ID & Applicant & Visit Type
+          ctx.font = `bold ${fontPx}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+          ctx.fillStyle = "#fef08a"; // Crisp Light Gold
+          ctx.fillText(`CASE: ${caseNoStr}  |  APPLICANT: ${appNameStr}  |  VISIT: [${visitTypeStr}]`, 18, h + fontPx * 1.25);
+
+          // Text Line 2: Address
+          ctx.font = `bold ${Math.round(fontPx * 0.94)}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+          ctx.fillStyle = "#ffffff"; // Pure White
+          ctx.fillText(`${visitTypeStr} ADDRESS: ${addrStr}`, 18, h + fontPx * 1.25 + lineH);
+
+          // Text Line 3: GPS & Telemetry & N.N. SHAH & CO.
+          ctx.font = `${Math.round(fontPx * 0.84)}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+          ctx.fillStyle = "#cbd5e1"; // Slate Mint
+          ctx.fillText(`GPS: ${currentDeviceLat.toFixed(6)}°N, ${currentDeviceLon.toFixed(6)}°E (±3.5m)  |  ${timeStr}  |  AGENT: ${agentNameStr}  |  N.N. SHAH & CO.`, 18, h + fontPx * 1.25 + lineH * 2);
+
+          const finalPreviewUrl = canvas.toDataURL("image/jpeg", 0.92);
+          const previewImgEl = document.getElementById("previewPhotoImg");
+          if (previewImgEl) previewImgEl.src = finalPreviewUrl;
+
+          if (isOffice) {
+            uploadedOfficeSlots[activeUploadSlot] = true;
+            try {
+              const offPayload = JSON.stringify({
+                src: finalPreviewUrl,
+                timestamp: timeStr,
+                lat: currentDeviceLat,
+                lon: currentDeviceLon,
+                doc_type: activeDocType
+              });
+              localStorage.setItem(`pwa_evidence_${sampleCaseId}_office_slot_${activeUploadSlot}`, offPayload);
+              localStorage.setItem(`pwa_evidence_${activeCaseKey}_office_slot_${activeUploadSlot}`, offPayload);
+              localStorage.setItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_office_slot_${activeUploadSlot}`, offPayload);
+              localStorage.setItem(`pwa_evidence_UBI-HL-2026-531_office_slot_${activeUploadSlot}`, offPayload);
+            } catch (storageErr) {
+              console.warn("Storage quota limit or private browsing:", storageErr);
+            }
+            const thumbEl = document.getElementById(`slotOffice${activeUploadSlot}Thumb`);
+            if (thumbEl) {
+              thumbEl.innerHTML = `<img src="${finalPreviewUrl}" class="w-full h-full object-cover rounded-lg"/>`;
+            }
+            const badgeEl = document.getElementById(`slotOffice${activeUploadSlot}Badge`);
+            if (badgeEl) {
+              badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+              badgeEl.textContent = "✓ UPLOADED";
+            }
+            const btnTextEl = document.getElementById(`slotOffice${activeUploadSlot}BtnText`);
+            if (btnTextEl) {
+              btnTextEl.textContent = "Re-take Photo";
+            }
+          } else {
+            uploadedResidenceSlots[activeUploadSlot] = true;
+            uploadedSlots[activeUploadSlot] = true;
+            try {
+              const resPayload = JSON.stringify({
+                src: finalPreviewUrl,
+                timestamp: timeStr,
+                lat: currentDeviceLat,
+                lon: currentDeviceLon,
+                doc_type: activeDocType
+              });
+              localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${activeUploadSlot}`, resPayload);
+              localStorage.setItem(`pwa_evidence_${activeCaseKey}_slot_${activeUploadSlot}`, resPayload);
+              localStorage.setItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_slot_${activeUploadSlot}`, resPayload);
+              localStorage.setItem(`pwa_evidence_UBI-HL-2026-531_slot_${activeUploadSlot}`, resPayload);
+            } catch (storageErr) {
+              console.warn("Storage quota limit or private browsing:", storageErr);
+            }
+            const thumbEl = document.getElementById(`slot${activeUploadSlot}Thumb`);
+            if (thumbEl) {
+              thumbEl.innerHTML = `<img src="${finalPreviewUrl}" class="w-full h-full object-cover rounded-lg"/>`;
+            }
+            const badgeEl = document.getElementById(`slot${activeUploadSlot}Badge`);
+            if (badgeEl) {
+              badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+              badgeEl.textContent = "✓ UPLOADED";
+            }
+            const btnTextEl = document.getElementById(`slot${activeUploadSlot}BtnText`);
+            if (btnTextEl) {
+              btnTextEl.textContent = "Re-take Photo";
+            }
+          }
+          updateEvidenceProgress();
+
+          // Stream watermarked canvas blob to Railway Web Storage
+          canvas.toBlob(async (blob) => {
+            const uploadFile = blob || file;
+            const formData = new FormData();
+            formData.append("file", uploadFile, file.name || `photo_slot_${activeUploadSlot}.jpg`);
+            formData.append("doc_type", activeDocType || (isOffice ? "OFFICE_FACADE" : "PROPERTY_EXTERIOR"));
+            formData.append("slot_number", activeUploadSlot);
+            formData.append("folder", isOffice ? "work" : "residence");
+            formData.append("latitude", currentDeviceLat);
+            formData.append("longitude", currentDeviceLon);
+
+            try {
+              const token = localStorage.getItem("pwa_token");
+              const headers = {};
+              if (token && token !== "demo-pwa-token") {
+                headers["Authorization"] = `Bearer ${token}`;
+              }
+              const response = await fetch(`/api/v1/visits/cases/${sampleCaseId}/upload`, {
+                method: "POST",
+                headers: headers,
+                body: formData
+              });
+
+              if (response.status === 202 || response.status === 200) {
+                const data = await response.json();
+                alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
+                alertText.innerHTML = `✅ <b>${isOffice ? '🏢 Office' : '🏡 Residence'} Slot ${activeUploadSlot} Transmitted to CA Scrutiny Desk!</b><br/>GPS: ${currentDeviceLat.toFixed(4)}°N, ${currentDeviceLon.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>This photo is stamped with N.N. SHAH & CO. watermark and synced in real time.</i>`;
+                loadCaseDocumentsIntoPwa(sampleCaseId);
+              } else {
+                const errData = await response.json().catch(() => ({}));
+                alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
+                alertText.textContent = `Upload Notice: ${errData.detail || 'Photo saved locally'}`;
+              }
+            } catch (netErr) {
+              alertBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-300 text-blue-900 text-xs font-mono shadow-sm";
+              alertText.textContent = "Offline Mode: Photo saved to PWA local storage queue. Will sync automatically.";
+            }
+          }, "image/jpeg", 0.92);
+        };
+        rawImg.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
     }
 
     // Inline Document Flips

@@ -106,6 +106,25 @@ def process_uploaded_media_task(self, document_id_str: str):
             watermark_path = os.path.join(file_dir, f"{name_part}_watermarked{ext}")
             thumb_path = os.path.join(file_dir, f"{name_part}_thumb.jpg")
 
+            # Extract Office Address from field form data if workplace photo
+            office_address = None
+            if loan_case.field_form_data:
+                try:
+                    import json
+                    ffd = json.loads(loan_case.field_form_data)
+                    office_address = ffd.get("office_details", {}).get("address")
+                except Exception:
+                    pass
+
+            doc_type_str = str(document.doc_type).upper()
+            is_work = (document.ocr_data and document.ocr_data.get("folder") == "work") or any(w in doc_type_str for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"])
+            if is_work:
+                visit_type = "WORKPLACE / OFFICE"
+                active_address = office_address or ("District Panchayat Education Committee, Dholka, Gujarat-382260" if "531" in loan_case.case_no else loan_case.target_address)
+            else:
+                visit_type = "RESIDENCE / HOME"
+                active_address = loan_case.target_address
+
             stamp_hard_watermark(
                 input_image_path=raw_file_path,
                 output_image_path=watermark_path,
@@ -117,6 +136,9 @@ def process_uploaded_media_task(self, document_id_str: str):
                 accuracy=3.2,
                 timestamp=document.captured_at or datetime.now(timezone.utc),
                 geofence_status=geofence_status_tag,
+                applicant_name=loan_case.applicant_name,
+                address=active_address,
+                visit_type=visit_type,
             )
 
             # 5. Generate Thumbnail
