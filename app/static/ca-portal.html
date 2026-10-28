@@ -1957,12 +1957,20 @@
           return tB - tA;
         });
         const selfieDoc = selfieDocs[0];
+        const isWorkDoc = (d) => {
+          if (d.folder === "work" || (d.ocr_data && d.ocr_data.folder === "work")) return true;
+          const dt = (d.doc_type || "").toUpperCase();
+          return ["OFFICE_FACADE", "OFFICE_NAMEBOARD", "OFFICE_INTERIOR", "OFFICE_SELFIE", "WORK_FACADE", "WORK_OFFICE", "WORK_DESK", "WORK_APPROACH"].includes(dt) ||
+                 dt.includes("OFFICE") || dt.includes("WORK");
+        };
+
         const SITE_EVIDENCE_TYPES = ["PROPERTY_EXTERIOR", "PROPERTY_INTERIOR", "ELECTRICITY_METER", "SOCIETY_BOARD", "NEIGHBOR_VERIFICATION"];
         const evidenceDocs = (docs || []).filter(d =>
           d.doc_type !== "AGENT_SELFIE" &&
           !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")) &&
           !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
-          ((d.slot_number && d.slot_number >= 1 && d.slot_number <= 4) || SITE_EVIDENCE_TYPES.includes(d.doc_type))
+          !isWorkDoc(d) &&
+          (d.folder === "residence" || (d.ocr_data && d.ocr_data.folder === "residence") || (d.slot_number && d.slot_number >= 1 && d.slot_number <= 4) || SITE_EVIDENCE_TYPES.includes(d.doc_type))
         );
 
         // 2. Strict Slot-based mapping (Slot 1 -> Photo 1, Slot 2 -> Photo 2, Slot 3 -> Photo 3, Slot 4 -> Photo 4)
@@ -2082,11 +2090,10 @@
         }
 
         // 3. Process Office / Work Evidence Photos
-        const WORK_EVIDENCE_TYPES = ["OFFICE_FACADE", "OFFICE_NAMEBOARD", "OFFICE_INTERIOR", "OFFICE_SELFIE", "WORK_FACADE", "WORK_OFFICE", "WORK_DESK", "WORK_APPROACH"];
         const workDocs = (docs || []).filter(d =>
           d.doc_type !== "AGENT_SELFIE" &&
           !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
-          (WORK_EVIDENCE_TYPES.includes(d.doc_type) || d.folder === "work" || (d.doc_type || "").toUpperCase().includes("OFFICE") || (d.doc_type || "").toUpperCase().includes("WORK"))
+          isWorkDoc(d)
         );
 
         // Sort workDocs NEWEST FIRST

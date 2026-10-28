@@ -661,8 +661,16 @@ def generate_certified_cpv_docx(
     # Residence visit photos resolution across slots 1 to 4
     slot_photos = {1: None, 2: None, 3: None, 4: None}
 
-    # Pass 1: explicit slot numbers (from newest docs)
-    for d in sorted_docs:
+    def _is_work_doc(doc):
+        if doc.get("folder") == "work" or (doc.get("ocr_data") or {}).get("folder") == "work":
+            return True
+        dt = str(doc.get("doc_type") or "").upper()
+        return any(w in dt for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"])
+
+    residence_sorted_docs = [d for d in sorted_docs if not _is_work_doc(d)]
+
+    # Pass 1: explicit slot numbers (from newest residence docs)
+    for d in residence_sorted_docs:
         s_num = d.get("slot_number") or (d.get("ocr_data") or {}).get("slot_number")
         if s_num:
             try:
@@ -682,7 +690,7 @@ def generate_certified_cpv_docx(
         "SOCIETY_BOARD": 3,
         "NEIGHBOR_VERIFICATION": 4,
     }
-    for d in sorted_docs:
+    for d in residence_sorted_docs:
         dtype = d.get("doc_type")
         target_slot = type_to_slot.get(dtype)
         if target_slot and slot_photos[target_slot] is None:
@@ -691,7 +699,7 @@ def generate_certified_cpv_docx(
                 slot_photos[target_slot] = p_path
 
     # Pass 3: Fill empty slots from any remaining evidence docs
-    for d in sorted_docs:
+    for d in residence_sorted_docs:
         dtype = d.get("doc_type")
         if dtype in ("PROPERTY_EXTERIOR", "PROPERTY_INTERIOR", "ELECTRICITY_METER", "SOCIETY_BOARD", "NEIGHBOR_VERIFICATION"):
             p_path = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))

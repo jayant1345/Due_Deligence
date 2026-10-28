@@ -627,8 +627,16 @@ def generate_certified_cpv_report(
     # Residence visit photos resolution across slots 1 to 4
     slot_photos = {1: None, 2: None, 3: None, 4: None}
 
-    # Pass 1: explicit slot numbers (from newest docs)
-    for d in sorted_docs:
+    def _is_work_doc(doc):
+        if doc.get("folder") == "work" or (doc.get("ocr_data") or {}).get("folder") == "work":
+            return True
+        dt = str(doc.get("doc_type") or "").upper()
+        return any(w in dt for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"])
+
+    residence_sorted_docs = [d for d in sorted_docs if not _is_work_doc(d)]
+
+    # Pass 1: explicit slot numbers (from newest residence docs)
+    for d in residence_sorted_docs:
         s_num = d.get("slot_number") or (d.get("ocr_data") or {}).get("slot_number")
         if s_num:
             try:
@@ -648,7 +656,7 @@ def generate_certified_cpv_report(
         "SOCIETY_BOARD": 3,
         "NEIGHBOR_VERIFICATION": 4,
     }
-    for d in sorted_docs:
+    for d in residence_sorted_docs:
         dtype = d.get("doc_type")
         target_slot = type_to_slot.get(dtype)
         if target_slot and slot_photos[target_slot] is None:
@@ -657,7 +665,7 @@ def generate_certified_cpv_report(
                 slot_photos[target_slot] = p_path
 
     # Pass 3: Fill empty slots from any remaining evidence docs
-    for d in sorted_docs:
+    for d in residence_sorted_docs:
         dtype = d.get("doc_type")
         if dtype in ("PROPERTY_EXTERIOR", "PROPERTY_INTERIOR", "ELECTRICITY_METER", "SOCIETY_BOARD", "NEIGHBOR_VERIFICATION"):
             p_path = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
@@ -789,12 +797,46 @@ def generate_certified_cpv_report(
         story.append(Paragraph("Annexure ‘E’ (Part 3) — Business / Employer Premises visit photographs:", anx_title_style))
         story.append(Spacer(1, 4))
 
-        off_photos = []
-        for d in sorted_docs:
-            if d.get("doc_type") in ("OFFICE_EXTERIOR", "OFFICE_INTERIOR", "EMPLOYEE_ID_CARD", "WORK_EVIDENCE"):
+        office_sorted_docs = [d for d in sorted_docs if _is_work_doc(d)]
+        off_slot_map = {1: None, 2: None, 3: None, 4: None}
+        for d in office_sorted_docs:
+            s_num = d.get("slot_number") or (d.get("ocr_data") or {}).get("slot_number")
+            if s_num:
+                try:
+                    s_int = int(s_num)
+                    if 1 <= s_int <= 4 and off_slot_map[s_int] is None:
+                        cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+                        if cand and os.path.exists(cand):
+                            off_slot_map[s_int] = cand
+                except (ValueError, TypeError):
+                    pass
+
+        off_type_to_slot = {
+            "OFFICE_FACADE": 1,
+            "OFFICE_NAMEBOARD": 2,
+            "OFFICE_INTERIOR": 3,
+            "OFFICE_SELFIE": 4,
+            "WORK_FACADE": 1,
+            "WORK_OFFICE": 2,
+            "WORK_DESK": 3,
+            "WORK_APPROACH": 4,
+        }
+        for d in office_sorted_docs:
+            dt = d.get("doc_type")
+            t_slot = off_type_to_slot.get(dt)
+            if t_slot and off_slot_map[t_slot] is None:
                 cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
-                if cand and os.path.exists(cand) and cand not in off_photos:
-                    off_photos.append(cand)
+                if cand and os.path.exists(cand):
+                    off_slot_map[t_slot] = cand
+
+        off_photos = []
+        for s in [1, 2, 3, 4]:
+            if off_slot_map[s]:
+                off_photos.append(off_slot_map[s])
+        for d in office_sorted_docs:
+            cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+            if cand and os.path.exists(cand) and cand not in off_photos:
+                off_photos.append(cand)
         if not off_photos and field_photos_dir:
             off_photos = [
                 os.path.join(field_photos_dir, f) for f in sorted(os.listdir(field_photos_dir))

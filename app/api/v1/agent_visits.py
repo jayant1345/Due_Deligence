@@ -126,8 +126,9 @@ async def submit_field_visit_form(
 @router.post("/cases/{case_id}/upload", response_model=DocumentUploadResponse, status_code=status.HTTP_202_ACCEPTED)
 async def zero_lag_upload_document(
     case_id: str,
-    doc_type: DocumentType = Form(...),
+    doc_type: str = Form(...),
     slot_number: Optional[int] = Form(None),
+    folder: Optional[str] = Form(None),
     visit_id: Optional[uuid.UUID] = Form(None),
     latitude: Optional[float] = Form(None),
     longitude: Optional[float] = Form(None),
@@ -143,6 +144,21 @@ async def zero_lag_upload_document(
     4. Auto-stamp hard watermark if image.
     5. Return instant 202 Accepted with task ID.
     """
+    # Safe resolution of doc_type
+    try:
+        resolved_doc_type = DocumentType(doc_type)
+    except ValueError:
+        resolved_doc_type = DocumentType.OTHER
+
+    # Determine folder: 'work' vs 'residence'
+    norm_folder = (folder or "").strip().lower()
+    doc_type_str = str(doc_type).upper()
+    if not norm_folder:
+        if any(w in doc_type_str for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"]):
+            norm_folder = "work"
+        else:
+            norm_folder = "residence"
+
     # Quick check for case existence by UUID or case_no
     loan_case = None
     try:
@@ -201,7 +217,9 @@ async def zero_lag_upload_document(
         except Exception:
             watermarked_url = storage_url
 
-    ocr_meta = {}
+    ocr_meta = {
+        "folder": norm_folder,
+    }
     if slot_number is not None:
         ocr_meta["slot_number"] = slot_number
 
@@ -209,7 +227,7 @@ async def zero_lag_upload_document(
     doc = CaseDocument(
         case_id=loan_case.id,
         visit_id=visit_id,
-        doc_type=doc_type,
+        doc_type=resolved_doc_type,
         storage_url=storage_url,
         watermarked_url=watermarked_url or storage_url,
         latitude=latitude,

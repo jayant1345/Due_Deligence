@@ -274,10 +274,20 @@ async def list_case_documents(
             if not os.path.exists(local_path):
                 continue
 
+        doc_type_val = d.doc_type.value if hasattr(d.doc_type, "value") else str(d.doc_type)
+        doc_folder = "residence"
+        if d.ocr_data and isinstance(d.ocr_data, dict) and d.ocr_data.get("folder"):
+            doc_folder = str(d.ocr_data.get("folder")).lower()
+        else:
+            dtype_str = doc_type_val.upper()
+            if any(w in dtype_str for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"]):
+                doc_folder = "work"
+
         formatted.append({
             "id": str(d.id),
-            "doc_type": d.doc_type.value if hasattr(d.doc_type, "value") else str(d.doc_type),
+            "doc_type": doc_type_val,
             "slot_number": slot_num,
+            "folder": doc_folder,
             "url": clean_url,
             "latitude": d.latitude,
             "longitude": d.longitude,

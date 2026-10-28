@@ -2667,24 +2667,41 @@
         // ==========================================
         // RESTORE UPLOADED FIELD EVIDENCE PHOTOS & SELFIE FROM SERVER (PERSISTENCE)
         // ==========================================
-        const evidenceDocs = (docs || []).filter(d =>
+        const isWorkDoc = (d) => {
+          if (d.folder === "work" || (d.ocr_data && d.ocr_data.folder === "work")) return true;
+          const dt = (d.doc_type || "").toUpperCase();
+          return ["OFFICE_FACADE", "OFFICE_NAMEBOARD", "OFFICE_INTERIOR", "OFFICE_SELFIE", "WORK_FACADE", "WORK_OFFICE", "WORK_DESK", "WORK_APPROACH"].includes(dt) ||
+                 dt.includes("OFFICE") || dt.includes("WORK");
+        };
+
+        const residenceDocs = (docs || []).filter(d =>
           d.doc_type !== "AGENT_SELFIE" &&
           !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")) &&
-          !(d.ocr_data && d.ocr_data.source === "pdf_ingest")
+          !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
+          !isWorkDoc(d)
         );
 
-        // Sort newest first
-        evidenceDocs.sort((a, b) => {
+        const officeDocs = (docs || []).filter(d =>
+          d.doc_type !== "AGENT_SELFIE" &&
+          !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")) &&
+          !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
+          isWorkDoc(d)
+        );
+
+        const sortNewest = (arr) => arr.sort((a, b) => {
           const tA = new Date(a.created_at_raw || a.created_at || 0).getTime();
           const tB = new Date(b.created_at_raw || b.created_at || 0).getTime();
           return tB - tA;
         });
 
-        // Determine slots
-        const serverSlotMap = { 1: null, 2: null, 3: null, 4: null };
-        const getSlotFromDoc = (d, fb) => {
+        sortNewest(residenceDocs);
+        sortNewest(officeDocs);
+
+        // 1. Restore Residence Slots
+        const serverResSlotMap = { 1: null, 2: null, 3: null, 4: null };
+        const getResSlot = (d, fb) => {
           if (d.slot_number && d.slot_number >= 1 && d.slot_number <= 4) return d.slot_number;
-          if (d.ocr_data && d.ocr_data.slot_number && d.ocr_data.slot_number >= 1 && d.ocr_data.slot_number <= 4) return d.ocr_data.slot_number;
+          if (d.ocr_data && d.ocr_data.slot_number >= 1 && d.ocr_data.slot_number <= 4) return d.ocr_data.slot_number;
           const dt = (d.doc_type || "").toUpperCase();
           if (dt.includes("GATE") || dt.includes("SOCIETY") || dt.includes("EXTERIOR")) return 1;
           if (dt.includes("ELEVATION") || dt.includes("DOOR")) return 2;
@@ -2693,15 +2710,15 @@
           return fb;
         };
 
-        evidenceDocs.forEach((d, idx) => {
-          const s = getSlotFromDoc(d, idx + 1);
-          if (s >= 1 && s <= 4 && !serverSlotMap[s]) {
-            serverSlotMap[s] = d;
+        residenceDocs.forEach((d, idx) => {
+          const s = getResSlot(d, idx + 1);
+          if (s >= 1 && s <= 4 && !serverResSlotMap[s]) {
+            serverResSlotMap[s] = d;
           }
         });
 
         for (let s = 1; s <= 4; s++) {
-          const d = serverSlotMap[s];
+          const d = serverResSlotMap[s];
           if (d) {
             uploadedResidenceSlots[s] = true;
             uploadedSlots[s] = true;
@@ -2716,6 +2733,51 @@
             if (thumbRes) thumbRes.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
             try {
               localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${s}`, JSON.stringify({
+                src: d.url,
+                timestamp: d.created_at || "Verified on Server",
+                lat: d.latitude || 23.2534,
+                lon: d.longitude || 72.6324,
+                doc_type: d.doc_type
+              }));
+            } catch(e) {}
+          }
+        }
+
+        // 2. Restore Office / Workplace Slots
+        const serverOffSlotMap = { 1: null, 2: null, 3: null, 4: null };
+        const getOffSlot = (d, fb) => {
+          if (d.slot_number && d.slot_number >= 1 && d.slot_number <= 4) return d.slot_number;
+          if (d.ocr_data && d.ocr_data.slot_number >= 1 && d.ocr_data.slot_number <= 4) return d.ocr_data.slot_number;
+          const dt = (d.doc_type || "").toUpperCase();
+          if (dt.includes("FACADE") || dt.includes("GATE") || dt.includes("ENTRANCE")) return 1;
+          if (dt.includes("BOARD") || dt.includes("NAME")) return 2;
+          if (dt.includes("INTERIOR") || dt.includes("DESK") || dt.includes("ROOM")) return 3;
+          if (dt.includes("SELFIE") || dt.includes("PERSON") || dt.includes("STAFF") || dt.includes("APPROACH")) return 4;
+          return fb;
+        };
+
+        officeDocs.forEach((d, idx) => {
+          const s = getOffSlot(d, idx + 1);
+          if (s >= 1 && s <= 4 && !serverOffSlotMap[s]) {
+            serverOffSlotMap[s] = d;
+          }
+        });
+
+        for (let s = 1; s <= 4; s++) {
+          const d = serverOffSlotMap[s];
+          if (d) {
+            uploadedOfficeSlots[s] = true;
+            const bOff = document.getElementById(`slotOffice${s}Badge`);
+            const btnOff = document.getElementById(`slotOffice${s}BtnText`);
+            const thumbOff = document.getElementById(`slotOffice${s}Thumb`);
+            if (bOff) {
+              bOff.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+              bOff.textContent = "✓ UPLOADED";
+            }
+            if (btnOff) btnOff.textContent = "Re-take Photo";
+            if (thumbOff) thumbOff.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
+            try {
+              localStorage.setItem(`pwa_evidence_${sampleCaseId}_office_slot_${s}`, JSON.stringify({
                 src: d.url,
                 timestamp: d.created_at || "Verified on Server",
                 lat: d.latitude || 23.2534,
