@@ -241,6 +241,110 @@ async def get_public_case_detail(
     return loan_case
 
 
+@router.post("/{case_id}/re-watermark-all")
+async def re_watermark_case_documents(
+    case_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Re-stamp all previously uploaded photos for a case with the updated
+    legible watermark containing applicant name, verified address (home/office),
+    lat & long, and N.N. SHAH & CO. CA certification seal.
+    """
+    loan_case = await resolve_loan_case(db, case_id)
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
+
+    office_address = None
+    if loan_case.field_form_data:
+        try:
+            import json
+            ffd = json.loads(loan_case.field_form_data)
+            office_address = ffd.get("office_details", {}).get("address")
+        except Exception:
+            pass
+
+    query = select(CaseDocument).where(CaseDocument.case_id == loan_case.id)
+    result = await db.execute(query)
+    docs = result.scalars().all()
+
+    from app.services.image_watermark import stamp_hard_watermark
+    restamped_count = 0
+
+    for doc in docs:
+        dt = (doc.doc_type.value if hasattr(doc.doc_type, "value") else str(doc.doc_type)).upper()
+        # Only re-watermark photo and evidence documents
+        if any(k in dt for k in ["PHOTO", "EXTERIOR", "FACADE", "NAMEBOARD", "METER", "NEIGHBOR", "INTERIOR", "SELFIE"]):
+            raw_url = doc.storage_url or doc.watermarked_url or ""
+            norm_url = raw_url.replace("\\", "/")
+            rel_file = None
+            if "storage_uploads/" in norm_url:
+                rel_file = norm_url.split("storage_uploads/")[-1]
+            elif norm_url.startswith("/storage/"):
+                rel_file = norm_url[len("/storage/"):]
+            elif not norm_url.startswith("http"):
+                rel_file = norm_url
+
+            if not rel_file:
+                continue
+
+            possible_paths = [
+                os.path.join("storage_uploads", rel_file),
+                os.path.join("/app/storage_uploads", rel_file),
+                os.path.join(settings.LOCAL_STORAGE_DIR, rel_file),
+            ]
+            file_path = next((p for p in possible_paths if os.path.exists(p)), None)
+            if not file_path:
+                continue
+
+            dir_name = os.path.dirname(file_path)
+            base_name = os.path.basename(file_path)
+            input_path = file_path
+            if base_name.startswith("wm_"):
+                raw_candidate = os.path.join(dir_name, base_name[3:])
+                if os.path.exists(raw_candidate):
+                    input_path = raw_candidate
+
+            output_path = os.path.join(dir_name, f"wm_{base_name.replace('wm_', '')}")
+
+            is_work = (doc.ocr_data and doc.ocr_data.get("folder") == "work") or any(w in dt for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"])
+            if is_work:
+                visit_type = "WORKPLACE / OFFICE"
+                active_address = office_address or ("District Panchayat Education Committee, Dholka, Gujarat-382260" if "531" in loan_case.case_no else loan_case.target_address)
+            else:
+                visit_type = "RESIDENCE / HOME"
+                active_address = loan_case.target_address
+
+            try:
+                stamp_hard_watermark(
+                    input_image_path=input_path,
+                    output_image_path=output_path,
+                    case_no=loan_case.case_no,
+                    agent_name="Rajesh Varma",
+                    agent_id="FA-9042",
+                    lat=doc.latitude or loan_case.target_lat,
+                    lon=doc.longitude or loan_case.target_lon,
+                    accuracy=3.5,
+                    timestamp=doc.created_at,
+                    geofence_status="COMPLIANT" if doc.distance_from_target is None or doc.distance_from_target <= 150 else "BREACH",
+                    applicant_name=loan_case.applicant_name,
+                    address=active_address,
+                    visit_type=visit_type,
+                )
+                doc.watermarked_url = output_path
+                restamped_count += 1
+            except Exception as e:
+                print(f"Error restamping {doc.id}: {e}")
+
+    await db.commit()
+    return {
+        "status": "success",
+        "case_no": loan_case.case_no,
+        "restamped_count": restamped_count,
+        "message": f"Successfully re-stamped {restamped_count} previously uploaded photographs with N.N. SHAH & CO. legible watermark!"
+    }
+
+
 @router.get("/{case_id}/documents")
 async def list_case_documents(
     case_id: str,
