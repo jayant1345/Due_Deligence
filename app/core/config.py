@@ -74,11 +74,10 @@ class Settings(BaseSettings):
 
     # OpenRouter Gemini Vision for High-Accuracy, Cost-Effective Scanning
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
-    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash")
+    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
     OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-    # KYC/financial document extraction is accuracy-critical (PAN, Aadhaar, DOB, salary feed
-    # a bank-certified report), so it uses the stronger Pro model independently of OPENROUTER_MODEL.
-    OPENROUTER_EXTRACTION_MODEL: str = os.getenv("OPENROUTER_EXTRACTION_MODEL", "google/gemini-2.5-pro")
+    # Native high-speed, cost-effective multimodal vision extraction
+    OPENROUTER_EXTRACTION_MODEL: str = os.getenv("OPENROUTER_EXTRACTION_MODEL", "google/gemini-2.0-flash-001")
 
     # CPV Geofencing Rules
     GEOFENCE_MAX_DISTANCE_METERS: float = 150.0  # Safe harbor limit

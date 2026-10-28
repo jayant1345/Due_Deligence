@@ -428,7 +428,7 @@ def call_openrouter_gemini_page_classifier(
 ) -> Dict[str, Any]:
     """Classify and extract one page with Gemini (Pro by default). Never guesses on failure."""
     api_key = settings.OPENROUTER_API_KEY
-    model = settings.OPENROUTER_EXTRACTION_MODEL or "google/gemini-2.5-pro"
+    model = settings.OPENROUTER_EXTRACTION_MODEL or "google/gemini-2.0-flash-001"
     base_url = settings.OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
 
     if not api_key:
