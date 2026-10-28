@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.pytest_cache
+tests
+AMRAPURA.zip
+extracted_amrapura
+scratch
+reports_generated
+*.pyc
+__pycache__
+due_deligence
+due_diligence.db
