@@ -1962,7 +1962,7 @@
           d.doc_type !== "AGENT_SELFIE" &&
           !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")) &&
           !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
-          SITE_EVIDENCE_TYPES.includes(d.doc_type)
+          ((d.slot_number && d.slot_number >= 1 && d.slot_number <= 4) || SITE_EVIDENCE_TYPES.includes(d.doc_type))
         );
 
         // 2. Strict Slot-based mapping (Slot 1 -> Photo 1, Slot 2 -> Photo 2, Slot 3 -> Photo 3, Slot 4 -> Photo 4)

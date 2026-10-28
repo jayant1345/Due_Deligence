@@ -263,9 +263,16 @@ async def list_case_documents(
         else:
             clean_url = f"/storage/{norm_url}"
 
-        slot_num = None
-        if d.ocr_data and isinstance(d.ocr_data, dict):
+        slot_num = getattr(d, "slot_number", None)
+        if slot_num is None and d.ocr_data and isinstance(d.ocr_data, dict):
             slot_num = d.ocr_data.get("slot_number")
+
+        # Skip orphaned files from old ephemeral containers that no longer exist on disk
+        if clean_url.startswith("/storage/"):
+            rel_file = clean_url[len("/storage/"):]
+            local_path = os.path.join("storage_uploads", rel_file)
+            if not os.path.exists(local_path):
+                continue
 
         formatted.append({
             "id": str(d.id),

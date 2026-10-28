@@ -2664,6 +2664,99 @@
           if (salaryEl && c.net_salary_text) salaryEl.textContent = c.net_salary_text;
         }
 
+        // ==========================================
+        // RESTORE UPLOADED FIELD EVIDENCE PHOTOS & SELFIE FROM SERVER (PERSISTENCE)
+        // ==========================================
+        const evidenceDocs = (docs || []).filter(d =>
+          d.doc_type !== "AGENT_SELFIE" &&
+          !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")) &&
+          !(d.ocr_data && d.ocr_data.source === "pdf_ingest")
+        );
+
+        // Sort newest first
+        evidenceDocs.sort((a, b) => {
+          const tA = new Date(a.created_at_raw || a.created_at || 0).getTime();
+          const tB = new Date(b.created_at_raw || b.created_at || 0).getTime();
+          return tB - tA;
+        });
+
+        // Determine slots
+        const serverSlotMap = { 1: null, 2: null, 3: null, 4: null };
+        const getSlotFromDoc = (d, fb) => {
+          if (d.slot_number && d.slot_number >= 1 && d.slot_number <= 4) return d.slot_number;
+          if (d.ocr_data && d.ocr_data.slot_number && d.ocr_data.slot_number >= 1 && d.ocr_data.slot_number <= 4) return d.ocr_data.slot_number;
+          const dt = (d.doc_type || "").toUpperCase();
+          if (dt.includes("GATE") || dt.includes("SOCIETY") || dt.includes("EXTERIOR")) return 1;
+          if (dt.includes("ELEVATION") || dt.includes("DOOR")) return 2;
+          if (dt.includes("METER") || dt.includes("INTERIOR")) return 3;
+          if (dt.includes("NEIGHBOR") || dt.includes("PERSON")) return 4;
+          return fb;
+        };
+
+        evidenceDocs.forEach((d, idx) => {
+          const s = getSlotFromDoc(d, idx + 1);
+          if (s >= 1 && s <= 4 && !serverSlotMap[s]) {
+            serverSlotMap[s] = d;
+          }
+        });
+
+        for (let s = 1; s <= 4; s++) {
+          const d = serverSlotMap[s];
+          if (d) {
+            uploadedResidenceSlots[s] = true;
+            uploadedSlots[s] = true;
+            const bRes = document.getElementById(`slot${s}Badge`);
+            const btnRes = document.getElementById(`slot${s}BtnText`);
+            const thumbRes = document.getElementById(`slot${s}Thumb`);
+            if (bRes) {
+              bRes.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+              bRes.textContent = "✓ UPLOADED";
+            }
+            if (btnRes) btnRes.textContent = "Re-take Photo";
+            if (thumbRes) thumbRes.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
+            try {
+              localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${s}`, JSON.stringify({
+                src: d.url,
+                timestamp: d.created_at || "Verified on Server",
+                lat: d.latitude || 23.2534,
+                lon: d.longitude || 72.6324,
+                doc_type: d.doc_type
+              }));
+            } catch(e) {}
+          }
+        }
+
+        // Restore Agent Selfie if uploaded
+        const serverSelfie = (docs || []).find(d => d.doc_type === "AGENT_SELFIE" || (d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
+        if (serverSelfie) {
+          const imgPreview = document.getElementById("selfiePreview");
+          const placeholder = document.getElementById("selfiePlaceholder");
+          const badge = document.getElementById("selfieVerifiedBadge");
+          const btnText = document.getElementById("btnSelfieText");
+          const metaInfo = document.getElementById("selfieMetaInfo");
+          const tsText = document.getElementById("selfieTimestampText");
+          const geoText = document.getElementById("selfieGeoText");
+
+          if (imgPreview) {
+            imgPreview.src = serverSelfie.url;
+            imgPreview.classList.remove("hidden");
+          }
+          if (placeholder) placeholder.classList.add("hidden");
+          if (badge) {
+            badge.textContent = "✓ CAPTURED & AUDITED";
+            badge.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300 font-bold";
+          }
+          if (btnText) btnText.textContent = "Re-take Selfie";
+          if (metaInfo) metaInfo.classList.remove("hidden");
+          if (tsText) tsText.textContent = serverSelfie.created_at || "Verified on Server";
+          if (geoText) geoText.textContent = `${serverSelfie.latitude ? serverSelfie.latitude.toFixed(4) : '23.2534'}°N, ${serverSelfie.longitude ? serverSelfie.longitude.toFixed(4) : '72.6324'}°E`;
+          try {
+            localStorage.setItem("selfie_" + sampleCaseId, serverSelfie.url);
+            localStorage.setItem("selfie_timestamp_" + sampleCaseId, serverSelfie.created_at || "Verified on Server");
+          } catch(e) {}
+        }
+        updateEvidenceProgress();
+
         renderAllCaseDocumentsGallery(kycDocs);
       } catch (err) {
         console.warn("Could not load case documents:", err);
