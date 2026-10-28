@@ -832,12 +832,122 @@ def generate_certified_cpv_docx(
         r3.font.size = Pt(8)
         r4 = p_sm.add_run("Audit Status: [✓] VERIFIED ON-SITE (Tamper-Proof Watermark Embedded)")
         r4.bold = True
-        r4.font.size = Pt(8)
-        r4.font.color.rgb = RGBColor(5, 150, 105)
+    # Check if workplace photos should be included
+    office_sorted_docs = [d for d in sorted_docs if _is_work_doc(d)]
+    is_working = ("bhavna" in applicant_name.lower()) or (isinstance(field_form, dict) and field_form.get("occupation") not in ("Housewife", None)) or bool(office_sorted_docs)
 
-    # ================= PAGE 9: FINAL CERTIFICATE =================
+    cert_page_num = "9"
+    if is_working:
+        cert_page_num = "10"
+        doc.add_page_break()
+        add_firm_header(doc, "9")
+
+        p_anxE3 = doc.add_paragraph()
+        p_anxE3.paragraph_format.space_before = Pt(4)
+        p_anxE3.paragraph_format.space_after = Pt(6)
+        r_e3 = p_anxE3.add_run("Annexure ‘E’ (Part 3) — Business / Employer Premises visit photographs:")
+        r_e3.bold = True
+        r_e3.font.size = Pt(10.5)
+        r_e3.font.color.rgb = RGBColor(30, 64, 175)
+
+        off_slot_map = {1: None, 2: None, 3: None, 4: None}
+        for d in office_sorted_docs:
+            s_num = d.get("slot_number") or (d.get("ocr_data") or {}).get("slot_number")
+            if s_num:
+                try:
+                    s_int = int(s_num)
+                    if 1 <= s_int <= 4 and off_slot_map[s_int] is None:
+                        cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+                        if cand and os.path.exists(cand):
+                            off_slot_map[s_int] = cand
+                except (ValueError, TypeError):
+                    pass
+
+        off_type_to_slot = {
+            "OFFICE_FACADE": 1,
+            "OFFICE_NAMEBOARD": 2,
+            "OFFICE_INTERIOR": 3,
+            "OFFICE_SELFIE": 4,
+            "WORK_FACADE": 1,
+            "WORK_OFFICE": 2,
+            "WORK_DESK": 3,
+            "WORK_APPROACH": 4,
+        }
+        for d in office_sorted_docs:
+            dt = d.get("doc_type")
+            t_slot = off_type_to_slot.get(dt)
+            if t_slot and off_slot_map[t_slot] is None:
+                cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+                if cand and os.path.exists(cand):
+                    off_slot_map[t_slot] = cand
+
+        off_photos = []
+        for s in [1, 2, 3, 4]:
+            if off_slot_map[s]:
+                off_photos.append(off_slot_map[s])
+        for d in office_sorted_docs:
+            cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+            if cand and os.path.exists(cand) and cand not in off_photos:
+                off_photos.append(cand)
+        if not off_photos and field_photos_dir:
+            off_photos = [
+                os.path.join(field_photos_dir, f) for f in sorted(os.listdir(field_photos_dir))
+                if f.startswith("page_10_img_") and f.endswith((".jpeg", ".jpg", ".png")) and os.path.getsize(os.path.join(field_photos_dir, f)) > 10000
+            ]
+
+        off_specimens = [
+            os.path.join("app", "static", "specimen_assets", "page_10_img_1_Image1.jpg"),
+            os.path.join("app", "static", "specimen_assets", "page_10_img_2_Image2.jpg"),
+            os.path.join("app", "static", "specimen_assets", "page_10_img_3_Image3.jpg"),
+            os.path.join("app", "static", "specimen_assets", "page_10_img_4_Image4.jpg"),
+        ]
+        final_off_imgs = []
+        for i in range(4):
+            if i < len(off_photos) and os.path.exists(off_photos[i]):
+                final_off_imgs.append(off_photos[i])
+            elif i < len(off_specimens) and os.path.exists(off_specimens[i]):
+                final_off_imgs.append(off_specimens[i])
+            else:
+                final_off_imgs.append(None)
+
+        off_labels = [
+            "1. Office Building Exterior & Nameboard",
+            "2. Staff Desk / Workplace Premises",
+            "3. Office Infrastructure & Facilities",
+            "4. Main Entrance & Commercial Locality",
+        ]
+
+        tbl_off_grid = doc.add_table(rows=2, cols=2)
+        tbl_off_grid.alignment = WD_TABLE_ALIGNMENT.CENTER
+        set_table_borders(tbl_off_grid)
+
+        for idx, (r_idx, c_idx) in enumerate(coords):
+            cell = tbl_off_grid.rows[r_idx].cells[c_idx]
+            cell.width = Inches(3.4)
+            set_cell_margins(cell, 30, 30, 40, 40)
+            p = cell.paragraphs[0]
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            img_p = final_off_imgs[idx]
+            if img_p and os.path.exists(img_p):
+                p.paragraph_format.space_before = Pt(2)
+                p.paragraph_format.space_after = Pt(2)
+                try:
+                    r = p.add_run()
+                    r.add_picture(img_p, width=Inches(3.1))
+                except Exception:
+                    pass
+            p_lbl = cell.add_paragraph()
+            p_lbl.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p_lbl.paragraph_format.space_before = Pt(1)
+            p_lbl.paragraph_format.space_after = Pt(4)
+            r_l = p_lbl.add_run(off_labels[idx])
+            r_l.font.size = Pt(7.5)
+            r_l.bold = True
+            r_l.font.color.rgb = RGBColor(71, 85, 105)
+
+    # ================= FINAL CERTIFICATE =================
     doc.add_page_break()
-    add_firm_header(doc, "9")
+    add_firm_header(doc, cert_page_num)
 
     p_fc_title = doc.add_paragraph()
     p_fc_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
