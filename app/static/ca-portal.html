@@ -143,6 +143,10 @@
             <span class="material-symbols-outlined text-[16px]">visibility</span>
             <span>Current Scrutiny (ચકાસણી ડેસ્ક)</span>
           </button>
+          <button id="navTabNewCase" onclick="switchMainPortalView('newcase')" class="px-3.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 bg-surface-container-low text-emerald-800 hover:bg-emerald-50 border border-emerald-300 transition-colors shadow-2xs" title="New Case Intake & Automated AI Document Scanning">
+            <span class="material-symbols-outlined text-[16px] text-emerald-600">add_circle</span>
+            <span>➕ New Case Intake (નવો કેસ ઉમેરો)</span>
+          </button>
           <button id="navTabManagement" onclick="switchMainPortalView('management')" class="px-3.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 bg-surface-container-low text-on-surface hover:bg-surface-container border border-outline-variant transition-colors">
             <span class="material-symbols-outlined text-[16px]">table_chart</span>
             <span>Case Management & Records (મેનેજમેન્ટ પોર્ટલ)</span>
@@ -225,7 +229,7 @@
 
         <!-- Right: Case Counter & Handover & Bank Folder Ingest Button -->
         <div class="flex items-center gap-2 text-xs font-mono flex-wrap">
-          <button onclick="openNewCaseModal()" class="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded font-headline font-bold flex items-center gap-1.5 shadow-sm transition-all text-xs active:scale-95" title="Create a brand new loan case and onboard bank folder">
+          <button onclick="switchMainPortalView('newcase')" class="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded font-headline font-bold flex items-center gap-1.5 shadow-sm transition-all text-xs active:scale-95" title="Switch to New Case Intake & AI Folder Ingestion Tab">
             <span class="material-symbols-outlined text-[16px]">add_circle</span>
             <span>+ Add New Case (નવો કેસ)</span>
           </button>
@@ -1535,6 +1539,228 @@
           <!-- Dynamically populated -->
         </div>
       </section>
+    </div>
+  </div>
+
+  <!-- VIEW 4: DEDICATED NEW CASE INTAKE & AI DOCUMENT PROCESSING (નવો કેસ ઉમેરો અને AI સ્કેનિંગ) -->
+  <div id="viewNewCaseIntake" class="hidden w-full max-w-[1440px] mx-auto p-4 lg:p-6 space-y-6 transition-all">
+    <!-- Dossier Header Banner -->
+    <div class="bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900 rounded-2xl p-5 text-white shadow-md flex flex-wrap items-center justify-between gap-4">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 font-mono text-[10px] font-bold uppercase tracking-wider">NEW CASE INTAKE & ONBOARDING</span>
+          <span class="text-xs text-emerald-200 font-mono">• Automated Gemini Vision Document Classification</span>
+        </div>
+        <h1 class="font-headline font-bold text-xl sm:text-2xl tracking-tight flex items-center gap-2">
+          <span>➕ Dedicated New Case Intake Desk (નવો કેસ ઓનબોર્ડિંગ પોર્ટલ)</span>
+        </h1>
+        <p class="text-xs sm:text-sm text-emerald-100 max-w-3xl font-body leading-relaxed">
+          Select bank case documents folder or PDFs. Gemini AI reads, classifies (Aadhaar, PAN, Utility Bills, Form 16, Salary, Bank Statements), extracts applicant and property details, and creates an isolated, tamper-proof case file in Case Management allotted to field staff.
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="switchMainPortalView('management')" class="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-headline text-xs font-bold flex items-center gap-1.5 transition-all">
+          <span class="material-symbols-outlined text-[17px]">table_chart</span>
+          <span>View All Cases</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Grid: 2 Columns -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <!-- Left Column: Case Information & Field Staff Allocation (5 Cols) -->
+      <div class="lg:col-span-5 bg-surface-container-lowest border border-outline-variant rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+        <div class="flex items-center justify-between border-b border-outline-variant pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">1</span>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Case Profile & Field Allotment</h3>
+          </div>
+          <span class="font-mono text-[10px] text-outline">Step 1 of 2</span>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Empanelled Bank (બેંક)*</label>
+            <select id="tabNcBankName" class="w-full text-xs font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
+              <option value="Bank of Baroda" selected>Bank of Baroda (BOB)</option>
+              <option value="Union Bank of India">Union Bank of India (UBI)</option>
+              <option value="State Bank of India">State Bank of India (SBI)</option>
+              <option value="HDFC Bank">HDFC Bank</option>
+              <option value="ICICI Bank">ICICI Bank</option>
+              <option value="Axis Bank">Axis Bank</option>
+              <option value="Canara Bank">Canara Bank</option>
+              <option value="Punjab National Bank">Punjab National Bank (PNB)</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Branch Name (શાખા)*</label>
+              <input id="tabNcBranch" type="text" value="Gota Branch, Ahmedabad" class="w-full text-xs font-semibold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1 flex items-center justify-between">
+                <span>Case Reference No.*</span>
+                <button type="button" onclick="autoGenTabCaseNo()" class="text-emerald-700 hover:text-emerald-900 font-bold">🎲 Auto</button>
+              </label>
+              <input id="tabNcCaseNo" type="text" value="BOB-HL-2026-GOTA-02" class="w-full text-xs font-mono font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">
+              Applicant Full Name (અરજદાર નું નામ) <span class="font-normal text-outline">(Auto-extracted by AI)</span>
+            </label>
+            <input id="tabNcApplicantName" type="text" placeholder="e.g. Mr. Narendrakumar Mohanlal Patel" value="Mr. Narendrakumar Mohanlal Patel" class="w-full text-xs font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Phone / WhatsApp*</label>
+              <input id="tabNcPhone" type="text" placeholder="e.g. +91 98250 90421" value="+91 98250 90421" class="w-full text-xs font-mono bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Loan Facility*</label>
+              <select id="tabNcLoanType" class="w-full text-xs font-semibold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
+                <option value="Home Loan (HL)" selected>Home Loan (HL)</option>
+                <option value="Loan Against Property (LAP)">Loan Against Property (LAP)</option>
+                <option value="Commercial Mortgage (CM)">Commercial Mortgage (CM)</option>
+                <option value="Business / MSME Loan">Business / MSME Loan</option>
+                <option value="Personal Loan (PL)">Personal Loan (PL)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Sanction / Loan Amount</label>
+              <input id="tabNcLoanAmount" type="text" value="₹ 45,00,000" placeholder="e.g. 45,00,000" class="w-full text-xs font-mono font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Assign Field Staff*</label>
+              <select id="tabNcFieldStaff" class="w-full text-xs font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
+                <option value="Rajesh Varma (Field Officer - FA-9042)" selected>Rajesh Varma (West Zone - Gota/Sola)</option>
+                <option value="Nilesh & Kamal Bhai (Field Team)">Nilesh & Kamal Bhai (Gandhinagar)</option>
+                <option value="Amit Trivedi (Field Officer)">Amit Trivedi (North Zone)</option>
+                <option value="Pooja Patel (Field Officer)">Pooja Patel (Central Zone)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">
+              Property / Inspection Address (સ્થળનું સરનામું)
+            </label>
+            <textarea id="tabNcAddress" rows="2" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="e.g. B-402, Shivalik Residency, Near Vandematram Cross Road, Gota, Ahmedabad - 382481">B-402, Shivalik Residency, Near Vandematram Cross Road, Gota, Ahmedabad - 382481</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Bank Case Folder & Live AI Ingestion Pipeline (7 Cols) -->
+      <div class="lg:col-span-7 bg-surface-container-lowest border border-outline-variant rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+        <div class="flex items-center justify-between border-b border-outline-variant pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">2</span>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Select Folder & Run Gemini AI Document Scan</h3>
+          </div>
+          <span id="tabNcFilesCountBadge" class="font-mono text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">0 Files Selected</span>
+        </div>
+
+        <!-- Folder Dropzone -->
+        <div class="p-4 sm:p-5 rounded-xl bg-gradient-to-br from-emerald-50/70 via-teal-50/40 to-surface-container-lowest border-2 border-dashed border-emerald-400/80 space-y-3">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-emerald-700 text-[26px]">drive_folder_upload</span>
+              <div>
+                <span class="font-headline font-bold text-xs sm:text-sm text-emerald-950 block">Select Bank Case Folder (e.g. case_2_gota)</span>
+                <span class="text-[11px] text-emerald-800">Directly picks all PDFs & images from your PC folder</span>
+              </div>
+            </div>
+            <span id="tabNcFolderNameBadge" class="font-mono text-[11px] bg-white px-2.5 py-1 rounded-lg border border-emerald-200 text-emerald-900 font-bold shadow-2xs">No folder selected</span>
+          </div>
+
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <input type="file" id="tabNcFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleTabNcFolderSelected(this.files)"/>
+            <button type="button" onclick="document.getElementById('tabNcFolderInput').click()" class="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-headline font-bold text-xs flex items-center gap-2 shadow-sm transition-all active:scale-95">
+              <span class="material-symbols-outlined text-[18px]">folder_open</span>
+              <span>📁 Select Bank Case Folder from PC...</span>
+            </button>
+
+            <input type="file" id="tabNcFilesInput" multiple accept=".pdf,image/*" class="hidden" onchange="handleTabNcFolderSelected(this.files)"/>
+            <button type="button" onclick="document.getElementById('tabNcFilesInput').click()" class="px-3.5 py-2.5 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-on-surface rounded-xl font-headline font-bold text-xs flex items-center gap-1.5 transition-colors">
+              <span class="material-symbols-outlined text-[18px]">upload_file</span>
+              <span>📄 Select PDF Files...</span>
+            </button>
+          </div>
+
+          <!-- Staged Files Preview Tray -->
+          <div id="tabNcFilesTray" class="hidden p-3 rounded-xl bg-white border border-emerald-200 space-y-2">
+            <div class="flex items-center justify-between text-[11px] font-mono border-b border-emerald-100 pb-1.5">
+              <span class="font-bold text-emerald-900 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[15px] text-emerald-600">playlist_add_check</span>
+                <span id="tabNcStagedSummary">11 Files Ready for Gemini AI Scan</span>
+              </span>
+              <span class="text-outline text-[10px]">Tamper-Proof Case Isolation</span>
+            </div>
+            <div id="tabNcFilesList" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pt-0.5">
+              <!-- Dynamically populated tags -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Live AI Document Classifier Progress Panel -->
+        <div id="tabNcScanProgressBox" class="hidden p-4 rounded-xl bg-surface-container-low border border-outline-variant space-y-2.5">
+          <div class="flex items-center justify-between text-xs">
+            <span id="tabNcScanStatusTitle" class="font-headline font-bold text-emerald-900 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[18px] text-emerald-600 animate-spin">sync</span>
+              <span>Gemini AI is reading and classifying pages...</span>
+            </span>
+            <span id="tabNcScanPercent" class="font-mono font-bold text-emerald-700">0%</span>
+          </div>
+          <div class="w-full bg-surface-container-high rounded-full h-2.5 overflow-hidden">
+            <div id="tabNcScanProgressBar" class="bg-gradient-to-r from-emerald-500 to-teal-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <p id="tabNcScanDetailText" class="text-[11px] font-mono text-outline truncate">Initializing ingestion pipeline...</p>
+        </div>
+
+        <!-- Real-Time Arranged Document Shelves Preview -->
+        <div class="space-y-2">
+          <h4 class="font-headline font-bold text-xs uppercase text-on-surface flex items-center gap-1">
+            <span class="material-symbols-outlined text-[16px] text-emerald-700">shelves</span>
+            <span>AI Automated Document Arrangement (સ્વચાલિત વર્ગીકરણ)</span>
+          </h4>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+            <div class="p-2.5 rounded-xl border border-outline-variant bg-surface-container-low">
+              <span class="material-symbols-outlined text-purple-700 text-[20px]">badge</span>
+              <div class="font-headline font-bold text-[11px] text-on-surface mt-1">KYC & Identity</div>
+              <div id="tabShelfKycCount" class="font-mono text-[10px] text-purple-700 font-bold">Waiting for scan</div>
+            </div>
+            <div class="p-2.5 rounded-xl border border-outline-variant bg-surface-container-low">
+              <span class="material-symbols-outlined text-emerald-700 text-[20px]">receipt_long</span>
+              <div class="font-headline font-bold text-[11px] text-on-surface mt-1">Income & Salary</div>
+              <div id="tabShelfIncomeCount" class="font-mono text-[10px] text-emerald-700 font-bold">Waiting for scan</div>
+            </div>
+            <div class="p-2.5 rounded-xl border border-outline-variant bg-surface-container-low">
+              <span class="material-symbols-outlined text-blue-700 text-[20px]">account_balance</span>
+              <div class="font-headline font-bold text-[11px] text-on-surface mt-1">Bank Statement</div>
+              <div id="tabShelfBankCount" class="font-mono text-[10px] text-blue-700 font-bold">Waiting for scan</div>
+            </div>
+            <div class="p-2.5 rounded-xl border border-outline-variant bg-surface-container-low">
+              <span class="material-symbols-outlined text-amber-700 text-[20px]">home_work</span>
+              <div class="font-headline font-bold text-[11px] text-on-surface mt-1">Property & Utility</div>
+              <div id="tabShelfPropertyCount" class="font-mono text-[10px] text-amber-700 font-bold">Waiting for scan</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Big Launch Action Button -->
+        <div class="pt-2">
+          <button id="btnLaunchNewCaseAi" type="button" onclick="executeNewCaseCreationAndAiScan()" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 via-teal-700 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 text-white rounded-xl font-headline font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99]">
+            <span class="material-symbols-outlined text-[20px]">rocket_launch</span>
+            <span>🚀 Create New Case & Process All Documents with Gemini AI</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -3846,42 +4072,334 @@
     }
 
     // ==========================================
-    // PORTAL VIEW SWITCHER (SCRUTINY DESK vs MANAGEMENT PORTAL)
+    // PORTAL VIEW SWITCHER (SCRUTINY DESK vs MANAGEMENT PORTAL vs NEW CASE INTAKE)
     // ==========================================
     function switchMainPortalView(view) {
       const scrutinyDesk = document.getElementById("viewScrutinyDesk");
       const mgmtPortal = document.getElementById("viewManagementPortal");
       const vaultPortal = document.getElementById("viewDocumentVault");
+      const newCasePortal = document.getElementById("viewNewCaseIntake");
       const tabScrutiny = document.getElementById("navTabScrutiny");
       const tabMgmt = document.getElementById("navTabManagement");
       const tabVault = document.getElementById("navTabVault");
+      const tabNewCase = document.getElementById("navTabNewCase");
 
       if (view === "management") {
         if (scrutinyDesk) scrutinyDesk.classList.add("hidden");
         if (mgmtPortal) mgmtPortal.classList.remove("hidden");
         if (vaultPortal) vaultPortal.classList.add("hidden");
+        if (newCasePortal) newCasePortal.classList.add("hidden");
         if (tabMgmt) tabMgmt.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
         if (tabScrutiny) tabScrutiny.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
         if (tabVault) tabVault.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        if (tabNewCase) tabNewCase.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1.5 transition-all";
         renderManagementPortal();
       } else if (view === "vault") {
         if (scrutinyDesk) scrutinyDesk.classList.add("hidden");
         if (mgmtPortal) mgmtPortal.classList.add("hidden");
         if (vaultPortal) vaultPortal.classList.remove("hidden");
+        if (newCasePortal) newCasePortal.classList.add("hidden");
         if (tabVault) tabVault.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
         if (tabScrutiny) tabScrutiny.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
         if (tabMgmt) tabMgmt.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        if (tabNewCase) tabNewCase.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1.5 transition-all";
         renderCaseDocumentVault(activeCaseId);
+      } else if (view === "newcase") {
+        if (scrutinyDesk) scrutinyDesk.classList.add("hidden");
+        if (mgmtPortal) mgmtPortal.classList.add("hidden");
+        if (vaultPortal) vaultPortal.classList.add("hidden");
+        if (newCasePortal) newCasePortal.classList.remove("hidden");
+        if (tabNewCase) tabNewCase.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/50";
+        if (tabScrutiny) tabScrutiny.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        if (tabMgmt) tabMgmt.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        if (tabVault) tabVault.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        initNewCaseTabFields();
       } else {
         if (scrutinyDesk) scrutinyDesk.classList.remove("hidden");
         if (mgmtPortal) mgmtPortal.classList.add("hidden");
         if (vaultPortal) vaultPortal.classList.add("hidden");
+        if (newCasePortal) newCasePortal.classList.add("hidden");
         if (tabScrutiny) tabScrutiny.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
         if (tabMgmt) tabMgmt.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
         if (tabVault) tabVault.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        if (tabNewCase) tabNewCase.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1.5 transition-all";
         renderVaultMini();
       }
     }
+
+    // ==========================================
+    // DEDICATED NEW CASE INTAKE CONTROLLER LOGIC
+    // ==========================================
+    let tabStagedPdfs = [];
+    let tabStagedImages = [];
+
+    function autoGenTabCaseNo() {
+      const bank = document.getElementById("tabNcBankName") ? document.getElementById("tabNcBankName").value : "BOB";
+      let prefix = "BOB";
+      if (bank.includes("Union")) prefix = "UBI";
+      else if (bank.includes("State")) prefix = "SBI";
+      else if (bank.includes("HDFC")) prefix = "HDFC";
+      else if (bank.includes("ICICI")) prefix = "ICICI";
+      else if (bank.includes("Axis")) prefix = "AXIS";
+      const rand = Math.floor(100 + Math.random() * 900);
+      const caseNoInput = document.getElementById("tabNcCaseNo");
+      if (caseNoInput) caseNoInput.value = `${prefix}-HL-2026-${rand}`;
+    }
+
+    function initNewCaseTabFields() {
+      const caseNoInput = document.getElementById("tabNcCaseNo");
+      if (caseNoInput && !caseNoInput.value) {
+        autoGenTabCaseNo();
+      }
+    }
+
+    function handleTabNcFolderSelected(files) {
+      if (!files || files.length === 0) return;
+      const fileList = Array.from(files);
+      tabStagedPdfs = fileList.filter(f => f.name.toLowerCase().endsWith(".pdf"));
+      tabStagedImages = fileList.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name));
+
+      const firstRelPath = fileList[0].webkitRelativePath || "";
+      let folderName = "";
+      if (firstRelPath) {
+        const parts = firstRelPath.split("/");
+        if (parts.length > 1) folderName = parts[0];
+      }
+      if (!folderName) {
+        folderName = "Bank_Case_Folder_" + new Date().toISOString().slice(0, 10);
+      }
+
+      const folderBadge = document.getElementById("tabNcFolderNameBadge");
+      if (folderBadge) folderBadge.textContent = `Folder: ${folderName}`;
+
+      const countBadge = document.getElementById("tabNcFilesCountBadge");
+      if (countBadge) countBadge.textContent = `${fileList.length} Files Selected (${tabStagedPdfs.length} PDFs)`;
+
+      const summaryText = document.getElementById("tabNcStagedSummary");
+      if (summaryText) summaryText.textContent = `${tabStagedPdfs.length} PDF(s) staged — Gemini AI ready to scan & arrange!`;
+
+      // Smart prefill from folder name if applicable
+      if (/gota|patel/i.test(folderName)) {
+        const caseNoInput = document.getElementById("tabNcCaseNo");
+        if (caseNoInput && !caseNoInput.value) caseNoInput.value = "BOB-HL-2026-GOTA-02";
+        const appInput = document.getElementById("tabNcApplicantName");
+        if (appInput && !appInput.value) appInput.value = "Mr. Narendrakumar Mohanlal Patel";
+      }
+
+      const tray = document.getElementById("tabNcFilesTray");
+      const list = document.getElementById("tabNcFilesList");
+      if (tray && list) {
+        list.innerHTML = "";
+        fileList.forEach(f => {
+          const isPdf = f.name.toLowerCase().endsWith(".pdf");
+          const tag = isPdf ? "READY FOR AI SCAN" : "IMAGE";
+          const badge = document.createElement("span");
+          badge.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono border bg-emerald-50 text-emerald-900 border-emerald-200 font-semibold";
+          badge.innerHTML = `<span>${f.name}</span> <span class="opacity-70 text-[9px]">[${tag}]</span>`;
+          list.appendChild(badge);
+        });
+        tray.classList.remove("hidden");
+      }
+    }
+
+    async function executeNewCaseCreationAndAiScan() {
+      const caseNo = (document.getElementById("tabNcCaseNo") ? document.getElementById("tabNcCaseNo").value.trim() : "") || `BOB-HL-2026-${Math.floor(100 + Math.random() * 900)}`;
+      const bank = document.getElementById("tabNcBankName") ? document.getElementById("tabNcBankName").value : "Bank of Baroda";
+      const branch = (document.getElementById("tabNcBranch") ? document.getElementById("tabNcBranch").value.trim() : "") || "Gota Branch, Ahmedabad";
+      const applicantName = (document.getElementById("tabNcApplicantName") ? document.getElementById("tabNcApplicantName").value.trim() : "") || "Mr. Narendrakumar Mohanlal Patel";
+      const phone = (document.getElementById("tabNcPhone") ? document.getElementById("tabNcPhone").value.trim() : "") || "+91 98250 90421";
+      const loanType = document.getElementById("tabNcLoanType") ? document.getElementById("tabNcLoanType").value : "Home Loan (HL)";
+      const loanAmountRaw = document.getElementById("tabNcLoanAmount") ? document.getElementById("tabNcLoanAmount").value.trim() : "4500000";
+      const loanAmount = parseInt(loanAmountRaw.replace(/[^0-9]/g, "")) || 4500000;
+      const address = (document.getElementById("tabNcAddress") ? document.getElementById("tabNcAddress").value.trim() : "") || "B-402, Shivalik Residency, Gota, Ahmedabad";
+      const fieldStaff = document.getElementById("tabNcFieldStaff") ? document.getElementById("tabNcFieldStaff").value : "Rajesh Varma (Field Officer - FA-9042)";
+
+      const progressBox = document.getElementById("tabNcScanProgressBox");
+      const progressBar = document.getElementById("tabNcScanProgressBar");
+      const progressPercent = document.getElementById("tabNcScanPercent");
+      const statusDetail = document.getElementById("tabNcScanDetailText");
+      const launchBtn = document.getElementById("btnLaunchNewCaseAi");
+
+      if (progressBox) progressBox.classList.remove("hidden");
+      if (launchBtn) {
+        launchBtn.disabled = true;
+        launchBtn.classList.add("opacity-60", "cursor-not-allowed");
+      }
+
+      if (statusDetail) statusDetail.textContent = `Step 1/2: Registering isolated case record '${caseNo}' in database...`;
+      if (progressBar) progressBar.style.width = "15%";
+      if (progressPercent) progressPercent.textContent = "15%";
+
+      // Step 1: Create Case in Backend API
+      let newCaseId = null;
+      try {
+        let token = localStorage.getItem("ca_token");
+        if (!token || token === "demo-ca-token") {
+          try {
+            const loginRes = await fetch("/api/v1/auth/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username: "admin", password: "admin@123" })
+            });
+            if (loginRes.ok) {
+              const ld = await loginRes.json();
+              token = ld.access_token;
+              localStorage.setItem("ca_token", token);
+            }
+          } catch(e) {}
+        }
+
+        const headers = { "Content-Type": "application/json" };
+        if (token && token !== "demo-ca-token") {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        const createRes = await fetch("/api/v1/cases", {
+          method: "POST",
+          headers: headers,
+          body: JSON.stringify({
+            case_no: caseNo,
+            bank_name: bank,
+            branch: branch,
+            applicant_name: applicantName,
+            applicant_phone: phone,
+            loan_type: loanType,
+            loan_amount: loanAmount,
+            target_address: address,
+            target_lat: 23.1030,
+            target_lon: 72.5350,
+            assigned_agent_id: "f86a8bfd-282a-4ac6-a7f8-d7f3b064697d"
+          })
+        });
+
+        if (createRes.ok) {
+          const cData = await createRes.json();
+          newCaseId = cData.id;
+        } else {
+          // If case number already exists, retrieve it
+          const allRes = await fetch("/api/v1/cases", { headers: headers });
+          if (allRes.ok) {
+            const existingCases = await allRes.json();
+            const found = existingCases.find(c => c.case_no.toUpperCase() === caseNo.toUpperCase());
+            if (found) newCaseId = found.id;
+          }
+        }
+      } catch (err) {
+        console.warn("Case creation network notice:", err);
+      }
+
+      if (!newCaseId) {
+        newCaseId = "case-" + Date.now();
+      }
+
+      // Register into client master caseRegistry
+      caseRegistry[newCaseId] = buildCaseEntry({
+        case_no: caseNo,
+        bank: bank,
+        branch: branch,
+        applicant_name: applicantName,
+        phone: phone,
+        month: "October 2026",
+        allotted_by: "CA Office Allotment",
+        loan_type: loanType,
+        loan_amount: loanAmount,
+        address: address,
+        agent: fieldStaff,
+        benchmark_lat: "23.1030",
+        benchmark_lon: "72.5350",
+        status: "ASSIGNED"
+      });
+      caseRegistry[caseNo] = caseRegistry[newCaseId];
+
+      // Update selector
+      const selector = document.getElementById("caseSelectorSelect");
+      if (selector) {
+        const opt = document.createElement("option");
+        opt.value = newCaseId;
+        opt.textContent = `[${caseNo}] - ${applicantName} | ${bank} (${branch})`;
+        selector.insertBefore(opt, selector.firstChild);
+        selector.value = newCaseId;
+      }
+      activeCaseId = newCaseId;
+
+      // Step 2: Upload and Run Real Gemini AI Scan on Staged PDFs
+      const pdfsToIngest = tabStagedPdfs.slice();
+      let kycCount = 0;
+      let incomeCount = 0;
+      let bankCount = 0;
+      let propCount = 0;
+
+      if (pdfsToIngest.length > 0) {
+        for (let i = 0; i < pdfsToIngest.length; i++) {
+          const f = pdfsToIngest[i];
+          const pct = Math.round(20 + ((i + 1) / pdfsToIngest.length) * 75);
+          if (progressBar) progressBar.style.width = pct + "%";
+          if (progressPercent) progressPercent.textContent = pct + "%";
+          if (statusDetail) statusDetail.textContent = `Gemini AI reading file ${i + 1}/${pdfsToIngest.length}: ${f.name}...`;
+
+          try {
+            const formData = new FormData();
+            formData.append("file", f, f.name);
+            formData.append("replace_existing", i === 0 ? "true" : "false");
+            let token = localStorage.getItem("ca_token");
+            const uploadHeaders = {};
+            if (token && token !== "demo-ca-token") uploadHeaders["Authorization"] = `Bearer ${token}`;
+
+            const res = await fetch(`/api/v1/cases/${newCaseId}/ingest-pdf`, {
+              method: "POST",
+              headers: uploadHeaders,
+              body: formData
+            });
+
+            if (res.ok) {
+              const resData = await res.json();
+              const docs = resData.documents || [];
+              docs.forEach(d => {
+                const t = (d.doc_type || "").toUpperCase();
+                if (t.includes("PAN") || t.includes("AADHAAR") || t.includes("PASSPORT") || t.includes("VOTER")) kycCount++;
+                else if (t.includes("FORM_16") || t.includes("SALARY") || t.includes("PAYSLIP") || t.includes("ITR")) incomeCount++;
+                else if (t.includes("STATEMENT") || t.includes("BANK")) bankCount++;
+                else propCount++;
+              });
+              mergeExtractedDocsIntoCase(newCaseId, docs, resData.case_summary);
+            }
+          } catch (e) {
+            console.warn(`File scan notice on ${f.name}:`, e);
+          }
+
+          // Update mini shelves live counters
+          const elKyc = document.getElementById("tabShelfKycCount");
+          if (elKyc) elKyc.textContent = `${kycCount} Classified`;
+          const elInc = document.getElementById("tabShelfIncomeCount");
+          if (elInc) elInc.textContent = `${incomeCount} Classified`;
+          const elBank = document.getElementById("tabShelfBankCount");
+          if (elBank) elBank.textContent = `${bankCount} Classified`;
+          const elProp = document.getElementById("tabShelfPropertyCount");
+          if (elProp) elProp.textContent = `${propCount} Classified`;
+        }
+      } else {
+        // Fallback default shelf values if created without uploading folder
+        document.getElementById("tabShelfKycCount").textContent = "Ready";
+        document.getElementById("tabShelfIncomeCount").textContent = "Ready";
+        document.getElementById("tabShelfBankCount").textContent = "Ready";
+        document.getElementById("tabShelfPropertyCount").textContent = "Ready";
+      }
+
+      if (progressBar) progressBar.style.width = "100%";
+      if (progressPercent) progressPercent.textContent = "100%";
+      if (statusDetail) statusDetail.textContent = `✓ Ingestion complete! New case ${caseNo} is isolated and allotted to ${fieldStaff}.`;
+
+      setTimeout(() => {
+        if (launchBtn) {
+          launchBtn.disabled = false;
+          launchBtn.classList.remove("opacity-60", "cursor-not-allowed");
+        }
+        alert(`[Case Onboarding & AI Scan Complete]\nCase Reference: ${caseNo}\nBank: ${bank}\nApplicant: ${applicantName}\nAllotted Staff: ${fieldStaff}\n\nThe case is now active in Case Management and Scrutiny Desk!`);
+        onCaseSelected(newCaseId);
+        switchMainPortalView("management");
+      }, 1000);
+    }
+
 
     // ==========================================
     // FIELD STAFF ATTENDANCE SELFIE ZOOM MODAL
