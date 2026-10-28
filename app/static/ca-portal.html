@@ -225,6 +225,10 @@
 
         <!-- Right: Case Counter & Handover & Bank Folder Ingest Button -->
         <div class="flex items-center gap-2 text-xs font-mono flex-wrap">
+          <button onclick="openNewCaseModal()" class="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded font-headline font-bold flex items-center gap-1.5 shadow-sm transition-all text-xs active:scale-95" title="Create a brand new loan case and onboard bank folder">
+            <span class="material-symbols-outlined text-[16px]">add_circle</span>
+            <span>+ Add New Case (નવો કેસ)</span>
+          </button>
           <span class="text-on-surface-variant bg-surface-container-lowest px-2 py-1 rounded border border-outline-variant">
             Total Cases: <strong id="totalCaseCount" class="text-primary-container">6</strong> Active
           </span>
@@ -3931,7 +3935,10 @@
     }
 
     function openNewCaseModal() {
-      triggerAiFolderIngest();
+      const modal = document.getElementById("newCaseModal");
+      if (modal) {
+        modal.classList.remove("hidden");
+      }
     }
 
     function closeNewCaseModal() {
