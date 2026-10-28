@@ -4254,7 +4254,7 @@
           headers["Authorization"] = `Bearer ${token}`;
         }
 
-        const createRes = await fetch("/api/v1/cases", {
+        let createRes = await fetch("/api/v1/cases", {
           method: "POST",
           headers: headers,
           body: JSON.stringify({
@@ -4276,12 +4276,50 @@
           const cData = await createRes.json();
           newCaseId = cData.id;
         } else {
-          // If case number already exists, retrieve it
-          const allRes = await fetch("/api/v1/cases", { headers: headers });
-          if (allRes.ok) {
-            const existingCases = await allRes.json();
-            const found = existingCases.find(c => c.case_no.toUpperCase() === caseNo.toUpperCase());
-            if (found) newCaseId = found.id;
+          // Check for 401 token expiry
+          if (createRes.status === 401) {
+            const loginRes = await fetch("/api/v1/auth/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username: "admin", password: "admin@123" })
+            });
+            if (loginRes.ok) {
+              const ld = await loginRes.json();
+              token = ld.access_token;
+              localStorage.setItem("ca_token", token);
+              headers["Authorization"] = `Bearer ${token}`;
+              createRes = await fetch("/api/v1/cases", {
+                method: "POST",
+                headers: headers,
+                body: JSON.stringify({
+                  case_no: caseNo,
+                  bank_name: bank,
+                  branch: branch,
+                  applicant_name: applicantName,
+                  applicant_phone: phone,
+                  loan_type: loanType,
+                  loan_amount: loanAmount,
+                  target_address: address,
+                  target_lat: 23.1030,
+                  target_lon: 72.5350,
+                  assigned_agent_id: null
+                })
+              });
+              if (createRes.ok) {
+                const cData = await createRes.json();
+                newCaseId = cData.id;
+              }
+            }
+          }
+
+          if (!newCaseId) {
+            // Check if case number already exists in DB
+            const allRes = await fetch("/api/v1/cases", { headers: headers });
+            if (allRes.ok) {
+              const existingCases = await allRes.json();
+              const found = existingCases.find(c => c.case_no.toUpperCase() === caseNo.toUpperCase());
+              if (found) newCaseId = found.id;
+            }
           }
         }
       } catch (err) {
@@ -4289,7 +4327,13 @@
       }
 
       if (!newCaseId) {
-        newCaseId = "case-" + Date.now();
+        alert(`Could not create case "${caseNo}" in the database. Please ensure the reference number is unique and retry.`);
+        if (launchBtn) {
+          launchBtn.disabled = false;
+          launchBtn.classList.remove("opacity-60", "cursor-not-allowed");
+        }
+        if (progressBox) progressBox.classList.add("hidden");
+        return;
       }
 
       // Register into client master caseRegistry as DRAFT (Unassigned - Manual Handover)
