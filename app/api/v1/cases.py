@@ -516,7 +516,10 @@ async def ingest_and_separate_case_pdf(
     os.makedirs(upload_dir, exist_ok=True)
 
     if file and file.filename:
-        saved_pdf_path = os.path.join(upload_dir, file.filename)
+        # Sanitize filename in case browser sends relative folder path (e.g. case_2_gota/doc.pdf)
+        clean_filename = os.path.basename(file.filename.replace("\\", "/"))
+        saved_pdf_path = os.path.join(upload_dir, clean_filename)
+        os.makedirs(os.path.dirname(saved_pdf_path), exist_ok=True)
         with open(saved_pdf_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     elif file_path and os.path.exists(file_path):
@@ -605,7 +608,9 @@ async def ingest_and_classify_case_images(
     for f in files:
         if not f.filename:
             continue
-        tmp_path = os.path.join(upload_dir, f.filename)
+        clean_filename = os.path.basename(f.filename.replace("\\", "/"))
+        tmp_path = os.path.join(upload_dir, clean_filename)
+        os.makedirs(os.path.dirname(tmp_path), exist_ok=True)
         with open(tmp_path, "wb") as buffer:
             shutil.copyfileobj(f.file, buffer)
         try:

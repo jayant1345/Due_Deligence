@@ -2700,7 +2700,7 @@
 
       const formData = new FormData();
       if (file) {
-        formData.append("file", file);
+        formData.append("file", file, file.name);
       }
       formData.append("replace_existing", replaceExisting ? "true" : "false");
       const c = caseRegistry[activeCaseId] || {};
@@ -2767,13 +2767,22 @@
           }
         } else {
           const err = await res.json().catch(() => ({}));
-          alert(`PDF Processing notice ("${file ? file.name : 'file'}"): ${err.detail || 'Could not process PDF'}`);
-          if (statusBox) statusBox.classList.add("hidden");
+          console.warn(`PDF notice ("${file ? file.name : 'file'}"):`, err);
+          if (totalFiles <= 1) {
+            alert(`PDF Processing notice ("${file ? file.name : 'file'}"): ${err.detail || 'Could not process PDF'}`);
+            if (statusBox) statusBox.classList.add("hidden");
+          } else {
+            if (statusText) statusText.textContent = `Notice on ${file ? file.name : 'PDF'}: ${err.detail || 'Could not process PDF'}. Continuing batch...`;
+          }
         }
       } catch (err) {
         console.error("PDF upload error:", err);
-        alert(`PDF extraction error ("${file ? file.name : 'file'}"): ` + err.message);
-        if (statusBox) statusBox.classList.add("hidden");
+        if (totalFiles <= 1) {
+          alert(`PDF extraction error ("${file ? file.name : 'file'}"): ` + err.message);
+          if (statusBox) statusBox.classList.add("hidden");
+        } else {
+          if (statusText) statusText.textContent = `Error reading ${file ? file.name : 'PDF'}. Continuing batch...`;
+        }
       }
     }
 
@@ -4415,7 +4424,7 @@
       if (progressBar) progressBar.style.width = "40%";
 
       const formData = new FormData();
-      files.forEach(f => formData.append("files", f));
+      files.forEach(f => formData.append("files", f, f.name));
       const c = caseRegistry[activeCaseId] || {};
       if (c.applicant_name) formData.append("applicant_name", c.applicant_name);
       if (c.address) formData.append("target_address", c.address);
@@ -5185,7 +5194,7 @@
               <!-- Modal Front Face -->
               <div class="doc-flip-face doc-flip-front flex flex-col items-center justify-center bg-slate-900 rounded-xl overflow-hidden border border-white/20">
                 <img id="zoomFrontImg" src="" class="w-full h-full object-contain pointer-events-none" alt="Document Front Inspection"/>
-                <div class="absolute bottom-3 inset-x-4 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-white flex items-center justify-between font-mono pointer-events-auto">
+                <div class="absolute top-3 inset-x-4 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-white flex items-center justify-between font-mono pointer-events-auto shadow-md">
                   <span id="zoomFrontLabel" class="truncate pr-2">Document Front Side</span>
                   <button type="button" onclick="flipZoomCard()" class="text-blue-300 hover:text-blue-200 font-bold flex items-center gap-1 shrink-0"><span class="material-symbols-outlined text-[14px]">sync</span> Flip to Back</button>
                 </div>
@@ -5193,7 +5202,7 @@
               <!-- Modal Back Face -->
               <div class="doc-flip-face doc-flip-back flex flex-col items-center justify-center bg-slate-900 rounded-xl overflow-hidden border border-white/20">
                 <img id="zoomBackImg" src="" class="w-full h-full object-contain pointer-events-none" alt="Document Back Inspection"/>
-                <div class="absolute bottom-3 inset-x-4 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-white flex items-center justify-between font-mono pointer-events-auto">
+                <div class="absolute top-3 inset-x-4 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-white flex items-center justify-between font-mono pointer-events-auto shadow-md">
                   <span id="zoomBackLabel" class="truncate pr-2">Document Back Side</span>
                   <button type="button" onclick="flipZoomCard()" class="text-blue-300 hover:text-blue-200 font-bold flex items-center gap-1 shrink-0"><span class="material-symbols-outlined text-[14px]">sync</span> Flip to Front</button>
                 </div>

@@ -837,11 +837,14 @@ def burst_and_separate_pdf_with_llm(
     total_pages = len(doc)
     logger.info("Bursting PDF '%s' (%d pages) for case %s", pdf_path, total_pages, case_id)
 
+    pdf_base = os.path.splitext(os.path.basename(pdf_path))[0]
+    safe_slug = re.sub(r'[^a-zA-Z0-9_-]', '_', pdf_base)[:20]
+
     pages = []
     for page_num in range(total_pages):
         page = doc.load_page(page_num)
         page_idx = page_num + 1
-        img_name = f"page_{page_idx}.jpg"
+        img_name = f"{safe_slug}_page_{page_idx}.jpg"
         storage_img_path = os.path.join(storage_dir, img_name)
         static_img_path = os.path.join(static_dir, img_name)
         pix = page.get_pixmap(dpi=200)

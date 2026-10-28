@@ -2,7 +2,7 @@ import io
 import os
 from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 try:
     import piexif
@@ -151,6 +151,7 @@ def stamp_hard_watermark(
     ist_time_str = timestamp_ist.strftime("%d-%b-%Y %H:%M:%S IST")
 
     with Image.open(input_image_path) as img:
+        img = ImageOps.exif_transpose(img)
         img = img.convert("RGB")
         width, height = img.size
 
