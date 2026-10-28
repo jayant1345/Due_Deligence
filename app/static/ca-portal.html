@@ -111,14 +111,14 @@
   <div class="sticky top-0 z-50 bg-surface-container-lowest shadow-sm border-b border-outline-variant">
     <!-- TOP APP BAR -->
     <header class="border-b border-outline-variant/60 bg-surface-container-lowest">
-      <div class="w-full px-4 lg:px-8 flex justify-between items-center min-h-[68px] py-2 max-w-[1440px] mx-auto gap-3 flex-wrap sm:flex-nowrap">
+      <div class="w-full px-3 lg:px-6 flex justify-between items-center min-h-[64px] py-1.5 mx-auto gap-2 flex-wrap xl:flex-nowrap">
         <!-- Brand & Profile -->
-        <div class="flex items-center gap-3 shrink-0 py-1">
-          <div class="flex items-center gap-3">
-            <img src="/static/nn_shah_logo_3d.png" alt="Naimish N. Shah & Co. Chartered Accountants" class="h-11 w-auto object-contain drop-shadow-sm shrink-0"/>
-            <div class="border-l-2 border-outline-variant/70 pl-3">
-              <div class="font-headline font-bold text-sm lg:text-base text-primary-container tracking-tight leading-snug">CPV & LOAN DUE DILIGENCE PORTAL</div>
-              <div class="font-mono text-[10px] text-outline flex items-center gap-1.5 mt-0.5">
+        <div class="flex items-center gap-2.5 shrink-0 py-1">
+          <div class="flex items-center gap-2.5">
+            <img src="/static/nn_shah_logo_3d.png" alt="Naimish N. Shah & Co. Chartered Accountants" class="h-10 w-auto object-contain drop-shadow-sm shrink-0"/>
+            <div class="border-l-2 border-outline-variant/70 pl-2.5">
+              <div class="font-headline font-bold text-xs lg:text-sm text-primary-container tracking-tight leading-snug">CPV & LOAN DUE DILIGENCE PORTAL</div>
+              <div class="font-mono text-[9px] text-outline flex items-center gap-1 mt-0.5">
                 <span class="font-bold text-on-surface">ICAI FRN: 106829W</span>
                 <span class="inline-block w-1 h-1 rounded-full bg-outline"></span>
                 <span>Navrangpura, Ahmedabad</span>
@@ -126,52 +126,56 @@
             </div>
           </div>
 
-          <div class="hidden 2xl:flex items-center gap-2 pl-4 border-l border-outline-variant shrink-0">
+          <div class="hidden 2xl:flex items-center gap-1.5 pl-3 border-l border-outline-variant shrink-0">
             <span class="relative flex h-2 w-2">
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
               <span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
             </span>
-            <span class="font-mono text-[11px] text-secondary bg-surface-container-low px-2 py-0.5 rounded border border-secondary/30 whitespace-nowrap">
+            <span class="font-mono text-[10px] text-secondary bg-surface-container-low px-2 py-0.5 rounded border border-secondary/30 whitespace-nowrap">
               Empanelled: Union Bank • SBI • HDFC • ICICI • Axis
             </span>
           </div>
         </div>
 
         <!-- Navigation Links with Interactive View Switcher Tabs -->
-        <nav class="hidden lg:flex items-center gap-2 text-sm shrink-0">
-          <button id="navTabScrutiny" onclick="switchMainPortalView('scrutiny')" class="px-3.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 bg-primary-container text-white shadow-xs transition-all">
-            <span class="material-symbols-outlined text-[16px]">visibility</span>
-            <span>Current Scrutiny (ચકાસણી ડેસ્ક)</span>
+        <nav class="flex items-center gap-1.5 text-xs flex-nowrap">
+          <button id="navTabScrutiny" onclick="switchMainPortalView('scrutiny')" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-primary-container text-white shadow-xs transition-all whitespace-nowrap" title="Current Scrutiny (ચકાસણી ડેસ્ક)">
+            <span class="material-symbols-outlined text-[15px]">visibility</span>
+            <span>Current Scrutiny</span>
+            <span class="text-[10px] opacity-75 hidden xl:inline">(ચકાસણી)</span>
           </button>
-          <button id="navTabNewCase" onclick="switchMainPortalView('newcase')" class="px-3.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 bg-surface-container-low text-emerald-800 hover:bg-emerald-50 border border-emerald-300 transition-colors shadow-2xs" title="New Case Intake & Automated AI Document Scanning">
-            <span class="material-symbols-outlined text-[16px] text-emerald-600">add_circle</span>
-            <span>➕ New Case Intake (નવો કેસ ઉમેરો)</span>
+          <button id="navTabNewCase" onclick="switchMainPortalView('newcase')" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-surface-container-low text-emerald-800 hover:bg-emerald-50 border border-emerald-300 transition-colors shadow-2xs whitespace-nowrap" title="New Case Intake & Automated AI Document Scanning (નવો કેસ ઉમેરો)">
+            <span class="material-symbols-outlined text-[15px] text-emerald-600">add_circle</span>
+            <span>+ New Case</span>
+            <span class="text-[10px] opacity-75 hidden xl:inline">(નવો કેસ)</span>
           </button>
-          <button id="navTabManagement" onclick="switchMainPortalView('management')" class="px-3.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 bg-surface-container-low text-on-surface hover:bg-surface-container border border-outline-variant transition-colors">
-            <span class="material-symbols-outlined text-[16px]">table_chart</span>
-            <span>Case Management & Records (મેનેજમેન્ટ પોર્ટલ)</span>
-            <span id="navCaseCountBadge" class="bg-primary-container/10 text-primary-container px-1.5 py-0.2 rounded font-mono text-[10px] font-bold">6</span>
+          <button id="navTabManagement" onclick="switchMainPortalView('management')" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-surface-container-low text-on-surface hover:bg-surface-container border border-outline-variant transition-colors whitespace-nowrap" title="Case Management & Records (મેનેજમેન્ટ પોર્ટલ)">
+            <span class="material-symbols-outlined text-[15px] text-primary-container">table_chart</span>
+            <span>Case Management</span>
+            <span class="text-[10px] opacity-75 hidden 2xl:inline">(મેનેજમેન્ટ)</span>
+            <span id="navCaseCountBadge" class="bg-primary-container/10 text-primary-container px-1.5 py-0.2 rounded font-mono text-[10px] font-bold">8</span>
           </button>
-          <button id="navTabVault" onclick="switchMainPortalView('vault')" class="px-3.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 bg-surface-container-low text-on-surface hover:bg-surface-container border border-outline-variant transition-colors" title="View & store Form 16, Payslips, Bank Statements, Sale Deed, Index II">
-            <span class="material-symbols-outlined text-[16px]">folder_special</span>
-            <span>Document Vault (દસ્તાવેજ સંગ્રહ)</span>
+          <button id="navTabVault" onclick="switchMainPortalView('vault')" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-surface-container-low text-on-surface hover:bg-surface-container border border-outline-variant transition-colors whitespace-nowrap" title="View & store Form 16, Payslips, Bank Statements, Sale Deed, Index II">
+            <span class="material-symbols-outlined text-[15px] text-amber-600">folder_special</span>
+            <span>Vault</span>
+            <span class="text-[10px] opacity-75 hidden 2xl:inline">(સંગ્રહ)</span>
             <span id="navVaultCountBadge" class="bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-mono text-[10px] font-bold">8 Files</span>
           </button>
-          <a class="px-2.5 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors" href="/pwa" target="_blank">Mobile PWA</a>
-          <a class="px-2.5 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors" href="/api/docs" target="_blank">API Docs</a>
+          <a class="px-2 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors hidden 2xl:inline whitespace-nowrap" href="/pwa" target="_blank">Mobile PWA</a>
+          <a class="px-2 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors hidden 2xl:inline whitespace-nowrap" href="/api/docs" target="_blank">API Docs</a>
         </nav>
 
         <!-- User Info & Actions -->
-        <div class="flex items-center gap-3 shrink-0">
-          <div id="caAvatarBadge" class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs shrink-0">
+        <div class="flex items-center gap-2 shrink-0">
+          <div id="caAvatarBadge" class="w-7 h-7 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-[11px] shrink-0">
             PS
           </div>
-          <div class="hidden sm:block text-left">
+          <div class="hidden xl:block text-left">
             <div id="caUserFullName" class="text-xs font-semibold text-on-surface leading-tight">CA Pranav N. Shah, FCA</div>
-            <div id="caUserRoleTag" class="font-mono text-[10px] text-outline">admin • Sr. Partner</div>
+            <div id="caUserRoleTag" class="font-mono text-[9px] text-outline">admin • Sr. Partner</div>
           </div>
-          <button onclick="handleCaLogout()" class="px-2.5 py-1.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-mono font-bold flex items-center gap-1 transition-colors" title="Logout from Scrutiny Desk">
-            <span class="material-symbols-outlined text-[15px]">logout</span>
+          <button onclick="handleCaLogout()" class="px-2 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-mono font-bold flex items-center gap-1 transition-colors" title="Logout from Scrutiny Desk">
+            <span class="material-symbols-outlined text-[14px]">logout</span>
             <span class="hidden md:inline">Sign Out</span>
           </button>
         </div>
@@ -4087,40 +4091,40 @@
         if (mgmtPortal) mgmtPortal.classList.remove("hidden");
         if (vaultPortal) vaultPortal.classList.add("hidden");
         if (newCasePortal) newCasePortal.classList.add("hidden");
-        if (tabMgmt) tabMgmt.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
-        if (tabScrutiny) tabScrutiny.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
-        if (tabVault) tabVault.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
-        if (tabNewCase) tabNewCase.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1.5 transition-all";
+        if (tabMgmt) tabMgmt.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1 transition-all bg-primary-container text-white shadow-xs whitespace-nowrap";
+        if (tabScrutiny) tabScrutiny.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabVault) tabVault.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabNewCase) tabNewCase.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1 transition-all whitespace-nowrap";
         renderManagementPortal();
       } else if (view === "vault") {
         if (scrutinyDesk) scrutinyDesk.classList.add("hidden");
         if (mgmtPortal) mgmtPortal.classList.add("hidden");
         if (vaultPortal) vaultPortal.classList.remove("hidden");
         if (newCasePortal) newCasePortal.classList.add("hidden");
-        if (tabVault) tabVault.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
-        if (tabScrutiny) tabScrutiny.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
-        if (tabMgmt) tabMgmt.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
-        if (tabNewCase) tabNewCase.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1.5 transition-all";
+        if (tabVault) tabVault.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1 transition-all bg-primary-container text-white shadow-xs whitespace-nowrap";
+        if (tabScrutiny) tabScrutiny.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabMgmt) tabMgmt.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabNewCase) tabNewCase.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1 transition-all whitespace-nowrap";
         renderCaseDocumentVault(activeCaseId);
       } else if (view === "newcase") {
         if (scrutinyDesk) scrutinyDesk.classList.add("hidden");
         if (mgmtPortal) mgmtPortal.classList.add("hidden");
         if (vaultPortal) vaultPortal.classList.add("hidden");
         if (newCasePortal) newCasePortal.classList.remove("hidden");
-        if (tabNewCase) tabNewCase.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/50";
-        if (tabScrutiny) tabScrutiny.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
-        if (tabMgmt) tabMgmt.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
-        if (tabVault) tabVault.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
+        if (tabNewCase) tabNewCase.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1 transition-all bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/50 whitespace-nowrap";
+        if (tabScrutiny) tabScrutiny.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabMgmt) tabMgmt.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabVault) tabVault.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
         initNewCaseTabFields();
       } else {
         if (scrutinyDesk) scrutinyDesk.classList.remove("hidden");
         if (mgmtPortal) mgmtPortal.classList.add("hidden");
         if (vaultPortal) vaultPortal.classList.add("hidden");
         if (newCasePortal) newCasePortal.classList.add("hidden");
-        if (tabScrutiny) tabScrutiny.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 transition-all bg-primary-container text-white shadow-xs";
-        if (tabMgmt) tabMgmt.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
-        if (tabVault) tabVault.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all";
-        if (tabNewCase) tabNewCase.className = "px-3.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1.5 transition-all";
+        if (tabScrutiny) tabScrutiny.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1 transition-all bg-primary-container text-white shadow-xs whitespace-nowrap";
+        if (tabMgmt) tabMgmt.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabVault) tabVault.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabNewCase) tabNewCase.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1 transition-all whitespace-nowrap";
         renderVaultMini();
       }
     }
