@@ -346,6 +346,61 @@ async def re_watermark_case_documents(
     }
 
 
+@router.post("/{case_id}/purge-unrelated-documents")
+async def purge_unrelated_documents(
+    case_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Remove all wrong/unrelated documents (e.g. accidentally uploaded files from other cases
+    like Narendrakumar Patel or Nirav Borana) from the given case, keeping only the genuine
+    documents for this applicant.
+    """
+    loan_case = await resolve_loan_case(db, case_id)
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
+
+    query = select(CaseDocument).where(CaseDocument.case_id == loan_case.id)
+    result = await db.execute(query)
+    docs = result.scalars().all()
+
+    purged_count = 0
+    purged_details = []
+
+    for doc in docs:
+        if isinstance(doc.ocr_data, dict) and doc.ocr_data.get("source") == "pdf_ingest":
+            holder = (doc.ocr_data.get("holder_name") or "").upper()
+            pan = (doc.ocr_data.get("extracted_pan") or doc.ocr_data.get("pan_number") or "").upper()
+            title = (doc.ocr_data.get("document_title") or "").upper()
+
+            # For Bhavnaben Pargi's case:
+            # Legitimate holders are Bhavnaben Pargi, her husband Balvantsinh Bamaniya/Pargi,
+            # or continuation pages with no conflicting person.
+            # Any document belonging to Narendrakumar Patel, Nirav Borana, or PAN AOCPP0563R/DZZPB1217D is wrong.
+            is_wrong = any(
+                w in holder for w in ["NARENDRA", "NIRAV", "BORANA", "PATEL NARENDRA"]
+            ) or any(
+                p in pan for p in ["AOCPP0563R", "DZZPB1217D"]
+            )
+
+            if is_wrong:
+                purged_details.append(f"{holder} ({pan}) - {title}")
+                await db.delete(doc)
+                purged_count += 1
+
+    await db.commit()
+    await _refresh_case_relationships(db, loan_case)
+    await db.commit()
+
+    return {
+        "status": "success",
+        "case_no": loan_case.case_no,
+        "purged_count": purged_count,
+        "purged_details": purged_details,
+        "message": f"Successfully removed {purged_count} wrong documents from case {loan_case.case_no}!"
+    }
+
+
 @router.get("/{case_id}/documents")
 async def list_case_documents(
     case_id: str,
