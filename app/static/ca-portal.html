@@ -1637,13 +1637,11 @@
               <input id="tabNcLoanAmount" type="text" value="₹ 45,00,000" placeholder="e.g. 45,00,000" class="w-full text-xs font-mono font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
             </div>
             <div>
-              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Assign Field Staff*</label>
-              <select id="tabNcFieldStaff" class="w-full text-xs font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
-                <option value="Rajesh Varma (Field Officer - FA-9042)" selected>Rajesh Varma (West Zone - Gota/Sola)</option>
-                <option value="Nilesh & Kamal Bhai (Field Team)">Nilesh & Kamal Bhai (Gandhinagar)</option>
-                <option value="Amit Trivedi (Field Officer)">Amit Trivedi (North Zone)</option>
-                <option value="Pooja Patel (Field Officer)">Pooja Patel (Central Zone)</option>
-              </select>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Field Staff Allotment (હસ્તાંતરણ)</label>
+              <div class="p-2 rounded-lg bg-surface-container-low border border-outline-variant text-[11px] font-mono text-outline flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-amber-600 text-[16px]">pending_actions</span>
+                <span class="text-on-surface font-semibold">Unassigned • Manual Handover from Scrutiny Desk</span>
+              </div>
             </div>
           </div>
 
@@ -4268,7 +4266,7 @@
             target_address: address,
             target_lat: 23.1030,
             target_lon: 72.5350,
-            assigned_agent_id: "f86a8bfd-282a-4ac6-a7f8-d7f3b064697d"
+            assigned_agent_id: null
           })
         });
 
@@ -4292,7 +4290,7 @@
         newCaseId = "case-" + Date.now();
       }
 
-      // Register into client master caseRegistry
+      // Register into client master caseRegistry as DRAFT (Unassigned - Manual Handover)
       caseRegistry[newCaseId] = buildCaseEntry({
         case_no: caseNo,
         bank: bank,
@@ -4300,14 +4298,14 @@
         applicant_name: applicantName,
         phone: phone,
         month: "October 2026",
-        allotted_by: "CA Office Allotment",
+        allotted_by: "Pending Manual Handover",
         loan_type: loanType,
         loan_amount: loanAmount,
         address: address,
-        agent: fieldStaff,
+        agent: "Not yet allotted",
         benchmark_lat: "23.1030",
         benchmark_lon: "72.5350",
-        status: "ASSIGNED"
+        status: "DRAFT"
       });
       caseRegistry[caseNo] = caseRegistry[newCaseId];
 
@@ -4386,17 +4384,16 @@
       }
 
       if (progressBar) progressBar.style.width = "100%";
-      if (progressPercent) progressPercent.textContent = "100%";
-      if (statusDetail) statusDetail.textContent = `✓ Ingestion complete! New case ${caseNo} is isolated and allotted to ${fieldStaff}.`;
+      if (statusDetail) statusDetail.textContent = `✓ Ingestion complete! Case ${caseNo} is created with all documents arranged. Status: PENDING (Manual Handover).`;
 
       setTimeout(() => {
         if (launchBtn) {
           launchBtn.disabled = false;
           launchBtn.classList.remove("opacity-60", "cursor-not-allowed");
         }
-        alert(`[Case Onboarding & AI Scan Complete]\nCase Reference: ${caseNo}\nBank: ${bank}\nApplicant: ${applicantName}\nAllotted Staff: ${fieldStaff}\n\nThe case is now active in Case Management and Scrutiny Desk!`);
+        alert(`[Case Onboarding & AI Scan Complete]\nCase Reference: ${caseNo}\nBank: ${bank}\nApplicant: ${applicantName}\nField Staff: Unassigned (Pending Manual Handover)\n\nThe case is now active on your Scrutiny Desk! Use the Handover button whenever you are ready to dispatch it to field staff.`);
         onCaseSelected(newCaseId);
-        switchMainPortalView("management");
+        switchMainPortalView("scrutiny");
       }, 1000);
     }
 
