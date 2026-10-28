@@ -17,6 +17,7 @@ from sqlalchemy import asc, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_current_ca_user, require_role
 from app.api.v1.auth import login_aliases
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.document import CaseDocument, DocumentType, VerificationStatus
 from app.models.loan_case import CaseStatus, LoanCase
