@@ -14,7 +14,7 @@
   <!-- Leaflet (satellite geofence map) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
-  <script src="/static/geofence-map.js?v=1"></script>
+  <script src="/static/geofence-map.js?v=2"></script>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -862,6 +862,9 @@
             <button type="button" onclick="fitGeofenceMap()" class="px-2 py-1 rounded-md border border-outline-variant bg-surface-container-lowest hover:bg-surface-container font-bold text-on-surface-variant flex items-center gap-1" title="Re-centre on benchmark and agent">
               <span class="material-symbols-outlined text-[15px]">center_focus_strong</span>Fit
             </button>
+            <button type="button" id="gfBtnLocate" onclick="locateBenchmarkFromAddress()" class="px-2 py-1 rounded-md border border-blue-300 bg-blue-50 hover:bg-blue-100 font-bold text-primary-container flex items-center gap-1" title="Find the bank address (pincode / area / landmark) on the map">
+              <span class="material-symbols-outlined text-[15px]">travel_explore</span>Locate from Address
+            </button>
             <button type="button" id="gfBtnAdjust" onclick="startBenchmarkAdjust()" class="px-2 py-1 rounded-md border border-red-300 bg-red-50 hover:bg-red-100 font-bold text-red-700 flex items-center gap-1" title="Drag the red benchmark pin onto the actual building">
               <span class="material-symbols-outlined text-[15px]">edit_location_alt</span>Adjust Pin
             </button>
@@ -874,6 +877,12 @@
         <!-- Benchmark adjust bar (shown only while adjusting) -->
         <div id="gfAdjustBar" class="hidden rounded-md border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900 space-y-1.5">
           <div class="font-bold">Drag the red BENCHMARK pin (or click on the map) to place it on the actual building.</div>
+          <form onsubmit="event.preventDefault(); searchBenchmarkPlace();" class="flex gap-1.5">
+            <input id="gfSearchInput" type="text" placeholder="Search society, landmark, area or pincode…" class="flex-1 min-w-0 text-[11px] rounded-md border border-outline-variant bg-white px-2 py-1 focus:ring-primary-container"/>
+            <button type="submit" id="gfBtnSearch" class="px-2.5 py-1 rounded-md bg-primary-container text-white font-bold flex items-center gap-1">
+              <span class="material-symbols-outlined text-[15px]">search</span>Find
+            </button>
+          </form>
           <div class="flex flex-wrap items-center justify-between gap-2">
             <span id="gfAdjustCoords" class="font-mono">—</span>
             <div class="flex gap-1.5">
@@ -883,6 +892,7 @@
           </div>
         </div>
         <div id="gfMapStatus" class="hidden text-[11px] font-bold"></div>
+        <div id="gfPrecisionBadge" class="hidden text-[11px] rounded-md px-2.5 py-1.5 border"></div>
 
         <!-- Interactive Satellite Geofence Map -->
         <div class="relative w-full h-72 rounded-lg bg-slate-900 overflow-hidden border border-outline-variant">
@@ -2459,7 +2469,10 @@
       const radarDist = document.getElementById("dispRadarDistance");
       if (radarDist) radarDist.textContent = `${dist}m / Max 150m Safe Harbor`;
       const radarBar = document.getElementById("dispRadarBar");
-      if (radarBar) radarBar.style.width = Math.min(100, Math.round((dist / 150) * 100)) + "%";
+      if (radarBar) {
+        radarBar.style.width = Math.min(100, Math.round((dist / 150) * 100)) + "%";
+        radarBar.className = `${isCompliant ? "bg-secondary" : "bg-red-500"} h-full rounded-full`;
+      }
       const radarAgentPin = document.getElementById("dispRadarAgentPin");
       if (radarAgentPin) radarAgentPin.textContent = `FA-LIVE (${dist}m)`;
       const geoBadge = document.getElementById("dispGeofenceHeaderBadge");
@@ -2555,6 +2568,139 @@
       showGeofenceStatus._t = setTimeout(() => el.classList.add("hidden"), 6000);
     }
 
+    // ---- Address -> benchmark lookup (OpenStreetMap, via /api/v1/geocode) ----
+    let gfPendingLookup = null;   // {lat, lon, info} of the last lookup shown in adjust mode
+
+    // Database id of a case: new cases carry db_id, built-in seed cases found in the DB carry server_id.
+    function gfServerId(c) { return c.db_id || c.server_id || null; }
+    const GF_PRECISION_STYLE = {
+      CA_VERIFIED: ["bg-emerald-50 text-emerald-800 border-emerald-300", "✓ CA-VERIFIED PIN"],
+      LANDMARK: ["bg-emerald-50 text-emerald-800 border-emerald-300", "📍 LANDMARK MATCH"],
+      LOCALITY: ["bg-amber-50 text-amber-900 border-amber-300", "◎ AREA-LEVEL"],
+      PINCODE: ["bg-orange-50 text-orange-900 border-orange-300", "◎ PINCODE-LEVEL"],
+      CITY: ["bg-red-50 text-red-800 border-red-300", "⚠ CITY-LEVEL ONLY"],
+    };
+    const GF_ZOOM = { LANDMARK: 17, LOCALITY: 15, PINCODE: 14, CITY: 12 };
+
+    function setPrecisionBadge(info, pending) {
+      const el = document.getElementById("gfPrecisionBadge");
+      if (!el) return;
+      if (pending) {
+        el.className = "text-[11px] rounded-md px-2.5 py-1.5 border bg-blue-50 text-blue-800 border-blue-200";
+        el.textContent = "Locating property from bank address (pincode / area / landmark)…";
+        return;
+      }
+      if (!info || !info.precision) {
+        el.className = "hidden";
+        return;
+      }
+      const [cls, label] = GF_PRECISION_STYLE[info.precision] || GF_PRECISION_STYLE.CITY;
+      el.className = `text-[11px] rounded-md px-2.5 py-1.5 border ${cls}`;
+      el.textContent = `${label}${info.matched ? ` (${info.matched})` : ""}: ${info.precision_note || ""}`;
+    }
+
+    // Single place that changes a case's benchmark in the UI and re-scores the geofence.
+    function applyBenchmark(c, lat, lon) {
+      c.benchmark_lat = lat;
+      c.benchmark_lon = lon;
+      if (caseRegistry[activeCaseId] !== c) return;
+      document.getElementById("dispRadarBenchmark").textContent = `BENCHMARK: ${lat}° N, ${lon}° E`;
+      const coordsBadge = document.getElementById("dispCoordinatesBadge");
+      if (coordsBadge && (c.distance_m === null || c.distance_m === undefined)) {
+        coordsBadge.textContent = `○ NOT YET VISITED (benchmark ${lat}° N, ${lon}° E)`;
+      }
+      recomputeGeofence(c);
+      refreshGeofenceMap(true);
+      setPrecisionBadge(c.benchmark_precision);
+    }
+
+    async function geocodeLookup(address) {
+      const res = await fetch(`/api/v1/geocode?address=${encodeURIComponent(address)}`, { headers: authHeaders() });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    function showLookupInAdjustMode(r) {
+      const m = getGeofenceMap();
+      if (!m) return;
+      if (!m.isEditing()) startBenchmarkAdjust();
+      gfPendingLookup = { lat: r.lat, lon: r.lon, info: { precision: r.precision, precision_note: r.precision_note, matched: r.matched } };
+      m.previewBenchmark(r.lat, r.lon, GF_ZOOM[r.precision]);
+      setPrecisionBadge(gfPendingLookup.info);
+      document.getElementById("gfAdjustCoords").textContent = `FOUND: ${r.display_name || r.matched} → ${r.lat}° N, ${r.lon}° E. Drag the pin onto the exact building, then Save.`;
+    }
+
+    async function locateBenchmarkFromAddress() {
+      const c = caseRegistry[activeCaseId];
+      if (!c || !c.address) { showGeofenceStatus("This case has no address to locate.", false); return; }
+      const btn = document.getElementById("gfBtnLocate");
+      btn.disabled = true;
+      setPrecisionBadge(null, true);
+      try {
+        const r = await geocodeLookup(c.address);
+        if (!r) {
+          setPrecisionBadge(c.benchmark_precision);
+          showGeofenceStatus("Address not found on OpenStreetMap. Use Adjust Pin → search a nearby landmark or area.", false);
+          return;
+        }
+        showLookupInAdjustMode(r);
+      } catch (err) {
+        console.warn("locateBenchmarkFromAddress error:", err);
+        setPrecisionBadge(c.benchmark_precision);
+        showGeofenceStatus("Address lookup failed (network). Try again or place the pin manually.", false);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function searchBenchmarkPlace() {
+      const c = caseRegistry[activeCaseId];
+      const q = (document.getElementById("gfSearchInput").value || "").trim();
+      if (!c || q.length < 3) return;
+      const btn = document.getElementById("gfBtnSearch");
+      btn.disabled = true;
+      try {
+        // Search inside the case's own area first (its pincode / city anchor the result), then anywhere.
+        const r = (c.address && await geocodeLookup(`${q}, ${c.address}`)) || await geocodeLookup(q);
+        if (!r) { showGeofenceStatus(`"${q}" not found on OpenStreetMap. Try a nearby landmark, area name or pincode.`, false); return; }
+        showLookupInAdjustMode(r);
+      } catch (err) {
+        console.warn("searchBenchmarkPlace error:", err);
+        showGeofenceStatus("Search failed (network). Try again.", false);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Server cases: fill a placeholder benchmark from the bank address once per session, and
+    // learn how precise the stored benchmark is. The server never overwrites a real benchmark.
+    async function autoLocateCase(c) {
+      if (!c || !gfServerId(c) || c.auto_locate_checked) {
+        if (c && caseRegistry[activeCaseId] === c) setPrecisionBadge(c.benchmark_precision);
+        return;
+      }
+      c.auto_locate_checked = true;
+      setPrecisionBadge(null, true);
+      try {
+        const res = await fetch(`/api/v1/cases/${gfServerId(c)}/auto-locate`, { method: "POST", headers: authHeaders() });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const r = await res.json();
+        if (r.precision) c.benchmark_precision = { precision: r.precision, precision_note: r.precision_note, matched: r.matched };
+        const changed = Math.abs(parseFloat(c.benchmark_lat) - r.lat) > 1e-6 || Math.abs(parseFloat(c.benchmark_lon) - r.lon) > 1e-6;
+        if (r.lat != null && r.lon != null && changed) applyBenchmark(c, r.lat, r.lon);
+        if (caseRegistry[activeCaseId] === c) {
+          setPrecisionBadge(c.benchmark_precision);
+          if (r.updated) showGeofenceStatus(`Benchmark auto-located from bank address (${r.matched}). Verify with Adjust Pin.`, true);
+          else if (r.message) showGeofenceStatus(r.message, false);
+        }
+      } catch (err) {
+        c.auto_locate_checked = false;   // retry next time the case is opened
+        console.warn("autoLocateCase error:", err);
+        if (caseRegistry[activeCaseId] === c) setPrecisionBadge(c.benchmark_precision);
+      }
+    }
+
     function startBenchmarkAdjust() {
       const m = getGeofenceMap();
       if (!m || !caseRegistry[activeCaseId]) return;
@@ -2570,6 +2716,9 @@
       const m = getGeofenceMap();
       if (m && m.isEditing()) m.endEdit(false);
       gfEditCaseId = null;
+      gfPendingLookup = null;
+      const active = caseRegistry[activeCaseId];
+      setPrecisionBadge(active && active.benchmark_precision);
       document.getElementById("gfAdjustBar").classList.add("hidden");
       document.getElementById("gfBtnAdjust").classList.remove("hidden");
     }
@@ -2585,8 +2734,8 @@
       btn.disabled = true;
       btn.textContent = "Saving…";
       try {
-        if (c.db_id) {
-          const res = await fetch(`/api/v1/cases/${c.db_id}`, {
+        if (gfServerId(c)) {
+          const res = await fetch(`/api/v1/cases/${gfServerId(c)}`, {
             method: "PATCH",
             headers: authHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ target_lat: lat, target_lon: lon }),
@@ -2598,20 +2747,17 @@
             return;
           }
         }
-        c.benchmark_lat = lat;
-        c.benchmark_lon = lon;
+        // A pin left exactly where the address lookup put it keeps the lookup's precision;
+        // a pin the CA moved is a CA-verified benchmark.
+        const fromLookup = gfPendingLookup && Math.abs(gfPendingLookup.lat - lat) < 1e-6 && Math.abs(gfPendingLookup.lon - lon) < 1e-6;
+        c.benchmark_precision = fromLookup ? gfPendingLookup.info : { precision: "CA_VERIFIED", precision_note: "Benchmark placed by CA on the satellite map" };
+        gfPendingLookup = null;
         m.endEdit(true);
         gfEditCaseId = null;
         document.getElementById("gfAdjustBar").classList.add("hidden");
         document.getElementById("gfBtnAdjust").classList.remove("hidden");
-        document.getElementById("dispRadarBenchmark").textContent = `BENCHMARK: ${lat}° N, ${lon}° E`;
-        const coordsBadge = document.getElementById("dispCoordinatesBadge");
-        if (coordsBadge && (c.distance_m === null || c.distance_m === undefined)) {
-          coordsBadge.textContent = `○ NOT YET VISITED (benchmark ${lat}° N, ${lon}° E)`;
-        }
-        recomputeGeofence(c);
-        refreshGeofenceMap();
-        showGeofenceStatus(c.db_id ? `Benchmark locked at ${lat}° N, ${lon}° E (saved to case & audit log).` : `Benchmark set to ${lat}° N, ${lon}° E (demo case, not saved to server).`, true);
+        applyBenchmark(c, lat, lon);
+        showGeofenceStatus(gfServerId(c) ? `Benchmark locked at ${lat}° N, ${lon}° E (saved to case & audit log).` : `Benchmark set to ${lat}° N, ${lon}° E (demo case, not saved to server).`, true);
       } catch (err) {
         console.error("saveBenchmarkAdjust error:", err);
         showGeofenceStatus("Network error, benchmark not saved. Pin restored.", false);
@@ -3147,7 +3293,9 @@
       document.getElementById("dispRadarCapture").textContent = `CAPTURE: ${c.capture_lat}° N, ${c.capture_lon}° E`;
       document.getElementById("dispRadarDistance").textContent = visited ? `${c.distance_m}m / Max 150m Safe Harbor` : "Awaiting field visit";
       document.getElementById("dispRadarBar").style.width = visited ? Math.min(100, Math.round((c.distance_m / 150) * 100)) + "%" : "0%";
+      document.getElementById("dispRadarBar").className = `${visited && c.distance_m > 150 ? "bg-red-500" : "bg-secondary"} h-full rounded-full`;
       refreshGeofenceMap(true);
+      autoLocateCase(c);
 
       // 6. Update Dual Folder Site Evidence Photos
       renderPhotosForActiveFolder();
@@ -5444,6 +5592,13 @@
               phone: dc.applicant_phone, loan_type: dc.loan_type, loan_amount: dc.loan_amount, address: dc.target_address,
               benchmark_lat: dc.target_lat, benchmark_lon: dc.target_lon, status: dc.status, db_id: dc.id,
             });
+          } else {
+            // Built-in seed case that also exists in the database: the benchmark lives on the server.
+            caseRegistry[dc.id].server_id = dc.id;
+            if (dc.target_lat != null && dc.target_lon != null) {
+              caseRegistry[dc.id].benchmark_lat = dc.target_lat;
+              caseRegistry[dc.id].benchmark_lon = dc.target_lon;
+            }
           }
           if (dc.case_no) {
             caseRegistry[dc.case_no] = caseRegistry[dc.id];
@@ -5458,6 +5613,12 @@
         });
         if (typeof purgeDeletedCasesFromRegistry === "function") purgeDeletedCasesFromRegistry();
         updateGlobalCaseCounters();
+        // The open case may have been shown before its server benchmark was known.
+        const openCase = caseRegistry[activeCaseId];
+        if (openCase && gfServerId(openCase)) {
+          applyBenchmark(openCase, openCase.benchmark_lat, openCase.benchmark_lon);
+          autoLocateCase(openCase);
+        }
       } catch (e) {
         console.warn("Could not load cases from server:", e);
       }

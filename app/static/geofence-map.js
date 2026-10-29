@@ -199,6 +199,13 @@
       },
       getBaseLayer() { return baseMode; },
       isEditing() { return editing; },
+      /** While editing: move the benchmark pin to a looked-up point and zoom there (not saved). */
+      previewBenchmark(lat, lon, zoom) {
+        if (!editing) return;
+        previewBench(lat, lon);
+        map.invalidateSize();
+        map.setView([lat, lon], zoom || 17);
+      },
       startEdit() {
         if (!opts.editable) return;
         editing = true;

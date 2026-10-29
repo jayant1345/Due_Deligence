@@ -24,6 +24,7 @@ from app.models.loan_case import CaseStatus, LoanCase
 from app.models.report import AuditLog
 from app.models.user import User, UserRole
 from app.schemas.loan_case import CaseAssignRequest, CaseCreate, CaseResponse, CaseUpdate
+from app.services.geocoder import PRECISION_INFO, geocode_address, is_placeholder
 
 router = APIRouter(prefix="/cases", tags=["Case Management & Allocation"])
 
@@ -173,6 +174,62 @@ async def update_case(
     await db.commit()
     await db.refresh(loan_case)
     return loan_case
+
+
+@router.post("/{case_id}/auto-locate")
+async def auto_locate_case(
+    case_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_ca_user),
+):
+    """
+    Geocode the bank address into the benchmark coordinates, but only while the case still holds a
+    placeholder benchmark - a pin the CA placed or an earlier lookup is never overwritten.
+    Always returns the case's current benchmark and how precise it is.
+    """
+    loan_case = await resolve_loan_case(db, case_id)
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+
+    if not is_placeholder(loan_case.target_lat, loan_case.target_lon):
+        # Report where the current benchmark came from: a CA-placed pin or the last auto-locate.
+        logs = await db.execute(
+            select(AuditLog)
+            .where(AuditLog.case_id == loan_case.id, AuditLog.action.in_(["CASE_UPDATED", "BENCHMARK_AUTO_LOCATED"]))
+            .order_by(desc(AuditLog.timestamp))
+            .limit(25)
+        )
+        precision, matched = None, None
+        for log in logs.scalars():
+            meta = log.extra_metadata or {}
+            if log.action == "BENCHMARK_AUTO_LOCATED":
+                precision, matched = meta.get("precision"), meta.get("matched")
+                break
+            if "target_lat" in meta:
+                precision = "CA_VERIFIED"
+                break
+        return {
+            "updated": False, "lat": loan_case.target_lat, "lon": loan_case.target_lon,
+            "precision": precision, "precision_note": PRECISION_INFO.get(precision), "matched": matched,
+        }
+
+    result = await geocode_address(loan_case.target_address)
+    if not result:
+        return {
+            "updated": False, "lat": loan_case.target_lat, "lon": loan_case.target_lon, "precision": None,
+            "message": "Address not found on OpenStreetMap. Place the benchmark pin manually.",
+        }
+
+    loan_case.target_lat = result["lat"]
+    loan_case.target_lon = result["lon"]
+    db.add(AuditLog(
+        case_id=loan_case.id,
+        user_id=current_user.id,
+        action="BENCHMARK_AUTO_LOCATED",
+        extra_metadata={k: result[k] for k in ("lat", "lon", "precision", "matched", "display_name")},
+    ))
+    await db.commit()
+    return {"updated": True, **result}
 
 
 @router.delete("/{case_id}")
