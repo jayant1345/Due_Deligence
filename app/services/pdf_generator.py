@@ -21,6 +21,21 @@ from reportlab.platypus import (
 from app.core.config import settings
 
 
+def is_valid_image(path: Optional[str]) -> bool:
+    """Check if file exists and can be validly decoded by PIL without crashing ReportLab."""
+    if not path or not os.path.exists(path):
+        return False
+    try:
+        if os.path.getsize(path) < 100:
+            return False
+        from PIL import Image as PILImage
+        with PILImage.open(path) as img:
+            img.verify()
+        return True
+    except Exception:
+        return False
+
+
 def generate_certified_cpv_report(
     output_pdf_path: str,
     case_data: Dict[str, Any],
@@ -608,7 +623,7 @@ def generate_certified_cpv_report(
         if os.path.exists(cand):
             pan_img_path = cand
 
-    if pan_img_path and os.path.exists(pan_img_path):
+    if pan_img_path and is_valid_image(pan_img_path):
         try:
             story.append(Image(pan_img_path, width=6.2 * inch, height=4.2 * inch))
             story.append(Spacer(1, 4))
@@ -738,11 +753,11 @@ def generate_certified_cpv_report(
         "4. Street & Locality Infrastructure",
     ]
 
-    has_selfie = bool(selfie_img_path and os.path.exists(selfie_img_path))
+    has_selfie = bool(selfie_img_path and is_valid_image(selfie_img_path))
     p_height = 2.15 * inch if has_selfie else 2.45 * inch
 
     def _make_cell(idx):
-        if idx < len(res_photos) and os.path.exists(res_photos[idx]):
+        if idx < len(res_photos) and is_valid_image(res_photos[idx]):
             try:
                 return [
                     Image(res_photos[idx], width=3.3 * inch, height=p_height),
@@ -850,7 +865,7 @@ def generate_certified_cpv_report(
         ]
 
         def _make_off_cell(idx):
-            if idx < len(off_photos) and os.path.exists(off_photos[idx]):
+            if idx < len(off_photos) and is_valid_image(off_photos[idx]):
                 try:
                     return [Image(off_photos[idx], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{off_caps[idx] if idx < len(off_caps) else f'Office Photo {idx+1}'}</b>", ParagraphStyle(f"OffCap{idx}", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))]
                 except Exception:
