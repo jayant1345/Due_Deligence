@@ -14,7 +14,7 @@
   <!-- Leaflet (satellite geofence map) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
-  <script src="/static/geofence-map.js?v=2"></script>
+  <script src="/static/geofence-map.js?v=3"></script>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -893,6 +893,14 @@
         </div>
         <div id="gfMapStatus" class="hidden text-[11px] font-bold"></div>
         <div id="gfPrecisionBadge" class="hidden text-[11px] rounded-md px-2.5 py-1.5 border"></div>
+        <div id="gfApplicantInfo" class="hidden flex flex-wrap items-center justify-between gap-2 text-[11px] rounded-md px-2.5 py-1.5 border">
+          <span id="gfApplicantText"></span>
+          <button type="button" onclick="useApplicantLocationAsBenchmark()" class="px-2 py-0.5 rounded-md border border-blue-400 bg-white font-bold text-blue-700 hover:bg-blue-50">Use as Benchmark…</button>
+        </div>
+        <form onsubmit="event.preventDefault(); saveApplicantLocationPortal();" class="flex gap-1.5 text-[11px]">
+          <input id="gfApplicantInput" type="text" placeholder="Paste applicant's WhatsApp / Google Maps location link…" class="flex-1 min-w-0 text-[11px] rounded-md border border-outline-variant bg-surface-container-lowest px-2 py-1 focus:ring-primary-container"/>
+          <button type="submit" id="gfBtnApplicantSave" class="px-2.5 py-1 rounded-md bg-blue-700 text-white font-bold shrink-0">Save Location</button>
+        </form>
 
         <!-- Interactive Satellite Geofence Map -->
         <div class="relative w-full h-72 rounded-lg bg-slate-900 overflow-hidden border border-outline-variant">
@@ -909,6 +917,7 @@
             <div class="bg-black/70 px-2 py-1 rounded backdrop-blur border border-white/10 text-right space-y-0.5">
               <div class="flex items-center justify-end gap-1"><span class="w-2 h-2 rounded-full bg-red-600 border border-white"></span>Benchmark</div>
               <div class="flex items-center justify-end gap-1"><span class="w-2 h-2 rounded-full bg-green-600 border border-white"></span>Field Agent</div>
+              <div class="flex items-center justify-end gap-1"><span class="w-2 h-2 rounded-full bg-blue-600 border border-white"></span>Applicant (WhatsApp)</div>
               <div class="flex items-center justify-end gap-1"><span class="w-2 h-2 rounded-full border border-emerald-400"></span>150m Fence</div>
             </div>
           </div>
@@ -2531,6 +2540,7 @@
           benchLat: c.benchmark_lat, benchLon: c.benchmark_lon,
           agentLat: c.capture_lat, agentLon: c.capture_lon,
           agentLabel: visited ? `${c.agent_pin && c.agent_pin !== "—" ? c.agent_pin : "FIELD AGENT"} • ${c.distance_m}m` : "FIELD AGENT",
+          applicantLat: c.applicant_loc && c.applicant_loc.lat, applicantLon: c.applicant_loc && c.applicant_loc.lon,
           refit: !!refit,
         });
       }
@@ -2575,12 +2585,88 @@
     function gfServerId(c) { return c.db_id || c.server_id || null; }
     const GF_PRECISION_STYLE = {
       CA_VERIFIED: ["bg-emerald-50 text-emerald-800 border-emerald-300", "✓ CA-VERIFIED PIN"],
-      LANDMARK: ["bg-emerald-50 text-emerald-800 border-emerald-300", "📍 LANDMARK MATCH"],
+      LANDMARK: ["bg-emerald-50 text-emerald-800 border-emerald-300", "● LANDMARK MATCH"],
       LOCALITY: ["bg-amber-50 text-amber-900 border-amber-300", "◎ AREA-LEVEL"],
       PINCODE: ["bg-orange-50 text-orange-900 border-orange-300", "◎ PINCODE-LEVEL"],
       CITY: ["bg-red-50 text-red-800 border-red-300", "⚠ CITY-LEVEL ONLY"],
+      APPLICANT: ["bg-blue-50 text-blue-800 border-blue-300", "◉ APPLICANT-SHARED"],
     };
-    const GF_ZOOM = { LANDMARK: 17, LOCALITY: 15, PINCODE: 14, CITY: 12 };
+    const GF_ZOOM = { LANDMARK: 17, LOCALITY: 15, PINCODE: 14, CITY: 12, APPLICANT: 18 };
+
+    function renderApplicantInfo(c) {
+      const box = document.getElementById("gfApplicantInfo");
+      if (!box || caseRegistry[activeCaseId] !== c) return;
+      const a = c.applicant_loc;
+      if (!a) { box.className = "hidden"; return; }
+      // Measured here against the benchmark currently shown, so it stays right after the pin moves.
+      const bLat = parseFloat(c.benchmark_lat), bLon = parseFloat(c.benchmark_lon);
+      const d = window.GeofenceMap && !isNaN(bLat) && !isNaN(bLon)
+        ? window.GeofenceMap.distanceMeters(bLat, bLon, a.lat, a.lon) : a.distance_from_benchmark_m;
+      a.flagged = d !== null && d !== undefined && d > 2000;
+      const distText = d === null || d === undefined ? "" : ` • ${d >= 1000 ? (d / 1000).toFixed(1) + " km" : d + " m"} from benchmark`;
+      box.className = `flex flex-wrap items-center justify-between gap-2 text-[11px] rounded-md px-2.5 py-1.5 border ${a.flagged ? "bg-red-50 text-red-800 border-red-300" : "bg-blue-50 text-blue-900 border-blue-200"}`;
+      document.getElementById("gfApplicantText").textContent =
+        `◉ Applicant shared (WhatsApp, self-declared): ${a.lat.toFixed(6)}° N, ${a.lon.toFixed(6)}° E${distText}` +
+        (a.flagged ? " ⚠ FAR FROM BANK ADDRESS - scrutinise" : "") + (a.recorded_by ? ` • recorded by ${a.recorded_by}` : "");
+    }
+
+    async function loadApplicantLocationPortal(c) {
+      const id = gfServerId(c);
+      if (!id) return;
+      try {
+        const res = await fetch(`/api/v1/visits/cases/${encodeURIComponent(id)}/applicant-location`, { headers: authHeaders() });
+        if (!res.ok) return;
+        c.applicant_loc = await res.json();
+        if (caseRegistry[activeCaseId] === c) {
+          renderApplicantInfo(c);
+          refreshGeofenceMap(true);
+        }
+      } catch (err) {
+        console.warn("loadApplicantLocationPortal error:", err);
+      }
+    }
+
+    async function saveApplicantLocationPortal() {
+      const c = caseRegistry[activeCaseId];
+      const input = document.getElementById("gfApplicantInput");
+      const text = (input.value || "").trim();
+      if (!c || text.length < 3) return;
+      const id = gfServerId(c);
+      if (!id) { showGeofenceStatus("This is a demo case without a server record; location not saved.", false); return; }
+      const btn = document.getElementById("gfBtnApplicantSave");
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/v1/visits/cases/${encodeURIComponent(id)}/applicant-location`, {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ text }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showGeofenceStatus(typeof data.detail === "string" ? data.detail : `Could not save location (HTTP ${res.status}).`, false);
+          return;
+        }
+        input.value = "";
+        c.applicant_loc = data;
+        renderApplicantInfo(c);
+        refreshGeofenceMap(true);
+        showGeofenceStatus("Applicant's shared location saved (blue pin). It is self-declared - it does not change the benchmark.", true);
+      } catch (err) {
+        showGeofenceStatus("Network error, location not saved.", false);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function useApplicantLocationAsBenchmark() {
+      const c = caseRegistry[activeCaseId];
+      if (!c || !c.applicant_loc) return;
+      showLookupInAdjustMode({
+        lat: c.applicant_loc.lat, lon: c.applicant_loc.lon, precision: "APPLICANT",
+        precision_note: "Self-declared by applicant on WhatsApp - confirm it is the property on the satellite map before saving",
+        matched: "WhatsApp location", display_name: "Applicant's WhatsApp location",
+      });
+    }
 
     function setPrecisionBadge(info, pending) {
       const el = document.getElementById("gfPrecisionBadge");
@@ -2612,6 +2698,7 @@
       recomputeGeofence(c);
       refreshGeofenceMap(true);
       setPrecisionBadge(c.benchmark_precision);
+      renderApplicantInfo(c);
     }
 
     async function geocodeLookup(address) {
@@ -3296,6 +3383,8 @@
       document.getElementById("dispRadarBar").className = `${visited && c.distance_m > 150 ? "bg-red-500" : "bg-secondary"} h-full rounded-full`;
       refreshGeofenceMap(true);
       autoLocateCase(c);
+      renderApplicantInfo(c);
+      loadApplicantLocationPortal(c);
 
       // 6. Update Dual Folder Site Evidence Photos
       renderPhotosForActiveFolder();
@@ -5618,6 +5707,7 @@
         if (openCase && gfServerId(openCase)) {
           applyBenchmark(openCase, openCase.benchmark_lat, openCase.benchmark_lon);
           autoLocateCase(openCase);
+          loadApplicantLocationPortal(openCase);
         }
       } catch (e) {
         console.warn("Could not load cases from server:", e);

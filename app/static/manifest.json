@@ -7,6 +7,15 @@
   "background_color": "#F8FAFC",
   "theme_color": "#1E40AF",
   "orientation": "portrait",
+  "share_target": {
+    "action": "/pwa",
+    "method": "GET",
+    "params": {
+      "title": "shared_title",
+      "text": "shared_text",
+      "url": "shared_url"
+    }
+  },
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2830/2830284.png",

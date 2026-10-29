@@ -62,6 +62,11 @@ class FieldFormDataRequest(BaseModel):
     form_data: dict
 
 
+class ApplicantLocationRequest(BaseModel):
+    # Pasted WhatsApp / Google Maps / Apple Maps link, or "lat, long" text.
+    text: str = Field(..., min_length=3, max_length=2000)
+
+
 class VisitCheckInRequest(BaseModel):
     case_id: uuid.UUID
     current_lat: float

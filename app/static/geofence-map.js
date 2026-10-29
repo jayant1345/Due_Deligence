@@ -107,12 +107,14 @@
 
     const benchMarker = L.marker([0, 0], { icon: pinIcon("#dc2626", "BENCHMARK", true), draggable: false, zIndexOffset: 500, keyboard: false });
     const agentMarker = L.marker([0, 0], { icon: pinIcon("#16a34a", opts.agentLabel || "FIELD AGENT"), zIndexOffset: 1000, keyboard: false });
-    const fence = L.circle([0, 0], { radius: GEOFENCE_RADIUS_M, color: "#22c55e", weight: 2, fillColor: "#22c55e", fillOpacity: 0.12 });
+    const applicantMarker = L.marker([0, 0], { icon: pinIcon("#2563eb", "APPLICANT SHARED"), zIndexOffset: 300, keyboard: false });
+    const fence = L.circle([0, 0],{ radius: GEOFENCE_RADIUS_M, color: "#22c55e", weight: 2, fillColor: "#22c55e", fillOpacity: 0.12 });
     const link = L.polyline([], { color: "#facc15", weight: 2, dashArray: "6 6" });
 
     let bench = null;     // {lat, lon} currently displayed
     let saved = null;     // last committed benchmark (restored on cancel)
     let agent = null;
+    let applicant = null; // self-declared location the applicant shared (WhatsApp)
     let editing = false;
     let fittedKey = null; // avoid re-fitting the view on every live GPS tick
 
@@ -133,6 +135,8 @@
       }
       if (agent) agentMarker.setLatLng([agent.lat, agent.lon]).addTo(map);
       else map.removeLayer(agentMarker);
+      if (applicant) applicantMarker.setLatLng([applicant.lat, applicant.lon]).addTo(map);
+      else map.removeLayer(applicantMarker);
       if (bench && agent) link.setLatLngs([[bench.lat, bench.lon], [agent.lat, agent.lon]]).addTo(map);
       else map.removeLayer(link);
       return styleFence();
@@ -146,6 +150,10 @@
         pts.push(b.getSouthWest(), b.getNorthEast());
       }
       if (agent) pts.push(L.latLng(agent.lat, agent.lon));
+      // Include the applicant pin unless it is far away (a mismatch the CA sees in the flag, not by zooming out to a state).
+      if (applicant && (!bench || distanceMeters(bench.lat, bench.lon, applicant.lat, applicant.lon) < 20000)) {
+        pts.push(L.latLng(applicant.lat, applicant.lon));
+      }
       if (pts.length === 1) map.setView(pts[0], 17);
       else if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [28, 28], maxZoom: 18 });
     }
@@ -173,18 +181,20 @@
       map,
       distanceMeters,
       googleMapsUrl,
-      /** update({benchLat, benchLon, agentLat, agentLon, agentLabel, refit}) -> distance in metres or null */
+      /** update({benchLat, benchLon, agentLat, agentLon, agentLabel, applicantLat, applicantLon, refit}) -> distance in metres or null */
       update(state) {
         const bLat = num(state.benchLat), bLon = num(state.benchLon);
         const aLat = num(state.agentLat), aLon = num(state.agentLon);
+        const pLat = num(state.applicantLat), pLon = num(state.applicantLon);
         if (!editing) {
           bench = validPoint(bLat, bLon) ? { lat: bLat, lon: bLon } : null;
           saved = bench ? { ...bench } : null;
         }
         agent = validPoint(aLat, aLon) ? { lat: aLat, lon: aLon } : null;
+        applicant = validPoint(pLat, pLon) ? { lat: pLat, lon: pLon } : null;
         if (state.agentLabel) agentMarker.setIcon(pinIcon("#16a34a", state.agentLabel));
         const d = draw();
-        const key = `${bench ? bench.lat.toFixed(5) + "," + bench.lon.toFixed(5) : "-"}|${agent ? "a" : "-"}`;
+        const key = `${bench ? bench.lat.toFixed(5) + "," + bench.lon.toFixed(5) : "-"}|${agent ? "a" : "-"}|${applicant ? applicant.lat.toFixed(5) + "," + applicant.lon.toFixed(5) : "-"}`;
         if (!editing && (state.refit || key !== fittedKey)) { fittedKey = key; fit(); }
         return d;
       },

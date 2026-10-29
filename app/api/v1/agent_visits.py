@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_current_user_optional
 from app.core.database import get_db
@@ -13,12 +13,15 @@ from app.models.report import AuditLog
 from app.models.user import User, UserRole
 from app.schemas.document import DocumentUploadResponse
 from app.schemas.loan_case import (
+    ApplicantLocationRequest,
     FieldFormDataRequest,
     VisitCheckInRequest,
     VisitCheckOutRequest,
     VisitResponse,
 )
+from app.services.geocoder import is_placeholder
 from app.services.geofence import haversine_distance
+from app.services.location_link import parse_shared_location
 from app.services.storage import storage_service
 from app.workers.celery_tasks import process_uploaded_media_task
 
@@ -121,6 +124,91 @@ async def submit_field_visit_form(
     db.add(audit)
     await db.commit()
     return {"status": "SUCCESS", "message": "Field visit due diligence form saved successfully"}
+
+
+# An applicant-shared pin further than this from the benchmark is flagged for CA scrutiny.
+APPLICANT_LOCATION_FLAG_M = 2000
+
+
+def _applicant_location_view(loan_case: LoanCase, meta: dict) -> dict:
+    """Shared-location record plus its distance from the case's current benchmark."""
+    lat, lon = meta["lat"], meta["lon"]
+    distance_m = None
+    if not is_placeholder(loan_case.target_lat, loan_case.target_lon):
+        distance_m = round(haversine_distance(loan_case.target_lat, loan_case.target_lon, lat, lon))
+    return {
+        "lat": lat,
+        "lon": lon,
+        "shared_at": meta.get("shared_at"),
+        "recorded_by": meta.get("recorded_by"),
+        "distance_from_benchmark_m": distance_m,
+        "flagged": distance_m is not None and distance_m > APPLICANT_LOCATION_FLAG_M,
+    }
+
+
+@router.post("/cases/{case_id}/applicant-location")
+async def save_applicant_location(
+    case_id: uuid.UUID,
+    req: ApplicantLocationRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+):
+    """
+    Record the location the applicant shared on WhatsApp (link or "lat, long" text).
+    It is self-declared, so it is stored beside the benchmark - never as the benchmark.
+    """
+    result = await db.execute(select(LoanCase).where(LoanCase.id == case_id))
+    loan_case = result.scalar_one_or_none()
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
+
+    coords = await parse_shared_location(req.text)
+    if not coords:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No location found in this text. In WhatsApp open the applicant's location, tap it to open "
+                   "Google Maps, then Share → Copy link and paste it here.",
+        )
+
+    acting_user = await _resolve_agent_or_default(db, current_user, loan_case)
+    meta = {
+        "lat": round(coords[0], 6),
+        "lon": round(coords[1], 6),
+        "shared_at": datetime.now(timezone.utc).isoformat(),
+        "recorded_by": acting_user.full_name,
+        "source_text": req.text.strip()[:300],
+    }
+    db.add(AuditLog(
+        case_id=loan_case.id,
+        user_id=acting_user.id,
+        action="APPLICANT_LOCATION_SHARED",
+        extra_metadata=meta,
+    ))
+    await db.commit()
+    return _applicant_location_view(loan_case, meta)
+
+
+@router.get("/cases/{case_id}/applicant-location")
+async def get_applicant_location(
+    case_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+):
+    """Latest applicant-shared location for the case, or null when none was recorded."""
+    result = await db.execute(select(LoanCase).where(LoanCase.id == case_id))
+    loan_case = result.scalar_one_or_none()
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
+    logs = await db.execute(
+        select(AuditLog)
+        .where(AuditLog.case_id == loan_case.id, AuditLog.action == "APPLICANT_LOCATION_SHARED")
+        .order_by(desc(AuditLog.timestamp))
+        .limit(1)
+    )
+    log = logs.scalar_one_or_none()
+    if not log or not log.extra_metadata:
+        return None
+    return _applicant_location_view(loan_case, log.extra_metadata)
 
 
 @router.post("/cases/{case_id}/upload", response_model=DocumentUploadResponse, status_code=status.HTTP_202_ACCEPTED)
