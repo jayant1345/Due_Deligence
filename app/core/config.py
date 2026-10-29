@@ -74,10 +74,10 @@ class Settings(BaseSettings):
 
     # OpenRouter Gemini Vision for High-Accuracy, Cost-Effective Scanning
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
-    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash")
     OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
     # Native high-speed, cost-effective multimodal vision extraction
-    OPENROUTER_EXTRACTION_MODEL: str = os.getenv("OPENROUTER_EXTRACTION_MODEL", "google/gemini-2.0-flash-001")
+    OPENROUTER_EXTRACTION_MODEL: str = os.getenv("OPENROUTER_EXTRACTION_MODEL", "google/gemini-2.5-flash")
 
     # CPV Geofencing Rules
     GEOFENCE_MAX_DISTANCE_METERS: float = 150.0  # Safe harbor limit
