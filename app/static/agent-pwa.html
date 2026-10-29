@@ -1760,8 +1760,18 @@
                 alertText.textContent = `Upload Notice: ${errData.detail || 'Photo saved locally'}`;
               }
             } catch (netErr) {
-              alertBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-300 text-blue-900 text-xs font-mono shadow-sm";
-              alertText.textContent = "Offline Mode: Photo saved to PWA local storage queue. Will sync automatically.";
+              await enqueueOfflinePhoto({
+                sampleCaseId: sampleCaseId,
+                dataUrl: finalPreviewUrl,
+                fileName: file.name || `photo_slot_${activeUploadSlot}.jpg`,
+                docType: activeDocType || (isOffice ? "OFFICE_FACADE" : "PROPERTY_EXTERIOR"),
+                slotNumber: activeUploadSlot,
+                folder: isOffice ? "work" : "residence",
+                latitude: currentDeviceLat,
+                longitude: currentDeviceLon,
+              });
+              alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
+              alertText.innerHTML = `<b>📦 Offline Saved:</b> Photo queued in device memory. <b>It will upload automatically to CA Desk as soon as network is available</b>.`;
             }
           }, "image/jpeg", 0.92);
         };
@@ -2321,9 +2331,208 @@
       }
     }
 
-    function syncOfflineQueue() {
-      alert("PWA Sync Engine: Offline queue inspected. All cached items synced to Railway PostgreSQL.");
+    // ==========================================
+    // OFFLINE SYNC ENGINE (INDEXEDDB + AUTO-SYNC)
+    // ==========================================
+    const PWA_DB_NAME = "ValuexCpvOfflineDB";
+    const PWA_PHOTO_STORE = "offline_photos";
+
+    function openPwaDb() {
+      return new Promise((resolve) => {
+        try {
+          const req = indexedDB.open(PWA_DB_NAME, 2);
+          req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(PWA_PHOTO_STORE)) {
+              db.createObjectStore(PWA_PHOTO_STORE, { keyPath: "id", autoIncrement: true });
+            }
+          };
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => resolve(null);
+        } catch (e) {
+          resolve(null);
+        }
+      });
     }
+
+    async function enqueueOfflinePhoto(payload) {
+      const db = await openPwaDb();
+      if (db) {
+        try {
+          const tx = db.transaction(PWA_PHOTO_STORE, "readwrite");
+          tx.objectStore(PWA_PHOTO_STORE).add({ ...payload, created_at: Date.now() });
+        } catch (e) {
+          console.warn("IndexedDB photo queue write error:", e);
+        }
+      }
+      updateOfflineSyncIndicator();
+    }
+
+    async function getPendingOfflineCount() {
+      const db = await openPwaDb();
+      let photoCount = 0;
+      if (db) {
+        try {
+          photoCount = await new Promise((resolve) => {
+            const tx = db.transaction(PWA_PHOTO_STORE, "readonly");
+            const req = tx.objectStore(PWA_PHOTO_STORE).count();
+            req.onsuccess = () => resolve(req.result || 0);
+            req.onerror = () => resolve(0);
+          });
+        } catch (e) {
+          photoCount = 0;
+        }
+      }
+      let formCount = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("field_form_")) formCount++;
+      }
+      return photoCount + formCount;
+    }
+
+    async function updateOfflineSyncIndicator(statusMsg) {
+      const pill = document.getElementById("pwaStatusPill");
+      if (!pill) return;
+      if (statusMsg) {
+        pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></span> ${statusMsg}`;
+        pill.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-300 text-blue-800 font-mono text-[11px] font-medium";
+        return;
+      }
+      const count = await getPendingOfflineCount();
+      if (count > 0) {
+        pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> 📦 ${count} Offline (Auto-sync on network)`;
+        pill.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-800 font-mono text-[11px] font-bold";
+      } else {
+        pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> PWA Sync Ready`;
+        pill.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 font-mono text-[11px] font-medium";
+      }
+    }
+
+    let isSyncingNow = false;
+    async function syncOfflineQueue(isManual = false) {
+      if (isSyncingNow) return;
+      if (!navigator.onLine) {
+        if (isManual) alert("No internet connection detected yet. Photos & form data are safely cached on this phone. They will upload automatically once 4G/WiFi is restored.");
+        updateOfflineSyncIndicator();
+        return;
+      }
+
+      const totalPending = await getPendingOfflineCount();
+      if (totalPending === 0) {
+        if (isManual) alert("All items are already synced! No pending uploads in device memory.");
+        updateOfflineSyncIndicator();
+        return;
+      }
+
+      isSyncingNow = true;
+      updateOfflineSyncIndicator(`⚡ Auto-Syncing ${totalPending} item(s)...`);
+
+      // 1. Sync cached field forms
+      const formKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("field_form_")) formKeys.push(k);
+      }
+      for (const k of formKeys) {
+        try {
+          const raw = localStorage.getItem(k);
+          if (!raw) continue;
+          const payload = JSON.parse(raw);
+          const caseId = k.replace("field_form_", "");
+          const res = await fetch(`/api/v1/visits/cases/${caseId}/field-form`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ form_data: payload })
+          });
+          if (res.ok) {
+            localStorage.removeItem(k);
+            console.log(`[✓] Offline field form for case ${caseId} auto-synced successfully!`);
+          }
+        } catch (err) {
+          console.warn("Cached form upload retry:", err);
+        }
+      }
+
+      // 2. Sync queued photos
+      const db = await openPwaDb();
+      if (db) {
+        try {
+          const photos = await new Promise((resolve) => {
+            const tx = db.transaction(PWA_PHOTO_STORE, "readonly");
+            const req = tx.objectStore(PWA_PHOTO_STORE).getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+          });
+
+          for (const item of photos) {
+            try {
+              let uploadBlob = null;
+              if (item.dataUrl) {
+                const bRes = await fetch(item.dataUrl);
+                uploadBlob = await bRes.blob();
+              }
+              if (!uploadBlob) continue;
+
+              const formData = new FormData();
+              formData.append("file", uploadBlob, item.fileName || `photo_slot_${item.slotNumber}.jpg`);
+              formData.append("doc_type", item.docType || "PROPERTY_EXTERIOR");
+              if (item.slotNumber) formData.append("slot_number", item.slotNumber);
+              if (item.folder) formData.append("folder", item.folder);
+              if (item.latitude) formData.append("latitude", item.latitude);
+              if (item.longitude) formData.append("longitude", item.longitude);
+
+              const token = localStorage.getItem("pwa_token");
+              const headers = {};
+              if (token && token !== "demo-pwa-token") headers["Authorization"] = `Bearer ${token}`;
+
+              const upRes = await fetch(`/api/v1/visits/cases/${item.sampleCaseId}/upload`, {
+                method: "POST",
+                headers: headers,
+                body: formData
+              });
+              if (upRes.ok || upRes.status === 202) {
+                const delTx = db.transaction(PWA_PHOTO_STORE, "readwrite");
+                delTx.objectStore(PWA_PHOTO_STORE).delete(item.id);
+                console.log(`[✓] Queued offline photo ${item.fileName} auto-uploaded to server successfully!`);
+              }
+            } catch (err) {
+              console.warn("Photo sync retry on next online cycle:", err);
+            }
+          }
+        } catch (e) {
+          console.warn("IndexedDB sync error:", e);
+        }
+      }
+
+      isSyncingNow = false;
+      const remaining = await getPendingOfflineCount();
+      updateOfflineSyncIndicator();
+
+      if (remaining === 0) {
+        if (isManual) alert("✓ Success! All offline photos and forms have been transmitted to the CA Scrutiny Desk.");
+        if (typeof loadCaseDocumentsIntoPwa === "function" && typeof sampleCaseId !== "undefined" && sampleCaseId) {
+          loadCaseDocumentsIntoPwa(sampleCaseId);
+        }
+      } else if (isManual) {
+        alert(`${totalPending - remaining} item(s) synced. ${remaining} remaining.`);
+      }
+    }
+
+    // AUTOMATIC ONLINE SYNC LISTENERS
+    window.addEventListener("online", () => {
+      console.log("⚡ Network restored! Auto-flushing offline photos to server...");
+      syncOfflineQueue(false);
+    });
+
+    // Periodic background auto-check every 20 seconds
+    setInterval(() => {
+      if (navigator.onLine) {
+        getPendingOfflineCount().then(c => {
+          if (c > 0) syncOfflineQueue(false);
+        });
+      }
+    }, 20000);
 
     async function submitDueDiligenceForm() {
       if (!agentSelfieDataUrl) {
@@ -3192,6 +3401,10 @@
       checkAgentAuth();
       renderFamilyMembers();
       renderAssetsChips();
+      updateOfflineSyncIndicator();
+      if (navigator.onLine) {
+        syncOfflineQueue(false);
+      }
     });
   </script>
 
