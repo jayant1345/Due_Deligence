@@ -439,6 +439,8 @@ async def list_case_documents(
         raw_url = d.watermarked_url or d.storage_url or ""
         # Normalize file system paths to /storage/ public web URLs
         norm_url = raw_url.replace("\\", "/")
+        if "/static/extracted_pages/" in norm_url:
+            norm_url = norm_url.replace("/static/extracted_pages/", "/storage/separated_docs/")
         if "storage_uploads/" in norm_url:
             clean_url = "/storage/" + norm_url.split("storage_uploads/")[-1]
         elif norm_url.startswith("http://") or norm_url.startswith("https://"):
@@ -452,12 +454,15 @@ async def list_case_documents(
         if slot_num is None and d.ocr_data and isinstance(d.ocr_data, dict):
             slot_num = d.ocr_data.get("slot_number")
 
-        # Skip orphaned files from old ephemeral containers that no longer exist on disk
+        # Verify file existence on Railway persistent volume or fallback paths
         if clean_url.startswith("/storage/"):
             rel_file = clean_url[len("/storage/"):]
             local_path = os.path.join("storage_uploads", rel_file)
             if not os.path.exists(local_path):
-                continue
+                alt1 = os.path.join("storage_uploads", "separated_docs", rel_file)
+                alt2 = os.path.join("app", "static", "extracted_pages", rel_file)
+                if not os.path.exists(alt1) and not os.path.exists(alt2):
+                    continue
 
         doc_type_val = d.doc_type.value if hasattr(d.doc_type, "value") else str(d.doc_type)
         doc_folder = "residence"
@@ -749,7 +754,11 @@ async def _ai_ingested_pages(db: AsyncSession, loan_case: LoanCase) -> List[Dict
     for d in result.scalars().all():
         if isinstance(d.ocr_data, dict) and d.ocr_data.get("source") == "pdf_ingest":
             page = dict(d.ocr_data)
-            page.setdefault("image_url", d.watermarked_url or d.storage_url)
+            raw_url = d.watermarked_url or d.storage_url or page.get("image_url") or ""
+            # Canonicalize all separated page URLs to persistent volume /storage/separated_docs/
+            if "/static/extracted_pages/" in raw_url:
+                raw_url = raw_url.replace("/static/extracted_pages/", "/storage/separated_docs/")
+            page["image_url"] = raw_url
             page["doc_type"] = page.get("llm_doc_type", page.get("doc_type"))
             docs.append(page)
     docs.sort(key=lambda p: p.get("page_number") or 0)

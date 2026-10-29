@@ -327,6 +327,17 @@ async def async_generate_report_pdf(
         except Exception:
             pass
 
+    # Mirror generated reports into Railway persistent volume for 100% redeployment survival
+    try:
+        pv_reports = os.path.join("storage_uploads", "reports_generated")
+        os.makedirs(pv_reports, exist_ok=True)
+        if os.path.exists(output_pdf):
+            shutil.copy2(output_pdf, os.path.join(pv_reports, os.path.basename(output_pdf)))
+        if os.path.exists(output_docx):
+            shutil.copy2(output_docx, os.path.join(pv_reports, os.path.basename(output_docx)))
+    except Exception:
+        pass
+
     # Store in DB
     certified_report = CertifiedReport(
         case_id=loan_case.id,

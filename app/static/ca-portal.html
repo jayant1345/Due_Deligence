@@ -3287,22 +3287,32 @@
           shortType = "PAYSLIP"; badgeColor = "bg-purple-950 text-purple-300 border-purple-600";
         }
 
+        let docSrc = d.image_url || "";
+        if (docSrc.includes("/static/extracted_pages/")) {
+          docSrc = docSrc.replace("/static/extracted_pages/", "/storage/separated_docs/");
+        }
+
         const col = document.createElement("div");
         col.className = "group relative rounded-lg bg-black/60 border border-white/20 p-1 flex flex-col items-center hover:border-amber-400 cursor-pointer transition-all";
         col.title = `${d.document_title || ""}${d.holder_name ? "\nHolder: " + d.holder_name : ""}${(d.discrepancies || []).length ? "\n⚠ " + d.discrepancies.join("\n⚠ ") : ""}`;
         col.onclick = () => openVaultDocZoom(
           `Page ${d.page_number || ''} • ${shortType}`,
           `${d.holder_name || ''} ${d.document_title || ''}`,
-          d.image_url,
+          docSrc,
           d.scan_status || 'VERIFIED'
         );
 
         const frame = document.createElement("div");
         frame.className = "w-full h-16 rounded overflow-hidden bg-slate-900 mb-1 flex items-center justify-center";
         const img = document.createElement("img");
-        img.src = d.image_url;
+        img.src = docSrc;
         img.alt = d.document_title || "";
         img.className = "w-full h-full object-cover group-hover:scale-105 transition-transform";
+        img.onerror = function() {
+          if (this.src.includes("/storage/separated_docs/")) {
+            this.src = this.src.replace("/storage/separated_docs/", "/static/extracted_pages/");
+          }
+        };
         frame.appendChild(img);
 
         const badge = document.createElement("span");
@@ -6207,9 +6217,19 @@
 
       if (!modal) return;
 
+      let resolvedSrc = src || "";
+      if (resolvedSrc.includes("/static/extracted_pages/")) {
+        resolvedSrc = resolvedSrc.replace("/static/extracted_pages/", "/storage/separated_docs/");
+      }
+
       modalTitle.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">verified_user</span> ${title} • Authentic Scanned Document`;
-      frontImg.src = src;
-      backImg.src = src;
+      frontImg.src = resolvedSrc;
+      backImg.src = resolvedSrc;
+      frontImg.onerror = function() {
+        if (this.src.includes("/storage/separated_docs/")) {
+          this.src = this.src.replace("/storage/separated_docs/", "/static/extracted_pages/");
+        }
+      };
       frontLabel.textContent = `${title} • ${sub} (${status})`;
       backLabel.textContent = `CA Vault Certified Scan • SHA256 Intact • Tamper Sealed`;
 

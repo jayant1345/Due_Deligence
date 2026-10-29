@@ -137,38 +137,40 @@ async def find_case_report_files(loan_case: LoanCase, session: AsyncSession) -> 
                 reports_found.append((abs_p, docx_target_name))
                 docx_found = True
 
-    # Fallback search in reports_generated/
-    if (not pdf_found or not docx_found) and os.path.exists("reports_generated"):
-        raw_no = (loan_case.case_no or "").lower()
-        sub_no = raw_no.replace("-", "_")
-        case_digits = [d for d in re.findall(r'\d+', loan_case.case_no or "") if len(d) >= 3 and d != "2026"]
-        app_words = [w.lower() for w in re.split(r'[^a-zA-Z0-9]+', loan_case.applicant_name or "") if len(w) >= 4]
+    # Fallback search in reports_generated/ and persistent volume storage_uploads/reports_generated/
+    report_dirs = ["reports_generated", os.path.join("storage_uploads", "reports_generated")]
+    for r_dir in report_dirs:
+        if (not pdf_found or not docx_found) and os.path.exists(r_dir):
+            raw_no = (loan_case.case_no or "").lower()
+            sub_no = raw_no.replace("-", "_")
+            case_digits = [d for d in re.findall(r'\d+', loan_case.case_no or "") if len(d) >= 3 and d != "2026"]
+            app_words = [w.lower() for w in re.split(r'[^a-zA-Z0-9]+', loan_case.applicant_name or "") if len(w) >= 4]
 
-        for f in os.listdir("reports_generated"):
-            f_lower = f.lower()
-            f_path = os.path.join("reports_generated", f)
-            if not os.path.isfile(f_path):
-                continue
+            for f in os.listdir(r_dir):
+                f_lower = f.lower()
+                f_path = os.path.join(r_dir, f)
+                if not os.path.isfile(f_path):
+                    continue
 
-            matches_case = (
-                (raw_no and raw_no in f_lower) or
-                (sub_no and sub_no in f_lower) or
-                any(d in f_lower for d in case_digits) or
-                any(w in f_lower for w in app_words) or
-                (clean_applicant.lower() in f_lower)
-            )
+                matches_case = (
+                    (raw_no and raw_no in f_lower) or
+                    (sub_no and sub_no in f_lower) or
+                    any(d in f_lower for d in case_digits) or
+                    any(w in f_lower for w in app_words) or
+                    (clean_applicant.lower() in f_lower)
+                )
 
-            if matches_case:
-                abs_p = os.path.abspath(f_path)
-                if abs_p not in seen:
-                    if f_lower.endswith(".pdf") and not pdf_found:
-                        seen.add(abs_p)
-                        reports_found.append((abs_p, pdf_target_name))
-                        pdf_found = True
-                    elif f_lower.endswith(".docx") and not docx_found:
-                        seen.add(abs_p)
-                        reports_found.append((abs_p, docx_target_name))
-                        docx_found = True
+                if matches_case:
+                    abs_p = os.path.abspath(f_path)
+                    if abs_p not in seen:
+                        if f_lower.endswith(".pdf") and not pdf_found:
+                            seen.add(abs_p)
+                            reports_found.append((abs_p, pdf_target_name))
+                            pdf_found = True
+                        elif f_lower.endswith(".docx") and not docx_found:
+                            seen.add(abs_p)
+                            reports_found.append((abs_p, docx_target_name))
+                            docx_found = True
 
     # If reports still missing, auto-generate so the downloaded archive is complete!
     if not pdf_found or not docx_found:

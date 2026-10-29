@@ -794,23 +794,27 @@ def classify_and_store_single_image(
     target_address: str,
 ) -> Dict[str, Any]:
     """Classify one standalone document image with the same Gemini pipeline as PDF pages."""
+    storage_dir = os.path.join("storage_uploads", "separated_docs", str(case_id))
     static_dir = os.path.join("app", "static", "extracted_pages", str(case_id))
+    os.makedirs(storage_dir, exist_ok=True)
     os.makedirs(static_dir, exist_ok=True)
 
     img_name = f"img_{uuid.uuid4().hex[:10]}.jpg"
+    storage_img_path = os.path.join(storage_dir, img_name)
     static_img_path = os.path.join(static_dir, img_name)
 
     with Image.open(image_path) as im:
+        im.convert("RGB").save(storage_img_path, "JPEG", quality=92)
         im.convert("RGB").save(static_img_path, "JPEG", quality=92)
 
     analysis = call_openrouter_gemini_page_classifier(
-        image_path=static_img_path,
+        image_path=storage_img_path,
         raw_page_text="",
         applicant_name=applicant_name,
         target_address=target_address,
     )
-    relative_web_url = f"/static/extracted_pages/{case_id}/{img_name}"
-    return _finalize_page_item(analysis, None, None, relative_web_url, [static_img_path])
+    relative_web_url = f"/storage/separated_docs/{case_id}/{img_name}"
+    return _finalize_page_item(analysis, None, None, relative_web_url, [storage_img_path, static_img_path])
 
 
 def burst_and_separate_pdf_with_llm(
@@ -822,6 +826,7 @@ def burst_and_separate_pdf_with_llm(
     """
     Burst a PDF into 200 DPI page images and have Gemini classify/extract every page
     (in parallel). Each page image is stored for display, with Aadhaar numbers masked.
+    Saved to persistent volume storage_uploads/separated_docs/<case_id> for 100% redeployment survival.
     """
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"PDF file not found at: {pdf_path}")
@@ -850,23 +855,28 @@ def burst_and_separate_pdf_with_llm(
         pix = page.get_pixmap(dpi=200)
         pix.save(storage_img_path)
         pix.save(static_img_path)
-        pages.append((page_idx, page.get_text(), storage_img_path, static_img_path, f"/static/extracted_pages/{case_id}/{img_name}"))
+        pages.append((page_idx, page.get_text(), storage_img_path, static_img_path, f"/storage/separated_docs/{case_id}/{img_name}"))
     doc.close()
 
     def _scan(entry):
         page_idx, raw_text, storage_img_path, static_img_path, web_url = entry
         analysis = call_openrouter_gemini_page_classifier(
-            image_path=static_img_path,
+            image_path=storage_img_path,
             raw_page_text=raw_text,
             applicant_name=applicant_name,
             target_address=target_address,
         )
-        return _finalize_page_item(analysis, page_idx, total_pages, web_url, [static_img_path, storage_img_path])
+        return _finalize_page_item(analysis, page_idx, total_pages, web_url, [storage_img_path, static_img_path])
 
     with ThreadPoolExecutor(max_workers=PAGE_SCAN_WORKERS) as pool:
         separated_results = list(pool.map(_scan, pages))
 
-    with open(os.path.join(static_dir, "manifest.json"), "w", encoding="utf-8") as mf:
-        json.dump(separated_results, mf, indent=2, ensure_ascii=False)
+    # Persist manifest to both persistent volume and static directory
+    for dest_dir in [storage_dir, static_dir]:
+        try:
+            with open(os.path.join(dest_dir, "manifest.json"), "w", encoding="utf-8") as mf:
+                json.dump(separated_results, mf, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
 
     return separated_results

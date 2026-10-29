@@ -161,10 +161,19 @@ async def download_report_pdf(
         c_res = await db.execute(select(LoanCase).where(LoanCase.id == report.case_id))
         loan_case = c_res.scalar_one_or_none()
 
-    if report and os.path.exists(report.report_url):
-        filename = get_applicant_report_filename(loan_case, report.report_url, "pdf")
+    resolved_pdf = None
+    if report and report.report_url:
+        if os.path.exists(report.report_url):
+            resolved_pdf = report.report_url
+        else:
+            cand = os.path.join("storage_uploads", "reports_generated", os.path.basename(report.report_url))
+            if os.path.exists(cand):
+                resolved_pdf = cand
+
+    if report and resolved_pdf:
+        filename = get_applicant_report_filename(loan_case, resolved_pdf, "pdf")
         return FileResponse(
-            path=report.report_url,
+            path=resolved_pdf,
             media_type="application/pdf",
             filename=filename,
             headers={
@@ -256,10 +265,19 @@ async def download_report_docx(
         c_res = await db.execute(select(LoanCase).where(LoanCase.id == report.case_id))
         loan_case = c_res.scalar_one_or_none()
 
-    if report and report.docx_url and os.path.exists(report.docx_url):
-        filename = get_applicant_report_filename(loan_case, report.docx_url, "docx")
+    resolved_docx = None
+    if report and report.docx_url:
+        if os.path.exists(report.docx_url):
+            resolved_docx = report.docx_url
+        else:
+            cand = os.path.join("storage_uploads", "reports_generated", os.path.basename(report.docx_url))
+            if os.path.exists(cand):
+                resolved_docx = cand
+
+    if report and resolved_docx:
+        filename = get_applicant_report_filename(loan_case, resolved_docx, "docx")
         return FileResponse(
-            path=report.docx_url,
+            path=resolved_docx,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             filename=filename,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},

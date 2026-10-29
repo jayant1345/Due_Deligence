@@ -258,10 +258,32 @@ app.add_middleware(
 # Mount API Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-# Ensure directories exist
+# Ensure directories exist on Railway Volume
 os.makedirs("app/static", exist_ok=True)
 os.makedirs("storage_uploads", exist_ok=True)
+os.makedirs("storage_uploads/separated_docs", exist_ok=True)
+os.makedirs("storage_uploads/ingested_pdfs", exist_ok=True)
+os.makedirs("storage_uploads/ingested_images", exist_ok=True)
+os.makedirs("storage_uploads/reports_generated", exist_ok=True)
+os.makedirs("storage_uploads/reports_generated/archives", exist_ok=True)
 os.makedirs("reports_generated", exist_ok=True)
+
+# Fallback route for extracted pages: seamlessly serve from Railway persistent volume
+@app.get("/static/extracted_pages/{case_id}/{filename:path}", include_in_schema=False)
+async def serve_extracted_page_fallback(case_id: str, filename: str):
+    # 1. Railway Persistent Volume (separated_docs)
+    cand1 = os.path.join("storage_uploads", "separated_docs", case_id, filename)
+    if os.path.exists(cand1):
+        return FileResponse(cand1)
+    # 2. Ephemeral static directory
+    cand2 = os.path.join("app", "static", "extracted_pages", case_id, filename)
+    if os.path.exists(cand2):
+        return FileResponse(cand2)
+    # 3. Direct case folder
+    cand3 = os.path.join("storage_uploads", case_id, filename)
+    if os.path.exists(cand3):
+        return FileResponse(cand3)
+    return JSONResponse(status_code=404, content={"detail": f"Document page '{filename}' not found on storage disk"})
 
 # Mount Static Folders
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
