@@ -166,6 +166,11 @@
             <span>Monthly Archive</span>
             <span class="text-[10px] opacity-75 hidden xl:inline">(બેકઅપ)</span>
           </button>
+          <button onclick="openManageAgentsModal()" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-surface-container-low text-emerald-800 hover:bg-emerald-50 border border-emerald-300 transition-colors shadow-2xs whitespace-nowrap" title="Register & Manage Field Staff (એજન્ટ ટીમ)">
+            <span class="material-symbols-outlined text-[15px] text-emerald-600">badge</span>
+            <span>Field Staff</span>
+            <span class="text-[10px] opacity-75 hidden xl:inline">(એજન્ટ્સ)</span>
+          </button>
           <a class="px-2 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors hidden 2xl:inline whitespace-nowrap" href="/pwa" target="_blank">Mobile PWA</a>
           <a class="px-2 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors hidden 2xl:inline whitespace-nowrap" href="/api/docs" target="_blank">API Docs</a>
         </nav>
@@ -4222,7 +4227,8 @@
       document.getElementById("hoApplicantName").textContent = c.applicant_name;
       document.getElementById("hoPropertyAddress").textContent = c.address;
 
-      updateHandoverPreview();
+      // Load agents dynamically and refresh dropdown
+      loadFieldAgents();
       document.getElementById("handoverModal").classList.remove("hidden");
     }
 
@@ -4235,19 +4241,19 @@
       const credUser = document.getElementById("hoCredUser");
       const credPass = document.getElementById("hoCredPass");
 
-      if (val === "agent1") {
-        phoneInput.value = "+91 98111 22334";
-        credUser.textContent = "agent1";
-        credPass.textContent = "agent1@123";
-      } else if (val === "agent2") {
-        phoneInput.value = "+91 98250 54321";
-        credUser.textContent = "agent2";
-        credPass.textContent = "agent2@123";
-      } else {
+      const agent = (window.allAgents || []).find(a => a.username === val);
+      if (agent) {
+        phoneInput.value = agent.phone || "";
+        credUser.textContent = agent.username;
+        credPass.textContent = `${agent.username}@123`;
+      } else if (val === "custom") {
         phoneInput.value = "+91 ";
-        credUser.textContent = "agent1";
-        credPass.textContent = "agent1@123";
+        credUser.textContent = "agent";
+        credPass.textContent = "agent@123";
         phoneInput.focus();
+      } else {
+        credUser.textContent = val || "agent";
+        credPass.textContent = `${val || 'agent'}@123`;
       }
       updateHandoverPreview();
     }
@@ -6373,6 +6379,222 @@
       alert(`[✓] Successfully ingested ${files.length} document(s) into Case Document Vault!`);
     }
 
+    // ==========================================
+    // FIELD AGENT MANAGEMENT & DYNAMIC ROSTER
+    // ==========================================
+    window.allAgents = [];
+
+    async function loadFieldAgents(autoSelectUsername = null) {
+      try {
+        const res = await fetch("/api/v1/agents");
+        if (res.ok) {
+          window.allAgents = await res.json();
+          renderAgentDropdowns(autoSelectUsername);
+          renderAgentRoster();
+        }
+      } catch (err) {
+        console.warn("Could not load field agents:", err);
+      }
+    }
+
+    function renderAgentDropdowns(selectedUsername = null) {
+      const hoSelect = document.getElementById("hoAgentSelect");
+      if (!hoSelect) return;
+
+      const currentVal = selectedUsername || hoSelect.value;
+      hoSelect.innerHTML = "";
+
+      if (!window.allAgents || window.allAgents.length === 0) {
+        hoSelect.innerHTML = `<option value="">-- No Field Staff Found (Click + Register) --</option>`;
+        return;
+      }
+
+      window.allAgents.forEach((a, idx) => {
+        const opt = document.createElement("option");
+        opt.value = a.username;
+        const dummyTag = a.is_dummy ? " [Dummy / Test]" : "";
+        opt.textContent = `${a.full_name} (${a.username}${dummyTag})`;
+        if (currentVal ? (a.username === currentVal) : (idx === 0)) {
+          opt.selected = true;
+        }
+        hoSelect.appendChild(opt);
+      });
+
+      const custOpt = document.createElement("option");
+      custOpt.value = "custom";
+      custOpt.textContent = "✏️ Custom Phone / Manual...";
+      hoSelect.appendChild(custOpt);
+
+      onHandoverAgentChanged(hoSelect.value);
+    }
+
+    function openQuickAgentModal() {
+      const modal = document.getElementById("modalQuickRegisterAgent");
+      if (modal) {
+        modal.classList.remove("hidden");
+        const f = document.getElementById("qaFullName");
+        if (f) setTimeout(() => f.focus(), 100);
+      }
+    }
+
+    function closeQuickAgentModal() {
+      const modal = document.getElementById("modalQuickRegisterAgent");
+      if (modal) modal.classList.add("hidden");
+    }
+
+    function autoSuggestAgentCredentials(val) {
+      const uField = document.getElementById("qaUsername");
+      const pField = document.getElementById("qaPassword");
+      if (!val || !uField || !pField) return;
+      const clean = val.trim().split(" ")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (clean) {
+        uField.value = clean;
+        pField.value = clean + "@123";
+      }
+    }
+
+    async function submitQuickAgent(e) {
+      if (e) e.preventDefault();
+      const name = document.getElementById("qaFullName").value.trim();
+      const phone = document.getElementById("qaPhone").value.trim();
+      const username = document.getElementById("qaUsername").value.trim();
+      const password = document.getElementById("qaPassword").value.trim();
+      const btn = document.getElementById("btnSubmitQuickAgent");
+
+      if (!name || !phone) {
+        alert("Please enter Agent Full Name and WhatsApp Phone Number.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<span class="material-symbols-outlined animate-spin text-[16px]">sync</span> Saving...`;
+
+      try {
+        const res = await fetch("/api/v1/agents/quick-register", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            full_name: name,
+            phone: phone,
+            username: username || undefined,
+            password: password || undefined,
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          closeQuickAgentModal();
+          const form = document.getElementById("quickAgentForm");
+          if (form) form.reset();
+
+          // Refresh agents list and select this newly registered agent
+          await loadFieldAgents(data.username);
+
+          document.getElementById("hoCredUser").textContent = data.username;
+          document.getElementById("hoCredPass").textContent = data.password;
+          document.getElementById("hoAgentPhone").value = data.phone;
+          updateHandoverPreview();
+
+          alert(`✓ Field Agent '${data.full_name}' registered successfully!\n\nUsername: ${data.username}\nPassword: ${data.password}\n\nTask handover preview updated!`);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`Could not register agent: ${err.detail || "Server error"}`);
+        }
+      } catch (err) {
+        alert(`Network error registering agent: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="material-symbols-outlined text-[16px]">check_circle</span> <span>Register & Select Agent (ઉમેરો)</span>`;
+      }
+    }
+
+    function openManageAgentsModal() {
+      const modal = document.getElementById("modalManageAgents");
+      if (modal) {
+        modal.classList.remove("hidden");
+        loadFieldAgents();
+      }
+    }
+
+    function closeManageAgentsModal() {
+      const modal = document.getElementById("modalManageAgents");
+      if (modal) modal.classList.add("hidden");
+    }
+
+    function renderAgentRoster() {
+      const container = document.getElementById("rosterListContainer");
+      const loading = document.getElementById("rosterLoadingState");
+      if (!container) return;
+      if (loading) loading.classList.add("hidden");
+
+      if (!window.allAgents || window.allAgents.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 text-center text-on-surface-variant font-mono text-xs border border-dashed border-outline-variant rounded-xl bg-surface-container-low">
+            <span class="material-symbols-outlined text-[32px] text-outline mb-1">person_off</span>
+            <p>No field agents currently registered.</p>
+            <button onclick="closeManageAgentsModal(); openQuickAgentModal();" class="mt-2.5 px-3 py-1.5 bg-emerald-600 text-white rounded font-headline font-bold text-xs inline-flex items-center gap-1 shadow-xs">
+              <span class="material-symbols-outlined text-[15px]">person_add</span>
+              <span>+ Register Real Field Staff</span>
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = window.allAgents.map(a => `
+        <div class="p-3.5 rounded-xl border ${a.is_dummy ? 'border-amber-300 bg-amber-50/50' : 'border-outline-variant bg-surface-container-lowest'} flex flex-wrap items-center justify-between gap-3 shadow-2xs hover:shadow-sm transition-all">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full ${a.is_dummy ? 'bg-amber-100 text-amber-800' : 'bg-primary-container text-white'} flex items-center justify-center font-bold text-xs font-headline shadow-xs">
+              ${(a.full_name || 'FA').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-headline font-bold text-sm text-on-surface">${a.full_name}</span>
+                ${a.is_dummy ? '<span class="px-1.5 py-0.2 rounded font-mono text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300">DUMMY / SEED</span>' : '<span class="px-1.5 py-0.2 rounded font-mono text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">ACTIVE REAL STAFF</span>'}
+              </div>
+              <div class="flex flex-wrap items-center gap-3 text-xs text-on-surface-variant font-mono mt-0.5">
+                <span>📱 ${a.phone || 'No Phone'}</span>
+                <span>•</span>
+                <span>🔑 User: <strong class="text-on-surface">${a.username}</strong></span>
+                <span>•</span>
+                <span>📋 ${a.active_cases_count} Active Case(s)</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="deleteAgent('${a.id}', '${a.full_name.replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-headline font-bold flex items-center gap-1 transition-all" title="Permanently delete this agent">
+              <span class="material-symbols-outlined text-[15px]">delete</span>
+              <span>${a.is_dummy ? 'Remove Dummy' : 'Delete Agent'}</span>
+            </button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function deleteAgent(agentId, agentName) {
+      if (!confirm(`Are you sure you want to remove agent '${agentName}'?\n\nIf any cases are allotted to this agent, they will be safely marked unassigned.`)) {
+        return;
+      }
+      try {
+        const res = await fetch(`/api/v1/agents/${encodeURIComponent(agentId)}`, {
+          method: "DELETE",
+          headers: authHeaders()
+        });
+        if (res.ok) {
+          alert(`✓ Agent '${agentName}' removed successfully.`);
+          await loadFieldAgents();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`Could not delete agent: ${err.detail || "Server error"}`);
+        }
+      } catch (err) {
+        alert(`Error deleting agent: ${err.message}`);
+      }
+    }
+
+    // Call on initial load
+    setTimeout(() => { loadFieldAgents(); }, 500);
+
   </script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
@@ -6577,18 +6799,29 @@
         </div>
 
         <!-- Field Agent Selection -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-mono font-bold text-on-surface mb-1 uppercase">Assign Field Agent</label>
-            <select id="hoAgentSelect" onchange="onHandoverAgentChanged(this.value)" class="w-full text-xs font-medium bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
-              <option value="agent1">Rajesh Varma (agent1 - Senior CPV)</option>
-              <option value="agent2">Kamal Solanki (agent2 - Field Associate)</option>
-              <option value="custom">Custom Phone Number...</option>
-            </select>
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-mono font-bold text-on-surface uppercase">Assign Field Agent</label>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="openQuickAgentModal()" class="text-xs font-headline font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded flex items-center gap-1 shadow-2xs transition-all" title="1-Click Register Real Field Staff">
+                <span class="material-symbols-outlined text-[15px]">person_add</span>
+                <span>+ Register New Agent</span>
+              </button>
+              <button type="button" onclick="openManageAgentsModal()" class="text-xs font-headline font-medium text-slate-700 bg-surface-container hover:bg-surface-container-high border border-outline-variant px-2 py-0.5 rounded flex items-center gap-1 transition-all" title="Manage Staff & Remove Dummy Seeded Agents">
+                <span class="material-symbols-outlined text-[15px]">manage_accounts</span>
+                <span>Manage Staff</span>
+              </button>
+            </div>
           </div>
-          <div>
-            <label class="block text-xs font-mono font-bold text-on-surface mb-1 uppercase">Agent WhatsApp / Phone</label>
-            <input id="hoAgentPhone" type="text" value="+91 98111 22334" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
+            <div>
+              <select id="hoAgentSelect" onchange="onHandoverAgentChanged(this.value)" class="w-full text-xs font-semibold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="">Loading Field Staff...</option>
+              </select>
+            </div>
+            <div>
+              <input id="hoAgentPhone" type="text" placeholder="+91 Mobile Number" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
           </div>
         </div>
 
@@ -6647,6 +6880,104 @@
             <span class="material-symbols-outlined text-[18px]">send</span>
             <span>Send on WhatsApp</span>
           </button>
+        </div>
+      </div>
+    </div>
+
+  <!-- 1-CLICK QUICK FIELD AGENT REGISTRATION MODAL -->
+  <div id="modalQuickRegisterAgent" class="hidden fixed inset-0 z-60 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col animate-fadeIn">
+      <!-- Header -->
+      <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">person_add</span>
+          </div>
+          <div>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Quick Field Agent Registration</h3>
+            <p class="font-mono text-[10px] text-outline">નવો ફિલ્ડ સ્ટાફ ઉમેરો • Instant 1-Click Login Ready</p>
+          </div>
+        </div>
+        <button onclick="closeQuickAgentModal()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+
+      <!-- Form Body -->
+      <form id="quickAgentForm" onsubmit="submitQuickAgent(event)" class="p-5 space-y-3 text-xs">
+        <div>
+          <label class="block font-mono font-bold text-on-surface mb-1 uppercase">Field Agent Full Name <span class="text-rose-500">*</span></label>
+          <input id="qaFullName" type="text" required placeholder="દા.ત. Ramesh Patel / Hasmukh Solanki" oninput="autoSuggestAgentCredentials(this.value)" class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2 font-medium focus:ring-emerald-500 text-xs"/>
+        </div>
+
+        <div>
+          <label class="block font-mono font-bold text-on-surface mb-1 uppercase">WhatsApp / Mobile Number <span class="text-rose-500">*</span></label>
+          <input id="qaPhone" type="text" required placeholder="+91 98250 12345" class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2 font-mono font-bold focus:ring-emerald-500 text-xs"/>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block font-mono font-bold text-on-surface mb-1 uppercase">Login Username</label>
+            <input id="qaUsername" type="text" placeholder="auto-suggested" class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2 font-mono text-[11px] focus:ring-emerald-500"/>
+          </div>
+          <div>
+            <label class="block font-mono font-bold text-on-surface mb-1 uppercase">Login Password</label>
+            <input id="qaPassword" type="text" placeholder="auto: username@123" class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2 font-mono text-[11px] focus:ring-emerald-500"/>
+          </div>
+        </div>
+
+        <div class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-950 font-mono text-[11px] space-y-1">
+          <div class="font-bold flex items-center gap-1 text-emerald-800">
+            <span class="material-symbols-outlined text-[15px]">bolt</span>
+            <span>Instant Dispatch Ready</span>
+          </div>
+          <p class="text-emerald-900 leading-tight">This agent is saved into the database, added to dropdowns, and assigned login credentials in the WhatsApp message preview.</p>
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2 border-t border-outline-variant">
+          <button type="button" onclick="closeQuickAgentModal()" class="px-3 py-1.5 rounded-lg bg-surface-container border border-outline-variant text-on-surface hover:bg-surface-container-high text-xs font-bold">Cancel</button>
+          <button type="submit" id="btnSubmitQuickAgent" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline font-bold text-xs flex items-center gap-1.5 shadow-md">
+            <span class="material-symbols-outlined text-[16px]">check_circle</span>
+            <span>Register & Select Agent (ઉમેરો)</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- FIELD STAFF MANAGEMENT & ROSTER MODAL -->
+  <div id="modalManageAgents" class="hidden fixed inset-0 z-60 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fadeIn">
+      <!-- Header -->
+      <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-primary-container/15 text-primary-container flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">badge</span>
+          </div>
+          <div>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Field Staff Roster & Management</h3>
+            <p class="font-mono text-[10px] text-outline">Manage active field agents • Remove dummy seeded accounts</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openQuickAgentModal()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-headline font-bold flex items-center gap-1 shadow-2xs">
+            <span class="material-symbols-outlined text-[15px]">person_add</span>
+            <span>+ Add New Agent</span>
+          </button>
+          <button onclick="closeManageAgentsModal()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Agent List Body -->
+      <div class="p-5 overflow-y-auto space-y-3">
+        <div id="rosterLoadingState" class="text-center py-6 font-mono text-xs text-outline flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined animate-spin text-[18px]">sync</span>
+          <span>Loading field staff roster...</span>
+        </div>
+        <div id="rosterListContainer" class="space-y-2.5">
+          <!-- Rendered dynamically -->
         </div>
       </div>
     </div>

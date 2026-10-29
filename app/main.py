@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import func, select
 from app.api.v1 import api_router
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, Base, engine
@@ -40,10 +40,18 @@ async def lifespan(app: FastAPI):
             # Guarantee password is admin@123
             admin_user.hashed_password = hash_password("admin@123")
 
-        # 2. Field Agent (agent1 / agent1@123)
-        res_agent = await session.execute(select(User).where(User.email.in_(["agent1", "agent.rajesh@valuexca.com", "agent1@valuexca.com"])))
+        # 2. Field Agent: Only seed initial agent1 if NO active field agent exists at all
+        agent_cnt_res = await session.execute(
+            select(func.count(User.id)).where(User.role == UserRole.FIELD_AGENT, User.is_active == True)
+        )
+        total_active_agents = agent_cnt_res.scalar() or 0
+
+        res_agent = await session.execute(
+            select(User).where(User.role == UserRole.FIELD_AGENT, User.is_active == True)
+        )
         agent_user = res_agent.scalars().first()
-        if not agent_user:
+
+        if total_active_agents == 0 and not agent_user:
             agent_user = User(
                 email="agent1",
                 hashed_password=hash_password("agent1@123"),
@@ -53,13 +61,14 @@ async def lifespan(app: FastAPI):
                 is_active=True,
             )
             session.add(agent_user)
-        else:
-            # Guarantee password is agent1@123
-            agent_user.hashed_password = hash_password("agent1@123")
 
         await session.commit()
         await session.refresh(admin_user)
-        await session.refresh(agent_user)
+        if agent_user:
+            try:
+                await session.refresh(agent_user)
+            except Exception:
+                pass
 
         # 3. Seed Default Master Cases (UBI, SBI, HDFC, ICICI, BOB)
         case_uuid_ubi = uuid.UUID("b901fc63-12a8-4e32-9c02-e20984cfb001")
@@ -80,7 +89,7 @@ async def lifespan(app: FastAPI):
                     target_lon=72.6369,
                     status=CaseStatus.ASSIGNED,
                     created_by_id=admin_user.id,
-                    assigned_agent_id=agent_user.id,
+                    assigned_agent_id=agent_user.id if agent_user else None,
                 ),
                 LoanCase(
                     id=uuid.UUID("c102ad74-23b9-4f43-ad13-f31095d0c002"),
@@ -96,7 +105,7 @@ async def lifespan(app: FastAPI):
                     target_lon=72.8295,
                     status=CaseStatus.ASSIGNED,
                     created_by_id=admin_user.id,
-                    assigned_agent_id=agent_user.id,
+                    assigned_agent_id=agent_user.id if agent_user else None,
                 ),
                 LoanCase(
                     id=uuid.UUID("d203be85-34ca-4a54-be24-a42106e1d003"),
@@ -112,7 +121,7 @@ async def lifespan(app: FastAPI):
                     target_lon=72.5621,
                     status=CaseStatus.ASSIGNED,
                     created_by_id=admin_user.id,
-                    assigned_agent_id=agent_user.id,
+                    assigned_agent_id=agent_user.id if agent_user else None,
                 ),
                 LoanCase(
                     id=uuid.UUID("e304cf96-45db-4b65-cf35-b53217f2e004"),
@@ -128,7 +137,7 @@ async def lifespan(app: FastAPI):
                     target_lon=72.5735,
                     status=CaseStatus.ASSIGNED,
                     created_by_id=admin_user.id,
-                    assigned_agent_id=agent_user.id,
+                    assigned_agent_id=agent_user.id if agent_user else None,
                 ),
                 LoanCase(
                     id=uuid.UUID("f405da07-56ec-4c76-da46-c64328a3f005"),
@@ -144,7 +153,7 @@ async def lifespan(app: FastAPI):
                     target_lon=72.6520,
                     status=CaseStatus.ASSIGNED,
                     created_by_id=admin_user.id,
-                    assigned_agent_id=agent_user.id,
+                    assigned_agent_id=agent_user.id if agent_user else None,
                 ),
             ]
             for sc in standard_cases:
@@ -219,7 +228,7 @@ async def lifespan(app: FastAPI):
                 status=CaseStatus.ASSIGNED,
                 field_form_data=pargi_form_payload,
                 created_by_id=admin_user.id,
-                assigned_agent_id=agent_user.id,
+                assigned_agent_id=agent_user.id if agent_user else None,
             )
             session.add(pargi_case)
             await session.commit()

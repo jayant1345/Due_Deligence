@@ -1,5 +1,6 @@
+import re
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import (
@@ -46,7 +47,15 @@ async def login(
             detail="Username or email is required",
         )
 
-    query = select(User).where(User.email.in_(login_aliases(identifier)))
+    digits = re.sub(r"\D", "", identifier)
+    conditions = [User.email.in_(login_aliases(identifier))]
+    if len(digits) >= 10:
+        last10 = digits[-10:]
+        conditions.extend([
+            User.phone.like(f"%{last10}%"),
+            User.phone == identifier,
+        ])
+    query = select(User).where(or_(*conditions))
     result = await db.execute(query)
     user = result.scalars().first()
 
