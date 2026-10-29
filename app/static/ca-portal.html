@@ -3482,12 +3482,25 @@
       const dlLink = document.getElementById("pdfDownloadLink");
       const docxLink = document.getElementById("docxDownloadLink");
 
+      const c = caseRegistry[activeCaseId] || {};
+      const appName = c.applicant_name || "Applicant";
+      const cleanName = appName
+        .replace(/^(mr|mrs|ms|dr|shri|smt)\.?\s+/i, '')
+        .trim()
+        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || "Applicant";
+
+      const pdfFilename = `${cleanName}_Report.pdf`;
+      const docxFilename = `${cleanName}_Report.docx`;
+
       card.classList.remove("hidden");
       hashText.textContent = hash;
       udinBadge.textContent = "UDIN: " + udin;
       dlLink.href = `/api/v1/reports/${reportId}/download`;
+      dlLink.setAttribute("download", pdfFilename);
       if (docxLink) {
         docxLink.href = `/api/v1/reports/${reportId}/download-docx`;
+        docxLink.setAttribute("download", docxFilename);
       }
       
       // Auto-scroll to card

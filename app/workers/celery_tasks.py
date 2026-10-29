@@ -213,10 +213,16 @@ async def async_generate_report_pdf(
     )
     docs = doc_res.scalars().all()
 
-    # Compile PDF and DOCX as per specimen copy
+    # Compile PDF and DOCX as per specimen copy named after applicant
+    import re
+    clean_app = re.sub(r'^(mr|mrs|ms|dr|shri|smt)\.?\s+', '', (loan_case.applicant_name or '').strip(), flags=re.IGNORECASE)
+    clean_app = re.sub(r'[^a-zA-Z0-9]+', '_', clean_app).strip('_')
+    safe_case = re.sub(r'[^a-zA-Z0-9]+', '_', (loan_case.case_no or '').strip()).strip('_')
+    base_file = f"{clean_app}_Report" if clean_app else f"Certified_Dossier_{safe_case}"
+
     os.makedirs("reports_generated", exist_ok=True)
-    output_pdf = os.path.join("reports_generated", f"Certified_Dossier_{loan_case.case_no}.pdf")
-    output_docx = os.path.join("reports_generated", f"Certified_Dossier_{loan_case.case_no}.docx")
+    output_pdf = os.path.join("reports_generated", f"{base_file}.pdf")
+    output_docx = os.path.join("reports_generated", f"{base_file}.docx")
 
     case_dict = {
         "case_id": str(loan_case.id),

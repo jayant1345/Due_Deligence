@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -21,6 +22,23 @@ from app.workers.celery_tasks import generate_report_pdf_task
 router = APIRouter(prefix="/reports", tags=["Certified Bank Dossiers & UDIN Reports"])
 
 DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def get_applicant_report_filename(loan_case: Optional[LoanCase], fallback_path: str, ext: str) -> str:
+    """Format downloadable report filename as per applicant name: e.g. Bhavnaben_Pargi_Report.pdf"""
+    if loan_case and loan_case.applicant_name:
+        clean = re.sub(r'^(mr|mrs|ms|dr|shri|smt)\.?\s+', '', loan_case.applicant_name.strip(), flags=re.IGNORECASE)
+        clean = re.sub(r'[^a-zA-Z0-9]+', '_', clean).strip('_')
+        if clean:
+            return f"{clean}_Report.{ext}"
+    if loan_case and loan_case.case_no:
+        clean_no = re.sub(r'[^a-zA-Z0-9]+', '_', loan_case.case_no.strip()).strip('_')
+        return f"{clean_no}_Report.{ext}"
+    if fallback_path:
+        base = os.path.basename(fallback_path)
+        if base:
+            return base
+    return f"CPV_Report.{ext}"
 
 
 @router.post("/cpv-template/{case_id}")
@@ -46,14 +64,17 @@ async def generate_cpv_template_report(
         udin=req.udin, overall_status=req.overall_status, file_allotted_by=req.file_allotted_by,
         verifier_names=req.verifier_names, include_co_applicant=req.include_co_applicant,
     )
-    safe_no = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in loan_case.case_no)
-    out = os.path.join("reports_generated", f"CPV_Report_{safe_no}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx")
+    dl_filename = get_applicant_report_filename(loan_case, "", "docx")
+    out = os.path.join("reports_generated", f"{os.path.splitext(dl_filename)[0]}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx")
     result = await run_in_threadpool(build_cpv_report, data, out)
     return FileResponse(
         path=out,
         media_type=DOCX_MEDIA_TYPE,
-        filename=f"CPV_Report_{safe_no}.docx",
-        headers={"X-Report-Template": result["template"]},
+        filename=dl_filename,
+        headers={
+            "Content-Disposition": f'attachment; filename="{dl_filename}"',
+            "X-Report-Template": result["template"],
+        },
     )
 
 
@@ -135,13 +156,19 @@ async def download_report_pdf(
     except ValueError:
         pass
 
+    loan_case = None
+    if report and report.case_id:
+        c_res = await db.execute(select(LoanCase).where(LoanCase.id == report.case_id))
+        loan_case = c_res.scalar_one_or_none()
+
     if report and os.path.exists(report.report_url):
-        filename = os.path.basename(report.report_url)
+        filename = get_applicant_report_filename(loan_case, report.report_url, "pdf")
         return FileResponse(
             path=report.report_url,
             media_type="application/pdf",
             filename=filename,
             headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
                 "X-SHA256-Fingerprint": report.file_hash_sha256,
                 "X-UDIN": report.udin or "",
             },
@@ -151,11 +178,17 @@ async def download_report_pdf(
     latest_res = await db.execute(select(CertifiedReport).order_by(desc(CertifiedReport.generated_at)).limit(1))
     latest = latest_res.scalar_one_or_none()
     if latest and latest.report_url and os.path.exists(latest.report_url):
+        l_case = None
+        if latest.case_id:
+            l_res = await db.execute(select(LoanCase).where(LoanCase.id == latest.case_id))
+            l_case = l_res.scalar_one_or_none()
+        filename = get_applicant_report_filename(l_case, latest.report_url, "pdf")
         return FileResponse(
             path=latest.report_url,
             media_type="application/pdf",
-            filename=os.path.basename(latest.report_url),
+            filename=filename,
             headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
                 "X-SHA256-Fingerprint": latest.file_hash_sha256,
                 "X-UDIN": latest.udin or "",
             },
@@ -166,7 +199,13 @@ async def download_report_pdf(
         pdfs = [os.path.join("reports_generated", f) for f in os.listdir("reports_generated") if f.endswith(".pdf")]
         if pdfs:
             latest_pdf = max(pdfs, key=os.path.getmtime)
-            return FileResponse(path=latest_pdf, media_type="application/pdf", filename=os.path.basename(latest_pdf))
+            filename = os.path.basename(latest_pdf)
+            return FileResponse(
+                path=latest_pdf,
+                media_type="application/pdf",
+                filename=filename,
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
 
     # Fallback 3: auto-generate report for active case if none exists yet
     case_res = await db.execute(select(LoanCase).where(LoanCase.applicant_name.ilike("%bhavna%")).limit(1))
@@ -181,10 +220,12 @@ async def download_report_pdf(
             udin="26033747AAAAAA1234",
         )
         if gen_res.get("status") == "success" and os.path.exists(gen_res.get("report_url", "")):
+            filename = get_applicant_report_filename(pargi_case, gen_res["report_url"], "pdf")
             return FileResponse(
                 path=gen_res["report_url"],
                 media_type="application/pdf",
-                filename=os.path.basename(gen_res["report_url"]),
+                filename=filename,
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
             )
 
     raise HTTPException(
@@ -210,22 +251,34 @@ async def download_report_docx(
     except ValueError:
         pass
 
+    loan_case = None
+    if report and report.case_id:
+        c_res = await db.execute(select(LoanCase).where(LoanCase.id == report.case_id))
+        loan_case = c_res.scalar_one_or_none()
+
     if report and report.docx_url and os.path.exists(report.docx_url):
-        filename = os.path.basename(report.docx_url)
+        filename = get_applicant_report_filename(loan_case, report.docx_url, "docx")
         return FileResponse(
             path=report.docx_url,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             filename=filename,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
     # Fallback: check most recent certified report in database
     latest_res = await db.execute(select(CertifiedReport).order_by(desc(CertifiedReport.generated_at)).limit(1))
     latest = latest_res.scalar_one_or_none()
     if latest and latest.docx_url and os.path.exists(latest.docx_url):
+        l_case = None
+        if latest.case_id:
+            l_res = await db.execute(select(LoanCase).where(LoanCase.id == latest.case_id))
+            l_case = l_res.scalar_one_or_none()
+        filename = get_applicant_report_filename(l_case, latest.docx_url, "docx")
         return FileResponse(
             path=latest.docx_url,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            filename=os.path.basename(latest.docx_url),
+            filename=filename,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
     # Fallback 2: check reports_generated directory
@@ -233,10 +286,12 @@ async def download_report_docx(
         docs = [os.path.join("reports_generated", f) for f in os.listdir("reports_generated") if f.endswith(".docx")]
         if docs:
             latest_docx = max(docs, key=os.path.getmtime)
+            filename = os.path.basename(latest_docx)
             return FileResponse(
                 path=latest_docx,
                 media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                filename=os.path.basename(latest_docx),
+                filename=filename,
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
             )
 
     # Fallback 3: auto-generate report for active case if none exists yet
@@ -252,10 +307,12 @@ async def download_report_docx(
             udin="26033747AAAAAA1234",
         )
         if gen_res.get("status") == "success" and os.path.exists(gen_res.get("docx_url", "")):
+            filename = get_applicant_report_filename(pargi_case, gen_res["docx_url"], "docx")
             return FileResponse(
                 path=gen_res["docx_url"],
                 media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                filename=os.path.basename(gen_res["docx_url"]),
+                filename=filename,
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
             )
 
     raise HTTPException(
