@@ -11,6 +11,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&family=JetBrains+Mono:ital,wght@0,400..800;1,400..800&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
   
+  <!-- Leaflet (satellite geofence map) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+  <script src="/static/geofence-map.js?v=1"></script>
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <script>
@@ -847,39 +852,66 @@
           </span>
         </div>
 
-        <!-- Stylized Radar / Map Simulation Box -->
-        <div class="relative w-full h-44 rounded-lg bg-slate-900 overflow-hidden border border-outline-variant p-3 flex flex-col justify-between">
-          <div class="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px] opacity-40"></div>
-          
-          <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div class="w-36 h-36 rounded-full border border-dashed border-emerald-400/40 animate-spin" style="animation-duration: 30s;"></div>
-            <div class="w-24 h-24 rounded-full border border-emerald-500/60 bg-emerald-500/10 flex items-center justify-center">
-              <span class="font-mono text-[8px] text-emerald-300 font-bold">150m GEOFENCE</span>
-            </div>
-            <!-- Target Benchmark Pin -->
-            <div class="absolute w-3 h-3 bg-blue-500 rounded-full ring-4 ring-blue-500/30"></div>
-            <!-- Live Field Agent Coordinate Pin -->
-            <div class="absolute transform translate-x-5 -translate-y-4 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 rounded border border-emerald-400">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-              <span id="dispRadarAgentPin" class="font-mono text-[9px] text-emerald-200 font-bold">FA-7701 (32m)</span>
+        <!-- Satellite Map Toolbar -->
+        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+          <div class="inline-flex rounded-md border border-outline-variant overflow-hidden font-bold">
+            <button type="button" id="gfBtnSatellite" onclick="setGeofenceBaseLayer('satellite')" class="px-2.5 py-1 bg-primary-container text-white">Satellite</button>
+            <button type="button" id="gfBtnStreet" onclick="setGeofenceBaseLayer('street')" class="px-2.5 py-1 bg-surface-container-lowest text-on-surface-variant">Street</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button type="button" onclick="fitGeofenceMap()" class="px-2 py-1 rounded-md border border-outline-variant bg-surface-container-lowest hover:bg-surface-container font-bold text-on-surface-variant flex items-center gap-1" title="Re-centre on benchmark and agent">
+              <span class="material-symbols-outlined text-[15px]">center_focus_strong</span>Fit
+            </button>
+            <button type="button" id="gfBtnAdjust" onclick="startBenchmarkAdjust()" class="px-2 py-1 rounded-md border border-red-300 bg-red-50 hover:bg-red-100 font-bold text-red-700 flex items-center gap-1" title="Drag the red benchmark pin onto the actual building">
+              <span class="material-symbols-outlined text-[15px]">edit_location_alt</span>Adjust Pin
+            </button>
+            <a id="gfGoogleMapsLink" href="#" target="_blank" rel="noopener" class="px-2 py-1 rounded-md border border-outline-variant bg-surface-container-lowest hover:bg-surface-container font-bold text-primary-container flex items-center gap-1">
+              <span class="material-symbols-outlined text-[15px]">open_in_new</span>Google Maps
+            </a>
+          </div>
+        </div>
+
+        <!-- Benchmark adjust bar (shown only while adjusting) -->
+        <div id="gfAdjustBar" class="hidden rounded-md border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900 space-y-1.5">
+          <div class="font-bold">Drag the red BENCHMARK pin (or click on the map) to place it on the actual building.</div>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span id="gfAdjustCoords" class="font-mono">—</span>
+            <div class="flex gap-1.5">
+              <button type="button" onclick="cancelBenchmarkAdjust()" class="px-2.5 py-1 rounded-md border border-outline-variant bg-white font-bold text-on-surface-variant">Cancel</button>
+              <button type="button" id="gfBtnSaveBenchmark" onclick="saveBenchmarkAdjust()" class="px-2.5 py-1 rounded-md bg-secondary text-white font-bold">Save Benchmark</button>
             </div>
           </div>
+        </div>
+        <div id="gfMapStatus" class="hidden text-[11px] font-bold"></div>
 
-          <div class="relative z-10 flex justify-between items-start text-white font-mono text-[10px]">
-            <div class="bg-black/60 px-2 py-1 rounded backdrop-blur border border-white/10 space-y-0.5">
-              <div id="dispRadarBenchmark">BENCHMARK: 23.2156° N, 72.6369° E</div>
+        <!-- Interactive Satellite Geofence Map -->
+        <div class="relative w-full h-72 rounded-lg bg-slate-900 overflow-hidden border border-outline-variant">
+          <div id="gfPortalMap" class="absolute inset-0"></div>
+          <div id="gfPortalMapFallback" class="hidden absolute inset-0 flex items-center justify-center text-center text-slate-300 font-mono text-[11px] p-6 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px]">
+            Satellite map could not load (offline or blocked). Coordinates below are still verified.
+          </div>
+
+          <div class="absolute top-2 left-2 right-2 z-10 flex justify-between items-start gap-2 text-white font-mono text-[10px] pointer-events-none">
+            <div class="bg-black/70 px-2 py-1 rounded backdrop-blur border border-white/10 space-y-0.5">
+              <div id="dispRadarBenchmark" class="text-red-300">BENCHMARK: 23.2156° N, 72.6369° E</div>
               <div id="dispRadarCapture" class="text-emerald-400">CAPTURE: 23.2154° N, 72.6367° E</div>
             </div>
-            <div class="bg-black/60 px-2 py-1 rounded backdrop-blur border border-white/10 text-right">
-              <div>GPS ACCURACY: —</div>
-              <div class="text-blue-300">HDOP: —</div>
+            <div class="bg-black/70 px-2 py-1 rounded backdrop-blur border border-white/10 text-right space-y-0.5">
+              <div class="flex items-center justify-end gap-1"><span class="w-2 h-2 rounded-full bg-red-600 border border-white"></span>Benchmark</div>
+              <div class="flex items-center justify-end gap-1"><span class="w-2 h-2 rounded-full bg-green-600 border border-white"></span>Field Agent</div>
+              <div class="flex items-center justify-end gap-1"><span class="w-2 h-2 rounded-full border border-emerald-400"></span>150m Fence</div>
             </div>
           </div>
 
-          <div class="relative z-10 flex justify-between items-end text-white font-mono text-[9px]">
-            <span class="bg-black/60 px-2 py-0.5 rounded backdrop-blur">STATIONARY LOCK: —</span>
-            <span class="text-emerald-400 font-bold bg-black/60 px-2 py-0.5 rounded backdrop-blur">ANTI-SPOOFING: NOT CHECKED</span>
+          <div class="absolute bottom-2 left-2 z-10 pointer-events-none flex items-center gap-1 bg-black/75 px-1.5 py-0.5 rounded border border-emerald-400">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span id="dispRadarAgentPin" class="font-mono text-[9px] text-emerald-200 font-bold">FA-7701 (32m)</span>
           </div>
+        </div>
+
+        <div class="flex flex-wrap justify-between gap-1 font-mono text-[9px] text-on-surface-variant">
+          <span>GPS ACCURACY: — • HDOP: — • STATIONARY LOCK: —</span>
+          <span class="font-bold text-secondary">ANTI-SPOOFING: NOT CHECKED</span>
         </div>
 
         <!-- Proximity Gauge Metric Bar -->
@@ -2401,6 +2433,195 @@
     // Auto-polling & Live Document Retrieval from Server
     let liveSyncInterval = null;
 
+    // Distance from benchmark to field capture; updates every geofence badge for the case.
+    function recomputeGeofence(c) {
+      if (!(c.benchmark_lat && c.capture_lat && c.capture_lat !== "—")) return;
+      const bLat = parseFloat(c.benchmark_lat);
+      const bLon = parseFloat(c.benchmark_lon);
+      const cLat = parseFloat(c.capture_lat);
+      const cLon = parseFloat(c.capture_lon);
+      if (isNaN(bLat) || isNaN(bLon) || isNaN(cLat) || isNaN(cLon)) return;
+      const R = 6371000;
+      const dLat = (cLat - bLat) * Math.PI / 180;
+      const dLon = (cLon - bLon) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(bLat * Math.PI / 180) * Math.cos(cLat * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const dist = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+      c.distance_m = dist;
+
+      const isCompliant = dist <= 150;
+      const radarProx = document.getElementById("dispRadarProximity");
+      if (radarProx) {
+        radarProx.textContent = `PROXIMITY: ${dist} METERS (${isCompliant ? "PASS" : "BREACH"})`;
+        radarProx.className = `font-mono text-[10px] font-bold ${isCompliant ? "text-secondary bg-emerald-50 border-emerald-200" : "text-amber-800 bg-amber-50 border-amber-300"} px-2 py-0.5 rounded border`;
+      }
+      const radarDist = document.getElementById("dispRadarDistance");
+      if (radarDist) radarDist.textContent = `${dist}m / Max 150m Safe Harbor`;
+      const radarBar = document.getElementById("dispRadarBar");
+      if (radarBar) radarBar.style.width = Math.min(100, Math.round((dist / 150) * 100)) + "%";
+      const radarAgentPin = document.getElementById("dispRadarAgentPin");
+      if (radarAgentPin) radarAgentPin.textContent = `FA-LIVE (${dist}m)`;
+      const geoBadge = document.getElementById("dispGeofenceHeaderBadge");
+      if (geoBadge) {
+        geoBadge.textContent = isCompliant ? "GEOFENCE VERIFIED" : "GEOFENCE BREACH";
+        geoBadge.className = `font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${isCompliant ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-red-50 text-red-800 border-red-300"}`;
+      }
+      const coordsBadge = document.getElementById("dispCoordinatesBadge");
+      if (coordsBadge) {
+        coordsBadge.textContent = `● ${isCompliant ? "COMPLIANT" : "BREACH"} (${c.benchmark_lat}° N, ${c.benchmark_lon}° E)`;
+      }
+    }
+
+    // ==========================================
+    // SATELLITE GEOFENCE MAP (Leaflet + Esri imagery, see /static/geofence-map.js)
+    // ==========================================
+    let geofenceMap;      // undefined = not yet created, null = Leaflet unavailable
+    let gfEditCaseId = null;
+
+    function getGeofenceMap() {
+      if (geofenceMap === undefined) {
+        try {
+          geofenceMap = window.GeofenceMap ? window.GeofenceMap.create(document.getElementById("gfPortalMap"), {
+            editable: true,
+            onPreview: (lat, lon, dist) => {
+              const el = document.getElementById("gfAdjustCoords");
+              if (el) el.textContent = `NEW: ${lat.toFixed(6)}° N, ${lon.toFixed(6)}° E${dist !== null ? ` • agent ${dist}m away (${dist <= 150 ? "PASS" : "BREACH"})` : ""}`;
+            },
+          }) : null;
+        } catch (err) {
+          console.warn("Geofence map init error:", err);
+          geofenceMap = null;
+        }
+        if (!geofenceMap) {
+          const fb = document.getElementById("gfPortalMapFallback");
+          if (fb) fb.classList.remove("hidden");
+          ["gfBtnAdjust", "gfBtnSatellite", "gfBtnStreet"].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = true; });
+        }
+      }
+      return geofenceMap;
+    }
+
+    function refreshGeofenceMap(refit) {
+      // The map is an enhancement: a failure here must never break case loading.
+      try { renderGeofenceMap(refit); } catch (err) { console.warn("Geofence map render error:", err); }
+    }
+
+    function renderGeofenceMap(refit) {
+      const c = caseRegistry[activeCaseId];
+      const m = getGeofenceMap();
+      if (!c) return;
+      if (m && m.isEditing() && gfEditCaseId !== activeCaseId) cancelBenchmarkAdjust();
+      if (m) {
+        const visited = c.distance_m !== null && c.distance_m !== undefined;
+        m.update({
+          benchLat: c.benchmark_lat, benchLon: c.benchmark_lon,
+          agentLat: c.capture_lat, agentLon: c.capture_lon,
+          agentLabel: visited ? `${c.agent_pin && c.agent_pin !== "—" ? c.agent_pin : "FIELD AGENT"} • ${c.distance_m}m` : "FIELD AGENT",
+          refit: !!refit,
+        });
+      }
+      const link = document.getElementById("gfGoogleMapsLink");
+      if (link) {
+        const lat = parseFloat(c.benchmark_lat), lon = parseFloat(c.benchmark_lon);
+        const ok = !isNaN(lat) && !isNaN(lon);
+        link.href = ok ? window.GeofenceMap ? window.GeofenceMap.googleMapsUrl(lat, lon) : `https://maps.google.com/?q=${lat},${lon}&t=k&z=19` : "#";
+        link.classList.toggle("pointer-events-none", !ok);
+        link.classList.toggle("opacity-50", !ok);
+      }
+    }
+
+    function fitGeofenceMap() {
+      const m = getGeofenceMap();
+      if (m) m.fit();
+    }
+
+    function setGeofenceBaseLayer(mode) {
+      const m = getGeofenceMap();
+      if (!m) return;
+      m.setBaseLayer(mode);
+      const on = "px-2.5 py-1 bg-primary-container text-white";
+      const off = "px-2.5 py-1 bg-surface-container-lowest text-on-surface-variant";
+      document.getElementById("gfBtnSatellite").className = mode === "satellite" ? on : off;
+      document.getElementById("gfBtnStreet").className = mode === "street" ? on : off;
+    }
+
+    function showGeofenceStatus(msg, ok) {
+      const el = document.getElementById("gfMapStatus");
+      if (!el) return;
+      el.textContent = msg;
+      el.className = `text-[11px] font-bold rounded-md px-2.5 py-1.5 border ${ok ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-red-50 text-red-800 border-red-300"}`;
+      clearTimeout(showGeofenceStatus._t);
+      showGeofenceStatus._t = setTimeout(() => el.classList.add("hidden"), 6000);
+    }
+
+    function startBenchmarkAdjust() {
+      const m = getGeofenceMap();
+      if (!m || !caseRegistry[activeCaseId]) return;
+      gfEditCaseId = activeCaseId;
+      m.startEdit();
+      const b = m.getBenchmark();
+      document.getElementById("gfAdjustCoords").textContent = b ? `CURRENT: ${b.lat.toFixed(6)}° N, ${b.lon.toFixed(6)}° E` : "Click on the map to place the benchmark";
+      document.getElementById("gfAdjustBar").classList.remove("hidden");
+      document.getElementById("gfBtnAdjust").classList.add("hidden");
+    }
+
+    function cancelBenchmarkAdjust() {
+      const m = getGeofenceMap();
+      if (m && m.isEditing()) m.endEdit(false);
+      gfEditCaseId = null;
+      document.getElementById("gfAdjustBar").classList.add("hidden");
+      document.getElementById("gfBtnAdjust").classList.remove("hidden");
+    }
+
+    async function saveBenchmarkAdjust() {
+      const m = getGeofenceMap();
+      const c = caseRegistry[gfEditCaseId];
+      const b = m && m.getBenchmark();
+      if (!c || !b) { cancelBenchmarkAdjust(); return; }
+      const lat = Number(b.lat.toFixed(6));
+      const lon = Number(b.lon.toFixed(6));
+      const btn = document.getElementById("gfBtnSaveBenchmark");
+      btn.disabled = true;
+      btn.textContent = "Saving…";
+      try {
+        if (c.db_id) {
+          const res = await fetch(`/api/v1/cases/${c.db_id}`, {
+            method: "PATCH",
+            headers: authHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({ target_lat: lat, target_lon: lon }),
+          });
+          if (!res.ok) {
+            const msg = res.status === 401 || res.status === 403 ? "Please log in as CA to save the benchmark." : `Save failed (HTTP ${res.status}).`;
+            showGeofenceStatus(msg + " Pin restored.", false);
+            cancelBenchmarkAdjust();
+            return;
+          }
+        }
+        c.benchmark_lat = lat;
+        c.benchmark_lon = lon;
+        m.endEdit(true);
+        gfEditCaseId = null;
+        document.getElementById("gfAdjustBar").classList.add("hidden");
+        document.getElementById("gfBtnAdjust").classList.remove("hidden");
+        document.getElementById("dispRadarBenchmark").textContent = `BENCHMARK: ${lat}° N, ${lon}° E`;
+        const coordsBadge = document.getElementById("dispCoordinatesBadge");
+        if (coordsBadge && (c.distance_m === null || c.distance_m === undefined)) {
+          coordsBadge.textContent = `○ NOT YET VISITED (benchmark ${lat}° N, ${lon}° E)`;
+        }
+        recomputeGeofence(c);
+        refreshGeofenceMap();
+        showGeofenceStatus(c.db_id ? `Benchmark locked at ${lat}° N, ${lon}° E (saved to case & audit log).` : `Benchmark set to ${lat}° N, ${lon}° E (demo case, not saved to server).`, true);
+      } catch (err) {
+        console.error("saveBenchmarkAdjust error:", err);
+        showGeofenceStatus("Network error, benchmark not saved. Pin restored.", false);
+        cancelBenchmarkAdjust();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Save Benchmark";
+      }
+    }
+
     async function fetchLiveCaseDocuments(caseId) {
       if (!caseId) return;
       try {
@@ -2753,44 +2974,8 @@
         }
 
         // Calculate and update live geofence distance if coordinates are present
-        if (c.benchmark_lat && c.capture_lat && c.capture_lat !== "—") {
-          const bLat = parseFloat(c.benchmark_lat);
-          const bLon = parseFloat(c.benchmark_lon);
-          const cLat = parseFloat(c.capture_lat);
-          const cLon = parseFloat(c.capture_lon);
-          if (!isNaN(bLat) && !isNaN(bLon) && !isNaN(cLat) && !isNaN(cLon)) {
-            const R = 6371000;
-            const dLat = (cLat - bLat) * Math.PI / 180;
-            const dLon = (cLon - bLon) * Math.PI / 180;
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                      Math.cos(bLat * Math.PI / 180) * Math.cos(cLat * Math.PI / 180) *
-                      Math.sin(dLon/2) * Math.sin(dLon/2);
-            const dist = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
-            c.distance_m = dist;
-
-            const isCompliant = dist <= 150;
-            const radarProx = document.getElementById("dispRadarProximity");
-            if (radarProx) {
-              radarProx.textContent = `PROXIMITY: ${dist} METERS (${isCompliant ? "PASS" : "BREACH"})`;
-              radarProx.className = `font-mono text-[10px] font-bold ${isCompliant ? "text-secondary bg-emerald-50 border-emerald-200" : "text-amber-800 bg-amber-50 border-amber-300"} px-2 py-0.5 rounded border`;
-            }
-            const radarDist = document.getElementById("dispRadarDistance");
-            if (radarDist) radarDist.textContent = `${dist}m / Max 150m Safe Harbor`;
-            const radarBar = document.getElementById("dispRadarBar");
-            if (radarBar) radarBar.style.width = Math.min(100, Math.round((dist / 150) * 100)) + "%";
-            const radarAgentPin = document.getElementById("dispRadarAgentPin");
-            if (radarAgentPin) radarAgentPin.textContent = `FA-LIVE (${dist}m)`;
-            const geoBadge = document.getElementById("dispGeofenceHeaderBadge");
-            if (geoBadge) {
-              geoBadge.textContent = isCompliant ? "GEOFENCE VERIFIED" : "GEOFENCE BREACH";
-              geoBadge.className = `font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${isCompliant ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-red-50 text-red-800 border-red-300"}`;
-            }
-            const coordsBadge = document.getElementById("dispCoordinatesBadge");
-            if (coordsBadge) {
-              coordsBadge.textContent = `● ${isCompliant ? "COMPLIANT" : "BREACH"} (${c.benchmark_lat}° N, ${c.benchmark_lon}° E)`;
-            }
-          }
-        }
+        recomputeGeofence(c);
+        if (caseRegistry[activeCaseId] === c) refreshGeofenceMap();
 
         // Show live sync badge
         const badge = document.getElementById("liveSyncBadge");
@@ -2962,6 +3147,7 @@
       document.getElementById("dispRadarCapture").textContent = `CAPTURE: ${c.capture_lat}° N, ${c.capture_lon}° E`;
       document.getElementById("dispRadarDistance").textContent = visited ? `${c.distance_m}m / Max 150m Safe Harbor` : "Awaiting field visit";
       document.getElementById("dispRadarBar").style.width = visited ? Math.min(100, Math.round((c.distance_m / 150) * 100)) + "%" : "0%";
+      refreshGeofenceMap(true);
 
       // 6. Update Dual Folder Site Evidence Photos
       renderPhotosForActiveFolder();

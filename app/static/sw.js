@@ -1,9 +1,12 @@
 // Service Worker for VALUEX CA CPV Field Agent PWA
 // Bump on every release that changes the PWA page so old cached copies are purged.
-const CACHE_NAME = "valuex-cpv-v3";
+const CACHE_NAME = "valuex-cpv-v4";
 const STATIC_ASSETS = [
   "/pwa",
   "/manifest.json",
+  "/static/geofence-map.js?v=1",
+  "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
+  "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js",
   "https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&family=JetBrains+Mono:ital,wght@0,400..800;1,400..800&family=Space+Grotesk:wght@400..700&display=swap",
   "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap",
   "https://cdn.tailwindcss.com?plugins=forms,container-queries"
