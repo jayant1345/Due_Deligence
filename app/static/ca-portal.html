@@ -161,6 +161,11 @@
             <span class="text-[10px] opacity-75 hidden 2xl:inline">(સંગ્રહ)</span>
             <span id="navVaultCountBadge" class="bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-mono text-[10px] font-bold">8 Files</span>
           </button>
+          <button id="navTabArchive" onclick="switchMainPortalView('archive')" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-amber-500/10 text-amber-900 hover:bg-amber-500/20 border border-amber-300 transition-colors shadow-2xs whitespace-nowrap" title="Monthly Case Archival & Local Backup Download (માસિક બેકઅપ અને ક્લાઉડ સફાઈ)">
+            <span class="material-symbols-outlined text-[15px] text-amber-700">archive</span>
+            <span>Monthly Archive</span>
+            <span class="text-[10px] opacity-75 hidden xl:inline">(બેકઅપ)</span>
+          </button>
           <a class="px-2 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors hidden 2xl:inline whitespace-nowrap" href="/pwa" target="_blank">Mobile PWA</a>
           <a class="px-2 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors hidden 2xl:inline whitespace-nowrap" href="/api/docs" target="_blank">API Docs</a>
         </nav>
@@ -1249,6 +1254,10 @@
         </p>
       </div>
       <div class="flex items-center gap-2.5 flex-wrap">
+        <button onclick="switchMainPortalView('archive')" class="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl font-headline font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all active:scale-95" title="Download monthly bank & branchwise hierarchical archive ZIP and purge cloud disk">
+          <span class="material-symbols-outlined text-[20px]">archive</span>
+          <span>📦 Monthly Archive & Cloud Cleanup (માસિક બેકઅપ)</span>
+        </button>
         <button onclick="triggerAiFolderIngest()" class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-headline font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all active:scale-95" title="Switch to Scrutiny Desk and select bank folder/PDF for Gemini AI auto-scan">
           <span class="material-symbols-outlined text-[20px]">bolt</span>
           <span>⚡ AI Ingest Bank Folder / PDF</span>
@@ -1762,6 +1771,234 @@
             <span>🚀 Create New Case & Process All Documents with Gemini AI</span>
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW 5: MONTHLY CASE ARCHIVAL & CLOUD DATA OFFLOAD DESK -->
+  <div id="viewMonthlyArchive" class="hidden w-full max-w-[1440px] mx-auto p-4 lg:p-6 space-y-6 transition-all">
+    <!-- Archive Banner -->
+    <div class="bg-gradient-to-r from-amber-700 via-amber-800 to-amber-950 rounded-2xl p-5 text-white shadow-md flex flex-wrap items-center justify-between gap-4">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="px-2.5 py-0.5 rounded-full bg-white/20 text-white font-mono text-[10px] font-bold uppercase tracking-wider">MONTHLY ARCHIVE & CLOUD OFFLOAD</span>
+          <span class="text-xs text-amber-200 font-mono">• Month-Year ➔ Bank ➔ Branch ➔ Case (Inputs + Reports)</span>
+        </div>
+        <h1 class="font-headline font-bold text-xl sm:text-2xl tracking-tight">Monthly Case Archival & Local Machine Backup</h1>
+        <p class="text-xs sm:text-sm text-amber-100 max-w-3xl font-body">
+          Download monthly loan case records structured identically to CA firm USB drives / local PCs. Once saved on your local machine, purge heavy input scans and reports from Railway cloud to reduce server storage load and minimize costs.
+        </p>
+      </div>
+      <div class="flex items-center gap-2.5 flex-wrap">
+        <button onclick="downloadSelectedArchiveZip()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-headline font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all active:scale-95" title="Download hierarchical ZIP containing all input documents and generated reports">
+          <span class="material-symbols-outlined text-[20px]">download</span>
+          <span>📥 Download Monthly Backup (.ZIP)</span>
+        </button>
+        <button onclick="openArchivePurgeModal()" class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-headline font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all active:scale-95" title="Purge files from Railway cloud storage after downloading local backup">
+          <span class="material-symbols-outlined text-[20px]">delete_sweep</span>
+          <span>🧹 Purge Cloud Storage</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Visual Hierarchical Folder Structure Indicator -->
+    <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-xs space-y-2">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="flex items-center gap-2 font-headline font-bold text-xs text-on-surface">
+          <span class="material-symbols-outlined text-amber-600 text-[18px]">account_tree</span>
+          <span>HIERARCHICAL SAVING PATTERN (USB Drive / Local Machine Organization)</span>
+        </div>
+        <span class="font-mono text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold">100% Matching CA Office Directory Standard</span>
+      </div>
+      <div class="p-3 bg-surface-container-low rounded-lg font-mono text-xs text-on-surface leading-relaxed overflow-x-auto border border-outline-variant/60">
+        <span class="text-amber-700 font-bold">📁 <span id="dispArchiveTreeMonth">OCT - 2026</span>/</span><br/>
+        &nbsp;&nbsp;└── <span class="text-primary-container font-bold">🏦 <span id="dispArchiveTreeBank">All Empanelled Banks (Union Bank, SBI, Bank of Baroda, HDFC, ICICI)</span>/</span><br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="text-indigo-700 font-bold">🏢 Branchwise Folders (e.g. 150ft ring road , Rajkot / Bagodara / GOTA / Ashram Road)/</span><br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="text-emerald-800 font-bold">📁 Case Name Wise Folder (e.g. Bhavnaben Pargi - UBI-HL-2026-531)/</span><br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 <span class="text-slate-600">Input_Original_PDFs/ (All uploaded bank loan dossiers)</span><br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 🖼️ <span class="text-slate-600">Input_Scanned_Images/ & Separated_Pages/ (KYC, PAN, Utility Bills)</span><br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📸 <span class="text-slate-600">Field_Visit_Photos/ (Geo-watermarked property & workplace photos)</span><br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📑 <span class="text-rose-700 font-bold">&lt;Applicant_Name&gt;_Report.pdf</span> (Final certified bank dossier)<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📑 <span class="text-blue-700 font-bold">&lt;Applicant_Name&gt;_Report.docx</span> (Word specimen report)<br/>
+      </div>
+    </div>
+
+    <!-- Filter & Selection Bar -->
+    <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-xs flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Month Selector -->
+        <div>
+          <label class="block font-mono text-[9px] font-bold text-outline uppercase mb-0.5">Select Month & Year</label>
+          <select id="archiveMonthSelect" onchange="onArchiveMonthChanged(this.value)" class="text-xs font-bold text-on-surface bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 cursor-pointer focus:ring-2 focus:ring-amber-500">
+            <option value="ALL">All Portfolio Months</option>
+          </select>
+        </div>
+
+        <!-- Bank Filter -->
+        <div>
+          <label class="block font-mono text-[9px] font-bold text-outline uppercase mb-0.5">Filter by Bank</label>
+          <select id="archiveBankSelect" onchange="onArchiveBankChanged(this.value)" class="text-xs font-bold text-on-surface bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 cursor-pointer focus:ring-2 focus:ring-amber-500">
+            <option value="ALL">All Empanelled Banks</option>
+            <option value="Union Bank of India">Union Bank of India</option>
+            <option value="Bank of Baroda">Bank of Baroda</option>
+            <option value="State Bank of India">State Bank of India</option>
+            <option value="HDFC Bank">HDFC Bank</option>
+            <option value="ICICI Bank">ICICI Bank</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons in Filter Bar -->
+      <div class="flex items-center gap-2">
+        <button onclick="downloadSelectedArchiveZip()" class="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-95">
+          <span class="material-symbols-outlined text-[16px]">file_download</span>
+          <span>Download .ZIP</span>
+        </button>
+        <button onclick="openArchivePurgeModal()" class="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 transition-colors">
+          <span class="material-symbols-outlined text-[16px]">cleaning_services</span>
+          <span>Clean Cloud Disk</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI Metric Cards for Archive Selection -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-xs flex items-center justify-between">
+        <div>
+          <p class="font-mono text-[10px] font-bold text-outline uppercase tracking-wider">Cases Included</p>
+          <h3 id="archiveKpiCases" class="font-headline font-bold text-2xl text-on-surface mt-0.5">—</h3>
+          <p class="font-mono text-[10px] text-outline mt-1">Ready for Export</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[24px]">folder_zip</span>
+        </div>
+      </div>
+
+      <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-xs flex items-center justify-between">
+        <div>
+          <p class="font-mono text-[10px] font-bold text-outline uppercase tracking-wider">Banks & Branches</p>
+          <h3 id="archiveKpiBanks" class="font-headline font-bold text-2xl text-primary-container mt-0.5">—</h3>
+          <p id="archiveKpiBranches" class="font-mono text-[10px] text-primary-container mt-1">—</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-blue-50 text-primary-container flex items-center justify-center">
+          <span class="material-symbols-outlined text-[24px]">account_balance</span>
+        </div>
+      </div>
+
+      <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-xs flex items-center justify-between">
+        <div>
+          <p class="font-mono text-[10px] font-bold text-outline uppercase tracking-wider">Total Documents & Reports</p>
+          <h3 id="archiveKpiFiles" class="font-headline font-bold text-2xl text-indigo-700 mt-0.5">—</h3>
+          <p class="font-mono text-[10px] text-indigo-600 mt-1">Inputs + PDFs + Word Docs</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[24px]">description</span>
+        </div>
+      </div>
+
+      <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-xs flex items-center justify-between">
+        <div>
+          <p class="font-mono text-[10px] font-bold text-outline uppercase tracking-wider">Cloud Storage Load</p>
+          <h3 id="archiveKpiSize" class="font-headline font-bold text-2xl text-rose-700 mt-0.5">—</h3>
+          <p id="archiveKpiStatus" class="font-mono text-[10px] text-outline mt-1">—</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[24px]">cloud</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cases Breakdown Table -->
+    <div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xs overflow-hidden">
+      <div class="p-4 border-b border-outline-variant flex items-center justify-between flex-wrap gap-2 bg-surface-container-low/50">
+        <div>
+          <h3 class="font-headline font-bold text-sm text-on-surface">Cases in Selected Month & Bank</h3>
+          <p class="text-xs text-outline">Each row represents a self-contained case folder in the downloaded hierarchical ZIP.</p>
+        </div>
+        <span id="archiveTableCountBadge" class="font-mono text-xs px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface font-bold">—</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-surface-container-low text-outline font-mono text-[10px] uppercase border-b border-outline-variant">
+              <th class="py-2.5 px-3">Case No & Applicant Name</th>
+              <th class="py-2.5 px-3">Empanelled Bank</th>
+              <th class="py-2.5 px-3">Branch (શાખા)</th>
+              <th class="py-2.5 px-3 text-center">Files Count</th>
+              <th class="py-2.5 px-3 text-right">Cloud Disk Size</th>
+              <th class="py-2.5 px-3 text-center">Cloud Storage Status</th>
+            </tr>
+          </thead>
+          <tbody id="archiveCasesTableBody" class="divide-y divide-outline-variant/60 font-body">
+            <tr>
+              <td colspan="6" class="py-8 text-center text-outline font-mono">Loading monthly cases...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CLOUD STORAGE PURGE CONFIRMATION -->
+  <div id="modalArchivePurge" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest max-w-lg w-full rounded-2xl border border-rose-300 shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex items-center gap-3 text-rose-700">
+        <div class="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-[24px]">delete_forever</span>
+        </div>
+        <div>
+          <h3 class="font-headline font-bold text-base text-on-surface">Purge Railway Cloud Storage</h3>
+          <p class="text-xs text-outline font-mono">Step 2: Free up server disk & decrease recurring hosting load</p>
+        </div>
+      </div>
+
+      <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 space-y-2">
+        <div class="font-bold flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">warning</span>
+          <span>Important Safety Precaution:</span>
+        </div>
+        <p>
+          Before purging, verify that you have downloaded the monthly backup ZIP for <strong id="modalPurgeMonthLabel" class="underline">OCT - 2026</strong> onto your office computer or USB Drive (D:).
+        </p>
+        <p class="text-[11px] text-rose-800">
+          Purging will permanently delete raw uploaded PDFs, scanned KYC images, and generated reports from the Railway server to free up <strong id="modalPurgeSizeLabel">— MB</strong> of cloud disk space.
+        </p>
+      </div>
+
+      <!-- Purge Mode Selection -->
+      <div class="space-y-2 text-xs">
+        <label class="block font-bold text-on-surface">Choose Cleanup Mode:</label>
+        <label class="flex items-start gap-2 p-2.5 rounded-lg border border-outline-variant hover:bg-surface-container-low cursor-pointer">
+          <input type="radio" name="purgeModeRadio" value="files_only" checked class="mt-0.5 text-rose-600 focus:ring-rose-500"/>
+          <div>
+            <span class="font-bold text-on-surface block">Free Up Cloud Disk Only (Recommended)</span>
+            <span class="text-[11px] text-outline">Deletes heavy files from server disk. Keeps case summary rows & audit trail in portal marked as 'Archived Locally'.</span>
+          </div>
+        </label>
+        <label class="flex items-start gap-2 p-2.5 rounded-lg border border-outline-variant hover:bg-surface-container-low cursor-pointer">
+          <input type="radio" name="purgeModeRadio" value="full_delete" class="mt-0.5 text-rose-600 focus:ring-rose-500"/>
+          <div>
+            <span class="font-bold text-rose-700 block">Delete Cases Completely from Database</span>
+            <span class="text-[11px] text-outline">Permanently deletes both files and database case records for this month.</span>
+          </div>
+        </label>
+      </div>
+
+      <!-- Confirmation Checkbox -->
+      <label class="flex items-center gap-2 text-xs font-semibold text-on-surface cursor-pointer pt-1">
+        <input id="chkPurgeConfirm" type="checkbox" class="rounded text-rose-600 focus:ring-rose-500"/>
+        <span>I have downloaded and verified the backup ZIP on local machine / USB drive.</span>
+      </label>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-outline-variant">
+        <button onclick="closeArchivePurgeModal()" type="button" class="px-4 py-2 rounded-xl text-xs font-semibold text-on-surface hover:bg-surface-container transition-colors">
+          Cancel
+        </button>
+        <button id="btnExecutePurge" onclick="executeArchivePurge()" type="button" class="px-4 py-2 rounded-xl text-xs font-headline font-bold bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+          <span>Confirm & Purge Cloud Storage</span>
+        </button>
       </div>
     </div>
   </div>
@@ -4087,58 +4324,321 @@
     }
 
     // ==========================================
-    // PORTAL VIEW SWITCHER (SCRUTINY DESK vs MANAGEMENT PORTAL vs NEW CASE INTAKE)
+    // PORTAL VIEW SWITCHER (SCRUTINY DESK vs MANAGEMENT PORTAL vs NEW CASE INTAKE vs ARCHIVE)
     // ==========================================
     function switchMainPortalView(view) {
       const scrutinyDesk = document.getElementById("viewScrutinyDesk");
       const mgmtPortal = document.getElementById("viewManagementPortal");
       const vaultPortal = document.getElementById("viewDocumentVault");
       const newCasePortal = document.getElementById("viewNewCaseIntake");
+      const archivePortal = document.getElementById("viewMonthlyArchive");
       const tabScrutiny = document.getElementById("navTabScrutiny");
       const tabMgmt = document.getElementById("navTabManagement");
       const tabVault = document.getElementById("navTabVault");
       const tabNewCase = document.getElementById("navTabNewCase");
+      const tabArchive = document.getElementById("navTabArchive");
 
-      if (view === "management") {
+      if (view === "archive") {
+        if (scrutinyDesk) scrutinyDesk.classList.add("hidden");
+        if (mgmtPortal) mgmtPortal.classList.add("hidden");
+        if (vaultPortal) vaultPortal.classList.add("hidden");
+        if (newCasePortal) newCasePortal.classList.add("hidden");
+        if (archivePortal) archivePortal.classList.remove("hidden");
+        if (tabArchive) tabArchive.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1 transition-all bg-amber-600 text-white shadow-xs whitespace-nowrap";
+        if (tabScrutiny) tabScrutiny.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabMgmt) tabMgmt.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabVault) tabVault.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabNewCase) tabNewCase.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1 transition-all whitespace-nowrap";
+        renderMonthlyArchiveDesk();
+      } else if (view === "management") {
         if (scrutinyDesk) scrutinyDesk.classList.add("hidden");
         if (mgmtPortal) mgmtPortal.classList.remove("hidden");
         if (vaultPortal) vaultPortal.classList.add("hidden");
         if (newCasePortal) newCasePortal.classList.add("hidden");
+        if (archivePortal) archivePortal.classList.add("hidden");
         if (tabMgmt) tabMgmt.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1 transition-all bg-primary-container text-white shadow-xs whitespace-nowrap";
         if (tabScrutiny) tabScrutiny.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
         if (tabVault) tabVault.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
         if (tabNewCase) tabNewCase.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabArchive) tabArchive.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-amber-900 hover:text-amber-950 hover:bg-amber-50 border border-amber-300 flex items-center gap-1 transition-all whitespace-nowrap";
         renderManagementPortal();
       } else if (view === "vault") {
         if (scrutinyDesk) scrutinyDesk.classList.add("hidden");
         if (mgmtPortal) mgmtPortal.classList.add("hidden");
         if (vaultPortal) vaultPortal.classList.remove("hidden");
         if (newCasePortal) newCasePortal.classList.add("hidden");
+        if (archivePortal) archivePortal.classList.add("hidden");
         if (tabVault) tabVault.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1 transition-all bg-primary-container text-white shadow-xs whitespace-nowrap";
         if (tabScrutiny) tabScrutiny.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
         if (tabMgmt) tabMgmt.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
         if (tabNewCase) tabNewCase.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabArchive) tabArchive.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-amber-900 hover:text-amber-950 hover:bg-amber-50 border border-amber-300 flex items-center gap-1 transition-all whitespace-nowrap";
         renderCaseDocumentVault(activeCaseId);
       } else if (view === "newcase") {
         if (scrutinyDesk) scrutinyDesk.classList.add("hidden");
         if (mgmtPortal) mgmtPortal.classList.add("hidden");
         if (vaultPortal) vaultPortal.classList.add("hidden");
         if (newCasePortal) newCasePortal.classList.remove("hidden");
+        if (archivePortal) archivePortal.classList.add("hidden");
         if (tabNewCase) tabNewCase.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1 transition-all bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/50 whitespace-nowrap";
         if (tabScrutiny) tabScrutiny.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
         if (tabMgmt) tabMgmt.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
         if (tabVault) tabVault.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabArchive) tabArchive.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-amber-900 hover:text-amber-950 hover:bg-amber-50 border border-amber-300 flex items-center gap-1 transition-all whitespace-nowrap";
         initNewCaseTabFields();
       } else {
         if (scrutinyDesk) scrutinyDesk.classList.remove("hidden");
         if (mgmtPortal) mgmtPortal.classList.add("hidden");
         if (vaultPortal) vaultPortal.classList.add("hidden");
         if (newCasePortal) newCasePortal.classList.add("hidden");
+        if (archivePortal) archivePortal.classList.add("hidden");
         if (tabScrutiny) tabScrutiny.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1 transition-all bg-primary-container text-white shadow-xs whitespace-nowrap";
         if (tabMgmt) tabMgmt.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
         if (tabVault) tabVault.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container flex items-center gap-1 transition-all whitespace-nowrap";
         if (tabNewCase) tabNewCase.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1 transition-all whitespace-nowrap";
+        if (tabArchive) tabArchive.className = "px-2.5 py-1.5 rounded-lg text-xs font-headline font-medium text-amber-900 hover:text-amber-950 hover:bg-amber-50 border border-amber-300 flex items-center gap-1 transition-all whitespace-nowrap";
         renderVaultMini();
+      }
+    }
+
+    // ==========================================
+    // MONTHLY ARCHIVE & CLOUD OFFLOAD CONTROLLER
+    // ==========================================
+    let cachedArchiveMonths = [];
+
+    async function renderMonthlyArchiveDesk() {
+      try {
+        const res = await fetch("/api/v1/archives/months");
+        if (!res.ok) throw new Error("Failed to fetch archive months");
+        cachedArchiveMonths = await res.json();
+      } catch (err) {
+        console.error("renderMonthlyArchiveDesk error:", err);
+      }
+
+      // Populate Month Selector Dropdown
+      const selectMonth = document.getElementById("archiveMonthSelect");
+      if (selectMonth) {
+        const curVal = selectMonth.value;
+        selectMonth.innerHTML = "";
+        
+        // Add "All Portfolio Months" option
+        const allOpt = document.createElement("option");
+        allOpt.value = "ALL";
+        allOpt.textContent = "All Portfolio Months (સંપૂર્ણ પોર્ટફોલિયો)";
+        selectMonth.appendChild(allOpt);
+
+        cachedArchiveMonths.forEach(m => {
+          const opt = document.createElement("option");
+          opt.value = m.month_year;
+          opt.textContent = `${m.month_year} (${m.cases_count} Cases • ${m.total_size_mb} MB)`;
+          selectMonth.appendChild(opt);
+        });
+
+        // Set default to first specific month if available, or keep current
+        if (curVal && Array.from(selectMonth.options).some(o => o.value === curVal)) {
+          selectMonth.value = curVal;
+        } else if (cachedArchiveMonths.length > 0) {
+          selectMonth.value = cachedArchiveMonths[0].month_year;
+        }
+      }
+
+      updateArchiveViewData();
+    }
+
+    function onArchiveMonthChanged(val) {
+      const treeMonth = document.getElementById("dispArchiveTreeMonth");
+      if (treeMonth) treeMonth.textContent = (val && val !== "ALL") ? val : "All Months (AUG / SEP / OCT 2026)";
+      updateArchiveViewData();
+    }
+
+    function onArchiveBankChanged(val) {
+      const treeBank = document.getElementById("dispArchiveTreeBank");
+      if (treeBank) treeBank.textContent = (val && val !== "ALL") ? val : "All Empanelled Banks (Union Bank, BOB, SBI, HDFC, ICICI)";
+      updateArchiveViewData();
+    }
+
+    function updateArchiveViewData() {
+      const selectMonth = document.getElementById("archiveMonthSelect");
+      const selectBank = document.getElementById("archiveBankSelect");
+      const targetMonth = selectMonth ? selectMonth.value : "ALL";
+      const targetBank = selectBank ? selectBank.value : "ALL";
+
+      let filteredCases = [];
+      let totalFiles = 0;
+      let totalBytes = 0;
+      let banksSet = new Set();
+      let branchesSet = new Set();
+      let isPurged = true;
+
+      cachedArchiveMonths.forEach(m => {
+        if (targetMonth === "ALL" || m.month_year === targetMonth) {
+          (m.cases || []).forEach(c => {
+            if (targetBank === "ALL" || (c.bank_name && c.bank_name.toLowerCase().includes(targetBank.toLowerCase()))) {
+              filteredCases.push({ ...c, month_year: m.month_year });
+              totalFiles += (c.files_count || 0);
+              totalBytes += ((c.size_mb || 0) * 1024 * 1024);
+              if (c.bank_name) banksSet.add(c.bank_name);
+              if (c.branch) branchesSet.add(c.branch);
+              if (!c.is_archived && (c.files_count > 0 || c.size_mb > 0)) isPurged = false;
+            }
+          });
+        }
+      });
+
+      const totalMb = (totalBytes / (1024 * 1024)).toFixed(2);
+
+      // Update KPI cards
+      const kpiCases = document.getElementById("archiveKpiCases");
+      const kpiBanks = document.getElementById("archiveKpiBanks");
+      const kpiBranches = document.getElementById("archiveKpiBranches");
+      const kpiFiles = document.getElementById("archiveKpiFiles");
+      const kpiSize = document.getElementById("archiveKpiSize");
+      const kpiStatus = document.getElementById("archiveKpiStatus");
+      const tableCountBadge = document.getElementById("archiveTableCountBadge");
+
+      if (kpiCases) kpiCases.textContent = `${filteredCases.length} Cases`;
+      if (kpiBanks) kpiBanks.textContent = `${banksSet.size} Banks`;
+      if (kpiBranches) kpiBranches.textContent = `Across ${branchesSet.size} Branches`;
+      if (kpiFiles) kpiFiles.textContent = `${totalFiles} Files`;
+      if (kpiSize) kpiSize.textContent = `${totalMb} MB`;
+      if (tableCountBadge) tableCountBadge.textContent = `${filteredCases.length} Cases listed`;
+
+      if (kpiStatus) {
+        if (isPurged || parseFloat(totalMb) === 0) {
+          kpiStatus.innerHTML = '<span class="text-emerald-700 font-bold">✓ Purged / Saved to Local Machine</span>';
+        } else {
+          kpiStatus.innerHTML = '<span class="text-rose-700 font-bold">● Active on Railway Cloud</span>';
+        }
+      }
+
+      // Populate Table
+      const tbody = document.getElementById("archiveCasesTableBody");
+      if (!tbody) return;
+
+      if (filteredCases.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-outline font-mono">No cases found for selected Month & Bank.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filteredCases.map(c => {
+        const statusBadge = (c.is_archived || (c.files_count === 0 && c.size_mb === 0))
+          ? `<span class="px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 font-mono text-[10px] font-bold">📦 Archived to Local Machine</span>`
+          : `<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-[10px] font-bold">● Stored on Cloud (${c.size_mb} MB)</span>`;
+
+        return `
+          <tr class="hover:bg-surface-container-low transition-colors">
+            <td class="py-3 px-3">
+              <div class="font-headline font-bold text-on-surface">${escapeHtml(c.applicant_name)}</div>
+              <div class="font-mono text-[10px] text-outline">${escapeHtml(c.case_no)} • ${escapeHtml(c.month_year || "")}</div>
+            </td>
+            <td class="py-3 px-3">
+              <span class="font-medium text-on-surface">${escapeHtml(c.bank_name || "General Bank")}</span>
+            </td>
+            <td class="py-3 px-3">
+              <span class="font-mono text-[11px] text-on-surface-variant">${escapeHtml(c.branch || "Main Branch")}</span>
+            </td>
+            <td class="py-3 px-3 text-center">
+              <span class="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">${c.files_count || 0} Files</span>
+            </td>
+            <td class="py-3 px-3 text-right font-mono font-bold text-on-surface">
+              ${c.size_mb || 0} MB
+            </td>
+            <td class="py-3 px-3 text-center">
+              ${statusBadge}
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function downloadSelectedArchiveZip() {
+      const selectMonth = document.getElementById("archiveMonthSelect");
+      const selectBank = document.getElementById("archiveBankSelect");
+      const month = selectMonth ? selectMonth.value : "ALL";
+      const bank = selectBank ? selectBank.value : "ALL";
+
+      const url = `/api/v1/archives/download?month=${encodeURIComponent(month)}&bank=${encodeURIComponent(bank)}`;
+      
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `CA_Archive_${month.replace(/\s+/g, '_')}.zip`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      alert(`📥 Initiated download of hierarchical archive ZIP for ${month}!\n\nFolder Hierarchy:\n${month} ➔ Bank ➔ Branch ➔ Case Name (Inputs + Generated Reports)\n\nOnce downloaded to your Local Machine or USB Drive (D:), you can click 'Clean Cloud Disk' to decrease Railway storage load.`);
+    }
+
+    function openArchivePurgeModal() {
+      const selectMonth = document.getElementById("archiveMonthSelect");
+      const month = selectMonth ? selectMonth.value : "ALL";
+      const kpiSize = document.getElementById("archiveKpiSize");
+      const sizeText = kpiSize ? kpiSize.textContent : "0 MB";
+
+      const modalMonth = document.getElementById("modalPurgeMonthLabel");
+      const modalSize = document.getElementById("modalPurgeSizeLabel");
+      if (modalMonth) modalMonth.textContent = month;
+      if (modalSize) modalSize.textContent = sizeText;
+
+      const chk = document.getElementById("chkPurgeConfirm");
+      if (chk) chk.checked = false;
+
+      const modal = document.getElementById("modalArchivePurge");
+      if (modal) modal.classList.remove("hidden");
+    }
+
+    function closeArchivePurgeModal() {
+      const modal = document.getElementById("modalArchivePurge");
+      if (modal) modal.classList.add("hidden");
+    }
+
+    async function executeArchivePurge() {
+      const chk = document.getElementById("chkPurgeConfirm");
+      if (!chk || !chk.checked) {
+        alert("Please tick the confirmation checkbox to verify you have saved the backup to your PC or USB Drive.");
+        return;
+      }
+
+      const selectMonth = document.getElementById("archiveMonthSelect");
+      const month = selectMonth ? selectMonth.value : "ALL";
+      const purgeModeRadio = document.querySelector('input[name="purgeModeRadio"]:checked');
+      const purgeMode = purgeModeRadio ? purgeModeRadio.value : "files_only";
+
+      const btn = document.getElementById("btnExecutePurge");
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-outlined text-[16px] animate-spin">sync</span> Purging...`;
+      }
+
+      try {
+        const res = await fetch("/api/v1/archives/purge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            month_year: month,
+            confirm: true,
+            purge_mode: purgeMode,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || "Purge request failed");
+        }
+
+        closeArchivePurgeModal();
+        alert(`🧹 Cloud storage cleanup complete!\n\n${data.message || `Freed ${data.mb_freed} MB and deleted ${data.files_deleted} files from Railway cloud.`}\n\nLocal backup on your PC / USB drive remains safe.`);
+        await renderMonthlyArchiveDesk();
+        if (typeof renderManagementPortal === "function") {
+          renderManagementPortal();
+        }
+      } catch (err) {
+        alert(`Purge failed: ${err.message}`);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols-outlined text-[16px]">delete_sweep</span> Confirm & Purge Cloud Storage`;
+        }
       }
     }
 

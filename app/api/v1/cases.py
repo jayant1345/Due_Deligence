@@ -236,24 +236,6 @@ async def assign_case_to_agent(
     return loan_case
 
 
-@router.delete("/{case_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_case(
-    case_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.SUPER_ADMIN)),
-):
-    """
-    Permanently delete a loan case (e.g. a mistakenly created or duplicate case) and all
-    of its documents, visits, reports, and audit logs. SUPER_ADMIN only.
-    """
-    loan_case = await resolve_loan_case(db, case_id)
-    if not loan_case:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
-
-    await db.delete(loan_case)
-    await db.commit()
-    return None
-
 
 @router.get("/public/{case_id}", response_model=CaseResponse)
 async def get_public_case_detail(
