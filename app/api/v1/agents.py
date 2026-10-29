@@ -173,27 +173,32 @@ async def delete_field_agent(
             detail=f"Field Agent '{agent_id}' not found",
         )
 
+    target_id = agent.id
+    target_name = agent.full_name
+
     # 1. Unassign any cases assigned to this agent
     await db.execute(
         update(LoanCase)
-        .where(LoanCase.assigned_agent_id == agent.id)
+        .where(LoanCase.assigned_agent_id == target_id)
         .values(assigned_agent_id=None)
     )
 
-    # 2. Try hard delete, or fallback to soft-delete if foreign keys exist
-    try:
-        await db.delete(agent)
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        # Soft delete: rename email and set is_active=False
-        agent.is_active = False
-        agent.email = f"removed_{agent.email}_{int(datetime.utcnow().timestamp())}"
-        await db.commit()
+    # 2. Safely deactivate agent and change email so username is freed up
+    # Direct SQL update guarantees no foreign key errors from past audit logs
+    ts = int(datetime.utcnow().timestamp())
+    await db.execute(
+        update(User)
+        .where(User.id == target_id)
+        .values(
+            is_active=False,
+            email=f"removed_{str(target_id)[:8]}_{ts}",
+        )
+    )
+    await db.commit()
 
     return {
         "success": True,
-        "message": f"Agent '{agent.full_name}' was removed successfully.",
+        "message": f"Agent '{target_name}' was removed successfully.",
     }
 
 
