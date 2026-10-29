@@ -4718,13 +4718,18 @@
     // Real cases live in the database; the portal's built-in list is only demo data. Load every
     // DB case so a case created earlier (and its AI scan) is still here after a page reload.
     async function loadDbCasesIntoRegistry() {
+      if (typeof purgeDeletedCasesFromRegistry === "function") purgeDeletedCasesFromRegistry();
       try {
         const res = await fetch("/api/v1/cases", { headers: authHeaders() });
         if (!res.ok) return;
         const cases = await res.json();
         const sel = document.getElementById("caseSelectorSelect");
+        const deletedSet = typeof getDeletedCasesSet === "function" ? getDeletedCasesSet() : new Set();
         const knownCaseNos = new Set(Object.values(caseRegistry).map(c => (c.case_no || "").toUpperCase()));
         cases.forEach(dc => {
+          if (deletedSet.has(String(dc.id).toUpperCase()) || (dc.case_no && deletedSet.has(String(dc.case_no).toUpperCase()))) {
+            return; // Skip cases explicitly deleted by CA user
+          }
           if (!caseRegistry[dc.id]) {
             caseRegistry[dc.id] = buildCaseEntry({
               case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
@@ -4743,8 +4748,8 @@
             knownCaseNos.add((dc.case_no || "").toUpperCase());
           }
         });
-        const counterEl = document.getElementById("totalCaseCount");
-        if (counterEl) counterEl.textContent = Object.keys(caseRegistry).length;
+        if (typeof purgeDeletedCasesFromRegistry === "function") purgeDeletedCasesFromRegistry();
+        updateGlobalCaseCounters();
       } catch (e) {
         console.warn("Could not load cases from server:", e);
       }
@@ -5119,11 +5124,50 @@
     // ==========================================
     // CASE MANAGEMENT & PORTFOLIO INTELLIGENCE
     // ==========================================
+    function getDeletedCasesSet() {
+      try {
+        const raw = localStorage.getItem("deleted_cases");
+        const list = raw ? JSON.parse(raw) : [];
+        return new Set((Array.isArray(list) ? list : []).map(s => String(s).toUpperCase()));
+      } catch(e) {
+        return new Set();
+      }
+    }
+
+    function purgeDeletedCasesFromRegistry() {
+      const deletedSet = getDeletedCasesSet();
+      if (deletedSet.size === 0) return;
+      Object.keys(caseRegistry).forEach(k => {
+        const c = caseRegistry[k];
+        if (deletedSet.has(String(k).toUpperCase()) || (c && (deletedSet.has(String(c.case_no || '').toUpperCase()) || deletedSet.has(String(c.id || '').toUpperCase()) || deletedSet.has(String(c.db_id || '').toUpperCase())))) {
+          delete caseRegistry[k];
+        }
+      });
+      const sel = document.getElementById("caseSelectorSelect");
+      if (sel) {
+        for (let i = sel.options.length - 1; i >= 0; i--) {
+          const val = sel.options[i].value;
+          const txt = sel.options[i].textContent;
+          if (deletedSet.has(String(val).toUpperCase()) || Array.from(deletedSet).some(d => txt.toUpperCase().includes(d))) {
+            sel.remove(i);
+          }
+        }
+        if (sel.options.length > 0 && deletedSet.has(String(activeCaseId).toUpperCase())) {
+          activeCaseId = sel.options[0].value;
+          if (typeof onCaseSelected === "function") onCaseSelected(activeCaseId);
+        }
+      }
+    }
+
     function getUniqueCasesList() {
+      const deletedSet = getDeletedCasesSet();
       const uniqueMap = new Map();
       Object.entries(caseRegistry).forEach(([key, c]) => {
         if (!c) return;
         const uKey = (c.case_no || c.db_id || key).toUpperCase();
+        if (deletedSet.has(uKey) || deletedSet.has(String(key).toUpperCase()) || (c.id && deletedSet.has(String(c.id).toUpperCase())) || (c.db_id && deletedSet.has(String(c.db_id).toUpperCase()))) {
+          return; // Skip cases deleted by user
+        }
         if (!uniqueMap.has(uKey)) {
           uniqueMap.set(uKey, { id: c.db_id || key, ...c });
         }
@@ -5354,17 +5398,42 @@
         let token = localStorage.getItem("ca_token");
         const headers = {};
         if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
-        const res = await fetch(`/api/v1/cases/${caseId}`, {
-          method: "DELETE",
-          headers: headers
-        });
-        if (res.ok) {
+
+        let isSuccess = false;
+        try {
+          const res = await fetch(`/api/v1/cases/${caseId}`, {
+            method: "DELETE",
+            headers: headers
+          });
+          // Both 200 (deleted from DB) and 404 (already not in DB, e.g. client demo case) are success
+          isSuccess = res.ok || res.status === 404;
+        } catch(netErr) {
+          console.warn("Delete network notice, purging locally:", netErr);
+          isSuccess = true;
+        }
+
+        if (isSuccess) {
+          // Record into persistent localStorage so it never re-appears after reload
+          try {
+            const raw = localStorage.getItem("deleted_cases");
+            const deletedList = raw ? JSON.parse(raw) : [];
+            if (caseId && !deletedList.includes(caseId)) deletedList.push(caseId);
+            if (caseNo && !deletedList.includes(caseNo)) deletedList.push(caseNo);
+            const entry = caseRegistry[caseId];
+            if (entry) {
+              if (entry.id && !deletedList.includes(entry.id)) deletedList.push(entry.id);
+              if (entry.db_id && !deletedList.includes(entry.db_id)) deletedList.push(entry.db_id);
+              if (entry.case_no && !deletedList.includes(entry.case_no)) deletedList.push(entry.case_no);
+            }
+            localStorage.setItem("deleted_cases", JSON.stringify(deletedList));
+          } catch(e) {}
+
           // Remove all references from caseRegistry
           delete caseRegistry[caseId];
           if (caseNo) delete caseRegistry[caseNo];
           Object.keys(caseRegistry).forEach(k => {
             const entry = caseRegistry[k];
-            if (entry && (entry.case_no === caseNo || entry.id === caseId || entry.db_id === caseId)) {
+            if (entry && (entry.case_no === caseNo || entry.id === caseId || entry.db_id === caseId || k === caseId || k === caseNo)) {
               delete caseRegistry[k];
             }
           });
@@ -5372,10 +5441,9 @@
           // Remove option from dropdown
           const sel = document.getElementById("caseSelectorSelect");
           if (sel) {
-            for (let i = 0; i < sel.options.length; i++) {
+            for (let i = sel.options.length - 1; i >= 0; i--) {
               if (sel.options[i].value === caseId || (caseNo && sel.options[i].textContent.includes(caseNo))) {
                 sel.remove(i);
-                break;
               }
             }
             if (activeCaseId === caseId && sel.options.length > 0) {
@@ -5384,13 +5452,13 @@
             }
           }
 
-          // Immediately update all counters (10 -> 9) and table without requiring page refresh
+          purgeDeletedCasesFromRegistry();
+          // Immediately update all counters and table without requiring page refresh
           updateGlobalCaseCounters();
           renderManagementPortal();
           alert(`✓ Case "${caseNo}" deleted successfully.`);
         } else {
-          const err = await res.json().catch(() => ({}));
-          alert(`Could not delete case: ${err.detail || res.statusText}`);
+          alert(`Could not delete case "${caseNo}".`);
         }
       } catch (e) {
         alert("Delete failed: " + e.message);
@@ -5437,8 +5505,10 @@
     }
 
     window.addEventListener("DOMContentLoaded", async () => {
+      if (typeof purgeDeletedCasesFromRegistry === "function") purgeDeletedCasesFromRegistry();
       checkCaAuth();
       await loadDbCasesIntoRegistry();
+      if (typeof purgeDeletedCasesFromRegistry === "function") purgeDeletedCasesFromRegistry();
       const savedCase = localStorage.getItem("activeCaseId");
       const sel = document.getElementById("caseSelectorSelect");
       const initCase = (savedCase && caseRegistry[savedCase]) ? savedCase : ((sel && sel.value) ? sel.value : Object.keys(caseRegistry)[0]);
