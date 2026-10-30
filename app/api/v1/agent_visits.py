@@ -238,12 +238,17 @@ async def zero_lag_upload_document(
     except ValueError:
         resolved_doc_type = DocumentType.OTHER
 
-    # Determine folder: 'work' vs 'residence'
+    # Determine folder: 'work' vs 'residence' vs 'kyc'. A KYC/financial document (Aadhaar, PAN,
+    # utility bill, payslip, title deed...) is neither site evidence nor office evidence, so it
+    # must never default into "residence" — that would let it silently fill a residence-photo
+    # slot on the CA dashboard. Only genuine site/office evidence types default to a folder.
     norm_folder = (folder or "").strip().lower()
     doc_type_str = str(doc_type).upper()
     if not norm_folder:
         if any(w in doc_type_str for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"]):
             norm_folder = "work"
+        elif doc_type_str in ("AADHAAR_CARD", "PAN_CARD", "UTILITY_BILL", "SALARY_SLIP", "PROPERTY_TITLE_DEED", "FORM_16", "OTHER"):
+            norm_folder = "kyc"
         else:
             norm_folder = "residence"
 

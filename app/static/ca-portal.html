@@ -248,6 +248,10 @@
           <span class="text-on-surface-variant bg-surface-container-lowest px-2 py-1 rounded border border-outline-variant">
             Total Cases: <strong id="totalCaseCount" class="text-primary-container">6</strong> Active
           </span>
+          <button id="btnRefreshCases" onclick="manualRefreshCases()" class="px-2 py-1 bg-surface-container-lowest hover:bg-surface-container-high border border-outline-variant text-on-surface-variant rounded font-mono text-[11px] flex items-center gap-1 transition-all" title="Fetch the latest case list and documents from the server now — other CA staff or field agents may have added or changed data since this page loaded">
+            <span id="btnRefreshCasesIcon" class="material-symbols-outlined text-[14px]">sync</span>
+            <span id="dataAsOfText">Data as of: loading…</span>
+          </button>
           <button id="btnOpenHandover" onclick="openHandoverModal()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-headline font-bold flex items-center gap-1 shadow-sm transition-all text-xs" title="Assign & Dispatch Task to Field Agent via WhatsApp">
             <span class="material-symbols-outlined text-[15px]">send_to_mobile</span>
             <span>📲 Handover</span>
@@ -2855,6 +2859,42 @@
       }
     }
 
+    // Document types that are KYC/financial proof, never site or workplace evidence.
+    const NON_EVIDENCE_DOC_TYPES = ["AADHAAR_CARD", "PAN_CARD", "UTILITY_BILL", "SALARY_SLIP", "PROPERTY_TITLE_DEED", "FORM_16", "OTHER"];
+
+    // A field agent sometimes photographs Aadhaar/PAN/the utility bill directly (a JPEG) instead
+    // of the bank supplying a scannable PDF. Those raw uploads never pass through the AI
+    // PDF-ingestion pipeline, so mergeExtractedDocsIntoCase() never sees them and the dedicated
+    // card stays on its placeholder. Here we fall back to the latest such raw upload — only when
+    // no AI-scanned image is already set, so a real OCR'd scan is never overwritten by a lesser photo.
+    function applyFieldCapturedKycFallback(c, docs) {
+      if (!docs || !docs.length) return;
+      const latestOfType = (type) => {
+        const matches = docs.filter(d => (d.doc_type || "").toUpperCase() === type);
+        if (!matches.length) return null;
+        matches.sort((a, b) => new Date(b.created_at_raw || b.created_at || 0) - new Date(a.created_at_raw || a.created_at || 0));
+        return matches[0].url || matches[0].watermarked_url || null;
+      };
+      const isPlaceholder = (src) => !src || src.includes("placeholders/doc_pending.svg");
+
+      const fallbacks = [
+        ["AADHAAR_CARD", "aadhaar_front_img", "dispAadhaarFrontImg"],
+        ["PAN_CARD", "pan_front_img", "dispPanFrontImg"],
+        ["UTILITY_BILL", "utility_front_img", "dispUtilityFrontImg"],
+      ];
+      fallbacks.forEach(([docType, field, elId]) => {
+        if (!isPlaceholder(c[field])) return; // a real (AI-scanned or earlier) image already set
+        const url = latestOfType(docType);
+        if (!url) return;
+        c[field] = url;
+        c[`${field}_pending_ai_scan`] = true; // shown as a photo, not claimed as OCR-extracted data
+        if (caseRegistry[activeCaseId] === c) {
+          const img = document.getElementById(elId);
+          if (img) img.src = url;
+        }
+      });
+    }
+
     async function fetchLiveCaseDocuments(caseId) {
       if (!caseId) return;
       try {
@@ -2871,6 +2911,14 @@
         const c = caseRegistry[caseId];
         if (!c) return;
 
+        // Field-captured KYC photos (agent snaps Aadhaar/PAN/utility bill as a JPEG instead of
+        // the bank supplying a scannable PDF): these never go through the AI PDF-ingestion
+        // pipeline, so c.aadhaar_front_img etc. are never set for them by mergeExtractedDocsIntoCase.
+        // Fall back to the latest raw upload of that doc_type so the photo still appears on its
+        // own card (clearly marked as not yet AI-scanned) instead of vanishing or, worse, being
+        // swept into the residence/office evidence photo grid.
+        applyFieldCapturedKycFallback(c, docs);
+
         const selfieDocs = (docs || []).filter(d => d.doc_type === "AGENT_SELFIE" || (d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
         selfieDocs.sort((a, b) => {
           const tA = new Date(a.created_at_raw || a.created_at || 0).getTime();
@@ -2886,11 +2934,16 @@
         };
 
         const SITE_EVIDENCE_TYPES = ["PROPERTY_EXTERIOR", "PROPERTY_INTERIOR", "ELECTRICITY_METER", "SOCIETY_BOARD", "NEIGHBOR_VERIFICATION"];
+        // KYC/financial documents (Aadhaar, PAN, utility bill, payslip, title deed...) must never
+        // fill a residence/office evidence slot, no matter what folder or slot_number they were
+        // tagged with — they have their own dedicated cards (see applyFieldCapturedKycFallback).
+        const isKycDoc = (d) => NON_EVIDENCE_DOC_TYPES.includes((d.doc_type || "").toUpperCase());
         const evidenceDocs = (docs || []).filter(d =>
           d.doc_type !== "AGENT_SELFIE" &&
           !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")) &&
           !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
           !isWorkDoc(d) &&
+          !isKycDoc(d) &&
           (d.folder === "residence" || (d.ocr_data && d.ocr_data.folder === "residence") || (d.slot_number && d.slot_number >= 1 && d.slot_number <= 4) || SITE_EVIDENCE_TYPES.includes(d.doc_type))
         );
 
@@ -3014,6 +3067,7 @@
         const workDocs = (docs || []).filter(d =>
           d.doc_type !== "AGENT_SELFIE" &&
           !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
+          !isKycDoc(d) &&
           isWorkDoc(d)
         );
 
@@ -5702,6 +5756,7 @@
         });
         if (typeof purgeDeletedCasesFromRegistry === "function") purgeDeletedCasesFromRegistry();
         updateGlobalCaseCounters();
+        updateDataAsOfIndicator();
         // The open case may have been shown before its server benchmark was known.
         const openCase = caseRegistry[activeCaseId];
         if (openCase && gfServerId(openCase)) {
@@ -5711,6 +5766,8 @@
         }
       } catch (e) {
         console.warn("Could not load cases from server:", e);
+        const el = document.getElementById("dataAsOfText");
+        if (el) el.textContent = "Data as of: sync failed — tap to retry";
       }
     }
 
@@ -6133,6 +6190,36 @@
       });
       return Array.from(uniqueMap.values());
     }
+
+    // Shows WHEN this browser last pulled the case list from the server, since the case list is
+    // only fetched once on page load otherwise — a case created from another device/tab (e.g. the
+    // CA office PC) would silently never appear here until a manual reload. The light auto-poll
+    // below and this visible timestamp exist so staff can tell a stale view from a fresh one
+    // instead of assuming "it's not showing" means the case wasn't actually created.
+    function updateDataAsOfIndicator() {
+      const el = document.getElementById("dataAsOfText");
+      if (el) el.textContent = "Data as of: " + new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    async function manualRefreshCases() {
+      const icon = document.getElementById("btnRefreshCasesIcon");
+      const btn = document.getElementById("btnRefreshCases");
+      if (btn) btn.disabled = true;
+      if (icon) icon.classList.add("animate-spin");
+      try {
+        await loadDbCasesIntoRegistry();
+        if (activeCaseId) await fetchLiveCaseDocuments(activeCaseId);
+      } finally {
+        if (btn) btn.disabled = false;
+        if (icon) icon.classList.remove("animate-spin");
+      }
+    }
+
+    // A new case created on another device has no reason to appear here until something asks the
+    // server again — nothing else in the app re-fetches the case LIST (only the open case's
+    // documents poll every few seconds). This keeps that list from silently going stale for
+    // however long a tab stays open.
+    setInterval(() => { loadDbCasesIntoRegistry(); }, 45000);
 
     function updateGlobalCaseCounters() {
       const cases = getUniqueCasesList();

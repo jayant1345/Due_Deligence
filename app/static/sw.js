@@ -1,6 +1,6 @@
 // Service Worker for VALUEX CA CPV Field Agent PWA
 // Bump on every release that changes the PWA page so old cached copies are purged.
-const CACHE_NAME = "valuex-cpv-v6";
+const CACHE_NAME = "valuex-cpv-v7";
 const STATIC_ASSETS = [
   "/pwa",
   "/manifest.json",
