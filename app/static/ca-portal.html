@@ -3567,7 +3567,13 @@
 
     async function handlePortalPdfSelected(file) {
       if (!file) return;
-      await uploadAndProcessPdfFile(file);
+      // "Select Single PDF" defaults to wiping any previously AI-ingested pages for this case
+      // (uploadAndProcessPdfFile's own default is replaceExisting=true) — correct the FIRST time
+      // a case is scanned, but silently destructive if a CA later adds one more document to a
+      // case that was already scanned in an earlier session: every previously-extracted PAN,
+      // Aadhaar, Form 16 etc. would vanish, kept only in the audit log. Only wipe when there is
+      // nothing yet to lose; otherwise this one PDF is additive, same as a later file in a batch.
+      await uploadAndProcessPdfFile(file, activeSeparatedDocs.length === 0);
     }
 
     async function handlePortalFolderSelected(files) {
@@ -3615,9 +3621,14 @@
       if (statusPercent) statusPercent.textContent = "15%";
       if (progressBar) progressBar.style.width = "15%";
 
+      // The first PDF of a batch clears stale prior scan results so a case starts from a clean
+      // slate — but only when there IS no prior scan to lose. If this case was already AI-ingested
+      // in an earlier session (activeSeparatedDocs is populated when the case was opened) and a CA
+      // now selects a few more files to add, treating file 1 of THIS batch as "the first ever" would
+      // silently wipe every previously-extracted PAN/Aadhaar/Form 16 record for the case.
+      const hadPriorAiDocs = activeSeparatedDocs.length > 0;
       for (let i = 0; i < pdfs.length; i++) {
-        // First file in batch clears stale prior scan; subsequent files append additively
-        const isFirst = (i === 0);
+        const isFirst = (i === 0) && !hadPriorAiDocs;
         await uploadAndProcessPdfFile(pdfs[i], isFirst, i + 1, pdfs.length);
       }
 
@@ -5989,7 +6000,14 @@
         c.gender = g.charAt(0) + g.slice(1).toLowerCase();
       }
       c.father_name = a.father_or_spouse_name || fromOwn("father_or_spouse_name", ["PAN_CARD", "AADHAAR_CARD"]) || c.father_name;
-      if (a.residential_address) c.address = a.residential_address;
+      // Deliberately NOT overwriting c.address here. c.address is the property/target address the
+      // field agent must physically verify (bank-provided at case creation) and it is also shown
+      // as the "does the Aadhaar match?" corroboration baseline next to the Aadhaar card image.
+      // The applicant's Aadhaar residential_address is very often a different, outdated or native
+      // hometown address (confirmed on a real migrant-worker case: Aadhaar registered in Rajasthan,
+      // actual verified residence in Ahmedabad) — silently replacing the property address with it
+      // would both show the wrong address to the CA and make the Aadhaar-corroboration check always
+      // trivially "match" itself instead of actually comparing two independent sources.
       if (a.employer_name) c.employer_name = a.employer_name;
       if (a.net_salary_monthly && a.net_salary_monthly.length) c.net_salary_monthly = a.net_salary_monthly;
       if (a.bank_account) c.bank_account = a.bank_account;
