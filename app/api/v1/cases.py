@@ -817,8 +817,66 @@ async def _ai_ingested_pages(db: AsyncSession, loan_case: LoanCase) -> List[Dict
                 raw_url = raw_url.replace("/static/extracted_pages/", "/storage/separated_docs/")
             page["image_url"] = raw_url
             page["doc_type"] = page.get("llm_doc_type", page.get("doc_type"))
+            page["id"] = str(d.id)  # the actual CaseDocument row id, needed to delete this one page
             docs.append(page)
     docs.sort(key=lambda p: p.get("page_number") or 0)
     return docs
+
+
+@router.delete("/{case_id}/documents/{document_id}")
+async def delete_case_document(
+    case_id: str,
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_ca_user),
+):
+    """
+    Remove a single AI-ingested scanned page (a stray, duplicate, or irrelevant page the
+    Gemini folder/PDF scan swept up — e.g. someone else's document, a blurry re-scan, a
+    generic site photo that doesn't belong in the KYC bundle) from a case.
+
+    Deliberately restricted to pdf_ingest-sourced pages only: field-staff evidence photos
+    and the attendance selfie are compliance evidence with their own retake-based lifecycle
+    and must never be removable through this "tidy up the ingestion tray" action.
+    """
+    loan_case = await resolve_loan_case(db, case_id)
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
+
+    result = await db.execute(
+        select(CaseDocument).where(CaseDocument.id == document_id, CaseDocument.case_id == loan_case.id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found on this case")
+    if not (isinstance(doc.ocr_data, dict) and doc.ocr_data.get("source") == "pdf_ingest"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only AI-ingested scan pages can be removed this way — not field evidence photos or the selfie.",
+        )
+
+    removed_title = doc.ocr_data.get("document_title") or doc.ocr_data.get("doc_type")
+    removed_type = doc.doc_type.value if hasattr(doc.doc_type, "value") else str(doc.doc_type)
+
+    # Best-effort cleanup of the stored file(s) on disk — never block the delete on this.
+    for path in {doc.storage_url, doc.watermarked_url}:
+        if path and not path.startswith("http") and os.path.exists(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+    db.add(AuditLog(
+        case_id=loan_case.id,
+        user_id=current_user.id,
+        action="DOCUMENT_DELETED",
+        extra_metadata={"document_id": str(document_id), "doc_type": removed_type, "title": removed_title},
+    ))
+    await db.delete(doc)
+    await db.commit()
+    await _refresh_case_relationships(db, loan_case)
+    await db.commit()
+
+    return {"status": "success", "document_id": str(document_id), "message": f"Removed '{removed_title or removed_type}' from the case."}
 
 

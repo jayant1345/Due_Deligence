@@ -3792,7 +3792,7 @@
         );
 
         const frame = document.createElement("div");
-        frame.className = "w-full h-16 rounded overflow-hidden bg-slate-900 mb-1 flex items-center justify-center";
+        frame.className = "relative w-full h-16 rounded overflow-hidden bg-slate-900 mb-1 flex items-center justify-center";
         const img = document.createElement("img");
         img.src = docSrc;
         img.alt = d.document_title || "";
@@ -3803,6 +3803,19 @@
           }
         };
         frame.appendChild(img);
+
+        // Remove a stray/duplicate/irrelevant scanned page — only shown once the tray has a real
+        // document id to delete (always true once loaded from the server; absent only for a page
+        // still mid-scan). Hidden until hover so the grid stays uncluttered at a glance.
+        if (d.id) {
+          const delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.className = "absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-red-600/90 hover:bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow";
+          delBtn.title = "Remove this page from the case";
+          delBtn.innerHTML = '<span class="material-symbols-outlined text-[13px]">close</span>';
+          delBtn.onclick = (ev) => { ev.stopPropagation(); deleteSeparatedDocument(d.id, d.document_title || shortType); };
+          frame.appendChild(delBtn);
+        }
 
         const badge = document.createElement("span");
         badge.className = `text-[8px] font-mono font-bold px-1 py-0.5 rounded border ${badgeColor} text-center truncate w-full block`;
@@ -3837,6 +3850,30 @@
       line("Applicant:", [a.name, a.extracted_pan && "PAN " + a.extracted_pan, a.extracted_aadhaar && "Aadhaar " + a.extracted_aadhaar, a.date_of_birth && "DOB " + a.date_of_birth].filter(Boolean).join(" • ") || "—", false);
       (summary.other_persons || []).forEach(o => line("Other person:", `${o.name}${o.pan ? " (PAN " + o.pan + ")" : ""} — pages ${o.pages.join(", ")}`, true));
       (summary.conflicts || []).forEach(cf => line("⚠", cf, true));
+    }
+
+    async function deleteSeparatedDocument(documentId, label) {
+      if (!activeCaseId) return;
+      if (!confirm(`Remove "${label}" from this case?\n\nThis deletes the scanned page and its stored file — it cannot be undone, but it never touches field evidence photos or the selfie.`)) return;
+      const caseId = gfServerId(caseRegistry[activeCaseId]) || activeCaseId;
+      try {
+        const res = await fetch(`/api/v1/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(documentId)}`, {
+          method: "DELETE",
+          headers: authHeaders(),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(`Could not remove the document: ${err.detail || res.statusText}`);
+          return;
+        }
+        // Re-fetch from the server rather than just removing the thumbnail locally, so the
+        // cross-document AI summary (PAN/Aadhaar consensus, other-people list) recomputes
+        // correctly now that this page is gone.
+        await loadSeparatedCaseDocs(caseId);
+      } catch (err) {
+        console.warn("deleteSeparatedDocument error:", err);
+        alert("Network error — the document was not removed. Try again.");
+      }
     }
 
     function bindSeparatedPagesToCards() {
