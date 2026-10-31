@@ -758,7 +758,7 @@
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Designation / Role (હોદ્દો / પોઝિશન)*</label>
-            <input id="formDesignation" value="Teacher (શિક્ષક)" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Teacher, Clerk, Manager"/>
+            <input id="formDesignation" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Teacher, Clerk, Manager"/>
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Work From Home (ઘરે થી કામ કરે છે?)*</label>
@@ -772,11 +772,11 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Employer / School / Firm Name (સંસ્થા / કંપની નું નામ)*</label>
-            <input id="formFirmName" value="M/s. District Panchayat Education Committee" class="w-full text-xs font-bold rounded-lg border border-outline-variant bg-white p-2 text-primary-container" placeholder="Enter school / employer / company name"/>
+            <input id="formFirmName" value="" class="w-full text-xs font-bold rounded-lg border border-outline-variant bg-white p-2 text-primary-container" placeholder="Enter school / employer / company name"/>
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Office / Workplace Address (ઓફીસ / શાળા નું સરનામું)*</label>
-            <input id="formOfficeAddress" value="District Panchayat Education Committee, Dholka, Gujarat-382260" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="Enter office / workplace address"/>
+            <input id="formOfficeAddress" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="Enter office / workplace address"/>
           </div>
         </div>
 
@@ -784,7 +784,7 @@
         <div id="officeVerificationNotice" class="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2">
           <span class="material-symbols-outlined text-[18px] text-primary-container shrink-0 mt-0.5">verified</span>
           <div>
-            <b>Office / Workplace Verification Required:</b> Applicant is employed/salaried (<span id="dispNoticeOccupation">Teacher</span> at <span id="dispNoticeFirm">District Panchayat Education Committee</span>). Physical site verification of workplace and capturing 4 Geotagged Office Premises Evidence Photos is <u>mandatory</u>.
+            <b>Office / Workplace Verification Required:</b> Applicant is employed/salaried (<span id="dispNoticeOccupation">Employed</span> at <span id="dispNoticeFirm">Employer / School</span>). Physical site verification of workplace and capturing 4 Geotagged Office Premises Evidence Photos is <u>mandatory</u>.
           </div>
         </div>
 
@@ -3105,13 +3105,13 @@
       }
 
       const fFirm = document.getElementById("formFirmName");
-      if (fFirm) fFirm.value = c.firm_name || c.employer_name || "M/s. District Panchayat Education Committee";
+      if (fFirm) fFirm.value = c.firm_name || c.employer_name || "";
 
       const fRole = document.getElementById("formDesignation");
-      if (fRole) fRole.value = c.position || c.designation || "Teacher (શિક્ષક)";
+      if (fRole) fRole.value = c.position || c.designation || "";
 
       const fOffAddr = document.getElementById("formOfficeAddress");
-      if (fOffAddr) fOffAddr.value = c.office_address || "District Panchayat Education Committee, Dholka, Gujarat-382260";
+      if (fOffAddr) fOffAddr.value = c.office_address || "";
 
       const fWfh = document.getElementById("formWorkFromHome");
       if (fWfh) fWfh.value = (fOcc && fOcc.value === "House Wife") ? "Yes" : "No";
@@ -3315,9 +3315,9 @@
           }
           const off = parsedFormData.office_details || {};
           const occ = parsedFormData.occupation || off.position || off.occupation || "Job";
-          const firm = off.firm_name || "M/s. District Panchayat Education Committee";
-          const pos = off.position || off.designation || "Teacher / Job";
-          const offAddr = off.address || "District Panchayat Education Committee, Dholka, Gujarat-382260";
+          const firm = off.firm_name || "";
+          const pos = off.position || off.designation || "";
+          const offAddr = off.address || "";
           // The lossless fields saved alongside the flattened report fields - see the
           // "restore" comment in submitDueDiligenceForm(). Without these, every Residential
           // Details & Family input went back to blank the moment the agent switched to a

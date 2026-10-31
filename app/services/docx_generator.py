@@ -117,14 +117,18 @@ def generate_certified_cpv_docx(
     effective_udin = udin or "NOT YET GENERATED"
     rep_date = case_data.get("report_date") or datetime.now().strftime("%d-%m-%Y")
 
-    applicant_name = case_data.get("applicant_name", "Mrs. Rajkunvarba Pradeepsinh Vaghela")
-    applicant_phone = case_data.get("applicant_phone", "8160166900")
-    target_address = case_data.get("target_address", "31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar-382610")
-    bank_name = case_data.get("bank_name", "Union Bank of India")
-    branch = case_data.get("branch", "Amrapura Branch")
-    loan_type = case_data.get("loan_type", "Home Loan")
+    NOT_CAPTURED = "Not Captured"
 
-    ff = case_data.get("field_form", {})
+    applicant_name = case_data.get("applicant_name") or NOT_CAPTURED
+    applicant_phone = case_data.get("applicant_phone") or NOT_CAPTURED
+    target_address = case_data.get("target_address") or NOT_CAPTURED
+    bank_name = case_data.get("bank_name") or NOT_CAPTURED
+    branch = case_data.get("branch") or NOT_CAPTURED
+    loan_type = case_data.get("loan_type") or NOT_CAPTURED
+
+    ff = case_data.get("field_form") or {}
+    ff_office = ff.get("office_details") or {}
+    ff_is_working = ff.get("occupation") not in ("Housewife", "House Wife", None)
 
     # ================= PAGE 1 =================
     add_firm_header(doc, "1")
@@ -396,18 +400,18 @@ def generate_certified_cpv_docx(
     set_table_borders(tbl_p4)
 
     p4_data = [
-        ("Period of stay in present premises", "09 Years"),
-        ("Residence is", "Owned"),
-        ("Owner Name", "Vaghela Ranjanba Bakorsinh"),
-        ("Relation with Applicant", "Mother In-Law"),
-        ("Name board Visibility", "Yes (Confirmed at entrance: 31)"),
-        ("Nature of Building", "Fully Residential (Independent Bungalow / House)"),
+        ("Period of stay in present premises", ff.get("period_of_stay") or NOT_CAPTURED),
+        ("Residence is", ff.get("ownership") or NOT_CAPTURED),
+        ("Owner Name", ff.get("owner_name") or NOT_CAPTURED),
+        ("Relation with Applicant", ff.get("ownership") or NOT_CAPTURED),
+        ("Name board Visibility", ff.get("nameboard_visible") or NOT_CAPTURED),
+        ("Nature of Building", ff.get("building_type") or NOT_CAPTURED),
         ("General Appearance of Property", "Good"),
-        ("Locality & Surroundings", "Middle Class, Well Developed Residential"),
-        ("Assets Visible", "A.C., Fan, T.V., Sofa, Fridge, RO Filter, Two-Wheeler"),
+        ("Locality & Surroundings", NOT_CAPTURED),
+        ("Assets Visible", ff.get("assets_observed") or NOT_CAPTURED),
         ("Evidence supporting proof obtained", "Yes (Enclosed with dossier)"),
         ("Overall Assessment", "POSITIVE"),
-        ("Person Met at Site", "Mr. Pradeepsinh Vaghela (Husband - 8160166900)"),
+        ("Person Met at Site", ff.get("person_met") or NOT_CAPTURED),
     ]
     for r_idx, (lbl, val) in enumerate(p4_data):
         row = tbl_p4.rows[r_idx]
@@ -436,7 +440,11 @@ def generate_certified_cpv_docx(
     p_anxB.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_anxB.paragraph_format.space_before = Pt(4)
     p_anxB.paragraph_format.space_after = Pt(4)
-    r_b = p_anxB.add_run("__________Annexure ‘B’__________\nOffice Verification (Housewife)")
+    r_b = p_anxB.add_run(
+        "__________Annexure ‘B’__________\nOffice Verification (Salaried / Employer Premises)"
+        if ff_is_working else
+        "__________Annexure ‘B’__________\nOffice Verification (Housewife)"
+    )
     r_b.bold = True
     r_b.font.size = Pt(10)
     r_b.font.color.rgb = RGBColor(30, 64, 175)
@@ -450,7 +458,24 @@ def generate_certified_cpv_docx(
         "Established since", "Name board Visibility", "Infrastructure of premises",
         "Line of business / Position", "Assets Visible", "Overall Assessment"
     ]
-    for r_idx, f_name in enumerate(b_fields):
+    if ff_is_working:
+        b_values = [
+            ff_office.get("firm_name") or NOT_CAPTURED,
+            ff_office.get("address") or NOT_CAPTURED,
+            ff_office.get("landmark") or NOT_CAPTURED,
+            ff_office.get("firm_type") or NOT_CAPTURED,
+            ff_office.get("premises_ownership") or NOT_CAPTURED,
+            ff_office.get("established_since") or NOT_CAPTURED,
+            ff_office.get("nameboard") or NOT_CAPTURED,
+            ff_office.get("infrastructure") or NOT_CAPTURED,
+            ff_office.get("position") or ff_office.get("designation") or NOT_CAPTURED,
+            ff_office.get("assets") or NOT_CAPTURED,
+            "POSITIVE",
+        ]
+    else:
+        b_values = ["Not Applicable (Applicant is a Housewife / Home Maker)"] * len(b_fields)
+
+    for r_idx, (f_name, f_val) in enumerate(zip(b_fields, b_values)):
         row = tbl_p5.rows[r_idx]
         c0, c1 = row.cells
         c0.width = Inches(2.5)
@@ -463,8 +488,11 @@ def generate_certified_cpv_docx(
         r0.bold = True
         r0.font.size = Pt(8.5)
         p1 = c1.paragraphs[0]
-        r1 = p1.add_run("Not Applicable (Applicant is a Housewife / Home Maker)")
+        r1 = p1.add_run(f_val)
         r1.font.size = Pt(8.5)
+        if f_val == "POSITIVE":
+            r1.bold = True
+            r1.font.color.rgb = RGBColor(5, 150, 105)
 
     # ================= PAGE 6 =================
     doc.add_page_break()

@@ -60,13 +60,37 @@ def generate_certified_cpv_report(
     effective_udin = udin or "NOT YET GENERATED"
     rep_date = case_data.get("report_date") or datetime.now().strftime("%d-%m-%Y")
 
-    applicant_name = case_data.get("applicant_name", "Mrs. Rajkunvarba Pradeepsinh Vaghela")
-    applicant_phone = case_data.get("applicant_phone", "8160166900")
-    target_address = case_data.get("target_address", "31, Siddhi Vinayak Bunglows, Pethapur, Gandhinagar-382610")
-    bank_name = case_data.get("bank_name", "Union Bank of India")
-    branch = case_data.get("branch", "Amrapura Branch")
-    loan_type = case_data.get("loan_type", "Home Loan")
+    NOT_CAPTURED = "Not Captured"
+
+    applicant_name = case_data.get("applicant_name") or "Not Captured"
+    applicant_phone = case_data.get("applicant_phone") or "Not Captured"
+    target_address = case_data.get("target_address") or "Not Captured"
+    bank_name = case_data.get("bank_name") or "Not Captured"
+    branch = case_data.get("branch") or "Not Captured"
+    loan_type = case_data.get("loan_type") or "Not Captured"
+    loan_amount = case_data.get("loan_amount")
+    loan_amount_str = f"Rs. {loan_amount:,.0f}/-" if loan_amount else NOT_CAPTURED
     field_form = case_data.get("field_form") or {}
+
+    # Real OCR'd identity facts (Aadhaar/PAN/Employee ID scans), when the CA office has
+    # actually scanned those documents for this case - never a stand-in from another case.
+    document_items = document_items or []
+
+    def _ocr_first(field_name: str, doc_types: Optional[set] = None):
+        for d in document_items:
+            od = d.get("ocr_data") or {}
+            # The DB's own doc_type column collapses unusual document kinds (e.g. an
+            # employee ID card) down to OTHER - the real Gemini classification lives
+            # inside ocr_data itself, same as _ai_ingested_pages() resolves it.
+            real_doc_type = od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")
+            if od.get(field_name) and (doc_types is None or real_doc_type in doc_types):
+                return od[field_name]
+        return None
+
+    real_pan = _ocr_first("extracted_pan", {"PAN_CARD"}) or _ocr_first("extracted_pan")
+    real_aadhaar = _ocr_first("extracted_aadhaar", {"AADHAAR_CARD"})
+    real_dob = _ocr_first("date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"})
+    real_gender = _ocr_first("gender", {"AADHAAR_CARD"})
 
     doc = SimpleDocTemplate(
         output_pdf_path,
@@ -275,22 +299,24 @@ def generate_certified_cpv_report(
     else:
         met_desc = "the occupants at the site"
 
-    stay_period = str(field_form.get("period_of_stay") or "05 years")
-    if not stay_period.lower().endswith("years") and not stay_period.lower().endswith("yrs"):
+    stay_period = str(field_form.get("period_of_stay") or "")
+    if stay_period and not stay_period.lower().endswith("years") and not stay_period.lower().endswith("yrs"):
         stay_period = f"{stay_period} years"
+    stay_period = stay_period or NOT_CAPTURED
 
-    bldg_type = field_form.get("building_type") or "2 BHK Flat/ Independent House"
-    ownership = field_form.get("ownership") or "owned"
+    bldg_type = field_form.get("building_type") or NOT_CAPTURED
+    ownership = field_form.get("ownership") or NOT_CAPTURED
 
     office = field_form.get("office_details") or {}
     firm_name = office.get("firm_name") or ""
     office_addr = office.get("address") or ""
-    position = office.get("position") or "Teacher / Job"
-    experience = office.get("experience") or office.get("period_of_stay") or "10 years"
-    if not str(experience).lower().endswith("years") and not str(experience).lower().endswith("yrs"):
+    position = office.get("position") or NOT_CAPTURED
+    experience = office.get("experience") or office.get("period_of_stay") or ""
+    if experience and not str(experience).lower().endswith("years") and not str(experience).lower().endswith("yrs"):
         experience = f"{experience} years"
+    experience = experience or NOT_CAPTURED
 
-    occupation_val = field_form.get("occupation") or "Job"
+    occupation_val = field_form.get("occupation") or NOT_CAPTURED
     is_working = bool(firm_name and firm_name != "NA" and "housewife" not in str(occupation_val).lower())
 
     form16_ay = field_form.get("form16_ay") or ["2026-2027", "2025-2026"]
@@ -336,16 +362,17 @@ def generate_certified_cpv_report(
     story.append(Paragraph("__________Annexure ‘A’__________<br/>Residence Verification", anx_title_style))
     story.append(Spacer(1, 4))
 
-    marital_val = field_form.get("marital_status") or "Married"
-    community_val = field_form.get("community") or "Hindu"
-    qual_val = field_form.get("qualification") or "Graduate"
+    marital_val = field_form.get("marital_status") or NOT_CAPTURED
+    community_val = field_form.get("community") or NOT_CAPTURED
+    qual_val = field_form.get("qualification") or NOT_CAPTURED
+    dob_age_gender_val = " / ".join(filter(None, [real_dob, real_gender])) or NOT_CAPTURED
 
     anxA_p3 = [
         [Paragraph("<b>Name of Applicant</b>", table_cell_bold), Paragraph(applicant_name, table_cell_style), Paragraph("<b>Contact Number</b>", table_cell_bold), Paragraph(applicant_phone, table_cell_style)],
-        [Paragraph("<b>DOB / Age / Gender</b>", table_cell_bold), Paragraph("01-06-1982 / 43 Yrs / Female" if "bhavna" in applicant_name.lower() else "30-05-1997 / 29 Yrs / Female", table_cell_style), Paragraph("<b>Marital Status</b>", table_cell_bold), Paragraph(marital_val, table_cell_style)],
-        [Paragraph("<b>Community</b>", table_cell_bold), Paragraph(community_val, table_cell_style), Paragraph("<b>KYC PAN No.</b>", table_cell_bold), Paragraph("BYMPG8996E", table_cell_style)],
-        [Paragraph("<b>Aadhar Card No.</b>", table_cell_bold), Paragraph("2481 5102 7689", table_cell_style), Paragraph("<b>Qualification</b>", table_cell_bold), Paragraph(qual_val, table_cell_style)],
-        [Paragraph("<b>Occupation</b>", table_cell_bold), Paragraph(occupation_val, table_cell_style), Paragraph("<b>Loan Facility</b>", table_cell_bold), Paragraph(f"{loan_type} (20 Lacs)", table_cell_style)],
+        [Paragraph("<b>DOB / Age / Gender</b>", table_cell_bold), Paragraph(dob_age_gender_val, table_cell_style), Paragraph("<b>Marital Status</b>", table_cell_bold), Paragraph(marital_val, table_cell_style)],
+        [Paragraph("<b>Community</b>", table_cell_bold), Paragraph(community_val, table_cell_style), Paragraph("<b>KYC PAN No.</b>", table_cell_bold), Paragraph(real_pan or NOT_CAPTURED, table_cell_style)],
+        [Paragraph("<b>Aadhar Card No.</b>", table_cell_bold), Paragraph(real_aadhaar or NOT_CAPTURED, table_cell_style), Paragraph("<b>Qualification</b>", table_cell_bold), Paragraph(qual_val, table_cell_style)],
+        [Paragraph("<b>Occupation</b>", table_cell_bold), Paragraph(occupation_val, table_cell_style), Paragraph("<b>Loan Facility</b>", table_cell_bold), Paragraph(f"{loan_type} ({loan_amount_str})", table_cell_style)],
     ]
     t_anxA_p3 = Table(anxA_p3, colWidths=[1.8 * inch, 2.0 * inch, 1.8 * inch, 1.9 * inch])
     t_anxA_p3.setStyle(TableStyle([
@@ -376,11 +403,8 @@ def generate_certified_cpv_report(
                     Paragraph(str(m.get("age") or "-"), table_cell_style),
                     Paragraph(str(m.get("earning") or "-"), table_cell_style),
                 ])
-    elif "bhavna" in applicant_name.lower():
-        fam_grid.append([Paragraph("Bhavna Ben", table_cell_style), Paragraph("Self", table_cell_style), Paragraph("43", table_cell_style), Paragraph("Yes", table_cell_style)])
-        fam_grid.append([Paragraph("Balvant Bhai", table_cell_style), Paragraph("Husband", table_cell_style), Paragraph("50", table_cell_style), Paragraph("Yes", table_cell_style)])
     else:
-        fam_grid.append([Paragraph(applicant_name, table_cell_style), Paragraph("Self", table_cell_style), Paragraph("35", table_cell_style), Paragraph("Yes", table_cell_style)])
+        fam_grid.append([Paragraph(applicant_name, table_cell_style), Paragraph("Self", table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style)])
 
     t_fam = Table(fam_grid, colWidths=[2.2 * inch, 2.0 * inch, 1.5 * inch, 1.8 * inch])
     t_fam.setStyle(TableStyle([
@@ -397,18 +421,23 @@ def generate_certified_cpv_report(
     story.append(Paragraph("<b>Present Residence Premises:</b>", body_style))
     story.append(Spacer(1, 3))
     
-    res_landmark = (field_form.get("landmark") if isinstance(field_form, dict) else None) or ("Dholka / Bagodara" if "bhavna" in applicant_name.lower() else "Gandhinagar")
-    res_bldg = (field_form.get("building_type") if isinstance(field_form, dict) else None) or "Independent House / Pucca Residential House"
-    res_stay = (field_form.get("period_of_stay") if isinstance(field_form, dict) else None) or ("15 Years" if "bhavna" in applicant_name.lower() else "09 Years")
-    res_owner = (field_form.get("owner_name") if isinstance(field_form, dict) else None) or ("Balvant Bhai" if "bhavna" in applicant_name.lower() else applicant_name)
-    res_rel = (field_form.get("ownership") if isinstance(field_form, dict) else None) or ("Husband (Joint)" if "bhavna" in applicant_name.lower() else "Owned")
-    res_met = (field_form.get("person_met") if isinstance(field_form, dict) else None) or ("Balvant Bhai (Husband - 9157938887)" if "bhavna" in applicant_name.lower() else applicant_name)
-    
+    res_landmark = (field_form.get("landmark") if isinstance(field_form, dict) else None) or NOT_CAPTURED
+    res_bldg = (field_form.get("building_type") if isinstance(field_form, dict) else None) or NOT_CAPTURED
+    res_stay = (field_form.get("period_of_stay") if isinstance(field_form, dict) else None) or NOT_CAPTURED
+    res_owner = (field_form.get("owner_name") if isinstance(field_form, dict) else None) or NOT_CAPTURED
+    res_rel = (field_form.get("ownership") if isinstance(field_form, dict) else None) or NOT_CAPTURED
+    res_met = (field_form.get("person_met") if isinstance(field_form, dict) else None) or NOT_CAPTURED
+
+    neighbour_1 = field_form.get("neighbour_1") if isinstance(field_form, dict) else None
+    neighbour_2 = field_form.get("neighbour_2") if isinstance(field_form, dict) else None
+    neighbours_list = [n for n in [neighbour_1, neighbour_2] if n]
+    neighbours_val = "<br/>".join(f"{i + 1}. {n}" for i, n in enumerate(neighbours_list)) or NOT_CAPTURED
+
     prem_grid = [
         [Paragraph("<b>Verified Address Situated At</b>", table_cell_bold), Paragraph(target_address, table_cell_style)],
         [Paragraph("<b>Address as per Aadhar card</b>", table_cell_bold), Paragraph("As Above (Matches 100% with Verified Address)", table_cell_style)],
         [Paragraph("<b>Landmark</b>", table_cell_bold), Paragraph(res_landmark, table_cell_style)],
-        [Paragraph("<b>References (Neighbours)</b>", table_cell_bold), Paragraph("1. Local Resident / Neighbour<br/>2. Area Resident", table_cell_style)],
+        [Paragraph("<b>References (Neighbours)</b>", table_cell_bold), Paragraph(neighbours_val, table_cell_style)],
         [Paragraph("<b>Type of Building & Floor</b>", table_cell_bold), Paragraph(res_bldg, table_cell_style)],
     ]
     t_prem = Table(prem_grid, colWidths=[2.2 * inch, 5.3 * inch])
@@ -455,26 +484,26 @@ def generate_certified_cpv_report(
     story.append(PageBreak())
     add_firm_header(5)
     
-    is_working = ("bhavna" in applicant_name.lower()) or (isinstance(field_form, dict) and field_form.get("occupation") not in ("Housewife", None))
+    is_working = isinstance(field_form, dict) and field_form.get("occupation") not in ("Housewife", "House Wife", None)
     if is_working:
         story.append(Paragraph("__________Annexure ‘B’__________<br/>Office Verification (Salaried / Employer Premises)", anx_title_style))
         story.append(Spacer(1, 4))
         p5_grid = [
-            [Paragraph("<b>Firm Name</b>", table_cell_bold), Paragraph("M/s. District Panchayat Education Committee", table_cell_style)],
-            [Paragraph("<b>Premises Address</b>", table_cell_bold), Paragraph("District Panchayat Education Committee, Dholka, Gujarat-382260", table_cell_style)],
-            [Paragraph("<b>Landmark</b>", table_cell_bold), Paragraph("Near Taluka Panchayat, Dholka", table_cell_style)],
-            [Paragraph("<b>Firm Type</b>", table_cell_bold), Paragraph("Government Job (Education Committee)", table_cell_style)],
-            [Paragraph("<b>Premises Ownership</b>", table_cell_bold), Paragraph("Government / Municipal Owned", table_cell_style)],
-            [Paragraph("<b>Premises Owner Name</b>", table_cell_bold), Paragraph("District Panchayat Education Committee", table_cell_style)],
-            [Paragraph("<b>Established since</b>", table_cell_bold), Paragraph("15-03-2007 (19 Years)", table_cell_style)],
-            [Paragraph("<b>Location</b>", table_cell_bold), Paragraph("Commercial / Institutional", table_cell_style)],
-            [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph("Yes (Clearly visible at main office building)", table_cell_style)],
-            [Paragraph("<b>Infrastructure of premises</b>", table_cell_bold), Paragraph("Good (Pucca Building with full administrative facilities)", table_cell_style)],
-            [Paragraph("<b>Line of business / Position at Work</b>", table_cell_bold), Paragraph("Teacher / Administrative Staff (Pay Slip / Form 16 Verified)", table_cell_style)],
-            [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph("Office Tables, Computers, Filing Cabinets, Official Records", table_cell_style)],
-            [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph("Office records & Colleague interaction", table_cell_style)],
+            [Paragraph("<b>Firm Name</b>", table_cell_bold), Paragraph(firm_name or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Premises Address</b>", table_cell_bold), Paragraph(office_addr or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Landmark</b>", table_cell_bold), Paragraph(office.get("landmark") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Firm Type</b>", table_cell_bold), Paragraph(office.get("firm_type") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Premises Ownership</b>", table_cell_bold), Paragraph(office.get("premises_ownership") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Premises Owner Name</b>", table_cell_bold), Paragraph(office.get("premises_owner") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Established since</b>", table_cell_bold), Paragraph(office.get("established_since") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Location</b>", table_cell_bold), Paragraph(office.get("location") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph(office.get("nameboard") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Infrastructure of premises</b>", table_cell_bold), Paragraph(office.get("infrastructure") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Line of business / Position at Work</b>", table_cell_bold), Paragraph(position or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph(office.get("assets") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph(office.get("reference") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Overall Assessment</b>", table_cell_bold), Paragraph("<font color='#059669'><b>POSITIVE</b></font>", table_cell_style)],
-            [Paragraph("<b>Who meet?</b>", table_cell_bold), Paragraph("Office Principal / Incharge (02714-222345)", table_cell_style)],
+            [Paragraph("<b>Who meet?</b>", table_cell_bold), Paragraph(office.get("who_meet") or NOT_CAPTURED, table_cell_style)],
         ]
     else:
         story.append(Paragraph("__________Annexure ‘B’__________<br/>Office Verification (Housewife)", anx_title_style))
