@@ -71,18 +71,23 @@ def generate_certified_cpv_report(
     loan_amount = case_data.get("loan_amount")
     loan_amount_str = f"Rs. {loan_amount:,.0f}/-" if loan_amount else NOT_CAPTURED
     field_form = case_data.get("field_form") or {}
+    co_applicant_name = case_data.get("co_applicant_name") or None
+    co_applicant_phone = case_data.get("co_applicant_phone") or None
 
     # Real OCR'd identity facts (Aadhaar/PAN/Employee ID scans), when the CA office has
     # actually scanned those documents for this case - never a stand-in from another case.
     document_items = document_items or []
 
-    def _ocr_first(field_name: str, doc_types: Optional[set] = None):
+    def _ocr_first(field_name: str, doc_types: Optional[set] = None, co_applicant: bool = False):
         for d in document_items:
             od = d.get("ocr_data") or {}
             # The DB's own doc_type column collapses unusual document kinds (e.g. an
             # employee ID card) down to OTHER - the real Gemini classification lives
             # inside ocr_data itself, same as _ai_ingested_pages() resolves it.
             real_doc_type = od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")
+            is_co_doc = od.get("relationship_to_applicant") == "DIFFERENT_PERSON"
+            if co_applicant != is_co_doc:
+                continue
             if od.get(field_name) and (doc_types is None or real_doc_type in doc_types):
                 return od[field_name]
         return None
@@ -91,6 +96,13 @@ def generate_certified_cpv_report(
     real_aadhaar = _ocr_first("extracted_aadhaar", {"AADHAAR_CARD"})
     real_dob = _ocr_first("date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"})
     real_gender = _ocr_first("gender", {"AADHAAR_CARD"})
+
+    # Same OCR lookups, scoped to the co-applicant's own scanned documents (a different
+    # person from the one who's own KYC the applicant's lookups above are scoped to).
+    real_pan_co = _ocr_first("extracted_pan", {"PAN_CARD"}, co_applicant=True) or _ocr_first("extracted_pan", co_applicant=True)
+    real_aadhaar_co = _ocr_first("extracted_aadhaar", {"AADHAAR_CARD"}, co_applicant=True)
+    real_dob_co = _ocr_first("date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"}, co_applicant=True)
+    real_gender_co = _ocr_first("gender", {"AADHAAR_CARD"}, co_applicant=True)
 
     doc = SimpleDocTemplate(
         output_pdf_path,
@@ -225,12 +237,16 @@ def generate_certified_cpv_report(
     story.append(Paragraph("Contact Point Verification (CPV) report for loan process", section_title_style))
     story.append(Spacer(1, 4))
 
+    loan_persons_text = f"Applicant: <b>{applicant_name}</b>"
+    if co_applicant_name:
+        loan_persons_text += f"<br/>Co-Applicant: <b>{co_applicant_name}</b>"
+    verifier_name = case_data.get("agent_name") or NOT_CAPTURED
     p1_grid = [
         [Paragraph("<b>Type of Loan:</b>", table_cell_bold), Paragraph(str(loan_type), table_cell_style)],
         [Paragraph("<b>Branch:</b>", table_cell_bold), Paragraph(f"{bank_name}, {branch}", table_cell_style)],
         [Paragraph("<b>Report Date:</b>", table_cell_bold), Paragraph(rep_date, table_cell_style)],
-        [Paragraph("<b>Loan Persons:</b>", table_cell_bold), Paragraph(f"Applicant: <b>{applicant_name}</b>", table_cell_style)],
-        [Paragraph("<b>Verifier Executives:</b>", table_cell_bold), Paragraph("Name: Nilesh<br/>Name: Kamal Bhai<br/>File Allotted Name: Suresh Sir", table_cell_style)],
+        [Paragraph("<b>Loan Persons:</b>", table_cell_bold), Paragraph(loan_persons_text, table_cell_style)],
+        [Paragraph("<b>Verifier Executive:</b>", table_cell_bold), Paragraph(f"Name: {verifier_name}", table_cell_style)],
     ]
     t_p1 = Table(p1_grid, colWidths=[2.2 * inch, 5.3 * inch])
     t_p1.setStyle(TableStyle([
@@ -319,6 +335,14 @@ def generate_certified_cpv_report(
     occupation_val = field_form.get("occupation") or NOT_CAPTURED
     is_working = bool(firm_name and firm_name != "NA" and "housewife" not in str(occupation_val).lower())
 
+    # Co-applicant's own office, submitted separately in the PWA questionnaire since the
+    # co-applicant's workplace is frequently a different premises from the applicant's.
+    office_co = field_form.get("office_details_co") or {}
+    co_firm_name = office_co.get("firm_name") or ""
+    co_office_addr = office_co.get("address") or ""
+    co_position = office_co.get("position") or NOT_CAPTURED
+    co_occupation_val = office_co.get("occupation") or NOT_CAPTURED
+
     form16_ay = field_form.get("form16_ay") or ["2026-2027", "2025-2026"]
     if isinstance(form16_ay, list) and form16_ay:
         form16_ay_str = ", ".join(f"A.Y.{ay}" if not str(ay).startswith("A.Y.") else str(ay) for ay in form16_ay)
@@ -341,6 +365,25 @@ def generate_certified_cpv_report(
      Based on the verification conducted, the applicant's profile details are genuine.<br/><br/>
         """
 
+    is_co_working = bool(co_applicant_name) and bool(co_firm_name and "housewife" not in str(co_occupation_val).lower())
+    co_work_bullet = ""
+    if co_applicant_name:
+        if is_co_working:
+            co_work_bullet = (
+                "<b>Co-Applicant Working Details:</b><br/><br/>"
+                f"  The co-applicant, <b>{co_applicant_name}</b>, is employed with/ has a business named <b>{co_firm_name}</b>, located at, <b>{co_office_addr}</b>. A physical verification was conducted on {rep_date}.<br/><br/>"
+                f"  During the verification, the co-applicant is working as a <b>{co_position}</b>.<br/><br/>"
+                f"  Based on the verification conducted, the employment details of the co-applicant are genuine.<br/><br/>"
+            )
+        else:
+            co_work_bullet = (
+                "<b>Co-Applicant Working Details:</b><br/><br/>"
+                f"  The co-applicant, <b>{co_applicant_name}</b>, is a Housewife / Homemaker. Workplace physical verification is not applicable.<br/><br/>"
+            )
+    kyc_line = f"The applicant, <b>{applicant_name}</b>, has submitted the KYC documents."
+    if co_applicant_name:
+        kyc_line += f"<br/>The co-applicant, <b>{co_applicant_name}</b>, has submitted the KYC documents."
+
     p2_content = f"""
     <b>Residential Details:</b><br/><br/>
      A residence verification was conducted for the applicant, <b>{applicant_name}</b>, at the following address Viz: <b>{target_address}</b>, on {rep_date}.<br/><br/>
@@ -348,11 +391,12 @@ def generate_certified_cpv_report(
      The property is a <b>{bldg_type}</b> and is classified as <b>{ownership}</b>. The surrounding area is residential in nature, and the locality was observed to be developed with adequate infrastructure.<br/><br/>
      During the course of verification, residence proof indicators were observed at the premises. Based on physical verification, interaction with occupants, and supporting indicators available at the site, the residential details furnished by the applicant are verified and consistent with the information provided.<br/><br/>
     {work_bullet}
+    {co_work_bullet}
     <b>ITR:</b><br/><br/>
      The applicant has submitted Income Tax Returns (ITRs) for the Assessment years <b>2023–24, 2024–25 and 2025-26</b>, as proof of income.<br/><br/>
      The Form No: 16 <b>{form16_ay_str}</b>, Was Provided for Our Verification from Traces Website.<br/><br/>
     <b>KYC:</b><br/><br/>
-     The applicant, <b>{applicant_name}</b>, has submitted the KYC documents.
+     {kyc_line}
     """
     story.append(Paragraph(p2_content, body_style))
 
@@ -385,6 +429,27 @@ def generate_certified_cpv_report(
     ]))
     story.append(t_anxA_p3)
     story.append(Spacer(1, 8))
+
+    if co_applicant_name:
+        dob_age_gender_val_co = " / ".join(filter(None, [real_dob_co, real_gender_co])) or NOT_CAPTURED
+        anxA_p3_co = [
+            [Paragraph("<b>Name of Co-Applicant</b>", table_cell_bold), Paragraph(co_applicant_name, table_cell_style), Paragraph("<b>Contact Number</b>", table_cell_bold), Paragraph(co_applicant_phone or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>DOB / Age / Gender</b>", table_cell_bold), Paragraph(dob_age_gender_val_co, table_cell_style), Paragraph("<b>Marital Status</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Community</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph("<b>KYC PAN No.</b>", table_cell_bold), Paragraph(real_pan_co or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Aadhar Card No.</b>", table_cell_bold), Paragraph(real_aadhaar_co or NOT_CAPTURED, table_cell_style), Paragraph("<b>Qualification</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Occupation</b>", table_cell_bold), Paragraph(co_occupation_val, table_cell_style), Paragraph("<b>Relation to Applicant</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+        ]
+        t_anxA_p3_co = Table(anxA_p3_co, colWidths=[1.8 * inch, 2.0 * inch, 1.8 * inch, 1.9 * inch])
+        t_anxA_p3_co.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8FAFC")),
+            ("BACKGROUND", (2, 0), (2, -1), colors.HexColor("#F8FAFC")),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(t_anxA_p3_co)
+        story.append(Spacer(1, 8))
 
     # Family background table
     story.append(Paragraph("<b>Family background:</b>", body_style))
@@ -530,6 +595,53 @@ def generate_certified_cpv_report(
     ]))
     story.append(t_p5)
 
+    if co_applicant_name:
+        story.append(PageBreak())
+        add_firm_header("5A")
+        if is_co_working:
+            story.append(Paragraph("__________Annexure ‘B’ (Co-Applicant)__________<br/>Office Verification (Salaried / Employer Premises)", anx_title_style))
+            story.append(Spacer(1, 4))
+            p5_grid_co = [
+                [Paragraph("<b>Firm Name</b>", table_cell_bold), Paragraph(co_firm_name or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Premises Address</b>", table_cell_bold), Paragraph(co_office_addr or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Landmark</b>", table_cell_bold), Paragraph(office_co.get("landmark") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Firm Type</b>", table_cell_bold), Paragraph(office_co.get("firm_type") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Premises Ownership</b>", table_cell_bold), Paragraph(office_co.get("premises_ownership") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Premises Owner Name</b>", table_cell_bold), Paragraph(office_co.get("premises_owner") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Established since</b>", table_cell_bold), Paragraph(office_co.get("established_since") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Location</b>", table_cell_bold), Paragraph(office_co.get("location") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph(office_co.get("nameboard") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Infrastructure of premises</b>", table_cell_bold), Paragraph(office_co.get("infrastructure") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Number of Workers</b>", table_cell_bold), Paragraph(office_co.get("employees") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Line of business / Position at Work</b>", table_cell_bold), Paragraph(co_position or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph(office_co.get("assets") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph(office_co.get("reference") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Overall Assessment</b>", table_cell_bold), Paragraph("<font color='#059669'><b>POSITIVE</b></font>", table_cell_style)],
+                [Paragraph("<b>Who meet?</b>", table_cell_bold), Paragraph(office_co.get("who_meet") or NOT_CAPTURED, table_cell_style)],
+            ]
+        else:
+            story.append(Paragraph("__________Annexure ‘B’ (Co-Applicant)__________<br/>Office Verification (Housewife)", anx_title_style))
+            story.append(Spacer(1, 4))
+            b_rows_co = [
+                "Firm Name", "Premises Address", "Landmark", "Firm Type", "Premises Ownership",
+                "Premises Owner Name", "Established since", "Location", "Name board Visibility",
+                "Infrastructure of premises", "Number of Workers", "Line of business / Position at Work",
+                "Assets Visible", "Reference", "Overall Assessment", "Who meet?"
+            ]
+            p5_grid_co = [
+                [Paragraph(f"<b>{r}</b>", table_cell_bold), Paragraph("Not Applicable (Co-Applicant is a Housewife)", table_cell_style)]
+                for r in b_rows_co
+            ]
+        t_p5_co = Table(p5_grid_co, colWidths=[2.5 * inch, 5.0 * inch])
+        t_p5_co.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8FAFC")),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(t_p5_co)
+
     # ================= PAGE 6 =================
     story.append(PageBreak())
     add_firm_header(6)
@@ -555,12 +667,32 @@ def generate_certified_cpv_report(
     story.append(t_itr)
     story.append(Spacer(1, 12))
 
+    if co_applicant_name:
+        story.append(Paragraph(f"Co-Applicant: <b>{co_applicant_name}</b>", body_style))
+        story.append(Spacer(1, 3))
+        itr_grid_co = [
+            [Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)],
+            [Paragraph("2025-26", table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style)],
+            [Paragraph("2024-25", table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style)],
+            [Paragraph("2023-24", table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style)],
+        ]
+        t_itr_co = Table(itr_grid_co, colWidths=[1.5 * inch, 2.0 * inch, 1.8 * inch, 2.2 * inch])
+        t_itr_co.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E40AF")),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(t_itr_co)
+        story.append(Spacer(1, 12))
+
     story.append(Paragraph("__________Annexure ‘D’__________<br/>Bank Verification", anx_title_style))
     story.append(Spacer(1, 3))
     bank_grid = [
         [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(f"{bank_name}, {branch}", table_cell_style)],
         [Paragraph("<b>A/C Holder Name</b>", table_cell_bold), Paragraph(applicant_name, table_cell_style)],
-        [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph("Active / Verified", table_cell_style)],
+        [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
         [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(loan_type, table_cell_style)],
     ]
     t_bank = Table(bank_grid, colWidths=[2.5 * inch, 5.0 * inch])
@@ -572,6 +704,24 @@ def generate_certified_cpv_report(
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
     ]))
     story.append(t_bank)
+
+    if co_applicant_name:
+        story.append(Spacer(1, 8))
+        bank_grid_co = [
+            [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>A/C Holder Name</b>", table_cell_bold), Paragraph(co_applicant_name, table_cell_style)],
+            [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(loan_type, table_cell_style)],
+        ]
+        t_bank_co = Table(bank_grid_co, colWidths=[2.5 * inch, 5.0 * inch])
+        t_bank_co.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8FAFC")),
+            ("TOPPADDING", (0, 0), (-1, -1), 3.5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
+        ]))
+        story.append(t_bank_co)
 
     # ================= PAGE 7: PAN CARD VERIFICATION =================
     story.append(PageBreak())
@@ -915,6 +1065,68 @@ def generate_certified_cpv_report(
             ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ]))
         story.append(t_off_photos)
+
+    # ================= CO-APPLICANT OFFICE PREMISES VISIT PHOTOGRAPHS =================
+    if co_applicant_name and is_co_working:
+        story.append(PageBreak())
+        add_firm_header("9A")
+        story.append(Paragraph("Annexure ‘E’ (Part 4) — Co-Applicant Business / Employer Premises visit photographs:", anx_title_style))
+        story.append(Spacer(1, 4))
+
+        co_office_docs = [d for d in sorted_docs if "CO_OFFICE" in str(d.get("doc_type") or "").upper()]
+        co_off_slot_map = {1: None, 2: None, 3: None, 4: None}
+        co_off_type_to_slot = {
+            "CO_OFFICE_FACADE": 1,
+            "CO_OFFICE_NAMEBOARD": 2,
+            "CO_OFFICE_INTERIOR": 3,
+            "CO_OFFICE_SELFIE": 4,
+        }
+        for d in co_office_docs:
+            s_num = d.get("slot_number") or (d.get("ocr_data") or {}).get("slot_number")
+            if s_num:
+                try:
+                    s_int = int(s_num)
+                    if 1 <= s_int <= 4 and co_off_slot_map[s_int] is None:
+                        cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+                        if cand and os.path.exists(cand):
+                            co_off_slot_map[s_int] = cand
+                except (ValueError, TypeError):
+                    pass
+        for d in co_office_docs:
+            t_slot = co_off_type_to_slot.get(d.get("doc_type"))
+            if t_slot and co_off_slot_map[t_slot] is None:
+                cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+                if cand and os.path.exists(cand):
+                    co_off_slot_map[t_slot] = cand
+
+        co_off_photos = [co_off_slot_map[s] for s in [1, 2, 3, 4] if co_off_slot_map[s]]
+        co_off_caps = [
+            "1. Office Building Exterior & Nameboard",
+            "2. Staff Desk / Workplace Premises",
+            "3. Office Infrastructure & Facilities",
+            "4. Main Entrance & Commercial Locality",
+        ]
+
+        def _make_co_off_cell(idx):
+            if idx < len(co_off_photos) and is_valid_image(co_off_photos[idx]):
+                try:
+                    return [Image(co_off_photos[idx], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{co_off_caps[idx]}</b>", ParagraphStyle(f"CoOffCap{idx}", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))]
+                except Exception:
+                    pass
+            return [Paragraph(co_off_caps[idx] if idx < len(co_off_caps) else f"Office Photo {idx+1}", table_cell_style)]
+
+        co_off_grid = [
+            [_make_co_off_cell(0), _make_co_off_cell(1)],
+            [_make_co_off_cell(2), _make_co_off_cell(3)],
+        ]
+        t_co_off_photos = Table(co_off_grid, colWidths=[3.75 * inch, 3.75 * inch])
+        t_co_off_photos.setStyle(TableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story.append(t_co_off_photos)
 
     # ================= PAGE 9: FINAL CERTIFICATE =================
     story.append(PageBreak())

@@ -245,6 +245,8 @@ async def async_generate_report_pdf(
         "target_lon": loan_case.target_lon,
         "agent_name": getattr(assigned_agent, "full_name", None),
         "loan_amount": loan_case.loan_amount,
+        "co_applicant_name": loan_case.co_applicant_name,
+        "co_applicant_phone": loan_case.co_applicant_phone,
     }
 
     if loan_case.field_form_data:
