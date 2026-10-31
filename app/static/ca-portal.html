@@ -3249,7 +3249,7 @@
           if (selfieGps) {
             selfieGps.textContent = (c.capture_lat && c.capture_lat !== "—")
               ? `GPS: ${c.capture_lat}°N, ${c.capture_lon}°E (±3.2m)`
-              : "GPS: 23.1030°N, 72.5955°E (±3.2m)";
+              : "GPS: Not Captured";
           }
 
           const smStaff = document.getElementById("selfieModalStaffName");
@@ -3257,7 +3257,7 @@
           const smTime = document.getElementById("selfieModalTimestamp");
           if (smTime) smTime.textContent = c.visit_date || "Just now";
           const smGps = document.getElementById("selfieModalGps");
-          if (smGps) smGps.textContent = `${c.capture_lat || '23.1030'}° N, ${c.capture_lon || '72.5955'}° E (±3.2m)`;
+          if (smGps) smGps.textContent = (c.capture_lat && c.capture_lon) ? `${c.capture_lat}° N, ${c.capture_lon}° E (±3.2m)` : "Not Captured";
 
           const selfieStatus = document.getElementById("dispAgentSelfieStatus");
           if (selfieStatus) selfieStatus.textContent = "Selfie Verified ✓";
@@ -3484,11 +3484,11 @@
       if (dispFieldAgent && c.agent) dispFieldAgent.textContent = c.agent;
 
       const selfieTime = document.getElementById("dispAgentSelfieTime");
-      if (selfieTime) selfieTime.textContent = "Time: " + (cachedTime || c.visit_date || (selfieDone ? "Today, 14:35 IST" : "Not yet visited"));
+      if (selfieTime) selfieTime.textContent = "Time: " + (cachedTime || c.visit_date || "Not yet visited");
 
       const selfieGps = document.getElementById("dispAgentSelfieGps");
       const hasCapture = c.capture_lat && c.capture_lat !== "—";
-      if (selfieGps) selfieGps.textContent = hasCapture ? `GPS: ${c.capture_lat}°N, ${c.capture_lon}°E (±3.2m)` : (selfieDone ? "GPS: 23.1030°N, 72.5955°E (±3.2m)" : "GPS: not yet captured");
+      if (selfieGps) selfieGps.textContent = hasCapture ? `GPS: ${c.capture_lat}°N, ${c.capture_lon}°E (±3.2m)` : "GPS: not yet captured";
 
       const selfieStatus = document.getElementById("dispAgentSelfieStatus");
       if (selfieStatus) selfieStatus.textContent = selfieDone ? "Selfie Verified ✓" : "Selfie pending";
