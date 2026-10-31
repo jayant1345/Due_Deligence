@@ -1843,11 +1843,109 @@
       const viewModal = document.getElementById("pwaSlotPhotoViewModal");
       if (viewImg) viewImg.src = img.src;
       if (viewModal) viewModal.classList.remove("hidden");
+      resetSlotPhotoZoom();
     }
     function closeSlotPhotoFullscreen() {
       const viewModal = document.getElementById("pwaSlotPhotoViewModal");
       if (viewModal) viewModal.classList.add("hidden");
+      resetSlotPhotoZoom();
     }
+
+    // Pinch-to-zoom and double-tap-to-zoom for the full-screen photo view, so the fine print
+    // on a server-stamped watermark (GPS, timestamp, case number) is actually legible on a
+    // phone screen. The page's own viewport disables native pinch-zoom (maximum-scale=1,
+    // user-scalable=no) so other touch controls stay precise - this is a self-contained CSS
+    // transform zoom scoped to just this modal's image, independent of that.
+    let slotZoomState = { scale: 1, tx: 0, ty: 0 };
+    let slotZoomPinch = null; // { startDist, startScale, startTx, startTy, midX, midY }
+    let slotZoomPanStart = null; // { x, y, tx, ty }
+    let slotZoomLastTapTime = 0;
+
+    function resetSlotPhotoZoom() {
+      slotZoomState = { scale: 1, tx: 0, ty: 0 };
+      applySlotPhotoZoom();
+    }
+    function applySlotPhotoZoom() {
+      const img = document.getElementById("pwaSlotPhotoViewImg");
+      if (!img) return;
+      const { scale, tx, ty } = slotZoomState;
+      img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    }
+    function slotZoomTouchDistance(t1, t2) {
+      return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    }
+
+    (function initSlotPhotoZoomHandlers() {
+      const wrap = document.getElementById("pwaSlotPhotoViewWrap");
+      if (!wrap) return;
+
+      wrap.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 2) {
+          const [t1, t2] = e.touches;
+          slotZoomPinch = {
+            startDist: slotZoomTouchDistance(t1, t2),
+            startScale: slotZoomState.scale,
+            startTx: slotZoomState.tx,
+            startTy: slotZoomState.ty,
+          };
+          slotZoomPanStart = null;
+        } else if (e.touches.length === 1) {
+          const now = Date.now();
+          if (now - slotZoomLastTapTime < 300) {
+            // Double-tap: toggle between 1x and 2.5x, centered roughly on the tap.
+            if (slotZoomState.scale > 1) {
+              resetSlotPhotoZoom();
+            } else {
+              slotZoomState = { scale: 2.5, tx: 0, ty: 0 };
+              applySlotPhotoZoom();
+            }
+            slotZoomLastTapTime = 0;
+            return;
+          }
+          slotZoomLastTapTime = now;
+          if (slotZoomState.scale > 1) {
+            slotZoomPanStart = {
+              x: e.touches[0].clientX, y: e.touches[0].clientY,
+              tx: slotZoomState.tx, ty: slotZoomState.ty,
+            };
+          }
+        }
+      }, { passive: true });
+
+      wrap.addEventListener("touchmove", (e) => {
+        if (e.touches.length === 2 && slotZoomPinch) {
+          const [t1, t2] = e.touches;
+          const dist = slotZoomTouchDistance(t1, t2);
+          const ratio = dist / (slotZoomPinch.startDist || dist);
+          slotZoomState.scale = Math.min(5, Math.max(1, slotZoomPinch.startScale * ratio));
+          applySlotPhotoZoom();
+        } else if (e.touches.length === 1 && slotZoomPanStart) {
+          const dx = e.touches[0].clientX - slotZoomPanStart.x;
+          const dy = e.touches[0].clientY - slotZoomPanStart.y;
+          slotZoomState.tx = slotZoomPanStart.tx + dx;
+          slotZoomState.ty = slotZoomPanStart.ty + dy;
+          applySlotPhotoZoom();
+        }
+      }, { passive: true });
+
+      wrap.addEventListener("touchend", (e) => {
+        if (e.touches.length < 2) slotZoomPinch = null;
+        if (e.touches.length === 0) {
+          slotZoomPanStart = null;
+          if (slotZoomState.scale < 1.05) resetSlotPhotoZoom();
+        }
+      }, { passive: true });
+
+      // Desktop/testing fallback: double-click to toggle zoom.
+      wrap.addEventListener("dblclick", () => {
+        if (slotZoomState.scale > 1) {
+          resetSlotPhotoZoom();
+        } else {
+          slotZoomState = { scale: 2.5, tx: 0, ty: 0 };
+          applySlotPhotoZoom();
+        }
+      });
+    })();
 
     function discardAndRetakePhoto() {
       const reviewModal = document.getElementById("pwaPhotoReviewModal");
@@ -3786,12 +3884,15 @@
   </div>
 
   <!-- FULL-SCREEN VIEW OF AN ALREADY-SAVED SLOT PHOTO, FOR VERIFYING THE WATERMARK -->
-  <div id="pwaSlotPhotoViewModal" class="hidden fixed inset-0 z-[60] bg-black/95 flex flex-col" onclick="closeSlotPhotoFullscreen()">
-    <button type="button" onclick="closeSlotPhotoFullscreen()" class="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
+  <div id="pwaSlotPhotoViewModal" class="hidden fixed inset-0 z-[60] bg-black/95 flex flex-col">
+    <button type="button" onclick="closeSlotPhotoFullscreen()" class="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center">
       <span class="material-symbols-outlined text-[20px]">close</span>
     </button>
-    <div class="flex-1 flex items-center justify-center p-3 overflow-auto">
-      <img id="pwaSlotPhotoViewImg" src="" alt="Saved evidence photo" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl"/>
+    <div class="absolute top-3 left-3 z-10 px-2.5 py-1 rounded-full bg-white/15 text-white font-mono text-[10px]">
+      Pinch or double-tap to zoom
+    </div>
+    <div id="pwaSlotPhotoViewWrap" class="flex-1 overflow-hidden flex items-center justify-center p-3" style="touch-action: none;">
+      <img id="pwaSlotPhotoViewImg" src="" alt="Saved evidence photo" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl select-none" style="transform-origin: center center;" draggable="false"/>
     </div>
   </div>
 
