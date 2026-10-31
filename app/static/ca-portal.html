@@ -5661,9 +5661,10 @@
       const foundAadhaar = "";
       const foundDob = "";
 
-      const randNum = Math.floor(100 + Math.random() * 900);
-      const caseRef = `UBI-HL-2026-${randNum}`;
-      document.getElementById("ncCaseNo").value = caseRef;
+      // The case number is never invented, for the same reason as the applicant name below:
+      // a random-looking-but-fake reference silently sitting in this required field is exactly
+      // how a WhatsApp handover link can end up pointing at a case number that was never
+      // actually created - the CA must type the bank's real allotted case number here.
       document.getElementById("ncApplicantName").value = "";
       // Phone, branch and property address are facts from the bank's allotment — never invented.
       // Left blank (required fields) for the CA office to enter from the bank's request.
