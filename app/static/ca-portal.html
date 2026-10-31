@@ -6076,11 +6076,29 @@
       if (summary) c.ai_summary = summary;
 
       const idName = a.name || fromOwn("holder_name", ["AADHAAR_CARD", "PAN_CARD"]);
-      if (idName) {
+      if (idName && idName !== c.applicant_name_persisted) {
         c.applicant_name = idName;
         c.ai_corrected_applicant_name = idName;
+        c.applicant_name_persisted = idName;
         const opt = document.querySelector(`#caseSelectorSelect option[value="${CSS.escape(caseId)}"]`);
         if (opt) opt.textContent = `[${c.case_no}] - ${idName} | ${c.bank}${c.branch ? " (" + c.branch + ")" : ""}`;
+        // This correction must reach the database, not just this browser's local caseRegistry -
+        // the field agent's PWA (a separate device/session) always fetches the case fresh from
+        // the server, never from this cache. Without this, the dashboard shows the AI-identified
+        // name while the handover link the agent actually opens still serves the old placeholder.
+        persistAiCorrectedApplicantName(caseId, idName);
+      }
+    }
+
+    async function persistAiCorrectedApplicantName(caseId, name) {
+      try {
+        await fetch(`/api/v1/cases/${caseId}`, {
+          method: "PATCH",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ applicant_name: name })
+        });
+      } catch (e) {
+        console.warn("Could not persist AI-corrected applicant name to server:", e);
       }
     }
 
