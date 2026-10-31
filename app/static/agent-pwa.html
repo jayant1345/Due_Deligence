@@ -1859,6 +1859,11 @@
           }
           updateEvidenceProgress();
 
+          // Unlock capture right away - the slot is already saved locally (preview + localStorage)
+          // and the server upload below runs in the background. The agent must never be made to
+          // wait for a network round-trip before taking the next photo.
+          finish();
+
           // Stream the resized photo to the server, which applies the single correct watermark.
           canvas.toBlob(async (blob) => {
             const uploadFile = blob || file;
@@ -1876,11 +1881,17 @@
               if (token && token !== "demo-pwa-token") {
                 headers["Authorization"] = `Bearer ${token}`;
               }
+              // A slow (not outright failed) connection must not hang forever - after 15s,
+              // treat it the same as offline and queue it for background retry.
+              const uploadController = new AbortController();
+              const uploadTimeout = setTimeout(() => uploadController.abort(), 15000);
               const response = await fetch(`/api/v1/visits/cases/${caseIdAtCapture}/upload`, {
                 method: "POST",
                 headers: headers,
-                body: formData
+                body: formData,
+                signal: uploadController.signal
               });
+              clearTimeout(uploadTimeout);
 
               if (response.status === 202 || response.status === 200) {
                 const data = await response.json();
