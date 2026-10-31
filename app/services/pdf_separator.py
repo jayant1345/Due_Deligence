@@ -923,9 +923,14 @@ def burst_and_separate_pdf_with_llm(
     target_address: str,
 ) -> List[Dict[str, Any]]:
     """
-    Burst a PDF into 200 DPI page images and have Gemini classify/extract every page
+    Burst a PDF into 300 DPI page images and have Gemini classify/extract every page
     (in parallel). Each page image is stored for display, with Aadhaar numbers masked.
     Saved to persistent volume storage_uploads/separated_docs/<case_id> for 100% redeployment survival.
+
+    300 DPI (not the lower 200 DPI this used to render at) matters for two reasons: a CA
+    zooming in on a card's fine print (the actual point of the full-page viewer) needs real
+    pixel detail to read it, not an upscaled blur, and Gemini's own OCR accuracy on small
+    print (PAN/Aadhaar digits, addresses) improves with more source pixels to read from.
     """
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"PDF file not found at: {pdf_path}")
@@ -951,9 +956,9 @@ def burst_and_separate_pdf_with_llm(
         img_name = f"{safe_slug}_page_{page_idx}.jpg"
         storage_img_path = os.path.join(storage_dir, img_name)
         static_img_path = os.path.join(static_dir, img_name)
-        pix = page.get_pixmap(dpi=200)
-        pix.save(storage_img_path)
-        pix.save(static_img_path)
+        pix = page.get_pixmap(dpi=300)
+        pix.save(storage_img_path, jpg_quality=95)
+        pix.save(static_img_path, jpg_quality=95)
         pages.append((page_idx, page.get_text(), storage_img_path, static_img_path, f"/storage/separated_docs/{case_id}/{img_name}"))
     doc.close()
 
