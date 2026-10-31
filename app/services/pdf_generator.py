@@ -347,9 +347,17 @@ def generate_certified_cpv_report(
     # never a hardcoded guess. One scanned Form 16 can cover multiple years (Part A/Part B
     # pages, or several years filed together); each page is deduplicated by its own A.Y.
     from app.services.cpv_report_data import _ay_of, _inr
+
+    def _is_form16(d):
+        # FORM_16 is a real Gemini classification but not a stored DocumentType enum value -
+        # the DB column collapses it to SALARY_SLIP, so the real page type must come from
+        # ocr_data, the same way _ocr_first() above resolves doc types for OCR lookups.
+        od = d.get("ocr_data") or {}
+        return (od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")) == "FORM_16"
+
     form16_rows = {}
     for d in document_items:
-        if d.get("doc_type") != "FORM_16":
+        if not _is_form16(d):
             continue
         if (d.get("ocr_data") or {}).get("relationship_to_applicant") == "DIFFERENT_PERSON":
             continue
@@ -365,7 +373,7 @@ def generate_certified_cpv_report(
     # Same extraction, scoped to the co-applicant's own scanned Form 16 pages.
     form16_rows_co = {}
     for d in document_items:
-        if d.get("doc_type") != "FORM_16":
+        if not _is_form16(d):
             continue
         od = d.get("ocr_data") or {}
         if od.get("relationship_to_applicant") != "DIFFERENT_PERSON":

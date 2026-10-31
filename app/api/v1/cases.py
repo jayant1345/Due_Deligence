@@ -597,12 +597,18 @@ async def download_combined_form16(
     if not matched_case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
 
+    # FORM_16 is a real Gemini classification but not a stored DocumentType enum value - the
+    # DB column collapses it to SALARY_SLIP (see LLM_TO_DOCUMENT_TYPE in pdf_separator.py), so
+    # the real page type must be read back out of ocr_data, not queried on the column itself.
     result = await db.execute(
         select(CaseDocument)
-        .where(CaseDocument.case_id == matched_case.id, CaseDocument.doc_type == DocumentType.FORM_16)
+        .where(CaseDocument.case_id == matched_case.id, CaseDocument.doc_type == DocumentType.SALARY_SLIP)
         .order_by(asc(CaseDocument.created_at))
     )
-    docs = result.scalars().all()
+    docs = [
+        d for d in result.scalars().all()
+        if isinstance(d.ocr_data, dict) and (d.ocr_data.get("llm_doc_type") or d.ocr_data.get("doc_type")) == "FORM_16"
+    ]
     if not docs:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Form 16 documents on record for this case")
 
