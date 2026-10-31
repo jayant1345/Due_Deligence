@@ -277,6 +277,11 @@ STRICT RULES
 9. observations: only MATERIAL red flags (name/address mismatch, bounced cheques or EMIs,
    large unexplained cash movements, signs of alteration, inconsistent figures). Do not report
    that a page is a photocopy, carries a scanner-app watermark, or is a continuation page.
+10. loan_branch / loan_sanctioned_amount: read ONLY from a bank loan application form or
+    sanction letter (APPLICATION_FORM) - the branch handling THIS loan and the amount applied
+    for/sanctioned, exactly as printed. Never the applicant's own savings/salary account branch
+    or balance from a bank statement - those belong in bank_name/account_number/ifsc_code
+    instead and must never be confused with these two fields.
 
 Return ONLY a JSON object with exactly these keys:
 {{
@@ -310,6 +315,8 @@ Return ONLY a JSON object with exactly these keys:
   "bank_name": "string or null",
   "account_number": "string or null",
   "ifsc_code": "string or null",
+  "loan_branch": "string or null",
+  "loan_sanctioned_amount": "digits only, string or null",
   "opening_balance": "string or null",
   "closing_balance": "string or null",
   "utility_provider": "MGVCL | UGVCL | PGVCL | DGVCL | TORRENT | other name | null",

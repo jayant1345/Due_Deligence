@@ -723,6 +723,21 @@ async def _persist_ai_ingested_documents(
         )
         db.add(case_doc)
 
+    # Fill in the loan branch / sanctioned amount from a scanned application form or sanction
+    # letter, but only when the CA hasn't already entered a real value - a scan must never
+    # silently overwrite a figure the CA typed in themselves.
+    if not (loan_case.branch or "").strip():
+        found_branch = next((item.get("loan_branch") for item in results if item.get("loan_branch")), None)
+        if found_branch:
+            loan_case.branch = str(found_branch).strip()
+    if not loan_case.loan_amount:
+        found_amount = next((item.get("loan_sanctioned_amount") for item in results if item.get("loan_sanctioned_amount")), None)
+        if found_amount:
+            try:
+                loan_case.loan_amount = float(str(found_amount).replace(",", "").strip())
+            except ValueError:
+                pass
+
 
 @router.post("/{case_id}/ingest-pdf")
 async def ingest_and_separate_case_pdf(
