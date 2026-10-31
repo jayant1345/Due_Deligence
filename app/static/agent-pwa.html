@@ -1768,6 +1768,10 @@
     //    it rather than replacing it — every evidence photo ended up with two stacked banners,
     //    the top one permanently wrong.
     let capturePending = false;
+    // Holds everything finalizePhotoCapture()/discardAndRetakePhoto() need once the agent has
+    // reviewed the shot - populated by handlePhotoUpload() right before showing the review modal.
+    let pendingPhotoCapture = null;
+
     async function handlePhotoUpload(event) {
       const file = event.target.files[0];
       event.target.value = ""; // allow capturing the same slot again without a no-op change event
@@ -1788,16 +1792,12 @@
       const now = new Date();
       const timeStr = now.toLocaleDateString("en-GB") + " " + now.toLocaleTimeString("en-GB") + " IST";
 
-      // Show zero-lag ingestion alert
-      const alertBox = document.getElementById("uploadAlert");
-      const alertText = document.getElementById("uploadAlertText");
-      alertBox.classList.remove("hidden");
-      alertText.textContent = `Processing ${isOffice ? 'Office' : 'Residence'} Slot ${slotNum} photo...`;
-
       const finish = () => { capturePending = false; };
 
       // Read file and draw onto a resized canvas (compression only — no text is drawn; the
-      // server applies the one authoritative watermark banner from the case record).
+      // server applies the one authoritative watermark banner from the case record), then let
+      // the agent look at the actual shot before it's saved to the slot - a blurry/badly-framed
+      // photo can be discarded and retaken right away instead of only being noticed later.
       const reader = new FileReader();
       reader.onload = (e) => {
         const rawImg = new Image();
@@ -1816,10 +1816,59 @@
           ctx.drawImage(rawImg, 0, 0, w, h);
 
           const finalPreviewUrl = canvas.toDataURL("image/jpeg", 0.92);
-          const previewImgEl = document.getElementById("previewPhotoImg");
-          if (previewImgEl) previewImgEl.src = finalPreviewUrl;
 
-          if (isOffice) {
+          pendingPhotoCapture = {
+            canvas, file, finalPreviewUrl, slotNum, docType, isOffice,
+            caseIdAtCapture, caseKeyAtCapture, latAtCapture, lonAtCapture, timeStr, finish,
+          };
+          const reviewImg = document.getElementById("pwaPhotoReviewImg");
+          const reviewModal = document.getElementById("pwaPhotoReviewModal");
+          if (reviewImg) reviewImg.src = finalPreviewUrl;
+          if (reviewModal) reviewModal.classList.remove("hidden");
+        };
+        rawImg.onerror = finish;
+        rawImg.src = e.target.result;
+      };
+      reader.onerror = finish;
+      reader.readAsDataURL(file);
+    }
+
+    function discardAndRetakePhoto() {
+      const reviewModal = document.getElementById("pwaPhotoReviewModal");
+      if (reviewModal) reviewModal.classList.add("hidden");
+      if (!pendingPhotoCapture) return;
+      const { slotNum, docType, isOffice, finish } = pendingPhotoCapture;
+      pendingPhotoCapture = null;
+      finish(); // unlock capture immediately - a discarded photo must never block a retake
+      // Re-open the camera for the exact same slot right away.
+      activeUploadSlot = slotNum;
+      activeDocType = docType;
+      currentPwaFolder = isOffice ? "office" : "residence";
+      const camInput = document.getElementById("cameraInput");
+      if (camInput) camInput.click();
+    }
+
+    function finalizePhotoCapture() {
+      if (!pendingPhotoCapture) return;
+      const {
+        canvas, file, finalPreviewUrl, slotNum, docType, isOffice,
+        caseIdAtCapture, caseKeyAtCapture, latAtCapture, lonAtCapture, timeStr, finish,
+      } = pendingPhotoCapture;
+      pendingPhotoCapture = null;
+
+      const reviewModal = document.getElementById("pwaPhotoReviewModal");
+      if (reviewModal) reviewModal.classList.add("hidden");
+
+      // Show zero-lag ingestion alert
+      const alertBox = document.getElementById("uploadAlert");
+      const alertText = document.getElementById("uploadAlertText");
+      alertBox.classList.remove("hidden");
+      alertText.textContent = `Processing ${isOffice ? 'Office' : 'Residence'} Slot ${slotNum} photo...`;
+
+      const previewImgEl = document.getElementById("previewPhotoImg");
+      if (previewImgEl) previewImgEl.src = finalPreviewUrl;
+
+      if (isOffice) {
             uploadedOfficeSlots[slotNum] = true;
             try {
               const offPayload = JSON.stringify({ src: finalPreviewUrl, timestamp: timeStr, lat: latAtCapture, lon: lonAtCapture, doc_type: docType });
@@ -1920,12 +1969,6 @@
               finish();
             }
           }, "image/jpeg", 0.92);
-        };
-        rawImg.onerror = finish;
-        rawImg.src = e.target.result;
-      };
-      reader.onerror = finish;
-      reader.readAsDataURL(file);
     }
 
     // Inline Document Flips
@@ -3697,6 +3740,23 @@
           </span>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- PHOTO REVIEW: CONFIRM OR RETAKE BEFORE IT IS SAVED TO THE SLOT -->
+  <div id="pwaPhotoReviewModal" class="hidden fixed inset-0 z-[60] bg-black/90 flex flex-col">
+    <div class="flex-1 flex items-center justify-center p-3 overflow-hidden">
+      <img id="pwaPhotoReviewImg" src="" alt="Captured photo preview" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl"/>
+    </div>
+    <div class="p-4 pb-6 bg-slate-950/95 flex gap-3 shrink-0">
+      <button type="button" onclick="discardAndRetakePhoto()" class="flex-1 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-headline text-sm font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-[20px]">replay</span>
+        Retake
+      </button>
+      <button type="button" onclick="finalizePhotoCapture()" class="flex-1 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-sm font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-[20px]">check_circle</span>
+        Use This Photo
+      </button>
     </div>
   </div>
 
