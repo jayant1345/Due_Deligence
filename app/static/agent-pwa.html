@@ -2914,7 +2914,27 @@
           address: officeAddress,
           work_from_home: wfh,
           verification_status: occupation === 'House Wife' ? 'Not Applicable (Home Maker)' : 'Office Verification Conducted'
-        }
+        },
+        // Raw, lossless values for restoring the form's own inputs when this case is reopened
+        // (the fields above are flattened/combined for the report, which loses information -
+        // e.g. building_type above merges BHK into one string, family_members is a flat
+        // textarea string, neighbours get split into two keys). Without these, switching away
+        // from a case and back wiped every Residential Details & Family field blank even
+        // though the data had been saved successfully - only photos persisted, because those
+        // are restored from their own CaseDocument records, not from this form payload at all.
+        restore: {
+          bhk: bhk,
+          building_type_only: bType,
+          ownership: own,
+          period_of_stay: stay,
+          owner_name: owner,
+          marital_status: marital,
+          age_community: ageComm,
+          person_met: personMet,
+          neighbors: [(refs.split(",")[0] || "").trim(), (refs.split(",")[1] || "").trim()].filter(Boolean),
+          family_members: familyMembers,
+          active_asset_ids: visibleAssets.filter(a => a.active).map(a => a.id),
+        },
       };
 
       const alertBox = document.getElementById("uploadAlert");
@@ -3053,6 +3073,15 @@
         ];
       }
       renderFamilyMembers();
+
+      // Restore which "Assets Visible in Home" chips were previously tapped for this case.
+      if (c.active_asset_ids && Array.isArray(c.active_asset_ids)) {
+        const activeSet = new Set(c.active_asset_ids);
+        visibleAssets.forEach(a => { a.active = activeSet.has(a.id); });
+      } else {
+        visibleAssets.forEach(a => { a.active = false; });
+      }
+      if (typeof renderAssetsChips === "function") renderAssetsChips();
 
       // ==========================================
       // SYNCHRONIZE MODULE 3 (Office / Occupation & Employer Details) DYNAMICALLY
@@ -3285,6 +3314,26 @@
           const firm = off.firm_name || "M/s. District Panchayat Education Committee";
           const pos = off.position || off.designation || "Teacher / Job";
           const offAddr = off.address || "District Panchayat Education Committee, Dholka, Gujarat-382260";
+          // The lossless fields saved alongside the flattened report fields - see the
+          // "restore" comment in submitDueDiligenceForm(). Without these, every Residential
+          // Details & Family input went back to blank the moment the agent switched to a
+          // different case and back, even though the form had already been submitted.
+          const r = parsedFormData.restore || {};
+          // Object.assign would otherwise overwrite an already-known value with `undefined`
+          // for any case that has never had the form submitted (r is {}) - only patch in the
+          // keys that actually came back from a real submission.
+          const restorePatch = {};
+          if (r.bhk !== undefined) restorePatch.bhk = r.bhk;
+          if (r.building_type_only !== undefined) restorePatch.building_type = r.building_type_only;
+          if (r.ownership !== undefined) restorePatch.ownership = r.ownership;
+          if (r.period_of_stay !== undefined) restorePatch.stay_period = r.period_of_stay;
+          if (r.owner_name !== undefined) restorePatch.owner_name = r.owner_name;
+          if (r.marital_status !== undefined) restorePatch.marital = r.marital_status;
+          if (r.age_community !== undefined) restorePatch.age = r.age_community;
+          if (r.person_met !== undefined) restorePatch.person_met = r.person_met;
+          if (r.neighbors !== undefined) restorePatch.neighbors = r.neighbors;
+          if (r.family_members !== undefined) restorePatch.family_members = r.family_members;
+          if (r.active_asset_ids !== undefined) restorePatch.active_asset_ids = r.active_asset_ids;
 
           const mergedCase = Object.assign({}, caseRegistryPwa[key] || {}, {
             id: target.id,
@@ -3307,7 +3356,7 @@
             designation: pos,
             office_address: offAddr,
             is_live_case: true,
-          });
+          }, restorePatch);
 
           caseRegistryPwa[key] = mergedCase;
           caseRegistryPwa[target.id] = mergedCase;
