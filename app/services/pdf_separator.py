@@ -189,10 +189,29 @@ def _to_amount(value: Any) -> Optional[str]:
     return f"{num:.2f}".rstrip("0").rstrip(".")
 
 
+# Honorific suffixes routinely appended to a given name or father's name across Indian
+# records — a bank's electricity bill, PAN, and Aadhaar for the SAME person commonly differ
+# on exactly these (Ramesh / Rameshbhai / Rameshkumar; Bhanuram / Bhanubhai), while the core
+# name, father's/middle name and surname stay the same. Stripped before comparing names so
+# this normal variation is never mistaken for "a different person".
+_INDIAN_NAME_HONORIFIC_SUFFIXES = ("BHAI", "BEN", "KUMAR", "KUMARI")
+
+
+def _normalize_indian_name(name: str) -> str:
+    def _strip(token: str) -> str:
+        for suffix in _INDIAN_NAME_HONORIFIC_SUFFIXES:
+            # Keep at least a 3-letter root so a short name that merely ends in these letters
+            # (e.g. "KUMAR" alone, or "BEN" as a surname) is never stripped down to nothing.
+            if token.endswith(suffix) and len(token) - len(suffix) >= 3:
+                return token[: -len(suffix)]
+        return token
+    return " ".join(_strip(t) for t in name.split())
+
+
 def _name_score(extracted: Optional[str], reference: Optional[str]) -> Optional[float]:
     if not extracted or not reference:
         return None
-    a, b = extracted.upper(), reference.upper()
+    a, b = _normalize_indian_name(extracted.upper()), _normalize_indian_name(reference.upper())
     if fuzz is not None:
         return float(round(fuzz.token_set_ratio(a, b), 1))
     ta, tb = set(a.split()), set(b.split())
@@ -222,7 +241,13 @@ STRICT RULES
    previous document (e.g. a verification block, more ledger rows) keeps that document's type.
 3. holder_name = the person the document BELONGS TO (card holder, employee, account holder,
    electricity consumer). It is NEVER the issuing officer, the signatory (e.g. a T.P.O. who
-   signs a Form 16), the employer, or the bank.
+   signs a Form 16), the employer, or the bank. A Form 16's "Verification" page is often a
+   signature-only continuation with no employee name reprinted on it — the sentence "I, <name>,
+   working in the capacity of <designation>, do hereby certify..." names the EMPLOYER's
+   authorized signatory (principal, headmaster, HR/accounts officer, director), not the
+   employee the certificate is for. If that is the only name on the page, holder_name is null
+   (the employee is identified on the Part A page this verification belongs to), not that
+   signatory's name.
 4. PAN: the holder's 10-character PAN only (format AAAAA9999A). On a Form 16 the EMPLOYEE's PAN —
    never the "PAN of the Deductor", never the TAN (format AAAA99999A, e.g. AHMT04764E).
 5. Aadhaar (UIDAI Rule): return ONLY the last 4 digits, as "XXXX-XXXX-1234". Never output the
@@ -817,6 +842,61 @@ def classify_and_store_single_image(
     return _finalize_page_item(analysis, None, None, relative_web_url, [storage_img_path, static_img_path])
 
 
+_FORM16_SIGNATORY_TITLES = (
+    "PRINCIPAL", "HEADMASTER", "HEAD MASTER", "DIRECTOR", "DDO",
+    "DRAWING AND DISBURSING", "ACCOUNTS OFFICER", "HR MANAGER", "MANAGER",
+    "SIGNATORY", "DEDUCTOR", "ADMINISTRATOR", "HEAD OF",
+)
+
+
+def _reattribute_form16_signatory_pages(results: List[Dict[str, Any]]) -> None:
+    """
+    A multi-year Form 16 bundle commonly prints each year's certificate as two consecutive
+    pages: the employee's own Part A/B header, then a "Verification" page whose only printed
+    name is the employer's authorized signatory ("I, <name>, working in the capacity of
+    <designation>, do hereby certify that a sum of Rs. ... has been deducted..."). The
+    extraction prompt already says holder_name is never the signatory, but on a page where no
+    employee name is reprinted, the model sometimes extracts the signatory as holder_name
+    anyway — which then reads downstream as "this page belongs to a different person".
+
+    Detected from the designation being a clear employer-authority title (never an employee's
+    own job title) combined with matching employer TAN and tax figures with an adjacent Form 16
+    page from the SAME upload, whose real holder is then inherited onto this one.
+    """
+    form16_pages = [r for r in results if (r.get("doc_type") or "").upper() == "FORM_16"]
+    for i, page in enumerate(form16_pages):
+        designation = (page.get("designation") or "").upper()
+        if not any(title in designation for title in _FORM16_SIGNATORY_TITLES):
+            continue
+        for other in (form16_pages[i - 1] if i > 0 else None, form16_pages[i + 1] if i + 1 < len(form16_pages) else None):
+            if not other or other is page or not other.get("holder_name"):
+                continue
+            other_designation = (other.get("designation") or "").upper()
+            if any(title in other_designation for title in _FORM16_SIGNATORY_TITLES):
+                continue  # the neighbour is itself another signatory-only page, not the real holder
+            same_employer = page.get("employer_tan") and page.get("employer_tan") == other.get("employer_tan")
+            same_amount = page.get("annual_tax_payable") and page.get("annual_tax_payable") == other.get("annual_tax_payable")
+            same_period = (page.get("document_period") and page.get("document_period") == other.get("document_period")) or \
+                          (page.get("assessment_year") and page.get("assessment_year") == other.get("assessment_year"))
+            if same_employer and (same_amount or same_period):
+                note = (
+                    f"Verification/signature page certified by {page.get('holder_name')} "
+                    f"({page.get('designation')}) - re-attributed to the employee {other['holder_name']} "
+                    f"based on the matching Form 16 certificate (same employer TAN"
+                    f"{' and tax figure' if same_amount else ' and assessment period'})."
+                )
+                page["holder_name"] = other.get("holder_name")
+                page["extracted_pan"] = other.get("extracted_pan") or page.get("extracted_pan")
+                page["father_or_spouse_name"] = other.get("father_or_spouse_name") or page.get("father_or_spouse_name")
+                page["date_of_birth"] = other.get("date_of_birth") or page.get("date_of_birth")
+                observations = page.get("observations")
+                if isinstance(observations, list):
+                    observations.append(note)
+                else:
+                    page["observations"] = [note]
+                break
+
+
 def burst_and_separate_pdf_with_llm(
     pdf_path: str,
     case_id: str,
@@ -870,6 +950,8 @@ def burst_and_separate_pdf_with_llm(
 
     with ThreadPoolExecutor(max_workers=PAGE_SCAN_WORKERS) as pool:
         separated_results = list(pool.map(_scan, pages))
+
+    _reattribute_form16_signatory_pages(separated_results)
 
     # Persist manifest to both persistent volume and static directory
     for dest_dir in [storage_dir, static_dir]:
