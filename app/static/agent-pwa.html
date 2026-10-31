@@ -2654,6 +2654,16 @@
 
       if (remaining === 0) {
         if (isManual) alert("✓ Success! All offline photos and forms have been transmitted to the CA Scrutiny Desk.");
+        // The per-photo "Offline Saved, will upload automatically" banner is a one-time message
+        // written at capture time - it never updates itself once the background sync actually
+        // finishes, so it was left showing a stale "still queued" status even after a successful
+        // upload. Correct it here so the agent sees confirmed delivery, not a frozen old message.
+        const alertBox = document.getElementById("uploadAlert");
+        const alertText = document.getElementById("uploadAlertText");
+        if (alertBox && alertText && !alertBox.classList.contains("hidden")) {
+          alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
+          alertText.innerHTML = `✅ <b>Synced!</b> All previously offline-queued photos have now been transmitted to the CA Scrutiny Desk.`;
+        }
         if (typeof loadCaseDocumentsIntoPwa === "function" && typeof sampleCaseId !== "undefined" && sampleCaseId) {
           loadCaseDocumentsIntoPwa(sampleCaseId);
         }
