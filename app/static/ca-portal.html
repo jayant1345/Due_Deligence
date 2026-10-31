@@ -7446,19 +7446,23 @@
           <div class="doc-flip-container w-[820px] max-w-[94vw]" style="perspective: 1600px;">
             <div id="zoomFlipCard" class="doc-flip-card shadow-2xl rounded-xl relative" style="height: 78vh; min-height: 520px; max-height: 900px;">
               <!-- Modal Front Face -->
-              <div class="doc-flip-face doc-flip-front flex flex-col items-center justify-center bg-slate-900 rounded-xl overflow-hidden border border-white/20">
-                <img id="zoomFrontImg" src="" class="w-full h-full object-contain pointer-events-none" alt="Document Front Inspection"/>
-                <div class="absolute top-3 inset-x-4 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-white flex items-center justify-between font-mono pointer-events-auto shadow-md">
+              <div class="doc-flip-face doc-flip-front flex flex-col items-stretch bg-slate-900 rounded-xl overflow-hidden border border-white/20">
+                <div class="shrink-0 bg-black/75 backdrop-blur-md px-3 py-1.5 text-xs text-white flex items-center justify-between font-mono shadow-md z-10">
                   <span id="zoomFrontLabel" class="truncate pr-2">Document Front Side</span>
                   <button type="button" onclick="flipZoomCard()" class="text-blue-300 hover:text-blue-200 font-bold flex items-center gap-1 shrink-0"><span class="material-symbols-outlined text-[14px]">sync</span> Flip to Back</button>
                 </div>
+                <div class="flex-1 min-h-0 flex items-center justify-center">
+                  <img id="zoomFrontImg" src="" class="w-full h-full object-contain pointer-events-none" alt="Document Front Inspection"/>
+                </div>
               </div>
               <!-- Modal Back Face -->
-              <div class="doc-flip-face doc-flip-back flex flex-col items-center justify-center bg-slate-900 rounded-xl overflow-hidden border border-white/20">
-                <img id="zoomBackImg" src="" class="w-full h-full object-contain pointer-events-none" alt="Document Back Inspection"/>
-                <div class="absolute top-3 inset-x-4 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-white flex items-center justify-between font-mono pointer-events-auto shadow-md">
+              <div class="doc-flip-face doc-flip-back flex flex-col items-stretch bg-slate-900 rounded-xl overflow-hidden border border-white/20">
+                <div class="shrink-0 bg-black/75 backdrop-blur-md px-3 py-1.5 text-xs text-white flex items-center justify-between font-mono shadow-md z-10">
                   <span id="zoomBackLabel" class="truncate pr-2">Document Back Side</span>
                   <button type="button" onclick="flipZoomCard()" class="text-blue-300 hover:text-blue-200 font-bold flex items-center gap-1 shrink-0"><span class="material-symbols-outlined text-[14px]">sync</span> Flip to Front</button>
+                </div>
+                <div class="flex-1 min-h-0 flex items-center justify-center">
+                  <img id="zoomBackImg" src="" class="w-full h-full object-contain pointer-events-none" alt="Document Back Inspection"/>
                 </div>
               </div>
             </div>
