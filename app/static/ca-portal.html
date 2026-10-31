@@ -436,9 +436,15 @@
               <span class="material-symbols-outlined text-[14px]">check_circle</span>
               <span id="pdfSeparatedCount">5 Pages Extracted & Arranged</span>
             </span>
-            <button type="button" onclick="bindSeparatedPagesToCards()" class="text-amber-300 hover:underline font-bold text-[10px]">
-              Apply All to Cards ✓
-            </button>
+            <div class="flex items-center gap-2.5">
+              <button type="button" id="btnDeleteSelectedDocs" onclick="deleteSelectedSeparatedDocuments()" class="hidden text-red-300 hover:underline font-bold text-[10px] flex items-center gap-1">
+                <span class="material-symbols-outlined text-[13px]">delete_sweep</span>
+                <span id="btnDeleteSelectedDocsText">Delete Selected</span>
+              </button>
+              <button type="button" onclick="bindSeparatedPagesToCards()" class="text-amber-300 hover:underline font-bold text-[10px]">
+                Apply All to Cards ✓
+              </button>
+            </div>
           </div>
           <div id="pdfSeparatedPagesList" class="grid grid-cols-5 gap-1.5">
             <!-- Rendered thumbnail cards -->
@@ -3595,6 +3601,7 @@
     // MULTI-PAGE PDF LLM SEPARATION ENGINE
     // ==========================================
     let activeSeparatedDocs = [];
+    let selectedSeparatedDocIds = new Set();
 
     function updateAuditCheckCount() {
       const boxes = [...document.querySelectorAll(".audit-check")];
@@ -3827,6 +3834,7 @@
 
     function renderSeparatedPagesTray(docs, summary) {
       activeSeparatedDocs = docs || [];
+      selectedSeparatedDocIds = new Set(); // fresh document list each call - a stale selection pointing at a since-removed or different case's page would be misleading
       const tray = document.getElementById("pdfSeparatedPagesTray");
       const list = document.getElementById("pdfSeparatedPagesList");
       const countEl = document.getElementById("pdfSeparatedCount");
@@ -3891,6 +3899,27 @@
           }
         };
         frame.appendChild(img);
+
+        // Multi-select checkbox for bulk delete - a folder scan can bring in dozens of pages
+        // (bank statement runs are often 20-40 pages), and deleting stray/irrelevant ones one
+        // at a time was the only option. Shown only once there's a real document id to act on.
+        if (d.id) {
+          const checkLabel = document.createElement("label");
+          checkLabel.className = "absolute top-0.5 left-0.5 w-5 h-5 rounded bg-black/70 border border-white/40 flex items-center justify-center cursor-pointer z-10 hover:bg-black/90";
+          checkLabel.onclick = (ev) => ev.stopPropagation();
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.className = "w-3.5 h-3.5 accent-amber-400 cursor-pointer";
+          checkbox.checked = selectedSeparatedDocIds.has(d.id);
+          checkbox.onclick = (ev) => {
+            ev.stopPropagation();
+            if (checkbox.checked) selectedSeparatedDocIds.add(d.id);
+            else selectedSeparatedDocIds.delete(d.id);
+            updateBulkDeleteBar();
+          };
+          checkLabel.appendChild(checkbox);
+          frame.appendChild(checkLabel);
+        }
 
         // Remove a stray/duplicate/irrelevant scanned page — only shown once the tray has a real
         // document id to delete (always true once loaded from the server; absent only for a page
@@ -3998,6 +4027,42 @@
       } catch (err) {
         console.warn("deleteSeparatedDocument error:", err);
         alert("Network error — the document was not removed. Try again.");
+      }
+    }
+
+    function updateBulkDeleteBar() {
+      const btn = document.getElementById("btnDeleteSelectedDocs");
+      const txt = document.getElementById("btnDeleteSelectedDocsText");
+      if (!btn) return;
+      const n = selectedSeparatedDocIds.size;
+      btn.classList.toggle("hidden", n === 0);
+      if (txt) txt.textContent = `Delete Selected (${n})`;
+    }
+
+    async function deleteSelectedSeparatedDocuments() {
+      if (!activeCaseId || selectedSeparatedDocIds.size === 0) return;
+      const ids = Array.from(selectedSeparatedDocIds);
+      if (!confirm(`Remove ${ids.length} selected page(s) from this case?\n\nThis deletes the scanned pages and their stored files — it cannot be undone, but it never touches field evidence photos or the selfie.`)) return;
+
+      const caseId = gfServerId(caseRegistry[activeCaseId]) || activeCaseId;
+      const btn = document.getElementById("btnDeleteSelectedDocsText");
+      if (btn) btn.textContent = "Deleting...";
+
+      const results = await Promise.allSettled(ids.map(id =>
+        fetch(`/api/v1/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: authHeaders(),
+        })
+      ));
+      const failed = results.filter(r => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
+
+      // Re-fetch from the server rather than just removing thumbnails locally, so the
+      // cross-document AI summary (PAN/Aadhaar consensus, other-people list) recomputes
+      // correctly now that these pages are gone.
+      await loadSeparatedCaseDocs(caseId);
+
+      if (failed > 0) {
+        alert(`${ids.length - failed} of ${ids.length} page(s) removed. ${failed} failed — try again for those.`);
       }
     }
 
