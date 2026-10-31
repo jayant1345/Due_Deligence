@@ -3,6 +3,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+from app.core.timezone import format_ist
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -723,9 +724,9 @@ def generate_certified_cpv_report(
     # Resolve Field Staff Attendance Selfie
     selfie_img_path = None
     selfie_meta_info = {
-        "agent_name": "Rajesh Varma (Field Officer - FA-9042)",
+        "agent_name": case_data.get("agent_name") or "Not Yet Allotted",
         "coordinates": "23.1030° N, 72.5955° E",
-        "timestamp": datetime.now().strftime("%d-%b-%Y, %H:%M IST"),
+        "timestamp": format_ist(datetime.now(timezone.utc)),
     }
     for d in sorted_docs:
         if d.get("doc_type") == "AGENT_SELFIE":

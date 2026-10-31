@@ -1,5 +1,6 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
+from app.core.timezone import format_ist
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -776,9 +777,9 @@ def generate_certified_cpv_docx(
     # Field Staff Attendance Selfie
     selfie_img_path = None
     selfie_meta_info = {
-        "agent_name": "Rajesh Varma (Field Officer - FA-9042)",
+        "agent_name": case_data.get("agent_name") or "Not Yet Allotted",
         "coordinates": "23.1030° N, 72.5955° E",
-        "timestamp": datetime.now().strftime("%d-%b-%Y, %H:%M IST"),
+        "timestamp": format_ist(datetime.now(timezone.utc)),
     }
     for d in sorted_docs:
         if d.get("doc_type") == "AGENT_SELFIE":

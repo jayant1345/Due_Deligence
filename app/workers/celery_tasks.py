@@ -7,6 +7,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.core.timezone import format_ist
 from app.models.document import CaseDocument, VerificationStatus
 from app.models.loan_case import CaseStatus, LoanCase, VisitRecord
 from app.models.report import AuditLog, CertifiedReport
@@ -200,6 +201,11 @@ async def async_generate_report_pdf(
         user_res = await session.execute(select(User).where(User.id == user_uuid))
         ca_user = user_res.scalar_one_or_none()
 
+    assigned_agent = None
+    if loan_case.assigned_agent_id:
+        agent_res = await session.execute(select(User).where(User.id == loan_case.assigned_agent_id))
+        assigned_agent = agent_res.scalar_one_or_none()
+
     visit_res = await session.execute(
         select(VisitRecord).where(VisitRecord.case_id == case_uuid).order_by(VisitRecord.check_in_time.desc())
     )
@@ -237,6 +243,7 @@ async def async_generate_report_pdf(
         "target_address": loan_case.target_address,
         "target_lat": loan_case.target_lat,
         "target_lon": loan_case.target_lon,
+        "agent_name": getattr(assigned_agent, "full_name", None),
     }
 
     if loan_case.field_form_data:
@@ -249,7 +256,7 @@ async def async_generate_report_pdf(
     visit_dict = None
     if visit:
         visit_dict = {
-            "check_in_time": visit.check_in_time.strftime("%d-%b-%Y %H:%M:%S IST") if visit.check_in_time else None,
+            "check_in_time": format_ist(visit.check_in_time, "%d-%b-%Y %H:%M:%S"),
             "start_lat": visit.start_lat,
             "start_lon": visit.start_lon,
         }
@@ -263,7 +270,7 @@ async def async_generate_report_pdf(
             "storage_url": d.storage_url,
             "latitude": d.latitude,
             "longitude": d.longitude,
-            "captured_at": d.captured_at.strftime("%d-%b-%Y, %H:%M IST") if d.captured_at else (d.created_at.strftime("%d-%b-%Y, %H:%M IST") if d.created_at else None),
+            "captured_at": format_ist(d.captured_at) if d.captured_at else format_ist(d.created_at),
             "created_at_ts": d.created_at.timestamp() if d.created_at else 0.0,
             "slot_number": (d.ocr_data or {}).get("slot_number"),
         }

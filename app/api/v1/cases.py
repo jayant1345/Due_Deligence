@@ -19,6 +19,7 @@ from app.api.deps import get_current_user, get_current_ca_user, require_role
 from app.api.v1.auth import login_aliases
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.timezone import format_ist
 from app.models.document import CaseDocument, DocumentType, VerificationStatus
 from app.models.loan_case import CaseStatus, LoanCase
 from app.models.report import AuditLog
@@ -540,7 +541,7 @@ async def list_case_documents(
             "longitude": d.longitude,
             "is_geofence_valid": d.is_geofence_valid,
             "verification_status": d.verification_status.value if hasattr(d.verification_status, "value") else str(d.verification_status),
-            "created_at": d.created_at.strftime("%d-%b-%Y, %H:%M IST") if d.created_at else None,
+            "created_at": format_ist(d.created_at),
             "created_at_raw": d.created_at.isoformat() if d.created_at else None,
             "ocr_data": d.ocr_data or {},
             "ca_remarks": d.ca_remarks,
