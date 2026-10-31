@@ -5238,14 +5238,6 @@
       const summaryText = document.getElementById("tabNcStagedSummary");
       if (summaryText) summaryText.textContent = `${tabStagedPdfs.length} PDF(s) staged — Gemini AI ready to scan & arrange!`;
 
-      // Smart prefill from folder name if applicable
-      if (/gota|patel/i.test(folderName)) {
-        const caseNoInput = document.getElementById("tabNcCaseNo");
-        if (caseNoInput && !caseNoInput.value) caseNoInput.value = "BOB-HL-2026-GOTA-02";
-        const appInput = document.getElementById("tabNcApplicantName");
-        if (appInput && !appInput.value) appInput.value = "Mr. Narendrakumar Mohanlal Patel";
-      }
-
       const tray = document.getElementById("tabNcFilesTray");
       const list = document.getElementById("tabNcFilesList");
       if (tray && list) {
@@ -5263,16 +5255,17 @@
     }
 
     async function executeNewCaseCreationAndAiScan() {
-      const caseNo = (document.getElementById("tabNcCaseNo") ? document.getElementById("tabNcCaseNo").value.trim() : "") || `BOB-HL-2026-${Math.floor(100 + Math.random() * 900)}`;
-      const bank = document.getElementById("tabNcBankName") ? document.getElementById("tabNcBankName").value : "Bank of Baroda";
-      const branch = (document.getElementById("tabNcBranch") ? document.getElementById("tabNcBranch").value.trim() : "") || "Gota Branch, Ahmedabad";
-      const applicantName = (document.getElementById("tabNcApplicantName") ? document.getElementById("tabNcApplicantName").value.trim() : "") || "Mr. Narendrakumar Mohanlal Patel";
-      const phone = (document.getElementById("tabNcPhone") ? document.getElementById("tabNcPhone").value.trim() : "") || "+91 98250 90421";
+      const caseNo = (document.getElementById("tabNcCaseNo") ? document.getElementById("tabNcCaseNo").value.trim() : "") || `CASE-${Date.now()}`;
+      const bank = document.getElementById("tabNcBankName") ? document.getElementById("tabNcBankName").value : "";
+      const branch = (document.getElementById("tabNcBranch") ? document.getElementById("tabNcBranch").value.trim() : "") || "";
+      // Left blank on purpose when the CA doesn't type it: Gemini reads the real name off the
+      // scanned Aadhaar/PAN below and corrects it (mergeExtractedDocsIntoCase) - never guess here.
+      const applicantName = (document.getElementById("tabNcApplicantName") ? document.getElementById("tabNcApplicantName").value.trim() : "") || "Pending AI Identification";
+      const phone = (document.getElementById("tabNcPhone") ? document.getElementById("tabNcPhone").value.trim() : "") || "";
       const loanType = document.getElementById("tabNcLoanType") ? document.getElementById("tabNcLoanType").value : "Home Loan (HL)";
-      const loanAmountRaw = document.getElementById("tabNcLoanAmount") ? document.getElementById("tabNcLoanAmount").value.trim() : "4500000";
-      const loanAmount = parseInt(loanAmountRaw.replace(/[^0-9]/g, "")) || 4500000;
-      const address = (document.getElementById("tabNcAddress") ? document.getElementById("tabNcAddress").value.trim() : "") || "B-402, Shivalik Residency, Gota, Ahmedabad";
-      const fieldStaff = document.getElementById("tabNcFieldStaff") ? document.getElementById("tabNcFieldStaff").value : "Rajesh Varma (Field Officer - FA-9042)";
+      const loanAmountRaw = document.getElementById("tabNcLoanAmount") ? document.getElementById("tabNcLoanAmount").value.trim() : "";
+      const loanAmount = parseInt(loanAmountRaw.replace(/[^0-9]/g, "")) || 0;
+      const address = (document.getElementById("tabNcAddress") ? document.getElementById("tabNcAddress").value.trim() : "") || "Pending AI Extraction";
 
       const progressBox = document.getElementById("tabNcScanProgressBox");
       const progressBar = document.getElementById("tabNcScanProgressBar");
@@ -5497,7 +5490,11 @@
           launchBtn.disabled = false;
           launchBtn.classList.remove("opacity-60", "cursor-not-allowed");
         }
-        alert(`[Case Onboarding & AI Scan Complete]\nCase Reference: ${caseNo}\nBank: ${bank}\nApplicant: ${applicantName}\nField Staff: Unassigned (Pending Manual Handover)\n\nThe case is now active on your Scrutiny Desk! Use the Handover button whenever you are ready to dispatch it to field staff.`);
+        // Use whatever mergeExtractedDocsIntoCase() actually resolved from the scanned
+        // documents, not the pre-scan applicantName - the two can differ whenever the CA
+        // left the field blank for Gemini to fill in from the real Aadhaar/PAN.
+        const finalApplicantName = (caseRegistry[newCaseId] && caseRegistry[newCaseId].applicant_name) || applicantName;
+        alert(`[Case Onboarding & AI Scan Complete]\nCase Reference: ${caseNo}\nBank: ${bank}\nApplicant: ${finalApplicantName}\nField Staff: Unassigned (Pending Manual Handover)\n\nThe case is now active on your Scrutiny Desk! Use the Handover button whenever you are ready to dispatch it to field staff.`);
         onCaseSelected(newCaseId);
         switchMainPortalView("scrutiny");
       }, 1000);
