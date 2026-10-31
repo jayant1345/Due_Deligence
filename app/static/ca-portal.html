@@ -3201,9 +3201,9 @@
         if (selfieDoc && selfieDoc.url) {
           c.agent_selfie = selfieDoc.url;
           c.selfie_verified = true;
-          if (!c.agent || c.agent === "Not yet allotted") {
-            c.agent = "Rajesh Varma (Field Officer - FA-9042)";
-          }
+          // c.agent is resolved from the case's real assigned_agent_id in loadDbCasesIntoRegistry -
+          // never invent a name here if that hasn't resolved yet; "Not yet allotted" is honest,
+          // a guessed name is not.
           if (selfieDoc.created_at) {
             c.visit_date = selfieDoc.created_at;
           }
@@ -3467,12 +3467,15 @@
       if (selfieModalImg) selfieModalImg.src = selfieUrl;
 
       const selfieDone = !!cachedSelfie || !!c.selfie_verified || (c.agent_selfie && !c.agent_selfie.includes("placeholder"));
-      if (selfieDone && (!c.agent || c.agent === "Not yet allotted")) {
-        c.agent = cachedAgent || "Rajesh Varma (Field Officer - FA-9042)";
+      // c.agent is resolved from the case's real assigned_agent_id (see loadDbCasesIntoRegistry);
+      // cachedAgent (the device's own locally-captured name at selfie time) is only a fallback
+      // for when that hasn't resolved yet - never invent a specific name here.
+      if (selfieDone && (!c.agent || c.agent === "Not yet allotted") && cachedAgent) {
+        c.agent = cachedAgent;
       }
 
       const selfieName = document.getElementById("dispAgentSelfieName");
-      if (selfieName) selfieName.textContent = c.agent || (selfieDone ? "Rajesh Varma (Field Officer - FA-9042)" : "Not yet allotted");
+      if (selfieName) selfieName.textContent = c.agent || "Not yet allotted";
       const dispFieldAgent = document.getElementById("dispFieldAgent");
       if (dispFieldAgent && c.agent) dispFieldAgent.textContent = c.agent;
 
@@ -5764,9 +5767,22 @@
       };
     }
 
+    // Resolve a case's real assigned_agent_id (a UUID) to the actual registered field agent's
+    // name via /api/v1/agents. Returns null (never a guessed/placeholder name) when the agent
+    // list hasn't loaded yet or the id doesn't match anyone - callers must leave the existing
+    // value alone in that case rather than overwrite it with something invented.
+    function resolveAgentName(assignedAgentId) {
+      if (!assignedAgentId || !Array.isArray(window.allAgents)) return null;
+      const match = window.allAgents.find(a => a.id === assignedAgentId);
+      return match ? `${match.full_name}${match.designation ? " (" + match.designation + ")" : ""}` : null;
+    }
+
     // Real cases live in the database; the portal's built-in list is only demo data. Load every
     // DB case so a case created earlier (and its AI scan) is still here after a page reload.
     async function loadDbCasesIntoRegistry() {
+      if (!window.allAgents || window.allAgents.length === 0) {
+        await loadFieldAgents();
+      }
       if (typeof purgeDeletedCasesFromRegistry === "function") purgeDeletedCasesFromRegistry();
       try {
         const res = await fetch("/api/v1/cases", { headers: authHeaders() });
@@ -5784,6 +5800,7 @@
               case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
               phone: dc.applicant_phone, loan_type: dc.loan_type, loan_amount: dc.loan_amount, address: dc.target_address,
               benchmark_lat: dc.target_lat, benchmark_lon: dc.target_lon, status: dc.status, db_id: dc.id,
+              agent: resolveAgentName(dc.assigned_agent_id),
             });
           } else {
             // Built-in seed case that also exists in the database: the benchmark lives on the server.
@@ -5792,6 +5809,10 @@
               caseRegistry[dc.id].benchmark_lat = dc.target_lat;
               caseRegistry[dc.id].benchmark_lon = dc.target_lon;
             }
+            // Keep the displayed executive name in sync with the real DB assignment, not a
+            // stale demo placeholder from an earlier load.
+            const realAgentName = resolveAgentName(dc.assigned_agent_id);
+            if (realAgentName) caseRegistry[dc.id].agent = realAgentName;
           }
           if (dc.case_no) {
             caseRegistry[dc.case_no] = caseRegistry[dc.id];
