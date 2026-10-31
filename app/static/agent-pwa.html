@@ -3025,15 +3025,26 @@
       const caseLookup = paramCase || activeCaseKey || localStorage.getItem("pwa_active_case_key") || "UBI-HL-2026-531";
       try {
         let target = null;
-        // 1. Try public single-case endpoint first (instant, zero auth restriction)
-        try {
-          const pubRes = await fetch(`/api/v1/cases/public/${encodeURIComponent(caseLookup)}`);
-          if (pubRes.ok) {
-            target = await pubRes.json();
-          }
-        } catch (pubErr) {}
+        // 1. Try public single-case endpoint first (instant, zero auth restriction, not
+        //    filtered by which agent it's assigned to - this is the authoritative lookup
+        //    for "the exact case this link points to", so retry once before giving up:
+        //    a dropped request here must never be allowed to fall through to a WRONG case.
+        for (let attempt = 0; attempt < 2 && !target; attempt++) {
+          try {
+            const pubRes = await fetch(`/api/v1/cases/public/${encodeURIComponent(caseLookup)}`);
+            if (pubRes.ok) {
+              target = await pubRes.json();
+            }
+          } catch (pubErr) {}
+        }
 
-        // 2. If not found and user has a real token, query /api/v1/cases
+        // 2. If still not found and the user has a real token, check the agent's own
+        //    assigned-case list for an exact match. Deliberately NO fallback to cases[0]
+        //    here: an agent handling several visits in one day, each with its own case
+        //    link, must NEVER have a failed lookup silently substitute a DIFFERENT one of
+        //    their cases - that is exactly how a residence photo for visit 2 has ended up
+        //    attached to visit 1 before. An explicit "case not found" is always safer than
+        //    a silently wrong one.
         if (!target && token && token !== "demo-pwa-token") {
           try {
             const res = await fetch("/api/v1/cases", {
@@ -3041,14 +3052,18 @@
             });
             if (res.ok) {
               const cases = await res.json();
-              if (Array.isArray(cases) && cases.length > 0) {
+              if (Array.isArray(cases)) {
                 target = cases.find(c =>
                   (c.case_no || "").toLowerCase() === caseLookup.toLowerCase() ||
                   (c.id || "").toLowerCase() === caseLookup.toLowerCase()
-                ) || cases[0];
+                ) || null;
               }
             }
           } catch(e) {}
+        }
+
+        if (!target) {
+          showCaseLoadError(caseLookup);
         }
 
         if (target) {
@@ -3112,17 +3127,37 @@
           switchPwaCase(key);
           await loadCaseDocumentsIntoPwa(target.id);
           return true;
-        } else {
-          switchPwaCase(caseLookup);
-          await loadCaseDocumentsIntoPwa(sampleCaseId);
-          return true;
         }
+        // No match anywhere: do NOT fall back to whatever case happened to be loaded
+        // before (sampleCaseId/localStorage carry the PREVIOUS case on this device) -
+        // that is precisely how one visit's photos end up attributed to another visit.
+        return false;
       } catch (err) {
         console.warn("Could not load assigned case from server:", err);
-        switchPwaCase(caseLookup);
-        await loadCaseDocumentsIntoPwa(sampleCaseId);
+        showCaseLoadError(caseLookup);
         return false;
       }
+    }
+
+    // Blocking error state for "this link's case could not be loaded" - deliberately NOT
+    // auto-recovered by showing some other case, since a wrong-but-plausible-looking case
+    // is far worse for a field agent than an honest error with a retry button.
+    function showCaseLoadError(caseLookup) {
+      if (document.getElementById("pwaCaseLoadError")) return;
+      const overlay = document.createElement("div");
+      overlay.id = "pwaCaseLoadError";
+      overlay.className = "fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-5";
+      overlay.innerHTML = `
+        <div class="bg-white rounded-xl p-5 max-w-sm w-full text-center space-y-3 shadow-2xl">
+          <span class="material-symbols-outlined text-rose-600 text-[40px]">error</span>
+          <h3 class="font-headline font-bold text-sm text-on-surface">Could Not Load This Case</h3>
+          <p class="text-xs text-on-surface-variant leading-relaxed">
+            This link ("${(caseLookup || "").replace(/</g, "&lt;")}") could not be opened — it may not be allotted to your login yet, or the connection dropped.
+            To protect against showing the wrong case's photos, nothing has been loaded. Please check your connection and retry, or contact the CA office.
+          </p>
+          <button onclick="window.location.reload()" class="w-full py-2.5 rounded-lg bg-primary-container text-white font-headline text-xs font-bold">Retry</button>
+        </div>`;
+      document.body.appendChild(overlay);
     }
 
     // Fetches every document the CA office has scanned (via Gemini AI) for this case —
@@ -3464,12 +3499,20 @@
       switchPwaCase(paramCase);
 
       // Step 2: Try fetching updated case dossier from Railway server
+      let caseResolved = false;
       try {
-        await loadAssignedCaseForAgent(token, paramCase);
+        caseResolved = await loadAssignedCaseForAgent(token, paramCase);
       } catch(e) {}
 
-      // Step 3: Guarantee all documents and photo slots are restored from Railway server & saved to local storage
-      await loadCaseDocumentsIntoPwa(sampleCaseId);
+      // Step 3: Guarantee all documents and photo slots are restored from Railway server & saved to local storage.
+      // Only do this when the case was actually resolved this run, OR the agent opened the
+      // bare /pwa link with no explicit case (a legitimate "resume whatever I had open last"
+      // case) - never after a dispatch link's case lookup failed, which would otherwise show
+      // documents belonging to a DIFFERENT, previously-open case under the new link.
+      const hasExplicitCaseParam = !!(urlParams.get("case") || urlParams.get("case_id"));
+      if (caseResolved || !hasExplicitCaseParam) {
+        await loadCaseDocumentsIntoPwa(sampleCaseId);
+      }
 
       // Show login modal only if agent is not authenticated and has no explicit dispatch link
       if (!token && !urlParams.get("case") && !urlParams.get("case_id")) {
