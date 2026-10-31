@@ -499,7 +499,7 @@
                 <label class="cursor-pointer px-3.5 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow flex items-center gap-1.5 active:scale-95 transition-all">
                   <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
                   <span id="selfieBtnText">Capture Own Selfie (સેલ્ફી લો)</span>
-                  <input type="file" accept="image/*" capture="user" onchange="handleAgentSelfieCapture(event)" class="hidden"/>
+                  <input type="file" accept="image/*" onchange="handleAgentSelfieCapture(event)" class="hidden"/>
                 </label>
               </div>
 
@@ -949,7 +949,7 @@
         <span class="material-symbols-outlined text-[20px]">photo_camera</span>
         <span>Take Geotagged Photo</span>
       </label>
-      <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoUpload(event)"/>
+      <input type="file" id="cameraInput" accept="image/*" class="hidden" onchange="handlePhotoUpload(event)"/>
 
       <!-- Secondary Action: Notes -->
       <button onclick="promptInspectionNotes()" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container-low font-headline text-sm font-semibold active:scale-95 transition-all">
