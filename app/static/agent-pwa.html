@@ -961,7 +961,7 @@
     <!-- Upload Status Alert Box -->
     <div id="uploadAlert" class="hidden p-3 rounded-lg bg-blue-50 border border-blue-200 text-primary-container text-xs flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <span class="material-symbols-outlined text-blue-600 animate-spin">autorenew</span>
+        <span id="uploadAlertIcon" class="material-symbols-outlined text-blue-600 animate-spin">autorenew</span>
         <span id="uploadAlertText">Zero-lag ingestion accepted. Background OpenRouter Gemini OCR running...</span>
       </div>
       <button onclick="document.getElementById('uploadAlert').classList.add('hidden')" class="text-blue-600 font-bold">×</button>
@@ -1772,6 +1772,17 @@
     // reviewed the shot - populated by handlePhotoUpload() right before showing the review modal.
     let pendingPhotoCapture = null;
 
+    // The upload/sync status banner's icon was static HTML (always spinning), so it kept
+    // spinning forever even after the box's own text/color already said "done" - looked like
+    // the upload never actually finished. Call this alongside every alertBox.className change
+    // so the icon's spin state always matches what the banner is actually saying.
+    function setUploadAlertIcon(spinning, colorClass, iconName) {
+      const icon = document.getElementById("uploadAlertIcon");
+      if (!icon) return;
+      icon.textContent = iconName || (spinning ? "autorenew" : "check_circle");
+      icon.className = `material-symbols-outlined ${colorClass || "text-blue-600"}` + (spinning ? " animate-spin" : "");
+    }
+
     async function handlePhotoUpload(event) {
       const file = event.target.files[0];
       event.target.value = ""; // allow capturing the same slot again without a no-op change event
@@ -1976,8 +1987,10 @@
       // Show zero-lag ingestion alert
       const alertBox = document.getElementById("uploadAlert");
       const alertText = document.getElementById("uploadAlertText");
+      alertBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-200 text-primary-container text-xs flex items-center justify-between";
       alertBox.classList.remove("hidden");
       alertText.textContent = `Processing ${isOffice ? 'Office' : 'Residence'} Slot ${slotNum} photo...`;
+      setUploadAlertIcon(true, "text-blue-600", "autorenew");
 
       const previewImgEl = document.getElementById("previewPhotoImg");
       if (previewImgEl) previewImgEl.src = finalPreviewUrl;
@@ -2059,12 +2072,14 @@
               if (response.status === 202 || response.status === 200) {
                 const data = await response.json();
                 alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
-                alertText.innerHTML = `✅ <b>${isOffice ? '🏢 Office' : '🏡 Residence'} Slot ${slotNum} Transmitted to CA Scrutiny Desk!</b><br/>GPS: ${latAtCapture.toFixed(4)}°N, ${lonAtCapture.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>N.N. SHAH & CO. watermark applied server-side and synced in real time.</i>`;
+                alertText.innerHTML = `✅ <b>Data Uploaded Successfully!</b> ${isOffice ? '🏢 Office' : '🏡 Residence'} Slot ${slotNum} transmitted to CA Scrutiny Desk.<br/>GPS: ${latAtCapture.toFixed(4)}°N, ${lonAtCapture.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>N.N. SHAH & CO. watermark applied server-side and synced in real time.</i>`;
+                setUploadAlertIcon(false, "text-emerald-600", "check_circle");
                 loadCaseDocumentsIntoPwa(caseIdAtCapture);
               } else {
                 const errData = await response.json().catch(() => ({}));
                 alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
                 alertText.textContent = `Upload Notice: ${errData.detail || 'Photo saved locally'}`;
+                setUploadAlertIcon(false, "text-amber-600", "warning");
               }
             } catch (netErr) {
               await enqueueOfflinePhoto({
@@ -2079,6 +2094,7 @@
               });
               alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
               alertText.innerHTML = `<b>📦 Offline Saved:</b> Photo queued in device memory. <b>It will upload automatically to CA Desk as soon as network is available</b>.`;
+              setUploadAlertIcon(false, "text-amber-600", "cloud_off");
             } finally {
               finish();
             }
@@ -2819,7 +2835,8 @@
         const alertText = document.getElementById("uploadAlertText");
         if (alertBox && alertText && !alertBox.classList.contains("hidden")) {
           alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
-          alertText.innerHTML = `✅ <b>Synced!</b> All previously offline-queued photos have now been transmitted to the CA Scrutiny Desk.`;
+          alertText.innerHTML = `✅ <b>Data Uploaded Successfully!</b> All previously offline-queued photos have now been transmitted to the CA Scrutiny Desk.`;
+          setUploadAlertIcon(false, "text-emerald-600", "check_circle");
         }
         if (typeof loadCaseDocumentsIntoPwa === "function" && typeof sampleCaseId !== "undefined" && sampleCaseId) {
           loadCaseDocumentsIntoPwa(sampleCaseId);
@@ -2902,8 +2919,10 @@
 
       const alertBox = document.getElementById("uploadAlert");
       const alertText = document.getElementById("uploadAlertText");
+      alertBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-200 text-primary-container text-xs flex items-center justify-between";
       alertBox.classList.remove("hidden");
       alertText.textContent = "Syncing Due Diligence Form to CA Verification Portal...";
+      setUploadAlertIcon(true, "text-blue-600", "autorenew");
 
       try {
         const res = await fetch(`/api/v1/visits/cases/${sampleCaseId}/field-form`, {
@@ -2912,15 +2931,21 @@
           body: JSON.stringify({ form_data: payload })
         });
         if (res.ok) {
-          alertText.innerHTML = `<b>✓ Due Diligence Form Synced:</b> ${bhk} ${bType} (${own}), ${stay} stay, ${visibleAssets.filter(a=>a.active).length} assets. Successfully pushed to CA Portal for Scrutiny.`;
+          alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
+          alertText.innerHTML = `<b>✓ Data Uploaded Successfully!</b> ${bhk} ${bType} (${own}), ${stay} stay, ${visibleAssets.filter(a=>a.active).length} assets. Pushed to CA Portal for Scrutiny.`;
+          setUploadAlertIcon(false, "text-emerald-600", "check_circle");
           alert(`[✓] Due Diligence Form Synced Successfully!\nExecutive: ${exec}\nPersona: ${persona}\nProperty: ${bhk} ${bType} (${own})\nDuration of Stay: ${stay}\nAssets: ${assetsObserved}\nData has been pushed to CA Verification Desk.`);
         } else {
           localStorage.setItem(`field_form_${sampleCaseId}`, JSON.stringify(payload));
+          alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
           alertText.innerHTML = `<b>✓ Cached Locally:</b> Form saved in PWA offline queue. Will auto-sync when online.`;
+          setUploadAlertIcon(false, "text-amber-600", "cloud_off");
         }
       } catch (e) {
         localStorage.setItem(`field_form_${sampleCaseId}`, JSON.stringify(payload));
+        alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
         alertText.innerHTML = `<b>✓ Offline Mode:</b> Form cached in PWA device storage. Will auto-sync when back in network.`;
+        setUploadAlertIcon(false, "text-amber-600", "cloud_off");
         alert(`[✓ Offline Saved] Due Diligence Form cached locally on your device. It will auto-sync with the CA Office portal when you are back in network.`);
       }
     }
