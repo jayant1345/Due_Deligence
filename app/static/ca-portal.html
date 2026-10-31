@@ -4204,10 +4204,28 @@
       document.getElementById("caRemarksInput").value += clause;
     }
 
-    function flagDiscrepancy() {
-      const reason = prompt("Specify discrepancy reason to return case to field agent:", "Electricity meter photograph blurred, please re-capture with clear serial MUM-70291 view.");
-      if (reason) {
-        alert("Case status marked as FLAGGED. Notification dispatched to Field Agent Rajesh Varma.");
+    async function flagDiscrepancy() {
+      const c = caseRegistry[activeCaseId];
+      if (!c) { alert("No active case selected."); return; }
+      const reason = prompt("Specify discrepancy reason to return case to field agent:", "");
+      if (!reason) return;
+
+      const agentName = (c.agent && c.agent !== "Not yet allotted") ? c.agent : null;
+      try {
+        const res = await fetch(`/api/v1/cases/${activeCaseId}`, {
+          method: "PATCH",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ status: "FLAGGED" })
+        });
+        if (res.ok) {
+          c.status = "FLAGGED";
+          alert(`Case status marked as FLAGGED.\n\nReason: ${reason}\n\n${agentName ? `Share this with Field Agent ${agentName} so they can re-capture/correct the flagged item.` : "No field agent is currently assigned to this case — assign one before they can act on this."}`);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`Could not flag this case: ${err.detail || "Server error"}`);
+        }
+      } catch (err) {
+        alert(`Network error flagging case: ${err.message}`);
       }
     }
 
@@ -5520,13 +5538,13 @@
       const img = document.getElementById("selfieModalImg");
       if (img) img.src = url;
       const name = document.getElementById("selfieModalStaffName");
-      if (name) name.textContent = c.agent && c.agent !== "Not yet allotted" ? c.agent : (cachedAgent || "Rajesh Varma (Field Officer - FA-9042)");
+      if (name) name.textContent = c.agent && c.agent !== "Not yet allotted" ? c.agent : (cachedAgent || "Not Yet Allotted");
       const ts = document.getElementById("selfieModalTimestamp");
-      if (ts) ts.textContent = cachedTime || c.visit_date || "Today, 14:35 IST";
+      if (ts) ts.textContent = cachedTime || c.visit_date || "Not Captured";
       const gps = document.getElementById("selfieModalGps");
-      const lat = (c.capture_lat && c.capture_lat !== "—") ? c.capture_lat : "23.1030";
-      const lon = (c.capture_lon && c.capture_lon !== "—") ? c.capture_lon : "72.5955";
-      if (gps) gps.textContent = `${lat}° N, ${lon}° E (±3.2m)`;
+      if (gps) gps.textContent = (c.capture_lat && c.capture_lat !== "—" && c.capture_lon && c.capture_lon !== "—")
+        ? `${c.capture_lat}° N, ${c.capture_lon}° E (±3.2m)`
+        : "Not Captured";
       
       document.getElementById("selfieModal").classList.remove("hidden");
     }
