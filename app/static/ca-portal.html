@@ -5954,6 +5954,7 @@
         phone: f.phone || "",
         co_applicant_name: f.co_applicant_name || "",
         co_applicant_phone: f.co_applicant_phone || "",
+        assigned_agent_id: f.assigned_agent_id || null,
         month: f.month || "",
         allotted_by: f.allotted_by || "",
         loan_facility: `${f.loan_type || "Loan"}${amt ? " ₹" + (amt / 100000).toFixed(2) + " Lacs" : ""}`,
@@ -6021,11 +6022,12 @@
               phone: dc.applicant_phone, co_applicant_name: dc.co_applicant_name, co_applicant_phone: dc.co_applicant_phone,
               loan_type: dc.loan_type, loan_amount: dc.loan_amount, address: dc.target_address,
               benchmark_lat: dc.target_lat, benchmark_lon: dc.target_lon, status: dc.status, db_id: dc.id,
-              agent: resolveAgentName(dc.assigned_agent_id),
+              agent: resolveAgentName(dc.assigned_agent_id), assigned_agent_id: dc.assigned_agent_id,
             });
           } else {
             // Built-in seed case that also exists in the database: the benchmark lives on the server.
             caseRegistry[dc.id].server_id = dc.id;
+            caseRegistry[dc.id].assigned_agent_id = dc.assigned_agent_id;
             if (dc.target_lat != null && dc.target_lon != null) {
               caseRegistry[dc.id].benchmark_lat = dc.target_lat;
               caseRegistry[dc.id].benchmark_lon = dc.target_lon;
@@ -6396,7 +6398,7 @@
     // ==========================================
     // EDIT / MODIFY CASE DETAILS MODAL
     // ==========================================
-    function openEditCaseModal(caseId) {
+    async function openEditCaseModal(caseId) {
       const cId = caseId || activeCaseId;
       const c = caseRegistry[cId];
       if (!c) return;
@@ -6404,25 +6406,29 @@
       document.getElementById("ecCaseId").value = cId;
       document.getElementById("ecCaseNo").value = c.case_no;
       document.getElementById("ecApplicantName").value = c.applicant_name;
+      if (document.getElementById("ecCoApplicantName")) document.getElementById("ecCoApplicantName").value = c.co_applicant_name || "";
+      if (document.getElementById("ecCoApplicantPhone")) document.getElementById("ecCoApplicantPhone").value = c.co_applicant_phone || "";
       document.getElementById("ecBank").value = c.bank;
       document.getElementById("ecBranch").value = c.branch;
       document.getElementById("ecAddress").value = c.address;
-      if (document.getElementById("ecPan")) document.getElementById("ecPan").value = c.pan || "";
-      if (document.getElementById("ecAadhaar")) document.getElementById("ecAadhaar").value = c.aadhaar_masked || "";
-      if (document.getElementById("ecDob")) document.getElementById("ecDob").value = c.dob || "";
-      if (document.getElementById("ecGender")) document.getElementById("ecGender").value = c.gender || "Female";
-      
+      // PAN/Aadhaar/DOB/Gender are read off scanned KYC documents, not stored as their own
+      // editable case fields on the server - shown here read-only so the CA isn't misled into
+      // thinking a correction here would be saved anywhere.
+      if (document.getElementById("ecPan")) { document.getElementById("ecPan").value = c.pan || ""; document.getElementById("ecPan").readOnly = true; }
+      if (document.getElementById("ecAadhaar")) { document.getElementById("ecAadhaar").value = c.aadhaar_masked || ""; document.getElementById("ecAadhaar").readOnly = true; }
+      if (document.getElementById("ecDob")) { document.getElementById("ecDob").value = c.dob || ""; document.getElementById("ecDob").readOnly = true; }
+      if (document.getElementById("ecGender")) { document.getElementById("ecGender").value = c.gender || "Female"; document.getElementById("ecGender").disabled = true; }
+
+      // Real registered agents, not a hardcoded demo list - loaded fresh so a newly-registered
+      // agent shows up without needing a page reload.
+      if (!window.allAgents || window.allAgents.length === 0) {
+        await loadFieldAgents();
+      }
       const staffSelect = document.getElementById("ecStaff");
       if (staffSelect) {
-        let found = false;
-        for (let opt of staffSelect.options) {
-          if (c.agent.includes(opt.value) || opt.value.includes(c.agent)) {
-            staffSelect.value = opt.value;
-            found = true;
-            break;
-          }
-        }
-        if (!found) staffSelect.selectedIndex = 0;
+        staffSelect.innerHTML = `<option value="">-- Unassigned --</option>` +
+          (window.allAgents || []).map(a => `<option value="${a.id}">${a.full_name}${a.designation ? " (" + a.designation + ")" : ""}</option>`).join("");
+        staffSelect.value = c.assigned_agent_id || "";
       }
 
       const statusSelect = document.getElementById("ecStatus");
@@ -6437,22 +6443,64 @@
       document.getElementById("editCaseModal").classList.add("hidden");
     }
 
-    function handleSaveCaseEdit(e) {
+    async function handleSaveCaseEdit(e) {
       if (e) e.preventDefault();
       const cId = document.getElementById("ecCaseId").value;
       const c = caseRegistry[cId];
       if (!c) return;
 
-      c.applicant_name = document.getElementById("ecApplicantName").value.trim();
-      c.bank = document.getElementById("ecBank").value.trim();
-      c.branch = document.getElementById("ecBranch").value.trim();
-      c.address = document.getElementById("ecAddress").value.trim();
-      if (document.getElementById("ecPan")) c.pan = document.getElementById("ecPan").value.trim().toUpperCase() || c.pan;
-      if (document.getElementById("ecAadhaar")) c.aadhaar_masked = document.getElementById("ecAadhaar").value.trim() || c.aadhaar_masked;
-      if (document.getElementById("ecDob")) c.dob = document.getElementById("ecDob").value.trim() || c.dob;
-      if (document.getElementById("ecGender")) c.gender = document.getElementById("ecGender").value || c.gender;
-      c.agent = document.getElementById("ecStaff").value;
-      c.status = document.getElementById("ecStatus").value;
+      const applicantName = document.getElementById("ecApplicantName").value.trim();
+      const coApplicantName = document.getElementById("ecCoApplicantName") ? document.getElementById("ecCoApplicantName").value.trim() : "";
+      const coApplicantPhone = document.getElementById("ecCoApplicantPhone") ? document.getElementById("ecCoApplicantPhone").value.trim() : "";
+      const bankName = document.getElementById("ecBank").value.trim();
+      const branch = document.getElementById("ecBranch").value.trim();
+      const address = document.getElementById("ecAddress").value.trim();
+      const agentId = document.getElementById("ecStaff").value || null;
+      const newStatus = document.getElementById("ecStatus").value;
+
+      const serverId = gfServerId(c) || cId;
+      const saveBtn = document.querySelector('#editCaseForm button[type="submit"]') || document.querySelector('#editCaseForm [onclick*="handleSaveCaseEdit"]');
+      const originalBtnHtml = saveBtn ? saveBtn.innerHTML : null;
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving..."; }
+
+      try {
+        const res = await fetch(`/api/v1/cases/${encodeURIComponent(serverId)}`, {
+          method: "PATCH",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            applicant_name: applicantName,
+            co_applicant_name: coApplicantName || null,
+            co_applicant_phone: coApplicantPhone || null,
+            bank_name: bankName,
+            branch: branch,
+            target_address: address,
+            assigned_agent_id: agentId,
+            status: newStatus,
+          })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(`Could not save case details: ${err.detail || "Server error"}`);
+          return;
+        }
+      } catch (err) {
+        alert(`Network error — case details were NOT saved: ${err.message}. Please try again.`);
+        return;
+      } finally {
+        if (saveBtn) { saveBtn.disabled = false; if (originalBtnHtml !== null) saveBtn.innerHTML = originalBtnHtml; }
+      }
+
+      // Only update the local cache once the server confirms the save - a failed PATCH above
+      // already returned, so reaching here means it's really persisted.
+      c.applicant_name = applicantName;
+      c.co_applicant_name = coApplicantName;
+      c.co_applicant_phone = coApplicantPhone;
+      c.bank = bankName;
+      c.branch = branch;
+      c.address = address;
+      c.assigned_agent_id = agentId;
+      c.agent = agentId ? ((window.allAgents || []).find(a => a.id === agentId)?.full_name || c.agent) : "Not yet allotted";
+      c.status = newStatus;
 
       closeEditCaseModal();
 
@@ -6470,7 +6518,7 @@
         onCaseSelected(cId);
       }
       renderManagementPortal();
-      alert(`[✓] Case ${c.case_no} details successfully updated!`);
+      alert(`[✓] Case ${c.case_no} details saved.`);
     }
 
     // ==========================================
@@ -8279,6 +8327,14 @@
             <input id="ecApplicantName" type="text" required class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
           <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Name <span class="font-normal normal-case text-outline">(leave blank for single-applicant)</span></label>
+            <input id="ecCoApplicantName" type="text" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Phone <span class="font-normal normal-case text-outline">(optional)</span></label>
+            <input id="ecCoApplicantPhone" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Bank Name</label>
             <input id="ecBank" type="text" required class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
@@ -8316,12 +8372,7 @@
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Assigned Field Staff</label>
             <select id="ecStaff" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
-              <option value="Nilesh & Kamal Bhai (Field Team)">Joint Team: Nilesh & Kamal Bhai</option>
-              <option value="Kamal Bhai (FA-7702)">Kamal Bhai (Field Officer - FA-7702)</option>
-              <option value="Nilesh (FA-7701)">Nilesh (Field Verification Executive - FA-7701)</option>
-              <option value="Rajesh Varma (FA-9042)">Rajesh Varma (Senior CPV Officer - FA-9042)</option>
-              <option value="Amit Shah (FA-5011)">Amit Shah (Field Officer - FA-5011)</option>
-              <option value="Sneha Desai (FA-3104)">Sneha Desai (Field Associate - FA-3104)</option>
+              <option value="">-- Unassigned --</option>
             </select>
           </div>
           <div>
