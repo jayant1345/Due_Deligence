@@ -297,34 +297,43 @@ async def zero_lag_upload_document(
             base_name = os.path.basename(storage_url)
             watermarked_path = os.path.join(dir_name, f"wm_{base_name}")
 
-            # Extract Office Address from field form data if workplace photo
+            # Extract Office Address from field form data if workplace photo. A co-applicant's
+            # office is frequently a different premises, so it has its own office_details_co
+            # block rather than sharing the primary applicant's office_details.
+            is_co_work = (norm_folder == "co_work") or "CO_OFFICE" in doc_type_str
             office_address = None
             if loan_case.field_form_data:
                 try:
                     import json
                     ffd = json.loads(loan_case.field_form_data)
-                    office_address = ffd.get("office_details", {}).get("address")
+                    office_key = "office_details_co" if is_co_work else "office_details"
+                    office_address = ffd.get(office_key, {}).get("address")
                 except Exception:
                     pass
 
-            is_work = (norm_folder == "work") or any(w in doc_type_str for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"])
+            is_work = is_co_work or (norm_folder == "work") or any(w in doc_type_str for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"])
             if is_work:
-                visit_type = "WORKPLACE / OFFICE"
-                active_address = office_address or ("District Panchayat Education Committee, Dholka, Gujarat-382260" if "531" in loan_case.case_no else loan_case.target_address)
+                visit_type = "CO-APPLICANT WORKPLACE / OFFICE" if is_co_work else "WORKPLACE / OFFICE"
+                # No fabricated specific address when the office_details haven't been filled in
+                # yet - the target_address is the applicant's residence, not this workplace, so
+                # it is never a safe stand-in here.
+                active_address = office_address or "Office Address Not Yet Captured"
+                applicant_label = loan_case.co_applicant_name if (is_co_work and loan_case.co_applicant_name) else loan_case.applicant_name
             else:
                 visit_type = "RESIDENCE / HOME"
                 active_address = loan_case.target_address
+                applicant_label = loan_case.applicant_name
 
             stamp_hard_watermark(
                 input_image_path=storage_url,
                 output_image_path=watermarked_path,
                 case_no=loan_case.case_no,
                 agent_name=acting_user.full_name,
-                agent_id="FA-9042",
+                agent_id=str(acting_user.id)[:8].upper(),
                 lat=latitude or loan_case.target_lat,
                 lon=longitude or loan_case.target_lon,
                 geofence_status="COMPLIANT" if is_geofence_valid else "BREACH",
-                applicant_name=loan_case.applicant_name,
+                applicant_name=applicant_label,
                 address=active_address,
                 visit_type=visit_type,
             )

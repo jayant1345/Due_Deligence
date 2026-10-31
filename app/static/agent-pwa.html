@@ -851,6 +851,122 @@
         </div>
       </div>
 
+      <!-- MODULE 3B: Co-Applicant Office / Occupation Details - shown only for dual-applicant
+           cases. The residence above is shared with the primary applicant (one visit, one set
+           of residence photos); the co-applicant's workplace is frequently a different premises
+           and needs its own verification write-up and its own 4 office evidence photos. -->
+      <div id="coApplicantOfficeModule" class="hidden p-3.5 rounded-xl bg-purple-50/40 border border-purple-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-purple-700 text-[18px]">domain</span>
+            <span class="font-headline font-bold text-xs text-on-surface">3B. Co-Applicant Office Details (<span id="coApplicantNameLabel">Co-Applicant</span>)</span>
+          </div>
+          <span class="font-mono text-[9px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded uppercase font-bold">Dual Applicant</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Occupation (વ્યવસાય)*</label>
+            <select id="formCoOccupation" onchange="handleCoOccupationChange(this.value)" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="Job" selected>Job / Salaried</option>
+              <option value="Business">Business / Self-Employed</option>
+              <option value="House Wife">House Wife (ગૃહિણી)</option>
+              <option value="Retired">Retired / Pensioner</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Designation / Role*</label>
+            <input id="formCoDesignation" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Teacher, Clerk, Manager"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Work From Home*</label>
+            <select id="formCoWorkFromHome" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="No" selected>No - Physical Workplace Visit</option>
+              <option value="Yes">Yes - Works From Home</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Employer / Firm Name*</label>
+            <input id="formCoFirmName" value="" class="w-full text-xs font-bold rounded-lg border border-outline-variant bg-white p-2 text-primary-container" placeholder="Enter co-applicant's employer / company name"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Office / Workplace Address*</label>
+            <input id="formCoOfficeAddress" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="Enter co-applicant's office address"/>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Type of Company / Firm*</label>
+            <select id="formCoFirmType" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select Type --</option>
+              <option value="Government / Government Job">Government / Government Job</option>
+              <option value="Proprietorship">Proprietorship</option>
+              <option value="Partnership">Partnership</option>
+              <option value="Private Limited">Private Limited</option>
+              <option value="LLP">LLP</option>
+              <option value="Corporation">Corporation</option>
+              <option value="Public Limited">Public Limited</option>
+              <option value="Trust / Society">Trust / Society</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Number of Workers*</label>
+            <input id="formCoNumWorkers" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. 10-20, 50 plus"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Name Board Visibility*</label>
+            <input id="formCoNameboard" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Yes (Company Name Ltd)"/>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Infrastructure of Premises*</label>
+            <select id="formCoInfrastructure" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select --</option>
+              <option value="Office">Office</option>
+              <option value="Shop">Shop</option>
+              <option value="Factory">Factory</option>
+              <option value="School">School</option>
+              <option value="Hospital">Hospital</option>
+              <option value="College">College</option>
+              <option value="Clinic">Clinic</option>
+              <option value="Shed">Shed</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Premises Ownership*</label>
+            <select id="formCoPremisesOwnership" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select --</option>
+              <option value="Owned">Owned</option>
+              <option value="Rented">Rented</option>
+              <option value="NA">NA</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Premises Owner Name</label>
+            <input id="formCoPremisesOwnerName" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. company/landlord name"/>
+          </div>
+        </div>
+
+        <div id="coApplicantOfficeNotice" class="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2">
+          <span class="material-symbols-outlined text-[18px] text-primary-container shrink-0 mt-0.5">verified</span>
+          <div>
+            <b>Co-Applicant Office Verification Required:</b> Switch to the "Co-Applicant Office" tab below in Photo Slots and capture 4 Geotagged Office Premises Evidence Photos for the co-applicant's workplace.
+          </div>
+        </div>
+        <div id="coApplicantHousewifeNotice" class="hidden p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center gap-2">
+          <span class="material-symbols-outlined text-[18px] text-secondary">verified</span>
+          <span><b>Office Verification Exemption:</b> Co-applicant is a Home Maker / Housewife. Office verification is Not Applicable.</span>
+        </div>
+      </div>
+
       <!-- MODULE 4: Previous Loan Details (અગાઉની લોનની વિગત - PAGE 14 & 15) -->
       <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/80 space-y-3">
         <div class="flex items-center justify-between">
@@ -1092,6 +1208,10 @@
           <span class="material-symbols-outlined text-[16px]">domain</span>
           <span>Office Evidence (ઓફીસ / શાળા - 4)</span>
         </button>
+        <button id="pwaTabCoOffice" type="button" onclick="switchPwaPhotoFolder('co_office')" class="hidden flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container">
+          <span class="material-symbols-outlined text-[16px]">domain</span>
+          <span>Co-Applicant Office (4)</span>
+        </button>
       </div>
 
       <!-- Instruction banner -->
@@ -1270,6 +1390,89 @@
           <button onclick="triggerSlotCapture(4, 'OFFICE_SELFIE', 'office')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
             <span class="material-symbols-outlined text-[16px]">photo_camera</span>
             <span id="slotOffice4BtnText">Capture Workplace Selfie</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- FOLDER 3: Co-Applicant Office / Workplace Slots (4 Slots, dual-applicant cases only) -->
+      <div id="pwaCoOfficeSlotsContainer" class="hidden space-y-3">
+        <div id="slotCardCoOffice1" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotCoOffice1Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">apartment</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Co-Applicant Office Slot 1: Building Entrance & Facade</span>
+                <span id="slotCoOffice1Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">સહ-અરજદાર ની ઓફીસ નું બિલ્ડીંગ અને મુખ્ય પ્રવેશદ્વાર</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Co-applicant's office/school main gate, building exterior</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(1, 'CO_OFFICE_FACADE', 'co_office')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotCoOffice1BtnText">Capture Office Entrance</span>
+          </button>
+        </div>
+
+        <div id="slotCardCoOffice2" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotCoOffice2Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">signpost</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Co-Applicant Office Slot 2: Office / School Name Board</span>
+                <span id="slotCoOffice2Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">સહ-અરજદાર ની ઓફીસ નું સત્તાવાર નેમ બોર્ડ</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Organization signboard, department nameplate</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(2, 'CO_OFFICE_NAMEBOARD', 'co_office')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotCoOffice2BtnText">Capture Name Board</span>
+          </button>
+        </div>
+
+        <div id="slotCardCoOffice3" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotCoOffice3Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">desk</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Co-Applicant Office Slot 3: Staff Room / Work Area</span>
+                <span id="slotCoOffice3Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">કામ કરવાની જગ્યા / સ્ટાફ રૂમ</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Staff workstation, office desk, active operation</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(3, 'CO_OFFICE_INTERIOR', 'co_office')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotCoOffice3BtnText">Capture Work Area</span>
+          </button>
+        </div>
+
+        <div id="slotCardCoOffice4" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotCoOffice4Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">badge</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Co-Applicant Office Slot 4: Field Staff at Workplace / Met Staff</span>
+                <span id="slotCoOffice4Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">ઓફીસ સ્થળ પર એજન્ટ અથવા સહકર્મી મુલાકાત</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Agent selfie at workplace / HR or colleague inquiry</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(4, 'CO_OFFICE_SELFIE', 'co_office')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotCoOffice4BtnText">Capture Workplace Selfie</span>
           </button>
         </div>
       </div>
@@ -1532,37 +1735,62 @@
     let currentDeviceLat = (caseRegistryPwa[activeCaseKey] || {}).dev_lat || 23.2154;
     let currentDeviceLon = (caseRegistryPwa[activeCaseKey] || {}).dev_lon || 72.6367;
 
-    // Dedicated Evidence Slots State (Dual Folder Support: Residence & Office)
-    let currentPwaFolder = "residence"; // 'residence' or 'office'
+    // Dedicated Evidence Slots State (Triple Folder Support: Residence, Office, and -
+    // for dual-applicant cases only - the co-applicant's own separate Office folder,
+    // since the co-applicant frequently works at a different premises while sharing
+    // one residence with the primary applicant.)
+    let currentPwaFolder = "residence"; // 'residence', 'office', or 'co_office'
     let activeUploadSlot = 1;
     let activeDocType = "PROPERTY_EXTERIOR";
     const uploadedResidenceSlots = { 1: false, 2: false, 3: false, 4: false };
     const uploadedOfficeSlots = { 1: false, 2: false, 3: false, 4: false };
+    const uploadedCoOfficeSlots = { 1: false, 2: false, 3: false, 4: false };
     const uploadedSlots = uploadedResidenceSlots; // backward compatibility
 
-    // Switch between Residence and Office/Workplace Photo Folders in PWA
+    // Single lookup table for everything that varies per folder, so handlePhotoUpload/
+    // finalizePhotoCapture/discardAndRetakePhoto/updateEvidenceProgress each branch on
+    // this instead of re-deriving folder-specific IDs/keys/params in several places.
+    const PWA_FOLDER_INFO = {
+      residence: { slotIdPrefix: "slot", storageKey: "slot", uploadFolder: "residence", defaultDocType: "PROPERTY_EXTERIOR", label: "Residence", slotsMap: uploadedResidenceSlots },
+      office: { slotIdPrefix: "slotOffice", storageKey: "office_slot", uploadFolder: "work", defaultDocType: "OFFICE_FACADE", label: "Office", slotsMap: uploadedOfficeSlots },
+      co_office: { slotIdPrefix: "slotCoOffice", storageKey: "co_office_slot", uploadFolder: "co_work", defaultDocType: "CO_OFFICE_FACADE", label: "Co-Applicant Office", slotsMap: uploadedCoOfficeSlots },
+    };
+
+    // Switch between Residence, Office/Workplace, and (dual-applicant cases) Co-Applicant
+    // Office photo folders in the PWA.
+    const PWA_FOLDER_TAB_IDS = { residence: "pwaTabResidence", office: "pwaTabOffice", co_office: "pwaTabCoOffice" };
+    const PWA_FOLDER_CONTAINER_IDS = { residence: "pwaResidenceSlotsContainer", office: "pwaOfficeSlotsContainer", co_office: "pwaCoOfficeSlotsContainer" };
+    const PWA_FOLDER_INSTRUCTIONS = {
+      residence: "Upload mandatory geotagged residential photographs in the designated slots below. For employed/business applicants, switch to Office Evidence to capture workplace photos.",
+      office: "🏢 OFFICE / WORKPLACE EVIDENCE: Capture school/office entrance, signboard/nameplate, work area/staff desk, and field staff workplace verification selfie.",
+      co_office: "🏢 CO-APPLICANT OFFICE / WORKPLACE EVIDENCE: Capture the co-applicant's own office/school entrance, signboard, work area, and field staff verification selfie.",
+    };
+    const PWA_TAB_ACTIVE_CLASS = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-primary-container text-white shadow-xs";
+    const PWA_TAB_INACTIVE_CLASS = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container";
+
     function switchPwaPhotoFolder(folder) {
       currentPwaFolder = folder;
-      const tabRes = document.getElementById("pwaTabResidence");
-      const tabOff = document.getElementById("pwaTabOffice");
-      const contRes = document.getElementById("pwaResidenceSlotsContainer");
-      const contOff = document.getElementById("pwaOfficeSlotsContainer");
-      const inst = document.getElementById("pwaFolderInstructionText");
-
-      if (folder === "residence") {
-        if (tabRes) tabRes.className = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-primary-container text-white shadow-xs";
-        if (tabOff) tabOff.className = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container";
-        if (contRes) contRes.classList.remove("hidden");
-        if (contOff) contOff.classList.add("hidden");
-        if (inst) inst.textContent = "Upload mandatory geotagged residential photographs in the designated slots below. For employed/business applicants, switch to Office Evidence to capture workplace photos.";
-      } else {
-        if (tabOff) tabOff.className = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-primary-container text-white shadow-xs";
-        if (tabRes) tabRes.className = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container";
-        if (contOff) contOff.classList.remove("hidden");
-        if (contRes) contRes.classList.add("hidden");
-        if (inst) inst.textContent = "🏢 OFFICE / WORKPLACE EVIDENCE: Capture school/office entrance, signboard/nameplate, work area/staff desk, and field staff workplace verification selfie.";
+      for (const key of Object.keys(PWA_FOLDER_TAB_IDS)) {
+        const tab = document.getElementById(PWA_FOLDER_TAB_IDS[key]);
+        if (tab) tab.className = (key === folder ? PWA_TAB_ACTIVE_CLASS : PWA_TAB_INACTIVE_CLASS) + (tab.classList.contains("hidden") ? " hidden" : "");
+        const cont = document.getElementById(PWA_FOLDER_CONTAINER_IDS[key]);
+        if (cont) cont.classList.toggle("hidden", key !== folder);
       }
+      const inst = document.getElementById("pwaFolderInstructionText");
+      if (inst) inst.textContent = PWA_FOLDER_INSTRUCTIONS[folder] || PWA_FOLDER_INSTRUCTIONS.residence;
       updateEvidenceProgress();
+    }
+
+    // Show/hide the "Co-Applicant Office" photo tab depending on whether this case actually
+    // has a co-applicant - most cases are single-applicant and must never show an empty,
+    // confusing extra tab.
+    function setCoApplicantTabVisible(visible) {
+      const tab = document.getElementById("pwaTabCoOffice");
+      if (!tab) return;
+      tab.classList.toggle("hidden", !visible);
+      if (!visible && currentPwaFolder === "co_office") {
+        switchPwaPhotoFolder("residence");
+      }
     }
 
     // Toggle Occupation UI between Employed/Teacher/Business and Housewife
@@ -1584,6 +1812,24 @@
         if (noticeHw) noticeHw.classList.add("hidden");
         if (dispOcc) dispOcc.textContent = occ === "Job" ? (roleInput ? roleInput.value : "Teacher / Job") : "Business / Self-Employed";
         if (dispFirm) dispFirm.textContent = (firmInput && firmInput.value) || "Employer / School";
+        if (wfhInput) wfhInput.value = "No";
+      }
+    }
+
+    // Toggle the co-applicant's Office Verification notice between working/housewife, same
+    // pattern as handleOccupationChange() above but for the co-applicant's own occupation.
+    function handleCoOccupationChange(occ) {
+      const noticeWork = document.getElementById("coApplicantOfficeNotice");
+      const noticeHw = document.getElementById("coApplicantHousewifeNotice");
+      const wfhInput = document.getElementById("formCoWorkFromHome");
+
+      if (occ === "House Wife") {
+        if (noticeWork) noticeWork.classList.add("hidden");
+        if (noticeHw) noticeHw.classList.remove("hidden");
+        if (wfhInput) wfhInput.value = "Yes";
+      } else {
+        if (noticeWork) noticeWork.classList.remove("hidden");
+        if (noticeHw) noticeHw.classList.add("hidden");
         if (wfhInput) wfhInput.value = "No";
       }
     }
@@ -1801,11 +2047,10 @@
     }
 
     function updateEvidenceProgress() {
-      const isOffice = currentPwaFolder === "office";
-      const map = isOffice ? uploadedOfficeSlots : uploadedResidenceSlots;
-      const count = Object.values(map).filter(Boolean).length;
+      const info = PWA_FOLDER_INFO[currentPwaFolder] || PWA_FOLDER_INFO.residence;
+      const count = Object.values(info.slotsMap).filter(Boolean).length;
       const countEl = document.getElementById("evidenceSlotsCount");
-      if (countEl) countEl.textContent = `${count} OF 4 COMPLETE (${isOffice ? 'OFFICE' : 'RESIDENCE'})`;
+      if (countEl) countEl.textContent = `${count} OF 4 COMPLETE (${info.label.toUpperCase()})`;
     }
 
     // Zero-lag File Upload Handler with Dedicated Evidence Slots (Residence & Office)
@@ -1856,7 +2101,7 @@
 
       const slotNum = activeUploadSlot;
       const docType = activeDocType;
-      const isOffice = currentPwaFolder === "office";
+      const folderAtCapture = currentPwaFolder;
       const caseIdAtCapture = sampleCaseId;
       const caseKeyAtCapture = activeCaseKey;
       const latAtCapture = currentDeviceLat;
@@ -1890,7 +2135,7 @@
           const finalPreviewUrl = canvas.toDataURL("image/jpeg", 0.92);
 
           pendingPhotoCapture = {
-            canvas, file, finalPreviewUrl, slotNum, docType, isOffice,
+            canvas, file, finalPreviewUrl, slotNum, docType, folderAtCapture,
             caseIdAtCapture, caseKeyAtCapture, latAtCapture, lonAtCapture, timeStr, finish,
           };
           const reviewImg = document.getElementById("pwaPhotoReviewImg");
@@ -2023,13 +2268,13 @@
       const reviewModal = document.getElementById("pwaPhotoReviewModal");
       if (reviewModal) reviewModal.classList.add("hidden");
       if (!pendingPhotoCapture) return;
-      const { slotNum, docType, isOffice, finish } = pendingPhotoCapture;
+      const { slotNum, docType, folderAtCapture, finish } = pendingPhotoCapture;
       pendingPhotoCapture = null;
       finish(); // unlock capture immediately - a discarded photo must never block a retake
       // Re-open the camera for the exact same slot right away.
       activeUploadSlot = slotNum;
       activeDocType = docType;
-      currentPwaFolder = isOffice ? "office" : "residence";
+      currentPwaFolder = folderAtCapture;
       const camInput = document.getElementById("cameraInput");
       if (camInput) camInput.click();
     }
@@ -2037,10 +2282,11 @@
     function finalizePhotoCapture() {
       if (!pendingPhotoCapture) return;
       const {
-        canvas, file, finalPreviewUrl, slotNum, docType, isOffice,
+        canvas, file, finalPreviewUrl, slotNum, docType, folderAtCapture,
         caseIdAtCapture, caseKeyAtCapture, latAtCapture, lonAtCapture, timeStr, finish,
       } = pendingPhotoCapture;
       pendingPhotoCapture = null;
+      const info = PWA_FOLDER_INFO[folderAtCapture] || PWA_FOLDER_INFO.residence;
 
       const reviewModal = document.getElementById("pwaPhotoReviewModal");
       if (reviewModal) reviewModal.classList.add("hidden");
@@ -2050,51 +2296,30 @@
       const alertText = document.getElementById("uploadAlertText");
       alertBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-200 text-primary-container text-xs flex items-center justify-between";
       alertBox.classList.remove("hidden");
-      alertText.textContent = `Processing ${isOffice ? 'Office' : 'Residence'} Slot ${slotNum} photo...`;
+      alertText.textContent = `Processing ${info.label} Slot ${slotNum} photo...`;
       setUploadAlertIcon(true, "text-blue-600", "autorenew");
 
       const previewImgEl = document.getElementById("previewPhotoImg");
       if (previewImgEl) previewImgEl.src = finalPreviewUrl;
 
-      if (isOffice) {
-            uploadedOfficeSlots[slotNum] = true;
-            try {
-              const offPayload = JSON.stringify({ src: finalPreviewUrl, timestamp: timeStr, lat: latAtCapture, lon: lonAtCapture, doc_type: docType });
-              localStorage.setItem(`pwa_evidence_${caseIdAtCapture}_office_slot_${slotNum}`, offPayload);
-              localStorage.setItem(`pwa_evidence_${caseKeyAtCapture}_office_slot_${slotNum}`, offPayload);
-            } catch (storageErr) {
-              console.warn("Storage quota limit or private browsing:", storageErr);
-            }
-            const thumbEl = document.getElementById(`slotOffice${slotNum}Thumb`);
-            if (thumbEl) thumbEl.innerHTML = `<img src="${finalPreviewUrl}" class="w-full h-full object-cover rounded-lg"/>`;
-            const badgeEl = document.getElementById(`slotOffice${slotNum}Badge`);
-            if (badgeEl) {
-              badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
-              badgeEl.textContent = "✓ UPLOADED";
-            }
-            const btnTextEl = document.getElementById(`slotOffice${slotNum}BtnText`);
-            if (btnTextEl) btnTextEl.textContent = "Re-take Photo";
-          } else {
-            uploadedResidenceSlots[slotNum] = true;
-            uploadedSlots[slotNum] = true;
-            try {
-              const resPayload = JSON.stringify({ src: finalPreviewUrl, timestamp: timeStr, lat: latAtCapture, lon: lonAtCapture, doc_type: docType });
-              localStorage.setItem(`pwa_evidence_${caseIdAtCapture}_slot_${slotNum}`, resPayload);
-              localStorage.setItem(`pwa_evidence_${caseKeyAtCapture}_slot_${slotNum}`, resPayload);
-            } catch (storageErr) {
-              console.warn("Storage quota limit or private browsing:", storageErr);
-            }
-            const thumbEl = document.getElementById(`slot${slotNum}Thumb`);
-            if (thumbEl) thumbEl.innerHTML = `<img src="${finalPreviewUrl}" class="w-full h-full object-cover rounded-lg"/>`;
-            const badgeEl = document.getElementById(`slot${slotNum}Badge`);
-            if (badgeEl) {
-              badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
-              badgeEl.textContent = "✓ UPLOADED";
-            }
-            const btnTextEl = document.getElementById(`slot${slotNum}BtnText`);
-            if (btnTextEl) btnTextEl.textContent = "Re-take Photo";
-          }
-          updateEvidenceProgress();
+      info.slotsMap[slotNum] = true;
+      try {
+        const slotPayload = JSON.stringify({ src: finalPreviewUrl, timestamp: timeStr, lat: latAtCapture, lon: lonAtCapture, doc_type: docType });
+        localStorage.setItem(`pwa_evidence_${caseIdAtCapture}_${info.storageKey}_${slotNum}`, slotPayload);
+        localStorage.setItem(`pwa_evidence_${caseKeyAtCapture}_${info.storageKey}_${slotNum}`, slotPayload);
+      } catch (storageErr) {
+        console.warn("Storage quota limit or private browsing:", storageErr);
+      }
+      const thumbEl = document.getElementById(`${info.slotIdPrefix}${slotNum}Thumb`);
+      if (thumbEl) thumbEl.innerHTML = `<img src="${finalPreviewUrl}" class="w-full h-full object-cover rounded-lg"/>`;
+      const badgeEl = document.getElementById(`${info.slotIdPrefix}${slotNum}Badge`);
+      if (badgeEl) {
+        badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+        badgeEl.textContent = "✓ UPLOADED";
+      }
+      const btnTextEl = document.getElementById(`${info.slotIdPrefix}${slotNum}BtnText`);
+      if (btnTextEl) btnTextEl.textContent = "Re-take Photo";
+      updateEvidenceProgress();
 
           // Unlock capture right away - the slot is already saved locally (preview + localStorage)
           // and the server upload below runs in the background. The agent must never be made to
@@ -2106,9 +2331,9 @@
             const uploadFile = blob || file;
             const formData = new FormData();
             formData.append("file", uploadFile, file.name || `photo_slot_${slotNum}.jpg`);
-            formData.append("doc_type", docType || (isOffice ? "OFFICE_FACADE" : "PROPERTY_EXTERIOR"));
+            formData.append("doc_type", docType || info.defaultDocType);
             formData.append("slot_number", slotNum);
-            formData.append("folder", isOffice ? "work" : "residence");
+            formData.append("folder", info.uploadFolder);
             formData.append("latitude", latAtCapture);
             formData.append("longitude", lonAtCapture);
 
@@ -2133,7 +2358,7 @@
               if (response.status === 202 || response.status === 200) {
                 const data = await response.json();
                 alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
-                alertText.innerHTML = `✅ <b>Data Uploaded Successfully!</b> ${isOffice ? '🏢 Office' : '🏡 Residence'} Slot ${slotNum} transmitted to CA Scrutiny Desk.<br/>GPS: ${latAtCapture.toFixed(4)}°N, ${lonAtCapture.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>N.N. SHAH & CO. watermark applied server-side and synced in real time.</i>`;
+                alertText.innerHTML = `✅ <b>Data Uploaded Successfully!</b> ${info.label} Slot ${slotNum} transmitted to CA Scrutiny Desk.<br/>GPS: ${latAtCapture.toFixed(4)}°N, ${lonAtCapture.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>N.N. SHAH & CO. watermark applied server-side and synced in real time.</i>`;
                 setUploadAlertIcon(false, "text-emerald-600", "check_circle");
                 loadCaseDocumentsIntoPwa(caseIdAtCapture);
               } else {
@@ -2147,9 +2372,9 @@
                 sampleCaseId: caseIdAtCapture,
                 dataUrl: finalPreviewUrl,
                 fileName: file.name || `photo_slot_${slotNum}.jpg`,
-                docType: docType || (isOffice ? "OFFICE_FACADE" : "PROPERTY_EXTERIOR"),
+                docType: docType || info.defaultDocType,
                 slotNumber: slotNum,
-                folder: isOffice ? "work" : "residence",
+                folder: info.uploadFolder,
                 latitude: latAtCapture,
                 longitude: lonAtCapture,
               });
@@ -2956,6 +3181,32 @@
       const prevLoanAmount = document.getElementById("formLoanAmount") ? document.getElementById("formLoanAmount").value.trim() : "";
       const prevLoanBank = document.getElementById("formPrevBank") ? document.getElementById("formPrevBank").value.trim() : "";
       const prevLoanDate = document.getElementById("formDealershipDate") ? document.getElementById("formDealershipDate").value.trim() : "";
+
+      // Co-applicant office details - only actually submitted when this case has a
+      // co-applicant (Module 3B visible); omitted entirely for ordinary single-applicant
+      // cases rather than saving an empty/irrelevant object onto every case.
+      const coModuleVisible = (() => {
+        const el = document.getElementById("coApplicantOfficeModule");
+        return el && !el.classList.contains("hidden");
+      })();
+      let officeDetailsCo = null;
+      if (coModuleVisible) {
+        officeDetailsCo = {
+          occupation: document.getElementById("formCoOccupation") ? document.getElementById("formCoOccupation").value : "Job",
+          designation: document.getElementById("formCoDesignation") ? document.getElementById("formCoDesignation").value : "",
+          position: document.getElementById("formCoDesignation") ? document.getElementById("formCoDesignation").value : "",
+          firm_name: document.getElementById("formCoFirmName") ? document.getElementById("formCoFirmName").value : "",
+          address: document.getElementById("formCoOfficeAddress") ? document.getElementById("formCoOfficeAddress").value : "",
+          work_from_home: document.getElementById("formCoWorkFromHome") ? document.getElementById("formCoWorkFromHome").value : "No",
+          firm_type: document.getElementById("formCoFirmType") ? document.getElementById("formCoFirmType").value : "",
+          employees: document.getElementById("formCoNumWorkers") ? document.getElementById("formCoNumWorkers").value.trim() : "",
+          nameboard: document.getElementById("formCoNameboard") ? document.getElementById("formCoNameboard").value.trim() : "",
+          infrastructure: document.getElementById("formCoInfrastructure") ? document.getElementById("formCoInfrastructure").value : "",
+          premises_ownership: document.getElementById("formCoPremisesOwnership") ? document.getElementById("formCoPremisesOwnership").value : "",
+          premises_owner: document.getElementById("formCoPremisesOwnerName") ? document.getElementById("formCoPremisesOwnerName").value.trim() : "",
+        };
+      }
+
       const assetsObserved = (document.getElementById("formAssetsObserved") || {}).value
         || visibleAssets.filter(a => a.active).map(a => a.name || a.label || a.id).filter(Boolean).join(", ");
       
@@ -2998,6 +3249,7 @@
           bank: prevLoanBank,
           date: prevLoanDate
         },
+        office_details_co: officeDetailsCo,
         // Raw, lossless values for restoring the form's own inputs when this case is reopened
         // (the fields above are flattened/combined for the report, which loses information -
         // e.g. building_type above merges BHK into one string, family_members is a flat
@@ -3227,6 +3479,44 @@
 
       handleOccupationChange(fOcc ? fOcc.value : "Job");
 
+      // ==========================================
+      // SYNCHRONIZE MODULE 3B (Co-Applicant Office Details) - dual-applicant cases only
+      // ==========================================
+      const coModule = document.getElementById("coApplicantOfficeModule");
+      const coNameLabel = document.getElementById("coApplicantNameLabel");
+      if (c.co_applicant_name) {
+        if (coModule) coModule.classList.remove("hidden");
+        if (coNameLabel) coNameLabel.textContent = c.co_applicant_name;
+        setCoApplicantTabVisible(true);
+
+        const fCoOcc = document.getElementById("formCoOccupation");
+        if (fCoOcc) fCoOcc.value = c.co_occupation || "Job";
+        const fCoFirm = document.getElementById("formCoFirmName");
+        if (fCoFirm) fCoFirm.value = c.co_firm_name || "";
+        const fCoRole = document.getElementById("formCoDesignation");
+        if (fCoRole) fCoRole.value = c.co_position || "";
+        const fCoOffAddr = document.getElementById("formCoOfficeAddress");
+        if (fCoOffAddr) fCoOffAddr.value = c.co_office_address || "";
+        const fCoFirmType = document.getElementById("formCoFirmType");
+        if (fCoFirmType) fCoFirmType.value = c.co_firm_type || "";
+        const fCoNumWorkers = document.getElementById("formCoNumWorkers");
+        if (fCoNumWorkers) fCoNumWorkers.value = c.co_employees || "";
+        const fCoNameboard = document.getElementById("formCoNameboard");
+        if (fCoNameboard) fCoNameboard.value = c.co_nameboard || "";
+        const fCoInfra = document.getElementById("formCoInfrastructure");
+        if (fCoInfra) fCoInfra.value = c.co_infrastructure || "";
+        const fCoPremOwnership = document.getElementById("formCoPremisesOwnership");
+        if (fCoPremOwnership) fCoPremOwnership.value = c.co_premises_ownership || "";
+        const fCoPremOwnerName = document.getElementById("formCoPremisesOwnerName");
+        if (fCoPremOwnerName) fCoPremOwnerName.value = c.co_premises_owner || "";
+        const fCoWfh = document.getElementById("formCoWorkFromHome");
+        if (fCoWfh) fCoWfh.value = (fCoOcc && fCoOcc.value === "House Wife") ? "Yes" : "No";
+        handleCoOccupationChange(fCoOcc ? fCoOcc.value : "Job");
+      } else {
+        if (coModule) coModule.classList.add("hidden");
+        setCoApplicantTabVisible(false);
+      }
+
       // Reset flip button states
       isAadhaarFlippedInline = false;
       isPanFlippedInline = false;
@@ -3280,6 +3570,26 @@
         } else {
           if (bOff) { bOff.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bOff.textContent = "PENDING"; }
           if (btnOff) btnOff.textContent = "Capture Photo";
+        }
+
+        // 3. Co-Applicant Office / Workplace Slot (dual-applicant cases only)
+        uploadedCoOfficeSlots[i] = false;
+        const bCoOff = document.getElementById(`slotCoOffice${i}Badge`);
+        const btnCoOff = document.getElementById(`slotCoOffice${i}BtnText`);
+        const thumbCoOff = document.getElementById(`slotCoOffice${i}Thumb`);
+        const cachedCoOff = localStorage.getItem(`pwa_evidence_${sampleCaseId}_co_office_slot_${i}`) ||
+                          (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_co_office_slot_${i}`) : null);
+        if (cachedCoOff) {
+          try {
+            const parsed = JSON.parse(cachedCoOff);
+            uploadedCoOfficeSlots[i] = true;
+            if (bCoOff) { bCoOff.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bCoOff.textContent = "✓ UPLOADED"; }
+            if (btnCoOff) btnCoOff.textContent = "Re-take Photo";
+            if (thumbCoOff) thumbCoOff.innerHTML = `<img src="${parsed.src}" class="w-full h-full object-cover rounded-lg"/>`;
+          } catch(e) {}
+        } else {
+          if (bCoOff) { bCoOff.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bCoOff.textContent = "PENDING"; }
+          if (btnCoOff) btnCoOff.textContent = "Capture Photo";
         }
       }
       updateEvidenceProgress();
@@ -3434,6 +3744,10 @@
           const offPremisesOwnership = off.premises_ownership || "";
           const offPremisesOwnerName = off.premises_owner || "";
           const prevLoan = parsedFormData.previous_loan || {};
+          // Co-applicant office details - a case only has these when target.co_applicant_name
+          // is set server-side (dual-applicant case); the co-applicant's workplace is captured
+          // entirely separately from the primary applicant's, since they're frequently different.
+          const offCo = parsedFormData.office_details_co || {};
           // The lossless fields saved alongside the flattened report fields - see the
           // "restore" comment in submitDueDiligenceForm(). Without these, every Residential
           // Details & Family input went back to blank the moment the agent switched to a
@@ -3485,8 +3799,33 @@
             prev_loan_amount: prevLoan.amount || "",
             prev_loan_bank: prevLoan.bank || "",
             prev_loan_date: prevLoan.date || "",
+            co_applicant_name: target.co_applicant_name || "",
+            co_applicant_phone: target.co_applicant_phone || "",
+            co_occupation: offCo.occupation || "Job",
+            co_firm_name: offCo.firm_name || "",
+            co_position: offCo.position || offCo.designation || "",
+            co_office_address: offCo.address || "",
+            co_firm_type: offCo.firm_type || "",
+            co_employees: offCo.employees || "",
+            co_nameboard: offCo.nameboard || "",
+            co_infrastructure: offCo.infrastructure || "",
+            co_premises_ownership: offCo.premises_ownership || "",
+            co_premises_owner: offCo.premises_owner || "",
             is_live_case: true,
           }, restorePatch);
+
+          // Show/hide Module 3B and the Co-Applicant Office photo tab based on whether this
+          // case actually has a co-applicant - set from the server, never guessed client-side.
+          const coModule = document.getElementById("coApplicantOfficeModule");
+          const coNameLabel = document.getElementById("coApplicantNameLabel");
+          if (mergedCase.co_applicant_name) {
+            if (coModule) coModule.classList.remove("hidden");
+            if (coNameLabel) coNameLabel.textContent = mergedCase.co_applicant_name;
+            setCoApplicantTabVisible(true);
+          } else {
+            if (coModule) coModule.classList.add("hidden");
+            setCoApplicantTabVisible(false);
+          }
 
           caseRegistryPwa[key] = mergedCase;
           caseRegistryPwa[target.id] = mergedCase;

@@ -82,7 +82,15 @@ class LoanCase(Base, TimestampMixin):
         Text,
         nullable=True,
     )
-    
+    co_applicant_name: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    co_applicant_phone: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
     # Foreign Keys
     assigned_agent_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),

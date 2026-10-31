@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from app.api.v1 import api_router
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, Base, engine
@@ -20,6 +20,16 @@ async def lifespan(app: FastAPI):
     # Startup: ensure tables exist and create default super admin if none exists
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # create_all only creates missing tables, not missing columns on tables that
+        # already exist in production - there is no Alembic migration runner set up for
+        # this project, so new columns on existing tables are added here, idempotently,
+        # on every boot. Safe to re-run: IF NOT EXISTS is a no-op once the column exists.
+        await conn.execute(text(
+            "ALTER TABLE loan_cases ADD COLUMN IF NOT EXISTS co_applicant_name VARCHAR(255)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE loan_cases ADD COLUMN IF NOT EXISTS co_applicant_phone VARCHAR(50)"
+        ))
 
     # Seed default simple users (admin / admin@123 and agent1 / agent1@123)
     async with AsyncSessionLocal() as session:

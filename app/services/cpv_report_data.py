@@ -111,9 +111,11 @@ def _first(pages: List[Dict[str, Any]], field: str, types: Optional[set] = None)
 
 
 def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: date,
-            contact: Optional[str] = None, marital: Optional[str] = None) -> Dict[str, Any]:
+            contact: Optional[str] = None, marital: Optional[str] = None,
+            office_form: Optional[Dict[str, Any]] = None, fallback_name: Optional[str] = None) -> Dict[str, Any]:
+    office_form = office_form or {}
     ident = {"AADHAAR_CARD", "PAN_CARD"}
-    name = _first(pages, "holder_name", ident) or _first(pages, "holder_name")
+    name = _first(pages, "holder_name", ident) or _first(pages, "holder_name") or fallback_name
     gender = _first(pages, "gender", {"AADHAAR_CARD"})
     dob = _first(pages, "date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"})
     designation = _first(pages, "designation", {"EMPLOYEE_ID_CARD"}) or _first(pages, "designation")
@@ -121,6 +123,15 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     workplace = next((p.get("extracted_address") for p in pages if p.get("address_type") == "WORKPLACE" and p.get("extracted_address")), None)
     doj = _first(pages, "date_of_joining", {"EMPLOYEE_ID_CARD"}) or _first(pages, "date_of_joining")
     has_salary = any(p.get("doc_type") in ("SALARY_SLIP", "FORM_16") for p in pages)
+
+    # The field agent's own office_details/office_details_co submission is a physical,
+    # on-site verification - it takes priority over whatever a scanned document happened
+    # to say, for every field the questionnaire actually asks. OCR only fills in what the
+    # form doesn't collect (employee code, years of experience from date of joining).
+    form_firm_name = office_form.get("firm_name") or None
+    form_address = office_form.get("address") or None
+    form_position = office_form.get("position") or office_form.get("designation") or None
+    form_occupation = office_form.get("occupation") or None
 
     itr: Dict[str, Dict[str, Any]] = {}
     for p in sorted((p for p in pages if p.get("doc_type") == "FORM_16"), key=lambda p: p.get("page_number") or 0):
@@ -146,17 +157,23 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
         "aadhaar": _first(pages, "extracted_aadhaar", {"AADHAAR_CARD"}),
         "father_name": _first(pages, "father_or_spouse_name", ident),
         "qualification": None,
-        "occupation": (f"Service — {_title(designation)}" if designation else "Service") if has_salary else None,
+        "occupation": form_occupation or ((f"Service — {_title(designation)}" if designation else "Service") if has_salary else None),
         "itr": sorted(itr.values(), key=lambda r: r["ay"], reverse=True)[:3],
         "office": {
-            "firm_name": _title(workplace.split(",")[0]) if workplace else _title(employer),
-            "address": workplace,
-            "firm_type": None,
+            "firm_name": form_firm_name or (_title(workplace.split(",")[0]) if workplace else _title(employer)),
+            "address": form_address or workplace,
+            "landmark": office_form.get("landmark") or None,
+            "firm_type": office_form.get("firm_type") or None,
+            "premises_ownership": office_form.get("premises_ownership") or None,
+            "premises_owner": office_form.get("premises_owner") or None,
+            "employees": office_form.get("employees") or None,
+            "nameboard": office_form.get("nameboard") or None,
+            "infrastructure": office_form.get("infrastructure") or None,
             "experience": _years_since(doj, on),
             "established_since": None,
             # The ID card carries the official employee code; payslips often print box numbers
             "reg_or_emp_no": _first(pages, "employee_code", {"EMPLOYEE_ID_CARD"}),
-            "position": _title(designation),
+            "position": _title(form_position) if form_position else _title(designation),
         },
         "_has_pan_card": any(p.get("doc_type") == "PAN_CARD" for p in pages),
         "_has_aadhaar": any(p.get("doc_type") == "AADHAAR_CARD" for p in pages),
@@ -230,14 +247,20 @@ async def assemble_cpv_report_data(
     form = _form(loan_case)
 
     own = [p for p in pages if p.get("relationship_to_applicant") == "SELF"]
-    applicant = _person(own, pages, on, contact=loan_case.applicant_phone, marital=form.get("marital_status") or None)
+    applicant = _person(own, pages, on, contact=loan_case.applicant_phone, marital=form.get("marital_status") or None,
+                        office_form=form.get("office_details"))
     applicant["bank"] = _bank(pages, (summary.get("applicant") or {}).get("bank_account"))
     if not applicant["name"]:
         applicant["name"] = _title(applicant_name)
         applicant["display_name"] = applicant["name"]
 
-    # Co-applicant: another person whose KYC / income documents are in the bundle (a bill
-    # holder alone is not a co-applicant). The CA can force this on/off.
+    # Co-applicant. Two independent signals, either is enough on its own:
+    # 1. The CA explicitly recorded a co-applicant name on the case (dual-applicant case),
+    #    in which case the co-applicant section always appears even before any of their
+    #    documents have been scanned or their office verified.
+    # 2. Another person's KYC / income documents are in the scanned bundle (a bill holder
+    #    alone is not a co-applicant) - the existing document-based detection.
+    # The CA can still force this off via include_co_applicant=False.
     co = None
     others = [p for p in pages if p.get("relationship_to_applicant") == "DIFFERENT_PERSON"]
     groups: List[Tuple[str, List[Dict[str, Any]]]] = []
@@ -248,12 +271,16 @@ async def assemble_cpv_report_data(
         else:
             g[1].append(p)
     candidates = [g for g in groups if any(p.get("doc_type") in CO_APPLICANT_DOC_TYPES for p in g[1])]
-    if include_co_applicant is not False and candidates:
+    co_pages: List[Dict[str, Any]] = []
+    if candidates:
         best = max(candidates, key=lambda g: len(g[1]))
-        co = _person(best[1], pages, on)
+        co_pages = best[1]
+    if include_co_applicant is not False and (co_pages or loan_case.co_applicant_name):
+        co = _person(co_pages, pages, on, contact=loan_case.co_applicant_phone,
+                    office_form=form.get("office_details_co"), fallback_name=loan_case.co_applicant_name)
         co["bank"] = {}
         if not co["pan"]:
-            co["pan"] = _first(best[1], "extracted_pan")
+            co["pan"] = _first(co_pages, "extracted_pan")
 
     # Visit / field facts (only once the agent has actually visited)
     visit = (await db.execute(
@@ -309,16 +336,28 @@ async def assemble_cpv_report_data(
         res = [f"A residence verification visit for the applicant, {a_name}, at {loan_case.target_address} is pending."]
 
     work = []
-    if applicant["_employer"] or applicant["_workplace"]:
+    if applicant["office"].get("firm_name") or applicant["office"].get("address") or applicant["_employer"] or applicant["_workplace"]:
         work.append(
-            f"As per the salary documents provided, the applicant, {a_name}, is employed"
-            + (f" as {applicant['_designation']}" if applicant["_designation"] else "")
-            + (f" with {applicant['office']['firm_name']}" if applicant["office"]["firm_name"] else "")
-            + (f" ({applicant['_employer']})" if applicant["_employer"] and applicant["_employer"] != applicant["office"]["firm_name"] else "")
+            f"The applicant, {a_name}, is employed"
+            + (f" as {applicant['office'].get('position') or applicant['_designation']}" if (applicant["office"].get("position") or applicant["_designation"]) else "")
+            + (f" with {applicant['office']['firm_name']}" if applicant["office"].get("firm_name") else "")
+            + (f" ({applicant['_employer']})" if applicant["_employer"] and applicant["_employer"] != applicant["office"].get("firm_name") else "")
             + (f", since {applicant['_doj']}" if applicant["_doj"] else "")
             + "."
         )
-        work.append("Physical verification of the employer premises is pending.")
+        if applicant["office"].get("address"):
+            work.append("Physical verification of the employer premises was conducted.")
+        else:
+            work.append("Physical verification of the employer premises is pending.")
+    if co and (co["office"].get("firm_name") or co["office"].get("address")):
+        co_name = co.get("display_name") or co.get("name") or "the co-applicant"
+        work.append(
+            f"The co-applicant, {co_name}, is employed"
+            + (f" as {co['office'].get('position')}" if co["office"].get("position") else "")
+            + (f" with {co['office']['firm_name']}" if co["office"].get("firm_name") else "")
+            + "."
+        )
+        work.append("Physical verification of the co-applicant's employer premises was conducted." if co["office"].get("address") else "Physical verification of the co-applicant's employer premises is pending.")
 
     itr_lines = ["No Income Tax Return acknowledgements were included in the documents provided."]
     f16 = []

@@ -103,6 +103,8 @@ async def create_case(
         target_lat=req.target_lat,
         target_lon=req.target_lon,
         status=initial_status,
+        co_applicant_name=(req.co_applicant_name or "").strip() or None,
+        co_applicant_phone=(req.co_applicant_phone or "").strip() or None,
         assigned_agent_id=req.assigned_agent_id,
         created_by_id=current_user.id,
     )

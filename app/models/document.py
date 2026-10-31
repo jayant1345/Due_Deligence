@@ -17,7 +17,7 @@ class DocumentType(str, enum.Enum):
     NEIGHBOR_VERIFICATION = "NEIGHBOR_VERIFICATION"
     AGENT_SELFIE = "AGENT_SELFIE"
 
-    # Workplace & Office Inspection Photos
+    # Workplace & Office Inspection Photos (primary applicant)
     OFFICE_FACADE = "OFFICE_FACADE"
     OFFICE_NAMEBOARD = "OFFICE_NAMEBOARD"
     OFFICE_INTERIOR = "OFFICE_INTERIOR"
@@ -26,7 +26,15 @@ class DocumentType(str, enum.Enum):
     WORK_OFFICE = "WORK_OFFICE"
     WORK_DESK = "WORK_DESK"
     WORK_APPROACH = "WORK_APPROACH"
-    
+
+    # Workplace & Office Inspection Photos (co-applicant - dual-applicant cases only;
+    # the co-applicant's office is frequently a different premises from the primary
+    # applicant's, while both share one residence, so these need their own slots)
+    CO_OFFICE_FACADE = "CO_OFFICE_FACADE"
+    CO_OFFICE_NAMEBOARD = "CO_OFFICE_NAMEBOARD"
+    CO_OFFICE_INTERIOR = "CO_OFFICE_INTERIOR"
+    CO_OFFICE_SELFIE = "CO_OFFICE_SELFIE"
+
     # Financial & KYC Documents
     AADHAAR_CARD = "AADHAAR_CARD"
     PAN_CARD = "PAN_CARD"

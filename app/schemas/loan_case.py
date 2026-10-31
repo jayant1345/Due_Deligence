@@ -17,6 +17,8 @@ class CaseCreate(BaseModel):
     target_lat: float
     target_lon: float
     assigned_agent_id: Optional[uuid.UUID] = None
+    co_applicant_name: Optional[str] = None
+    co_applicant_phone: Optional[str] = None
 
 
 class CaseUpdate(BaseModel):
@@ -27,6 +29,8 @@ class CaseUpdate(BaseModel):
     branch: Optional[str] = None
     loan_amount: Optional[float] = None
     target_address: Optional[str] = None
+    co_applicant_name: Optional[str] = None
+    co_applicant_phone: Optional[str] = None
     target_lat: Optional[float] = None
     target_lon: Optional[float] = None
 
@@ -49,6 +53,8 @@ class CaseResponse(BaseModel):
     target_lon: float
     status: CaseStatus
     field_form_data: Optional[str] = None
+    co_applicant_name: Optional[str] = None
+    co_applicant_phone: Optional[str] = None
     assigned_agent_id: Optional[uuid.UUID] = None
     created_by_id: uuid.UUID
     created_at: datetime

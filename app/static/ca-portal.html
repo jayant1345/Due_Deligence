@@ -4814,10 +4814,12 @@
       const pass = document.getElementById("hoCredPass") ? document.getElementById("hoCredPass").textContent : "agent1@123";
       const pwaLink = `${window.location.origin}/pwa?case=${encodeURIComponent(caseNo)}`;
       const instructions = document.getElementById("hoInstructions") ? document.getElementById("hoInstructions").value.trim() : "";
+      const coLine = c.co_applicant_name ? `👥 *Co-Applicant:* ${c.co_applicant_name} (separate office verification required)\n` : "";
 
       return `🏛️ *NAIMISH N. SHAH & CO. CHARTERED ACCOUNTANTS*\n*Contact Point Verification (CPV) Order*\n\n` +
         `📋 *Case No:* ${caseNo}\n` +
         `👤 *Borrower:* ${applicant}\n` +
+        coLine +
         `🏦 *Bank:* ${bank} (${branch})\n` +
         `📍 *Property Address:* ${address}\n\n` +
         `📲 *Open Field Agent Mobile PWA Link:*\n${pwaLink}\n\n` +
@@ -4825,7 +4827,7 @@
         `• *Username:* ${user}\n` +
         `• *Password:* ${pass}\n\n` +
         `📝 *Inspection Instructions:*\n${instructions}\n\n` +
-        `⚠️ *Notice:* Live GNSS geofencing (<150m) and timestamp watermarking are active. Please capture 4 site photos, upload verification docs, and submit.`;
+        `⚠️ *Notice:* Live GNSS geofencing (<150m) and timestamp watermarking are active. Please capture 4 site photos${c.co_applicant_name ? " (+4 co-applicant office photos)" : ""}, upload verification docs, and submit.`;
     }
 
     function updateHandoverPreview() {
@@ -5754,6 +5756,8 @@
         branch: f.branch || "",
         applicant_name: f.applicant_name,
         phone: f.phone || "",
+        co_applicant_name: f.co_applicant_name || "",
+        co_applicant_phone: f.co_applicant_phone || "",
         month: f.month || "",
         allotted_by: f.allotted_by || "",
         loan_facility: `${f.loan_type || "Loan"}${amt ? " ₹" + (amt / 100000).toFixed(2) + " Lacs" : ""}`,
@@ -5818,7 +5822,8 @@
           if (!caseRegistry[dc.id]) {
             caseRegistry[dc.id] = buildCaseEntry({
               case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
-              phone: dc.applicant_phone, loan_type: dc.loan_type, loan_amount: dc.loan_amount, address: dc.target_address,
+              phone: dc.applicant_phone, co_applicant_name: dc.co_applicant_name, co_applicant_phone: dc.co_applicant_phone,
+              loan_type: dc.loan_type, loan_amount: dc.loan_amount, address: dc.target_address,
               benchmark_lat: dc.target_lat, benchmark_lon: dc.target_lon, status: dc.status, db_id: dc.id,
               agent: resolveAgentName(dc.assigned_agent_id),
             });
@@ -5871,12 +5876,18 @@
       // looking guessed word like "Case" or "Bank".
       const applicantName = document.getElementById("ncApplicantName").value.trim() || "Pending AI Identification";
       const phone = document.getElementById("ncApplicantPhone").value.trim();
+      const coApplicantName = document.getElementById("ncCoApplicantName") ? document.getElementById("ncCoApplicantName").value.trim() : "";
+      const coApplicantPhone = document.getElementById("ncCoApplicantPhone") ? document.getElementById("ncCoApplicantPhone").value.trim() : "";
       const bank = document.getElementById("ncBankName").value;
       const branch = document.getElementById("ncBranch").value.trim();
       const loanType = document.getElementById("ncLoanType").value;
       const loanAmount = document.getElementById("ncLoanAmount").value.trim();
       const month = document.getElementById("ncMonth").value;
-      const address = document.getElementById("ncAddress").value.trim() || `Plot 42, Sector 8, Gandhinagar - 382007`;
+      // Address left as an honest placeholder (never a fabricated specific address) if the
+      // CA leaves it blank; the benchmark lat/lon below stay at a registered placeholder
+      // coordinate (PLACEHOLDER_COORDS in geocoder.py) so Auto-Locate can still correct them
+      // once a real address is entered, instead of permanently locking in a wrong pin.
+      const address = document.getElementById("ncAddress").value.trim() || "Pending AI Extraction";
       const lat = document.getElementById("ncLat").value.trim() || "23.2156";
       const lon = document.getElementById("ncLon").value.trim() || "72.6369";
       const allottedBy = document.getElementById("ncAllottedBy").value;
@@ -5925,6 +5936,8 @@
             branch: branch,
             applicant_name: applicantName,
             applicant_phone: phone,
+            co_applicant_name: coApplicantName || undefined,
+            co_applicant_phone: coApplicantPhone || undefined,
             loan_type: loanType,
             loan_amount: amtNumeric,
             target_address: address,
@@ -7909,6 +7922,16 @@
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Phone / WhatsApp*</label>
               <input id="ncApplicantPhone" type="text" required placeholder="e.g. +91 94283 51920" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
             </div>
+
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Full Name <span class="font-normal normal-case text-outline">(leave blank for a single-applicant case)</span></label>
+              <input id="ncCoApplicantName" type="text" placeholder="e.g. Mrs. Sunita Ramesh Patel" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Phone <span class="font-normal normal-case text-outline">(optional)</span></label>
+              <input id="ncCoApplicantPhone" type="text" placeholder="e.g. +91 94283 51921" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+
             <div>
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Empanelled Bank Name (બેંક)*</label>
               <select id="ncBankName" required class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
