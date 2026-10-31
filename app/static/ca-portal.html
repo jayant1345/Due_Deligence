@@ -630,7 +630,7 @@
                 </div>
                 <div class="absolute bottom-2 inset-x-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded text-[10px] text-white flex items-center justify-between font-mono border border-white/10">
                   <span class="truncate text-[9px]" id="dispPanBackLabel">WARD 1, GANDHINAGAR • ACTIVE • SEEDED</span>
-                  <span class="text-emerald-300 font-bold ml-1 text-[9px]">STATUS: PASS</span>
+                  <span class="font-bold ml-1 text-[9px]" id="dispPanBackStatus">STATUS: PASS</span>
                 </div>
               </div>
             </div>
@@ -653,10 +653,14 @@
               <span id="dispPanWard" class="font-mono text-[11px] font-bold text-secondary">WARD 1, GANDHINAGAR (ACTIVE)</span>
             </div>
             <div class="flex justify-between items-center">
+              <span class="text-on-surface-variant">Father's / Spouse's Name:</span>
+              <span id="dispPanFatherName" class="font-mono text-[11px] font-bold text-on-surface">Not Captured</span>
+            </div>
+            <div class="flex justify-between items-center">
               <span class="text-on-surface-variant">Aadhaar-PAN Seeding:</span>
-              <span class="font-mono text-[11px] font-semibold text-secondary flex items-center gap-1">
+              <span id="dispPanSeedingBadge" class="font-mono text-[11px] font-semibold text-secondary flex items-center gap-1">
                 <span class="material-symbols-outlined text-[13px]">link</span>
-                LINKED (VERIFIED)
+                <span id="dispPanSeedingText">LINKED (VERIFIED)</span>
               </span>
             </div>
           </div>
@@ -3398,12 +3402,39 @@
 
       document.getElementById("dispPanNumber").textContent = val(c.pan);
       document.getElementById("dispPanHolder").textContent = c.applicant_name.toUpperCase();
-      document.getElementById("dispPanWard").textContent = c.father_name ? `Father: ${c.father_name}` : (c.ward || "—");
+      document.getElementById("dispPanWard").textContent = c.ward || "Not Captured";
       if (document.getElementById("dispPanFrontLabel")) document.getElementById("dispPanFrontLabel").textContent = `${val(c.pan)} • ${c.applicant_name.toUpperCase()}`;
       // This DOB used to be static markup left over from the original demo case (always showed
       // "30/05/1997" on every case's PAN card, regardless of the applicant's real date of birth).
       if (document.getElementById("dispPanFrontDob")) document.getElementById("dispPanFrontDob").textContent = c.dob ? `DOB: ${c.dob}` : "";
       if (document.getElementById("dispPanBackLabel")) document.getElementById("dispPanBackLabel").textContent = c.father_name ? `Father: ${c.father_name}` : PENDING;
+
+      // Aadhaar-PAN seeding: a genuine comparison of the father's/spouse's name printed on each
+      // document, never an assumed/static "VERIFIED" - see the comment in mergeExtractedDocsIntoCase.
+      const normName = (s) => (s || "").toLowerCase().replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
+      const fnAadhaar = normName(c.father_name_aadhaar);
+      const fnPan = normName(c.father_name_pan);
+      const fatherNameEl = document.getElementById("dispPanFatherName");
+      const seedingTextEl = document.getElementById("dispPanSeedingText");
+      const seedingBadgeEl = document.getElementById("dispPanSeedingBadge");
+      const backStatusEl = document.getElementById("dispPanBackStatus");
+      if (fatherNameEl) fatherNameEl.textContent = c.father_name_aadhaar || c.father_name_pan || c.father_name || "Not Captured";
+      let seedingLabel, seedingClass, backStatusLabel, backStatusClass;
+      if (fnAadhaar && fnPan) {
+        if (fnAadhaar === fnPan) {
+          seedingLabel = "LINKED (VERIFIED)"; seedingClass = "font-mono text-[11px] font-semibold text-emerald-700 flex items-center gap-1";
+          backStatusLabel = "STATUS: PASS"; backStatusClass = "font-bold ml-1 text-[9px] text-emerald-300";
+        } else {
+          seedingLabel = "NAME MISMATCH"; seedingClass = "font-mono text-[11px] font-semibold text-rose-700 flex items-center gap-1";
+          backStatusLabel = "STATUS: MISMATCH"; backStatusClass = "font-bold ml-1 text-[9px] text-rose-300";
+        }
+      } else {
+        seedingLabel = "NOT CROSS-VERIFIED"; seedingClass = "font-mono text-[11px] font-semibold text-on-surface-variant flex items-center gap-1";
+        backStatusLabel = "STATUS: PENDING"; backStatusClass = "font-bold ml-1 text-[9px] text-on-surface-variant";
+      }
+      if (seedingTextEl) seedingTextEl.textContent = seedingLabel;
+      if (seedingBadgeEl) seedingBadgeEl.className = seedingClass;
+      if (backStatusEl) { backStatusEl.textContent = backStatusLabel; backStatusEl.className = backStatusClass; }
       setDocSide('pan', 'front');
 
       // 4. Update CPV Field Form & Utility Proof (only what was read from the actual bill)
@@ -6098,6 +6129,12 @@
         c.gender = g.charAt(0) + g.slice(1).toLowerCase();
       }
       c.father_name = a.father_or_spouse_name || fromOwn("father_or_spouse_name", ["PAN_CARD", "AADHAAR_CARD"]) || c.father_name;
+      // Real cross-check, not an assumed match: Aadhaar-PAN "seeding" is only actually verified
+      // when the father's/spouse's name printed on both documents agrees - the two can legitimately
+      // disagree (different scans, a misread, or genuinely different source documents), and a
+      // report must never claim "LINKED (VERIFIED)" without having actually compared them.
+      c.father_name_aadhaar = fromOwn("father_or_spouse_name", ["AADHAAR_CARD"]) || c.father_name_aadhaar;
+      c.father_name_pan = fromOwn("father_or_spouse_name", ["PAN_CARD"]) || c.father_name_pan;
       // Deliberately NOT overwriting c.address here. c.address is the property/target address the
       // field agent must physically verify (bank-provided at case creation) and it is also shown
       // as the "does the Aadhaar match?" corroboration baseline next to the Aadhaar card image.
