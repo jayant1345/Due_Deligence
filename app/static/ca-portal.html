@@ -443,6 +443,10 @@
           <div id="pdfSeparatedPagesList" class="grid grid-cols-5 gap-1.5">
             <!-- Rendered thumbnail cards -->
           </div>
+          <button type="button" id="btnDownloadCombinedForm16" onclick="downloadCombinedForm16()" class="hidden w-full text-[10px] font-mono font-bold text-indigo-300 hover:text-indigo-200 border border-indigo-500/40 hover:border-indigo-400 rounded px-2 py-1.5 flex items-center justify-center gap-1.5 transition-all">
+            <span class="material-symbols-outlined text-[14px]">picture_as_pdf</span>
+            <span>Download Combined Form 16 PDF (all pages & years)</span>
+          </button>
         </div>
       </div>
 
@@ -3781,6 +3785,25 @@
       }
     }
 
+    // Assessment year of a Form 16 page - mirrors _ay_of() in cpv_report_data.py so the
+    // dashboard's label always agrees with what the certified report ends up stating.
+    function formAssessmentYearOf(d) {
+      const shortAy = (ay) => {
+        if (!ay) return null;
+        const m = String(ay).match(/(20\d{2})\s*[-–/]\s*(20)?(\d{2})/);
+        return m ? `${m[1]}-${m[3]}` : ay;
+      };
+      if (d.assessment_year) return shortAy(d.assessment_year);
+      const text = [d.document_period, d.document_title].filter(Boolean).join(" ");
+      const m = text.match(/F\.?\s*Y\.?[^0-9]*(20\d{2})\s*[-–/]\s*(?:20)?(\d{2})/i);
+      if (m) {
+        const y1 = parseInt(m[1], 10) + 1;
+        const y2 = (parseInt(m[2], 10) + 1).toString().padStart(2, "0");
+        return `${y1}-${y2}`;
+      }
+      return null;
+    }
+
     function renderSeparatedPagesTray(docs, summary) {
       activeSeparatedDocs = docs || [];
       const tray = document.getElementById("pdfSeparatedPagesTray");
@@ -3811,6 +3834,13 @@
           badgeColor = "bg-amber-950 text-amber-300 border-amber-600";
         } else if (d.doc_type === "SALARY_SLIP") {
           shortType = "PAYSLIP"; badgeColor = "bg-purple-950 text-purple-300 border-purple-600";
+        } else if (d.doc_type === "FORM_16") {
+          // Several Form 16 pages often get scanned together (different years, or Part A/
+          // Part B of the same year) - show which assessment year each one is so the CA can
+          // tell them apart at a glance, matching what the certified report will state.
+          const ay = formAssessmentYearOf(d);
+          shortType = ay ? `FORM 16 (A.Y. ${ay})` : "FORM 16";
+          badgeColor = "bg-indigo-950 text-indigo-300 border-indigo-600";
         }
 
         let docSrc = d.image_url || "";
@@ -3862,6 +3892,43 @@
         col.appendChild(badge);
         list.appendChild(col);
       });
+
+      const combineBtn = document.getElementById("btnDownloadCombinedForm16");
+      if (combineBtn) combineBtn.classList.toggle("hidden", !activeSeparatedDocs.some(d => d.doc_type === "FORM_16"));
+    }
+
+    // Combine every scanned Form 16 page for the active case into one downloadable PDF.
+    async function downloadCombinedForm16() {
+      if (!activeCaseId) return;
+      const btn = document.getElementById("btnDownloadCombinedForm16");
+      const originalHtml = btn ? btn.innerHTML : null;
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[14px] animate-spin">progress_activity</span><span>Combining Form 16 pages...</span>';
+      }
+      try {
+        const res = await fetch(`/api/v1/cases/${activeCaseId}/documents/form16-combined`, { headers: authHeaders() });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(`Could not combine Form 16 pages: ${err.detail || "Server error"}`);
+          return;
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const cd = res.headers.get("Content-Disposition") || "";
+        const m = cd.match(/filename="([^"]+)"/);
+        a.download = m ? m[1] : "Form16_Combined.pdf";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        alert(`Network error combining Form 16 pages: ${err.message}`);
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+      }
     }
 
     // Cross-document check the CA must see before certifying: identity agreement across

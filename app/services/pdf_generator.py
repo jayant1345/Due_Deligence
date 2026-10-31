@@ -343,11 +343,38 @@ def generate_certified_cpv_report(
     co_position = office_co.get("position") or NOT_CAPTURED
     co_occupation_val = office_co.get("occupation") or NOT_CAPTURED
 
-    form16_ay = field_form.get("form16_ay") or ["2026-2027", "2025-2026"]
-    if isinstance(form16_ay, list) and form16_ay:
-        form16_ay_str = ", ".join(f"A.Y.{ay}" if not str(ay).startswith("A.Y.") else str(ay) for ay in form16_ay)
-    else:
-        form16_ay_str = "A.Y.2025-2026, A.Y.2024-2025, A.Y.2023-2024"
+    # Real Form 16 assessment years, read off the applicant's own scanned Form 16 pages -
+    # never a hardcoded guess. One scanned Form 16 can cover multiple years (Part A/Part B
+    # pages, or several years filed together); each page is deduplicated by its own A.Y.
+    from app.services.cpv_report_data import _ay_of, _inr
+    form16_rows = {}
+    for d in document_items:
+        if d.get("doc_type") != "FORM_16":
+            continue
+        if (d.get("ocr_data") or {}).get("relationship_to_applicant") == "DIFFERENT_PERSON":
+            continue
+        od = d.get("ocr_data") or {}
+        ay = _ay_of(od)
+        if not ay:
+            continue
+        row = form16_rows.setdefault(ay, {"ay": ay, "income": None})
+        row["income"] = row["income"] or _inr(od.get("annual_taxable_income"))
+    form16_ay_list = sorted(form16_rows.keys(), reverse=True)
+    form16_ay_str = ", ".join(f"A.Y.{ay}" for ay in form16_ay_list) if form16_ay_list else NOT_CAPTURED
+
+    # Same extraction, scoped to the co-applicant's own scanned Form 16 pages.
+    form16_rows_co = {}
+    for d in document_items:
+        if d.get("doc_type") != "FORM_16":
+            continue
+        od = d.get("ocr_data") or {}
+        if od.get("relationship_to_applicant") != "DIFFERENT_PERSON":
+            continue
+        ay = _ay_of(od)
+        if not ay:
+            continue
+        row = form16_rows_co.setdefault(ay, {"ay": ay, "income": None})
+        row["income"] = row["income"] or _inr(od.get("annual_taxable_income"))
 
     work_bullet = ""
     if is_working:
@@ -393,8 +420,7 @@ def generate_certified_cpv_report(
     {work_bullet}
     {co_work_bullet}
     <b>ITR:</b><br/><br/>
-     The applicant has submitted Income Tax Returns (ITRs) for the Assessment years <b>2023–24, 2024–25 and 2025-26</b>, as proof of income.<br/><br/>
-     The Form No: 16 <b>{form16_ay_str}</b>, Was Provided for Our Verification from Traces Website.<br/><br/>
+     {("The applicant has submitted Form No. 16 for the Assessment year(s) <b>" + form16_ay_str + "</b> as proof of income, provided for our verification.") if form16_ay_list else "No Income Tax Returns or Form No. 16 were provided for our verification."}<br/><br/>
     <b>KYC:</b><br/><br/>
      {kyc_line}
     """
@@ -650,12 +676,17 @@ def generate_certified_cpv_report(
     story.append(Paragraph(f"Applicant: <b>{applicant_name}</b>", body_style))
     story.append(Spacer(1, 3))
 
-    itr_grid = [
-        [Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)],
-        [Paragraph("2025-26", table_cell_style), Paragraph("Not Applicable", table_cell_style), Paragraph("Not Applicable", table_cell_style), Paragraph("Housewife Support Dossier", table_cell_style)],
-        [Paragraph("2024-25", table_cell_style), Paragraph("Not Applicable", table_cell_style), Paragraph("Not Applicable", table_cell_style), Paragraph("Housewife Support Dossier", table_cell_style)],
-        [Paragraph("2023-24", table_cell_style), Paragraph("Not Applicable", table_cell_style), Paragraph("Not Applicable", table_cell_style), Paragraph("Housewife Support Dossier", table_cell_style)],
-    ]
+    if form16_ay_list:
+        itr_grid = [[Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)]]
+        for ay in form16_ay_list:
+            income = form16_rows[ay]["income"]
+            status = f"Rs. {income}" if income else "Form No. 16 provided (no ITR acknowledgement on record)"
+            itr_grid.append([Paragraph(ay, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(status, table_cell_style)])
+    else:
+        itr_grid = [
+            [Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)],
+            [Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph("No Form No. 16 / ITR documents on record", table_cell_style)],
+        ]
     t_itr = Table(itr_grid, colWidths=[1.5 * inch, 2.0 * inch, 1.8 * inch, 2.2 * inch])
     t_itr.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E40AF")),
@@ -670,12 +701,18 @@ def generate_certified_cpv_report(
     if co_applicant_name:
         story.append(Paragraph(f"Co-Applicant: <b>{co_applicant_name}</b>", body_style))
         story.append(Spacer(1, 3))
-        itr_grid_co = [
-            [Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)],
-            [Paragraph("2025-26", table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style)],
-            [Paragraph("2024-25", table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style)],
-            [Paragraph("2023-24", table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style)],
-        ]
+        co_form16_ay_list = sorted(form16_rows_co.keys(), reverse=True)
+        if co_form16_ay_list:
+            itr_grid_co = [[Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)]]
+            for ay in co_form16_ay_list:
+                income = form16_rows_co[ay]["income"]
+                status = f"Rs. {income}" if income else "Form No. 16 provided (no ITR acknowledgement on record)"
+                itr_grid_co.append([Paragraph(ay, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(status, table_cell_style)])
+        else:
+            itr_grid_co = [
+                [Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)],
+                [Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph("No Form No. 16 / ITR documents on record", table_cell_style)],
+            ]
         t_itr_co = Table(itr_grid_co, colWidths=[1.5 * inch, 2.0 * inch, 1.8 * inch, 2.2 * inch])
         t_itr_co.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E40AF")),

@@ -551,6 +551,108 @@ async def list_case_documents(
     return formatted
 
 
+def _resolve_doc_image_path(raw_url: Optional[str]) -> Optional[str]:
+    """Same fallback search pdf_generator.py uses to turn a stored URL into a real file on disk."""
+    if not raw_url:
+        return None
+    if os.path.exists(raw_url):
+        return raw_url
+    norm = str(raw_url).replace("\\", "/").strip()
+    candidates = []
+    if norm.startswith("/storage/"):
+        candidates.append(os.path.join("storage_uploads", norm[len("/storage/"):]))
+    if norm.startswith("storage/"):
+        candidates.append(os.path.join("storage_uploads", norm[len("storage/"):]))
+    if "storage_uploads/" in norm:
+        candidates.append(os.path.join("storage_uploads", norm.split("storage_uploads/")[-1]))
+    if norm.startswith("/static/"):
+        candidates.append(os.path.join("app", "static", norm[len("/static/"):]))
+    if norm.startswith("/"):
+        candidates.append(norm[1:])
+    candidates.append(os.path.join("storage_uploads", os.path.basename(norm)))
+    for cand in candidates:
+        if os.path.exists(cand):
+            return cand
+    return None
+
+
+@router.get("/{case_id}/documents/form16-combined")
+async def download_combined_form16(
+    case_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_ca_user),
+):
+    """
+    Combine every scanned Form 16 page for this case into a single multi-page PDF, in document
+    order, so the CA can review and file the whole Form 16 (often several pages, sometimes
+    several years) as one document instead of hunting through separate page thumbnails.
+    """
+    from fastapi.responses import FileResponse
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Image as RLImage, PageBreak
+    from PIL import Image as PILImage
+
+    matched_case = await resolve_loan_case(db, case_id)
+    if not matched_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
+
+    result = await db.execute(
+        select(CaseDocument)
+        .where(CaseDocument.case_id == matched_case.id, CaseDocument.doc_type == DocumentType.FORM_16)
+        .order_by(asc(CaseDocument.created_at))
+    )
+    docs = result.scalars().all()
+    if not docs:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Form 16 documents on record for this case")
+
+    def _page_sort_key(d: CaseDocument):
+        od = d.ocr_data if isinstance(d.ocr_data, dict) else {}
+        return (od.get("page_number") or 0, d.created_at or datetime.min)
+
+    docs = sorted(docs, key=_page_sort_key)
+
+    image_paths = []
+    for d in docs:
+        p = _resolve_doc_image_path(d.watermarked_url or d.storage_url)
+        if p:
+            try:
+                with PILImage.open(p) as im:
+                    im.verify()
+                image_paths.append(p)
+            except Exception:
+                continue
+
+    if not image_paths:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form 16 pages are on record but their image files could not be found")
+
+    safe_name = "".join(c if c.isalnum() else "_" for c in (matched_case.applicant_name or matched_case.case_no or "case")).strip("_") or "case"
+    out_dir = os.path.join("storage_uploads", "combined_pdfs")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, f"Form16_{safe_name}_{matched_case.id.hex[:8]}.pdf")
+
+    doc = SimpleDocTemplate(out_path, pagesize=letter, leftMargin=18, rightMargin=18, topMargin=18, bottomMargin=18)
+    usable_w = letter[0] - 36
+    usable_h = letter[1] - 36
+    story = []
+    for i, p in enumerate(image_paths):
+        with PILImage.open(p) as im:
+            iw, ih = im.size
+        scale = min(usable_w / iw, usable_h / ih)
+        story.append(RLImage(p, width=iw * scale, height=ih * scale))
+        if i < len(image_paths) - 1:
+            story.append(PageBreak())
+    doc.build(story)
+
+    dl_name = f"Form16_{safe_name}.pdf"
+    return FileResponse(
+        path=out_path,
+        media_type="application/pdf",
+        filename=dl_name,
+        headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
+    )
+
+
 async def _refresh_case_relationships(db: AsyncSession, loan_case: LoanCase) -> None:
     """
     After any file of a case is scanned, decide who the applicant is across ALL of the case's
