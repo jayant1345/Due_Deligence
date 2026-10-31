@@ -161,6 +161,10 @@
             <span class="material-symbols-outlined text-[16px] text-emerald-600">badge</span>
             <span>Field Staff</span>
           </button>
+          <button onclick="openAgentActivityLog()" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-surface-container-low text-primary-container hover:bg-blue-50 border border-blue-300 transition-colors shadow-2xs whitespace-nowrap" title="See which agent completed which case, and when (એજન્ટ કામગીરી લોગ)">
+            <span class="material-symbols-outlined text-[16px] text-primary-container">fact_check</span>
+            <span>Agent Activity</span>
+          </button>
           <button id="navTabArchive" onclick="switchMainPortalView('archive')" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-amber-500/10 text-amber-900 hover:bg-amber-500/20 border border-amber-300 transition-colors shadow-2xs whitespace-nowrap" title="Monthly Case Archival & Local Backup Download (માસિક બેકઅપ અને ક્લાઉડ સફાઈ)">
             <span class="material-symbols-outlined text-[16px] text-amber-700">archive</span>
             <span>Monthly Archive</span>
@@ -7195,6 +7199,129 @@
     // Call on initial load
     setTimeout(() => { loadFieldAgents(); }, 500);
 
+    // ==========================================
+    // AGENT ACTIVITY LOG: dashboard-side view of the same case-history table the PWA
+    // shows each agent for themselves ("My Records"), but across every agent at once, so
+    // the CA can see who completed what case and when without opening each case individually.
+    // ==========================================
+    window.agentActivityCases = [];
+
+    const AAL_STATUS_LABELS = {
+      DRAFT: { label: "Not Yet Started", cls: "bg-slate-200 text-slate-700" },
+      ASSIGNED: { label: "Assigned — Not Started", cls: "bg-amber-100 text-amber-800" },
+      IN_PROGRESS: { label: "Visit In Progress", cls: "bg-blue-100 text-blue-800" },
+      PENDING_CA_REVIEW: { label: "Completed — With CA", cls: "bg-emerald-100 text-emerald-800" },
+      APPROVED: { label: "Completed — Approved", cls: "bg-emerald-100 text-emerald-800" },
+      CERTIFIED: { label: "Completed — Certified", cls: "bg-emerald-100 text-emerald-800" },
+      FLAGGED: { label: "Completed — Flagged", cls: "bg-rose-100 text-rose-800" },
+      REJECTED: { label: "Completed — Rejected", cls: "bg-rose-100 text-rose-800" },
+    };
+    const AAL_DONE_STATUSES = new Set(["PENDING_CA_REVIEW", "APPROVED", "CERTIFIED", "FLAGGED", "REJECTED"]);
+
+    function fmtAalDate(iso) {
+      if (!iso) return "—";
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "—";
+        return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) + " " +
+          d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+      } catch (e) { return "—"; }
+    }
+
+    async function openAgentActivityLog() {
+      const modal = document.getElementById("modalAgentActivityLog");
+      const loading = document.getElementById("aalLoadingState");
+      const summary = document.getElementById("aalSummaryBar");
+      const tbody = document.getElementById("aalTableBody");
+      if (!modal) return;
+      modal.style.display = "flex";
+      if (loading) { loading.style.display = "flex"; loading.innerHTML = `<span class="material-symbols-outlined animate-spin text-[18px]">sync</span><span>Loading agent activity...</span>`; }
+      if (summary) summary.classList.add("hidden");
+      if (tbody) tbody.innerHTML = "";
+
+      if (!window.allAgents || window.allAgents.length === 0) {
+        await loadFieldAgents();
+      }
+      try {
+        const res = await fetch("/api/v1/cases", { headers: authHeaders() });
+        if (!res.ok) throw new Error("fetch failed");
+        window.agentActivityCases = await res.json();
+        populateAgentActivityFilter();
+        renderAgentActivityLog();
+      } catch (e) {
+        if (loading) loading.innerHTML = `<span class="text-rose-700">Could not load agent activity — check connection and retry.</span>`;
+        return;
+      }
+      if (loading) loading.style.display = "none";
+    }
+
+    function closeAgentActivityLog() {
+      const modal = document.getElementById("modalAgentActivityLog");
+      if (modal) modal.style.display = "none";
+    }
+
+    function populateAgentActivityFilter() {
+      const sel = document.getElementById("aalAgentFilter");
+      if (!sel) return;
+      const current = sel.value || "ALL";
+      const seen = new Map();
+      (window.agentActivityCases || []).forEach(c => {
+        if (c.assigned_agent_id) {
+          const a = (window.allAgents || []).find(x => x.id === c.assigned_agent_id);
+          seen.set(c.assigned_agent_id, a ? a.full_name : "Unknown Agent");
+        }
+      });
+      sel.innerHTML = `<option value="ALL">All Agents</option>` +
+        Array.from(seen.entries()).map(([id, name]) => `<option value="${id}">${name.replace(/</g, "&lt;")}</option>`).join("") +
+        `<option value="UNASSIGNED">Not Yet Allotted</option>`;
+      if (Array.from(sel.options).some(o => o.value === current)) sel.value = current;
+    }
+
+    function renderAgentActivityLog() {
+      const tbody = document.getElementById("aalTableBody");
+      const summary = document.getElementById("aalSummaryBar");
+      const filterSel = document.getElementById("aalAgentFilter");
+      if (!tbody || !filterSel) return;
+      const filterVal = filterSel.value || "ALL";
+      let cases = window.agentActivityCases || [];
+      if (filterVal === "UNASSIGNED") {
+        cases = cases.filter(c => !c.assigned_agent_id);
+      } else if (filterVal !== "ALL") {
+        cases = cases.filter(c => c.assigned_agent_id === filterVal);
+      }
+      cases = [...cases].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+
+      if (cases.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-on-surface-variant font-mono text-xs">No cases match this filter.</td></tr>`;
+        if (summary) summary.classList.add("hidden");
+        return;
+      }
+
+      const doneCount = cases.filter(c => AAL_DONE_STATUSES.has(c.status)).length;
+      if (summary) {
+        summary.classList.remove("hidden");
+        summary.textContent = `${cases.length} case(s) shown · ${doneCount} completed`;
+      }
+
+      const safe = (s) => (s === null || s === undefined || s === "" ? "—" : String(s)).replace(/</g, "&lt;");
+      tbody.innerHTML = cases.map(c => {
+        const agentObj = c.assigned_agent_id ? (window.allAgents || []).find(a => a.id === c.assigned_agent_id) : null;
+        const agentName = agentObj ? agentObj.full_name : "Not Yet Allotted";
+        const meta = AAL_STATUS_LABELS[c.status] || { label: c.status || "Unknown", cls: "bg-slate-200 text-slate-700" };
+        const isDone = AAL_DONE_STATUSES.has(c.status);
+        return `
+          <tr class="border-b border-outline-variant/60 hover:bg-surface-container-low/60">
+            <td class="py-2 pr-3 font-semibold text-on-surface whitespace-nowrap">${safe(agentName)}</td>
+            <td class="py-2 pr-3 font-mono text-primary-container whitespace-nowrap">${safe(c.case_no)}</td>
+            <td class="py-2 pr-3">${safe(c.applicant_name)}</td>
+            <td class="py-2 pr-3 text-on-surface-variant max-w-[220px] truncate" title="${safe(c.target_address)}">${safe(c.target_address)}</td>
+            <td class="py-2 pr-3"><span class="px-1.5 py-0.5 rounded font-mono text-[9px] font-bold ${meta.cls}">${meta.label}</span></td>
+            <td class="py-2 pr-3 font-mono text-on-surface-variant whitespace-nowrap">${fmtAalDate(c.created_at)}</td>
+            <td class="py-2 pr-3 font-mono text-on-surface-variant whitespace-nowrap">${isDone ? fmtAalDate(c.updated_at) : "—"}</td>
+          </tr>`;
+      }).join("");
+    }
+
   </script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
@@ -7579,6 +7706,57 @@
         </div>
         <div id="rosterListContainer" class="space-y-2.5">
           <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AGENT ACTIVITY LOG: which agent did which case, and when, all in one sortable table -->
+  <div id="modalAgentActivityLog" style="z-index: 99999; display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-5xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fadeIn">
+      <!-- Header -->
+      <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-primary-container/15 text-primary-container flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">fact_check</span>
+          </div>
+          <div>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Agent Activity Log</h3>
+            <p class="font-mono text-[10px] text-outline">Every case, which agent it's with, and when they finished their part — live from the server</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="aalAgentFilter" onchange="renderAgentActivityLog()" class="text-xs bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 font-semibold text-on-surface">
+            <option value="ALL">All Agents</option>
+          </select>
+          <button onclick="closeAgentActivityLog()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="p-5 overflow-y-auto">
+        <div id="aalLoadingState" class="text-center py-6 font-mono text-xs text-outline flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined animate-spin text-[18px]">sync</span>
+          <span>Loading agent activity...</span>
+        </div>
+        <div id="aalSummaryBar" class="hidden mb-3 text-xs font-mono text-on-surface-variant"></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs border-collapse">
+            <thead>
+              <tr class="text-left font-mono text-[10px] text-outline uppercase border-b border-outline-variant">
+                <th class="py-2 pr-3">Agent</th>
+                <th class="py-2 pr-3">Case No</th>
+                <th class="py-2 pr-3">Applicant</th>
+                <th class="py-2 pr-3">Address</th>
+                <th class="py-2 pr-3">Status</th>
+                <th class="py-2 pr-3">Assigned</th>
+                <th class="py-2 pr-3">Completed</th>
+              </tr>
+            </thead>
+            <tbody id="aalTableBody"></tbody>
+          </table>
         </div>
       </div>
     </div>
