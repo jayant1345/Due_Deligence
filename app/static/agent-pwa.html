@@ -1262,6 +1262,10 @@
       <span>Sync</span>
       <span class="absolute top-1 right-3 w-2 h-2 rounded-full bg-secondary"></span>
     </a>
+    <button onclick="openMyRecords()" class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 font-mono text-[10px] hover:bg-surface-container-high active:scale-95 transition-all">
+      <span class="material-symbols-outlined text-[20px] mb-0.5">fact_check</span>
+      <span>My Records</span>
+    </button>
     <button onclick="logoutAgent()" class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 font-mono text-[10px] hover:bg-surface-container-high active:scale-95 transition-all">
       <span class="material-symbols-outlined text-[20px] mb-0.5 text-red-600">logout</span>
       <span class="text-red-700 font-bold">Logout</span>
@@ -3414,6 +3418,97 @@
       document.body.appendChild(overlay);
     }
 
+    // Case status -> what the agent cares about: "have I finished my part of this one".
+    const CASE_STATUS_LABELS = {
+      DRAFT: { label: "Not Yet Started", cls: "bg-slate-200 text-slate-700" },
+      ASSIGNED: { label: "Assigned — Not Started", cls: "bg-amber-100 text-amber-800" },
+      IN_PROGRESS: { label: "Visit In Progress", cls: "bg-blue-100 text-blue-800" },
+      PENDING_CA_REVIEW: { label: "Completed — With CA", cls: "bg-emerald-100 text-emerald-800" },
+      APPROVED: { label: "Completed — Approved", cls: "bg-emerald-100 text-emerald-800" },
+      CERTIFIED: { label: "Completed — Certified", cls: "bg-emerald-100 text-emerald-800" },
+      FLAGGED: { label: "Completed — Flagged", cls: "bg-rose-100 text-rose-800" },
+      REJECTED: { label: "Completed — Rejected", cls: "bg-rose-100 text-rose-800" },
+    };
+    const CASE_DONE_STATUSES = new Set(["PENDING_CA_REVIEW", "APPROVED", "CERTIFIED", "FLAGGED", "REJECTED"]);
+
+    function fmtRecordDate(iso) {
+      if (!iso) return "—";
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "—";
+        return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) + " " +
+          d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+      } catch (e) { return "—"; }
+    }
+
+    // Agent's own visit history, pulled live from the server (not any locally-cached copy) so it
+    // always reflects every case actually allotted to this login, across devices and over time.
+    async function openMyRecords() {
+      const modal = document.getElementById("pwaMyRecordsModal");
+      const body = document.getElementById("pwaMyRecordsBody");
+      if (!modal || !body) return;
+      modal.classList.remove("hidden");
+      body.innerHTML = `<div class="text-center text-xs text-on-surface-variant py-8 font-mono">Loading your records...</div>`;
+
+      const token = localStorage.getItem("pwa_token");
+      if (!token || token === "demo-pwa-token") {
+        body.innerHTML = `<div class="text-center text-xs text-on-surface-variant py-8 px-4 font-mono">
+          Log in with your real agent account (not the demo link) to see your personal case records here.
+        </div>`;
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/v1/cases", { headers: { "Authorization": `Bearer ${token}` } });
+        if (!res.ok) throw new Error("fetch failed");
+        const cases = await res.json();
+        if (!Array.isArray(cases) || cases.length === 0) {
+          body.innerHTML = `<div class="text-center text-xs text-on-surface-variant py-8 font-mono">No cases have been assigned to you yet.</div>`;
+          return;
+        }
+        cases.sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+
+        const rows = cases.map(c => {
+          const meta = CASE_STATUS_LABELS[c.status] || { label: c.status || "Unknown", cls: "bg-slate-200 text-slate-700" };
+          const isDone = CASE_DONE_STATUSES.has(c.status);
+          const completionDate = isDone ? fmtRecordDate(c.updated_at) : "—";
+          const safeApplicant = (c.applicant_name || "—").replace(/</g, "&lt;");
+          const safeAddress = (c.target_address || "—").replace(/</g, "&lt;");
+          const safeCaseNo = (c.case_no || "—").replace(/</g, "&lt;");
+          const safeBank = (c.bank_name || "—").replace(/</g, "&lt;");
+          return `
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-3 mb-2.5 shadow-sm">
+              <div class="flex items-start justify-between gap-2 mb-1.5">
+                <span class="font-mono text-[11px] font-bold text-primary">${safeCaseNo}</span>
+                <span class="font-mono text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${meta.cls}">${meta.label}</span>
+              </div>
+              <div class="text-xs font-semibold text-on-surface mb-0.5">${safeApplicant}</div>
+              <div class="text-[10px] text-on-surface-variant leading-snug mb-1.5">${safeAddress}</div>
+              <div class="flex items-center justify-between text-[10px] font-mono text-on-surface-variant border-t border-outline-variant pt-1.5">
+                <span>${safeBank}</span>
+                <span>${isDone ? "Completed: " + completionDate : "Assigned: " + fmtRecordDate(c.created_at)}</span>
+              </div>
+            </div>`;
+        }).join("");
+
+        const doneCount = cases.filter(c => CASE_DONE_STATUSES.has(c.status)).length;
+        body.innerHTML = `
+          <div class="text-[10px] font-mono text-on-surface-variant mb-3 px-1">
+            ${cases.length} case(s) total · ${doneCount} completed by you
+          </div>
+          ${rows}`;
+      } catch (e) {
+        body.innerHTML = `<div class="text-center text-xs text-rose-700 py-8 px-4 font-mono">
+          Could not load your records — check your connection and try again.
+        </div>`;
+      }
+    }
+
+    function closeMyRecords() {
+      const modal = document.getElementById("pwaMyRecordsModal");
+      if (modal) modal.classList.add("hidden");
+    }
+
     // Fetches every document the CA office has scanned (via Gemini AI) for this case —
     // real content, never a filename guess — and overlays it onto the document cards
     // plus the full "All Case Documents" gallery.
@@ -3984,6 +4079,22 @@
         <span class="material-symbols-outlined text-[20px]">check_circle</span>
         Use This Photo
       </button>
+    </div>
+  </div>
+
+  <!-- AGENT'S OWN CASE HISTORY / PERSONAL RECORDS (every case ever assigned to them, live from server) -->
+  <div id="pwaMyRecordsModal" class="hidden fixed inset-0 z-[60] bg-black/90 flex flex-col">
+    <div class="flex items-center justify-between px-4 py-3 bg-surface-container-lowest border-b border-outline-variant shrink-0">
+      <div>
+        <h3 class="font-headline font-bold text-sm text-on-surface">My Case Records</h3>
+        <p class="text-[10px] text-on-surface-variant font-mono">All cases ever assigned to you, for your own reference</p>
+      </div>
+      <button type="button" onclick="closeMyRecords()" class="w-9 h-9 rounded-full bg-surface-container-high hover:bg-surface-container-highest flex items-center justify-center">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+    <div id="pwaMyRecordsBody" class="flex-1 overflow-y-auto bg-surface p-3">
+      <div class="text-center text-xs text-on-surface-variant py-8 font-mono">Loading your records...</div>
     </div>
   </div>
 
