@@ -239,6 +239,15 @@ STRICT RULES
    EMPLOYEE_ID_CARD, PROPERTY_DOCUMENT, APPLICATION_FORM, OTHER.
    A Form 16 Part-B / Annexure page is FORM_16 (not SALARY_SLIP). A page that only continues a
    previous document (e.g. a verification block, more ledger rows) keeps that document's type.
+   When the physical PAN card itself is not provided, the CA office instead verifies the PAN on
+   the Income Tax e-filing portal and includes that printout - a "Know Your Jurisdictional
+   Assessing Officer" page, an NSDL/e-filing "Verify Your PAN" result, or any other official
+   portal screenshot showing the PAN number with its status (e.g. ACTIVE) and jurisdictional AO
+   details. This is PAN_CARD, not OTHER - it is the CA's accepted evidence of PAN existence in
+   place of the card photo, and pan_number must be read from it exactly as this rule set already
+   requires. Only the printed PAN digits are ever a holder's real PAN; a masked name on this page
+   (e.g. "SXXXXY TXXXXR") is not usable for name cross-checks - leave holder_name null unless the
+   full, unmasked name is legible elsewhere on the page.
 3. holder_name = the person the document BELONGS TO (card holder, employee, account holder,
    electricity consumer). It is NEVER the issuing officer, the signatory (e.g. a T.P.O. who
    signs a Form 16), the employer, or the bank. A Form 16's "Verification" page is often a
