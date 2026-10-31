@@ -2919,7 +2919,11 @@
         // swept into the residence/office evidence photo grid.
         applyFieldCapturedKycFallback(c, docs);
 
-        const selfieDocs = (docs || []).filter(d => d.doc_type === "AGENT_SELFIE" || (d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
+        // Exact match only - "OFFICE_SELFIE" (Office Slot 4: Field Staff at Workplace) is a
+        // workplace EVIDENCE photo, not the agent's own identity-verification selfie, even
+        // though its name also contains "selfie". A substring match here let a later office
+        // slot capture outrank and replace the real AGENT_SELFIE on this card.
+        const selfieDocs = (docs || []).filter(d => d.doc_type === "AGENT_SELFIE");
         selfieDocs.sort((a, b) => {
           const tA = new Date(a.created_at_raw || a.created_at || 0).getTime();
           const tB = new Date(b.created_at_raw || b.created_at || 0).getTime();

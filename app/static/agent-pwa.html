@@ -3240,16 +3240,17 @@
                  dt.includes("OFFICE") || dt.includes("WORK");
         };
 
+        // Exact match only here - "OFFICE_SELFIE" (Office Slot 4: Field Staff at Workplace) is
+        // a normal workplace evidence photo and must still flow into officeDocs/isWorkDoc below;
+        // only the true identity-verification AGENT_SELFIE is excluded from both evidence grids.
         const residenceDocs = (docs || []).filter(d =>
           d.doc_type !== "AGENT_SELFIE" &&
-          !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")) &&
           !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
           !isWorkDoc(d)
         );
 
         const officeDocs = (docs || []).filter(d =>
           d.doc_type !== "AGENT_SELFIE" &&
-          !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")) &&
           !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
           isWorkDoc(d)
         );
@@ -3386,7 +3387,8 @@
         updateEvidenceProgress();
 
         // Restore Agent Selfie if uploaded
-        const serverSelfie = (docs || []).find(d => d.doc_type === "AGENT_SELFIE" || (d.doc_type && d.doc_type.toLowerCase().includes("selfie")));
+        // Exact match only - see the officeDocs/selfieDocs comment above for why.
+        const serverSelfie = (docs || []).find(d => d.doc_type === "AGENT_SELFIE");
         if (serverSelfie) {
           agentSelfieDataUrl = serverSelfie.url;
           const previewImg = document.getElementById("agentSelfiePreview") || document.getElementById("selfiePreview");
