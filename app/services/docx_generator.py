@@ -449,14 +449,14 @@ def generate_certified_cpv_docx(
     r_b.font.size = Pt(10)
     r_b.font.color.rgb = RGBColor(30, 64, 175)
 
-    tbl_p5 = doc.add_table(rows=11, cols=2)
+    tbl_p5 = doc.add_table(rows=12, cols=2)
     tbl_p5.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_borders(tbl_p5)
 
     b_fields = [
         "Firm Name", "Premises Address", "Landmark", "Firm Type", "Premises Ownership",
         "Established since", "Name board Visibility", "Infrastructure of premises",
-        "Line of business / Position", "Assets Visible", "Overall Assessment"
+        "Number of Workers", "Line of business / Position", "Assets Visible", "Overall Assessment"
     ]
     if ff_is_working:
         b_values = [
@@ -468,6 +468,7 @@ def generate_certified_cpv_docx(
             ff_office.get("established_since") or NOT_CAPTURED,
             ff_office.get("nameboard") or NOT_CAPTURED,
             ff_office.get("infrastructure") or NOT_CAPTURED,
+            ff_office.get("employees") or NOT_CAPTURED,
             ff_office.get("position") or ff_office.get("designation") or NOT_CAPTURED,
             ff_office.get("assets") or NOT_CAPTURED,
             "POSITIVE",

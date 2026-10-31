@@ -780,6 +780,63 @@
           </div>
         </div>
 
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Type of Company / Firm (કંપની નો પ્રકાર)*</label>
+            <select id="formFirmType" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select Type --</option>
+              <option value="Government / Government Job">Government / Government Job (સરકારી)</option>
+              <option value="Proprietorship">Proprietorship</option>
+              <option value="Partnership">Partnership</option>
+              <option value="Private Limited">Private Limited</option>
+              <option value="LLP">LLP</option>
+              <option value="Corporation">Corporation</option>
+              <option value="Public Limited">Public Limited</option>
+              <option value="Trust / Society">Trust / Society</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Number of Workers (કર્મચારી કેટલા છે)*</label>
+            <input id="formNumWorkers" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. 10-20, 50 plus"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Name Board Visibility (નામ બોર્ડ દેખાય છે?)*</label>
+            <input id="formNameboard" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Yes (Company Name Ltd)"/>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Infrastructure of Premises (જગ્યા કેવી છે)*</label>
+            <select id="formInfrastructure" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select --</option>
+              <option value="Office">Office</option>
+              <option value="Shop">Shop</option>
+              <option value="Factory">Factory</option>
+              <option value="School">School</option>
+              <option value="Hospital">Hospital</option>
+              <option value="College">College</option>
+              <option value="Clinic">Clinic</option>
+              <option value="Shed">Shed</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Premises Ownership (જગ્યા માલિકી)*</label>
+            <select id="formPremisesOwnership" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select --</option>
+              <option value="Owned">Owned (માલિક)</option>
+              <option value="Rented">Rented (ભાડુઆત)</option>
+              <option value="NA">NA</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Premises Owner Name (માલિકી નું નામ)</label>
+            <input id="formPremisesOwnerName" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. company/landlord name"/>
+          </div>
+        </div>
+
         <!-- DYNAMIC NOTIFICATION: EMPLOYED VS HOUSEWIFE -->
         <div id="officeVerificationNotice" class="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2">
           <span class="material-symbols-outlined text-[18px] text-primary-container shrink-0 mt-0.5">verified</span>
@@ -816,15 +873,15 @@
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Amount of Loan (રકમ)*</label>
-            <input id="formLoanAmount" value="20 lacs" class="w-full text-xs font-mono font-bold rounded-lg border border-outline-variant bg-white p-2 text-primary-container"/>
+            <input id="formLoanAmount" value="" placeholder="e.g. 20 lacs" class="w-full text-xs font-mono font-bold rounded-lg border border-outline-variant bg-white p-2 text-primary-container"/>
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Bank of Previous Loan (બેંક)*</label>
-            <input id="formPrevBank" value="Union Bank of India" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
+            <input id="formPrevBank" value="" placeholder="Enter bank name" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Authorized Dealership Date*</label>
-            <input id="formDealershipDate" value="22/09/2026" class="w-full text-xs font-mono font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
+            <input id="formDealershipDate" value="" placeholder="DD/MM/YYYY" class="w-full text-xs font-mono font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
           </div>
         </div>
       </div>
@@ -2889,6 +2946,16 @@
       const designation = document.getElementById("formDesignation") ? document.getElementById("formDesignation").value : "";
       const officeAddress = document.getElementById("formOfficeAddress") ? document.getElementById("formOfficeAddress").value : "";
       const wfh = document.getElementById("formWorkFromHome") ? document.getElementById("formWorkFromHome").value : "No";
+      const firmType = document.getElementById("formFirmType") ? document.getElementById("formFirmType").value : "";
+      const numWorkers = document.getElementById("formNumWorkers") ? document.getElementById("formNumWorkers").value.trim() : "";
+      const nameboard = document.getElementById("formNameboard") ? document.getElementById("formNameboard").value.trim() : "";
+      const infrastructure = document.getElementById("formInfrastructure") ? document.getElementById("formInfrastructure").value : "";
+      const premisesOwnership = document.getElementById("formPremisesOwnership") ? document.getElementById("formPremisesOwnership").value : "";
+      const premisesOwnerName = document.getElementById("formPremisesOwnerName") ? document.getElementById("formPremisesOwnerName").value.trim() : "";
+      const prevLoanType = document.getElementById("formLoanType") ? document.getElementById("formLoanType").value : "";
+      const prevLoanAmount = document.getElementById("formLoanAmount") ? document.getElementById("formLoanAmount").value.trim() : "";
+      const prevLoanBank = document.getElementById("formPrevBank") ? document.getElementById("formPrevBank").value.trim() : "";
+      const prevLoanDate = document.getElementById("formDealershipDate") ? document.getElementById("formDealershipDate").value.trim() : "";
       const assetsObserved = (document.getElementById("formAssetsObserved") || {}).value
         || visibleAssets.filter(a => a.active).map(a => a.name || a.label || a.id).filter(Boolean).join(", ");
       
@@ -2917,7 +2984,19 @@
           firm_name: firmName,
           address: officeAddress,
           work_from_home: wfh,
+          firm_type: firmType,
+          employees: numWorkers,
+          nameboard: nameboard,
+          infrastructure: infrastructure,
+          premises_ownership: premisesOwnership,
+          premises_owner: premisesOwnerName,
           verification_status: occupation === 'House Wife' ? 'Not Applicable (Home Maker)' : 'Office Verification Conducted'
+        },
+        previous_loan: {
+          loan_type: prevLoanType,
+          amount: prevLoanAmount,
+          bank: prevLoanBank,
+          date: prevLoanDate
         },
         // Raw, lossless values for restoring the form's own inputs when this case is reopened
         // (the fields above are flattened/combined for the report, which loses information -
@@ -3112,6 +3191,36 @@
 
       const fOffAddr = document.getElementById("formOfficeAddress");
       if (fOffAddr) fOffAddr.value = c.office_address || "";
+
+      const fFirmType = document.getElementById("formFirmType");
+      if (fFirmType) fFirmType.value = c.firm_type || "";
+
+      const fNumWorkers = document.getElementById("formNumWorkers");
+      if (fNumWorkers) fNumWorkers.value = c.employees || "";
+
+      const fNameboard = document.getElementById("formNameboard");
+      if (fNameboard) fNameboard.value = c.nameboard || "";
+
+      const fInfra = document.getElementById("formInfrastructure");
+      if (fInfra) fInfra.value = c.infrastructure || "";
+
+      const fPremOwnership = document.getElementById("formPremisesOwnership");
+      if (fPremOwnership) fPremOwnership.value = c.premises_ownership || "";
+
+      const fPremOwnerName = document.getElementById("formPremisesOwnerName");
+      if (fPremOwnerName) fPremOwnerName.value = c.premises_owner || "";
+
+      const fPrevLoanType = document.getElementById("formLoanType");
+      if (fPrevLoanType) fPrevLoanType.value = c.prev_loan_type || "Home";
+
+      const fPrevLoanAmount = document.getElementById("formLoanAmount");
+      if (fPrevLoanAmount) fPrevLoanAmount.value = c.prev_loan_amount || "";
+
+      const fPrevLoanBank = document.getElementById("formPrevBank");
+      if (fPrevLoanBank) fPrevLoanBank.value = c.prev_loan_bank || "";
+
+      const fPrevLoanDate = document.getElementById("formDealershipDate");
+      if (fPrevLoanDate) fPrevLoanDate.value = c.prev_loan_date || "";
 
       const fWfh = document.getElementById("formWorkFromHome");
       if (fWfh) fWfh.value = (fOcc && fOcc.value === "House Wife") ? "Yes" : "No";
@@ -3318,6 +3427,13 @@
           const firm = off.firm_name || "";
           const pos = off.position || off.designation || "";
           const offAddr = off.address || "";
+          const offFirmType = off.firm_type || "";
+          const offNumWorkers = off.employees || "";
+          const offNameboard = off.nameboard || "";
+          const offInfrastructure = off.infrastructure || "";
+          const offPremisesOwnership = off.premises_ownership || "";
+          const offPremisesOwnerName = off.premises_owner || "";
+          const prevLoan = parsedFormData.previous_loan || {};
           // The lossless fields saved alongside the flattened report fields - see the
           // "restore" comment in submitDueDiligenceForm(). Without these, every Residential
           // Details & Family input went back to blank the moment the agent switched to a
@@ -3359,6 +3475,16 @@
             position: pos,
             designation: pos,
             office_address: offAddr,
+            firm_type: offFirmType,
+            employees: offNumWorkers,
+            nameboard: offNameboard,
+            infrastructure: offInfrastructure,
+            premises_ownership: offPremisesOwnership,
+            premises_owner: offPremisesOwnerName,
+            prev_loan_type: prevLoan.loan_type || "",
+            prev_loan_amount: prevLoan.amount || "",
+            prev_loan_bank: prevLoan.bank || "",
+            prev_loan_date: prevLoan.date || "",
             is_live_case: true,
           }, restorePatch);
 

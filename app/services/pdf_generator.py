@@ -499,6 +499,7 @@ def generate_certified_cpv_report(
             [Paragraph("<b>Location</b>", table_cell_bold), Paragraph(office.get("location") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph(office.get("nameboard") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Infrastructure of premises</b>", table_cell_bold), Paragraph(office.get("infrastructure") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Number of Workers</b>", table_cell_bold), Paragraph(office.get("employees") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Line of business / Position at Work</b>", table_cell_bold), Paragraph(position or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph(office.get("assets") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph(office.get("reference") or NOT_CAPTURED, table_cell_style)],
