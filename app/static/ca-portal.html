@@ -611,7 +611,7 @@
                 </div>
                 <div class="absolute bottom-2 inset-x-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded text-[10px] text-white flex items-center justify-between font-mono border border-white/10">
                   <span class="truncate font-semibold" id="dispPanFrontLabel">BYMPG8996E • RAJKUNVARBA VAGHELA</span>
-                  <span class="text-blue-300 font-bold ml-1">DOB: 30/05/1997</span>
+                  <span class="text-blue-300 font-bold ml-1" id="dispPanFrontDob">DOB: 30/05/1997</span>
                 </div>
               </div>
               <!-- BACK SIDE: NSDL / JAO Online Verification -->
@@ -3397,6 +3397,9 @@
       document.getElementById("dispPanHolder").textContent = c.applicant_name.toUpperCase();
       document.getElementById("dispPanWard").textContent = c.father_name ? `Father: ${c.father_name}` : (c.ward || "—");
       if (document.getElementById("dispPanFrontLabel")) document.getElementById("dispPanFrontLabel").textContent = `${val(c.pan)} • ${c.applicant_name.toUpperCase()}`;
+      // This DOB used to be static markup left over from the original demo case (always showed
+      // "30/05/1997" on every case's PAN card, regardless of the applicant's real date of birth).
+      if (document.getElementById("dispPanFrontDob")) document.getElementById("dispPanFrontDob").textContent = c.dob ? `DOB: ${c.dob}` : "";
       if (document.getElementById("dispPanBackLabel")) document.getElementById("dispPanBackLabel").textContent = c.father_name ? `Father: ${c.father_name}` : PENDING;
       setDocSide('pan', 'front');
 

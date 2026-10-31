@@ -338,17 +338,27 @@ async def index_root():
     return HTMLResponse("<h1>VALUEX CA Verification Platform</h1><p>Visit <a href='/pwa'>Field Agent PWA</a> or <a href='/portal'>CA Portal</a></p>")
 
 
+# These two pages are the entire app and change on every deploy. Without an explicit
+# Cache-Control header a browser may serve a stale copy straight from its local cache after a
+# new deploy (no request to the server at all, so even a hard "the data isn't there" look is
+# really just old JS) — seen twice while testing a live fix: the fix was deployed and correct,
+# but the open tab kept showing the pre-fix page until forced to bypass its cache. "no-cache"
+# does not disable caching, it just makes the browser always revalidate with the server first
+# (a cheap 304 when unchanged), so this costs nothing and removes that whole class of confusion.
+NO_CACHE_HEADERS = {"Cache-Control": "no-cache"}
+
+
 @app.get("/pwa", include_in_schema=False)
 async def pwa_field_agent():
     pwa_path = "app/static/agent-pwa.html"
     if os.path.exists(pwa_path):
-        return FileResponse(pwa_path, media_type="text/html")
-    return HTMLResponse("<h1>Field Agent PWA</h1>")
+        return FileResponse(pwa_path, media_type="text/html", headers=NO_CACHE_HEADERS)
+    return HTMLResponse("<h1>Field Agent PWA</h1>", headers=NO_CACHE_HEADERS)
 
 
 @app.get("/portal", include_in_schema=False)
 async def ca_portal():
     portal_path = "app/static/ca-portal.html"
     if os.path.exists(portal_path):
-        return FileResponse(portal_path, media_type="text/html")
-    return HTMLResponse("<h1>CA Scrutiny Portal</h1>")
+        return FileResponse(portal_path, media_type="text/html", headers=NO_CACHE_HEADERS)
+    return HTMLResponse("<h1>CA Scrutiny Portal</h1>", headers=NO_CACHE_HEADERS)
