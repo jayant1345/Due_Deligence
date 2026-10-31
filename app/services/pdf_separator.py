@@ -247,7 +247,10 @@ STRICT RULES
    place of the card photo, and pan_number must be read from it exactly as this rule set already
    requires. Only the printed PAN digits are ever a holder's real PAN; a masked name on this page
    (e.g. "SXXXXY TXXXXR") is not usable for name cross-checks - leave holder_name null unless the
-   full, unmasked name is legible elsewhere on the page.
+   full, unmasked name is legible elsewhere on the page. Set doc_sub_type to "BACK" for this page
+   specifically (the CA portal displays the physical card photo and this NSDL/e-filing portal
+   verification as two sides of the same PAN record - FRONT is the physical card, BACK is this
+   portal printout) - never "COMPLETE" or null for this particular kind of page.
 3. holder_name = the person the document BELONGS TO (card holder, employee, account holder,
    electricity consumer). It is NEVER the issuing officer, the signatory (e.g. a T.P.O. who
    signs a Form 16), the employer, or the bank. A Form 16's "Verification" page is often a
@@ -278,7 +281,7 @@ STRICT RULES
 Return ONLY a JSON object with exactly these keys:
 {{
   "doc_type": "...",
-  "doc_sub_type": "FRONT | BACK | COMPLETE | PART_A | PART_B | CONTINUATION | null",
+  "doc_sub_type": "FRONT | BACK | COMPLETE | PART_A | PART_B | CONTINUATION | null (PAN_CARD: BACK for a Know Your AO / NSDL / e-filing PAN verification portal printout, FRONT for the physical card)",
   "document_title": "short descriptive title",
   "holder_name": "string or null",
   "father_or_spouse_name": "string or null",

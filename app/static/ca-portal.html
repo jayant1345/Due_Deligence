@@ -6065,7 +6065,12 @@
       c.aadhaar_front_img = firstImg(own, d => d.doc_type === "AADHAAR_CARD" && sub(d) !== "BACK") || c.aadhaar_front_img;
       c.aadhaar_back_img = firstImg(own, d => d.doc_type === "AADHAAR_CARD" && sub(d) === "BACK")
         || firstImg(own, d => d.doc_type === "AADHAAR_CARD") || c.aadhaar_back_img;
-      c.pan_front_img = firstImg(own, d => d.doc_type === "PAN_CARD" && sub(d) !== "BACK") || c.pan_front_img;
+      // When no physical card photo was scanned, the NSDL/"Know Your AO" portal verification
+      // IS the PAN evidence on file - it must still show in the primary (front) PAN slot, not
+      // sit hidden behind a second click while the main view looks like nothing was scanned.
+      c.pan_front_img = firstImg(own, d => d.doc_type === "PAN_CARD" && sub(d) !== "BACK")
+        || firstImg(own, d => d.doc_type === "PAN_CARD" && sub(d) === "BACK")
+        || c.pan_front_img;
       c.pan_back_img = firstImg(own, d => d.doc_type === "PAN_CARD" && sub(d) === "BACK") || c.pan_back_img;
       c.payslip_img = firstImg(own, d => d.doc_type === "SALARY_SLIP") || c.payslip_img;
       c.form16_img = firstImg(own, d => d.doc_type === "FORM_16") || c.form16_img;
