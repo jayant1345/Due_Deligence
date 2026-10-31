@@ -2997,12 +2997,9 @@
         // Check local PWA evidence cache if slot is not yet provided by server
         for (let s = 1; s <= 4; s++) {
           if (!slotMap[s]) {
-            const cachedPwa = localStorage.getItem(`pwa_evidence_${caseId}_slot_${s}`) || 
+            const cachedPwa = localStorage.getItem(`pwa_evidence_${caseId}_slot_${s}`) ||
                               (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_slot_${s}`) : null) ||
-                              (c.db_id ? localStorage.getItem(`pwa_evidence_${c.db_id}_slot_${s}`) : null) ||
-                              localStorage.getItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_slot_${s}`) ||
-                              localStorage.getItem(`pwa_evidence_UBI-HL-2026-531_slot_${s}`) ||
-                              localStorage.getItem(`pwa_evidence_b901fc63-12a8-4e32-9c02-e20984cfb001_slot_${s}`);
+                              (c.db_id ? localStorage.getItem(`pwa_evidence_${c.db_id}_slot_${s}`) : null);
             if (cachedPwa) {
               try {
                 const parsed = JSON.parse(cachedPwa);
@@ -3113,9 +3110,7 @@
           if (!workSlotMap[s]) {
             const cachedPwa = localStorage.getItem(`pwa_evidence_${caseId}_office_slot_${s}`) ||
                               (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_office_slot_${s}`) : null) ||
-                              (c.db_id ? localStorage.getItem(`pwa_evidence_${c.db_id}_office_slot_${s}`) : null) ||
-                              localStorage.getItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_office_slot_${s}`) ||
-                              localStorage.getItem(`pwa_evidence_UBI-HL-2026-531_office_slot_${s}`);
+                              (c.db_id ? localStorage.getItem(`pwa_evidence_${c.db_id}_office_slot_${s}`) : null);
             if (cachedPwa) {
               try {
                 const parsed = JSON.parse(cachedPwa);

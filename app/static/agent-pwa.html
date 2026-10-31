@@ -941,7 +941,7 @@
       <!-- Checked In Status Button -->
       <button id="btnCheckIn" onclick="handleSiteCheckIn()" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-surface-container-low border border-secondary text-secondary font-mono text-xs font-bold shadow-sm active:scale-95 transition-all">
         <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-        <span id="checkInBtnText">Check-In Logged: 14:15 IST</span>
+        <span id="checkInBtnText">Tap to Log Check-In</span>
       </button>
 
       <!-- Primary Action: Geotagged Camera Capture -->
@@ -2444,8 +2444,14 @@
 
     function handleSiteCheckIn() {
       const btn = document.getElementById("checkInBtnText");
-      const now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + " IST";
-      btn.textContent = `Check-In Logged: ${now}`;
+      const nowDate = new Date();
+      const stamp = nowDate.toLocaleDateString('en-GB') + " " +
+        nowDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + " IST";
+      btn.textContent = `Check-In Logged: ${stamp}`;
+      try {
+        localStorage.setItem(`pwa_checkin_${sampleCaseId}`, stamp);
+        localStorage.setItem(`pwa_checkin_${activeCaseKey}`, stamp);
+      } catch(e) {}
       alert(`Site Check-In successfully recorded at GPS coordinates (${currentDeviceLat.toFixed(4)}° N, ${currentDeviceLon.toFixed(4)}° E)`);
     }
 
@@ -2896,9 +2902,7 @@
         const btnRes = document.getElementById(`slot${i}BtnText`);
         const thumbRes = document.getElementById(`slot${i}Thumb`);
         const cachedRes = localStorage.getItem(`pwa_evidence_${sampleCaseId}_slot_${i}`) ||
-                          (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_slot_${i}`) : null) ||
-                          localStorage.getItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_slot_${i}`) ||
-                          localStorage.getItem(`pwa_evidence_UBI-HL-2026-531_slot_${i}`);
+                          (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_slot_${i}`) : null);
         if (cachedRes) {
           try {
             const parsed = JSON.parse(cachedRes);
@@ -2918,9 +2922,7 @@
         const btnOff = document.getElementById(`slotOffice${i}BtnText`);
         const thumbOff = document.getElementById(`slotOffice${i}Thumb`);
         const cachedOff = localStorage.getItem(`pwa_evidence_${sampleCaseId}_office_slot_${i}`) ||
-                          (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_office_slot_${i}`) : null) ||
-                          localStorage.getItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_office_slot_${i}`) ||
-                          localStorage.getItem(`pwa_evidence_UBI-HL-2026-531_office_slot_${i}`);
+                          (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_office_slot_${i}`) : null);
         if (cachedOff) {
           try {
             const parsed = JSON.parse(cachedOff);
@@ -2941,11 +2943,17 @@
         selector.value = key;
       }
 
+      // Restore check-in state for this case only (never leak another case's time)
+      const checkInBtn = document.getElementById("checkInBtnText");
+      if (checkInBtn) {
+        const cachedCheckIn = localStorage.getItem(`pwa_checkin_${sampleCaseId}`) ||
+                               (c.case_no ? localStorage.getItem(`pwa_checkin_${c.case_no}`) : null);
+        checkInBtn.textContent = cachedCheckIn ? `Check-In Logged: ${cachedCheckIn}` : "Tap to Log Check-In";
+      }
+
       // Restore selfie state if previously captured for this case
       const cachedSelfie = localStorage.getItem("selfie_" + sampleCaseId) ||
-                           (c.case_no ? localStorage.getItem("selfie_" + c.case_no) : null) ||
-                           localStorage.getItem("selfie_b8df82fd-e33a-493e-8d4b-a802861cf294") ||
-                           localStorage.getItem("selfie_UBI-HL-2026-531");
+                           (c.case_no ? localStorage.getItem("selfie_" + c.case_no) : null);
       const previewImg = document.getElementById("agentSelfiePreview");
       const placeholder = document.getElementById("agentSelfiePlaceholder");
       const wmTag = document.getElementById("selfieWatermarkTag");
@@ -3036,7 +3044,7 @@
           const pos = off.position || off.designation || "Teacher / Job";
           const offAddr = off.address || "District Panchayat Education Committee, Dholka, Gujarat-382260";
 
-          const mergedCase = Object.assign({}, caseRegistryPwa[key] || caseRegistryPwa["UBI-HL-2026-531"] || {}, {
+          const mergedCase = Object.assign({}, caseRegistryPwa[key] || {}, {
             id: target.id,
             case_no: target.case_no,
             applicant: target.applicant_name,
@@ -3255,8 +3263,6 @@
               });
               localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${s}`, resPayload);
               localStorage.setItem(`pwa_evidence_${activeCaseKey}_slot_${s}`, resPayload);
-              localStorage.setItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_slot_${s}`, resPayload);
-              localStorage.setItem(`pwa_evidence_UBI-HL-2026-531_slot_${s}`, resPayload);
             } catch(e) {}
           }
         }
@@ -3317,8 +3323,6 @@
               });
               localStorage.setItem(`pwa_evidence_${sampleCaseId}_office_slot_${s}`, offPayload);
               localStorage.setItem(`pwa_evidence_${activeCaseKey}_office_slot_${s}`, offPayload);
-              localStorage.setItem(`pwa_evidence_b8df82fd-e33a-493e-8d4b-a802861cf294_office_slot_${s}`, offPayload);
-              localStorage.setItem(`pwa_evidence_UBI-HL-2026-531_office_slot_${s}`, offPayload);
             } catch(e) {}
           }
         }
@@ -3355,8 +3359,6 @@
           try {
             localStorage.setItem("selfie_" + sampleCaseId, serverSelfie.url);
             localStorage.setItem("selfie_" + activeCaseKey, serverSelfie.url);
-            localStorage.setItem("selfie_b8df82fd-e33a-493e-8d4b-a802861cf294", serverSelfie.url);
-            localStorage.setItem("selfie_UBI-HL-2026-531", serverSelfie.url);
             localStorage.setItem("selfie_timestamp_" + sampleCaseId, serverSelfie.created_at || "Verified on Server");
             localStorage.setItem("selfie_timestamp_" + activeCaseKey, serverSelfie.created_at || "Verified on Server");
           } catch(e) {}
