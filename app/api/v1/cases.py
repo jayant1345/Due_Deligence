@@ -638,8 +638,13 @@ async def download_combined_form16(
     out_path = os.path.join(out_dir, f"Form16_{safe_name}_{matched_case.id.hex[:8]}.pdf")
 
     doc = SimpleDocTemplate(out_path, pagesize=letter, leftMargin=18, rightMargin=18, topMargin=18, bottomMargin=18)
-    usable_w = letter[0] - 36
-    usable_h = letter[1] - 36
+    # SimpleDocTemplate's frame carries its own default 6pt padding on every side on top of
+    # the margins above, so the real usable area is 12pt smaller than margins alone suggest -
+    # sizing to the margin-only figure placed the image exactly on that boundary and crashed
+    # the layout ("Flowable ... too large"). A small extra safety factor avoids relying on
+    # getting that padding figure exactly right.
+    usable_w = (letter[0] - 36 - 12) * 0.98
+    usable_h = (letter[1] - 36 - 12) * 0.98
     story = []
     for i, p in enumerate(image_paths):
         with PILImage.open(p) as im:
