@@ -1711,15 +1711,23 @@
             <input id="tabNcApplicantName" type="text" placeholder="e.g. Ramesh Kumar Patel" class="w-full text-xs font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
           </div>
 
-          <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Case Type</label>
+            <div class="flex items-center gap-0.5 bg-surface-container-high p-0.5 rounded-full border border-outline-variant font-mono text-[10px] w-fit">
+              <button type="button" id="tabNcModeSingle" onclick="setTabNcApplicantMode('single')" class="px-3 py-1 rounded-full transition-all font-bold bg-primary-container text-white">Single Applicant</button>
+              <button type="button" id="tabNcModeDual" onclick="setTabNcApplicantMode('dual')" class="px-3 py-1 rounded-full transition-all font-medium text-on-surface-variant">Dual Applicant</button>
+            </div>
+          </div>
+
+          <div id="tabNcCoApplicantFields" class="hidden grid grid-cols-2 gap-2">
             <div>
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">
-                Co-Applicant Full Name <span class="font-normal text-outline normal-case">(Optional)</span>
+                Co-Applicant Full Name
               </label>
               <input id="tabNcCoApplicantName" type="text" placeholder="e.g. Sunita Ramesh Patel" class="w-full text-xs font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
             </div>
             <div>
-              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Phone <span class="font-normal text-outline normal-case">(Optional)</span></label>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Phone</label>
               <input id="tabNcCoApplicantPhone" type="text" placeholder="e.g. +91 98250 54321" class="w-full text-xs font-mono bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
             </div>
           </div>
@@ -6031,6 +6039,49 @@
       }
       const pbox = document.getElementById("tabNcScanProgressBox");
       if (pbox) pbox.classList.add("hidden");
+      setTabNcApplicantMode("single");
+    }
+
+    // Single/Dual Applicant slider for New Case Intake - explicitly bifurcates the case instead
+    // of silently inferring "dual" from whether the CA happened to type a co-applicant name.
+    // Switching back to Single clears whatever was typed, so a case never ends up with a
+    // co-applicant name left over from an accidental toggle.
+    function setTabNcApplicantMode(mode) {
+      const isDual = mode === "dual";
+      const fields = document.getElementById("tabNcCoApplicantFields");
+      const btnSingle = document.getElementById("tabNcModeSingle");
+      const btnDual = document.getElementById("tabNcModeDual");
+      if (fields) fields.classList.toggle("hidden", !isDual);
+      if (btnSingle) btnSingle.className = `px-3 py-1 rounded-full transition-all font-bold ${!isDual ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
+      if (btnDual) btnDual.className = `px-3 py-1 rounded-full transition-all font-bold ${isDual ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
+      if (!isDual) {
+        const n = document.getElementById("tabNcCoApplicantName");
+        const p = document.getElementById("tabNcCoApplicantPhone");
+        if (n) n.value = "";
+        if (p) p.value = "";
+      }
+    }
+
+    // Same slider for an already-created case in Edit Case - switching to Dual reveals the
+    // co-applicant fields so the CA can add one retroactively; switching back to Single hides
+    // and clears them, which on Save removes the co-applicant from the case (reverting any
+    // dual-applicant report/photo-folder behavior that was keyed off co_applicant_name).
+    function setEcApplicantMode(mode) {
+      const isDual = mode === "dual";
+      const nameWrap = document.getElementById("ecCoApplicantNameWrap");
+      const phoneWrap = document.getElementById("ecCoApplicantPhoneWrap");
+      const btnSingle = document.getElementById("ecModeSingle");
+      const btnDual = document.getElementById("ecModeDual");
+      if (nameWrap) nameWrap.classList.toggle("hidden", !isDual);
+      if (phoneWrap) phoneWrap.classList.toggle("hidden", !isDual);
+      if (btnSingle) btnSingle.className = `px-3 py-1 rounded-full transition-all font-bold ${!isDual ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
+      if (btnDual) btnDual.className = `px-3 py-1 rounded-full transition-all font-bold ${isDual ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
+      if (!isDual) {
+        const n = document.getElementById("ecCoApplicantName");
+        const p = document.getElementById("ecCoApplicantPhone");
+        if (n) n.value = "";
+        if (p) p.value = "";
+      }
     }
 
     function handleTabNcFolderSelected(files) {
@@ -7009,6 +7060,7 @@
       document.getElementById("ecApplicantName").value = c.applicant_name;
       if (document.getElementById("ecCoApplicantName")) document.getElementById("ecCoApplicantName").value = c.co_applicant_name || "";
       if (document.getElementById("ecCoApplicantPhone")) document.getElementById("ecCoApplicantPhone").value = c.co_applicant_phone || "";
+      setEcApplicantMode(c.co_applicant_name ? "dual" : "single");
       if (document.getElementById("ecApplicantPhone")) document.getElementById("ecApplicantPhone").value = c.phone || "";
       if (document.getElementById("ecLoanAmount")) document.getElementById("ecLoanAmount").value = c.loan_amount || "";
       document.getElementById("ecBank").value = c.bank;
@@ -9370,11 +9422,18 @@
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Name</label>
             <input id="ecApplicantName" type="text" required class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
-          <div>
-            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Name <span class="font-normal normal-case text-outline">(leave blank for single-applicant)</span></label>
+          <div class="col-span-2">
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Case Type</label>
+            <div class="flex items-center gap-0.5 bg-surface-container-high p-0.5 rounded-full border border-outline-variant font-mono text-[10px] w-fit">
+              <button type="button" id="ecModeSingle" onclick="setEcApplicantMode('single')" class="px-3 py-1 rounded-full transition-all font-bold">Single Applicant</button>
+              <button type="button" id="ecModeDual" onclick="setEcApplicantMode('dual')" class="px-3 py-1 rounded-full transition-all font-medium">Dual Applicant</button>
+            </div>
+          </div>
+          <div id="ecCoApplicantNameWrap">
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Name</label>
             <input id="ecCoApplicantName" type="text" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
-          <div>
+          <div id="ecCoApplicantPhoneWrap">
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Phone <span class="font-normal normal-case text-outline">(optional)</span></label>
             <input id="ecCoApplicantPhone" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
