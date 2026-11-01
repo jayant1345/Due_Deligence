@@ -57,8 +57,11 @@ def compute_report_readiness(
         if _missing(field_form.get(key)):
             missing.append(_entry(key, label, "field_form", "Field Visit Form -> Residential Details"))
 
-    if _missing(field_form.get("neighbour_1")) and _missing(field_form.get("neighbour_2")):
-        missing.append(_entry("neighbours", "Neighbour References", "field_form",
+    if _missing(field_form.get("neighbour_1")):
+        missing.append(_entry("neighbour_1", "Neighbour Reference 1", "field_form",
+                               "Field Visit Form -> Residential Details -> References"))
+    if _missing(field_form.get("neighbour_2")):
+        missing.append(_entry("neighbour_2", "Neighbour Reference 2", "field_form",
                                "Field Visit Form -> Residential Details -> References"))
 
     fam = field_form.get("family_members")
