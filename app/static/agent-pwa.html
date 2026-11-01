@@ -4038,6 +4038,35 @@
               : "";
           }
 
+          // A document uploaded straight from the CA portal's "Manual Upload" tab (or a raw photo
+          // of a card/bill) never passes through the AI PDF-ingestion pipeline, so everything above
+          // (which only looks at pdf_ingest-sourced docs) never sees it. Same persistence rule as
+          // the CA dashboard's applyFieldCapturedKycFallback(): fall back to the latest raw upload
+          // of each KYC type, in its own dedicated section here too, only when no AI scan already
+          // filled that field — never overwrite a real OCR'd scan with a lesser manual photo.
+          const isPlaceholderImg = (src) => !src || src.includes("placeholders/doc_pending.svg");
+          const latestManualOfType = (type) => {
+            const matches = (docs || []).filter(d =>
+              (d.doc_type || "").toUpperCase() === type &&
+              !(d.ocr_data && d.ocr_data.source === "pdf_ingest")
+            );
+            if (!matches.length) return null;
+            matches.sort((a, b) => new Date(b.created_at_raw || b.created_at || 0) - new Date(a.created_at_raw || a.created_at || 0));
+            return matches[0];
+          };
+          if (isPlaceholderImg(c.aadhaar_front_img)) {
+            const m = latestManualOfType("AADHAAR_CARD");
+            if (m) { c.aadhaar_front_img = m.url; if (isPlaceholderImg(c.aadhaar_back_img)) c.aadhaar_back_img = m.url; }
+          }
+          if (isPlaceholderImg(c.pan_front_img)) {
+            const m = latestManualOfType("PAN_CARD");
+            if (m) { c.pan_front_img = m.url; if (isPlaceholderImg(c.pan_back_img)) c.pan_back_img = m.url; }
+          }
+          if (isPlaceholderImg(c.utility_front_img)) {
+            const m = latestManualOfType("UTILITY_BILL");
+            if (m) { c.utility_front_img = m.url; c.utility_provider = c.utility_provider || "Electricity Bill (manually uploaded)"; }
+          }
+
           // Re-render the currently visible case so the real scanned documents show up
           switchPwaCase(activeCaseKey);
           const salaryEl = document.getElementById("pwaDocIncomeSalary");
