@@ -113,7 +113,7 @@ async def get_optional_current_user(
     whoever holds that stale token full unrestricted admin-level access (e.g. every case in
     the firm instead of a 401), which is exactly what happened to a field agent's old cached
     login token after their account was deactivated."""
-    if token and token != "demo-ca-token":
+    if token and token not in ("demo-ca-token", "demo-pwa-token"):
         try:
             payload = decode_token(token)
             if payload and payload.get("type") == "access":
