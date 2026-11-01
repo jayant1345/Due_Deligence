@@ -6415,6 +6415,8 @@
       document.getElementById("ecApplicantName").value = c.applicant_name;
       if (document.getElementById("ecCoApplicantName")) document.getElementById("ecCoApplicantName").value = c.co_applicant_name || "";
       if (document.getElementById("ecCoApplicantPhone")) document.getElementById("ecCoApplicantPhone").value = c.co_applicant_phone || "";
+      if (document.getElementById("ecApplicantPhone")) document.getElementById("ecApplicantPhone").value = c.phone || "";
+      if (document.getElementById("ecLoanAmount")) document.getElementById("ecLoanAmount").value = c.loan_amount || "";
       document.getElementById("ecBank").value = c.bank;
       document.getElementById("ecBranch").value = c.branch;
       document.getElementById("ecAddress").value = c.address;
@@ -6459,6 +6461,9 @@
       const applicantName = document.getElementById("ecApplicantName").value.trim();
       const coApplicantName = document.getElementById("ecCoApplicantName") ? document.getElementById("ecCoApplicantName").value.trim() : "";
       const coApplicantPhone = document.getElementById("ecCoApplicantPhone") ? document.getElementById("ecCoApplicantPhone").value.trim() : "";
+      const applicantPhone = document.getElementById("ecApplicantPhone") ? document.getElementById("ecApplicantPhone").value.trim() : "";
+      const loanAmountRaw = document.getElementById("ecLoanAmount") ? document.getElementById("ecLoanAmount").value.trim() : "";
+      const loanAmount = loanAmountRaw ? Number(loanAmountRaw) : null;
       const bankName = document.getElementById("ecBank").value.trim();
       const branch = document.getElementById("ecBranch").value.trim();
       const address = document.getElementById("ecAddress").value.trim();
@@ -6476,10 +6481,12 @@
           headers: authHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             applicant_name: applicantName,
+            applicant_phone: applicantPhone || null,
             co_applicant_name: coApplicantName || null,
             co_applicant_phone: coApplicantPhone || null,
             bank_name: bankName,
             branch: branch,
+            loan_amount: loanAmount,
             target_address: address,
             assigned_agent_id: agentId,
             status: newStatus,
@@ -6502,6 +6509,8 @@
       c.applicant_name = applicantName;
       c.co_applicant_name = coApplicantName;
       c.co_applicant_phone = coApplicantPhone;
+      c.phone = applicantPhone;
+      c.loan_amount = loanAmount;
       c.bank = bankName;
       c.branch = branch;
       c.address = address;
@@ -8661,6 +8670,14 @@
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Phone <span class="font-normal normal-case text-outline">(optional)</span></label>
             <input id="ecCoApplicantPhone" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Contact Number</label>
+            <input id="ecApplicantPhone" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Loan Amount (Rs.)</label>
+            <input id="ecLoanAmount" type="number" min="0" step="1" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Bank Name</label>
