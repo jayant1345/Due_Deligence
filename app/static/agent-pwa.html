@@ -3936,7 +3936,17 @@
           ? (Array.isArray(allCases) ? allCases.filter(c => c.assigned_agent_id === myUserId) : [])
           : allCases;
         if (!Array.isArray(cases) || cases.length === 0) {
-          body.innerHTML = `<div class="text-center text-xs text-on-surface-variant py-8 font-mono">No cases have been assigned to you yet.</div>`;
+          let dbgUser = {};
+          try { dbgUser = JSON.parse(localStorage.getItem("pwa_user") || "{}") || {}; } catch (e) {}
+          body.innerHTML = `<div class="text-center text-xs text-on-surface-variant py-8 px-4 font-mono">
+            No cases have been assigned to you yet.
+            <div class="mt-4 text-[9px] text-outline border-t border-outline-variant pt-3 break-all">
+              Logged in as: ${(dbgUser.full_name || "unknown").replace(/</g, "&lt;")}<br/>
+              Account ID: ${myUserId || "none"}<br/>
+              Role: ${(dbgUser.role || "unknown")}<br/>
+              Total cases visible to this account: ${Array.isArray(allCases) ? allCases.length : 0}
+            </div>
+          </div>`;
           return;
         }
         cases.sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
