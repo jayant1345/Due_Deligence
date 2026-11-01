@@ -997,6 +997,10 @@
               <span class="material-symbols-outlined text-[15px]">apartment</span>
               <span>Work / Office Folder (4)</span>
             </button>
+            <button id="folderTabCoWork" onclick="switchPhotoFolder('co_work')" class="hidden px-2.5 py-1 rounded text-xs font-bold transition-all items-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high">
+              <span class="material-symbols-outlined text-[15px]">business_center</span>
+              <span>Co-Applicant Office Folder (4)</span>
+            </button>
           </div>
           <div class="flex items-center gap-1.5 font-mono text-[10px]">
             <span id="activeFolderBadge" class="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 font-bold">
@@ -1017,7 +1021,7 @@
         <div class="grid grid-cols-2 gap-2.5">
           <!-- Photo 1: Gate / Facade -->
           <div class="relative group rounded-lg overflow-hidden border border-outline-variant bg-surface-container shadow-sm flex flex-col">
-            <input type="file" id="inputPhoto1" accept="image/*" class="hidden" onchange="handlePhotoUpload(1, currentPhotoFolder === 'residence' ? 'PROPERTY_EXTERIOR' : 'OFFICE_FACADE', this.files[0])"/>
+            <input type="file" id="inputPhoto1" accept="image/*" class="hidden" onchange="handlePhotoUpload(1, manualUploadDocTypeFor(1), this.files[0])"/>
             <div class="relative h-32 sm:h-36 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(1)">
               <img id="imgPhoto1" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 1" src="/static/placeholders/photo_pending.svg"/>
               
@@ -1043,7 +1047,7 @@
 
           <!-- Photo 2: Elevation / Work Area -->
           <div class="relative group rounded-lg overflow-hidden border border-outline-variant bg-surface-container shadow-sm flex flex-col">
-            <input type="file" id="inputPhoto2" accept="image/*" class="hidden" onchange="handlePhotoUpload(2, currentPhotoFolder === 'residence' ? 'PROPERTY_EXTERIOR' : 'OFFICE_NAMEBOARD', this.files[0])"/>
+            <input type="file" id="inputPhoto2" accept="image/*" class="hidden" onchange="handlePhotoUpload(2, manualUploadDocTypeFor(2), this.files[0])"/>
             <div class="relative h-32 sm:h-36 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(2)">
               <img id="imgPhoto2" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 2" src="/static/placeholders/photo_pending.svg"/>
               
@@ -1069,7 +1073,7 @@
 
           <!-- Photo 3: Interior / Verification Desk -->
           <div class="relative group rounded-lg overflow-hidden border border-outline-variant bg-surface-container shadow-sm flex flex-col">
-            <input type="file" id="inputPhoto3" accept="image/*" class="hidden" onchange="handlePhotoUpload(3, currentPhotoFolder === 'residence' ? 'ELECTRICITY_METER' : 'OFFICE_INTERIOR', this.files[0])"/>
+            <input type="file" id="inputPhoto3" accept="image/*" class="hidden" onchange="handlePhotoUpload(3, manualUploadDocTypeFor(3), this.files[0])"/>
             <div class="relative h-32 sm:h-36 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(3)">
               <img id="imgPhoto3" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 3" src="/static/placeholders/photo_pending.svg"/>
               
@@ -1095,7 +1099,7 @@
 
           <!-- Photo 4: Person Met / Surroundings -->
           <div class="relative group rounded-lg overflow-hidden border border-outline-variant bg-surface-container shadow-sm flex flex-col">
-            <input type="file" id="inputPhoto4" accept="image/*" class="hidden" onchange="handlePhotoUpload(4, currentPhotoFolder === 'residence' ? 'NEIGHBOR_VERIFICATION' : 'OFFICE_SELFIE', this.files[0])"/>
+            <input type="file" id="inputPhoto4" accept="image/*" class="hidden" onchange="handlePhotoUpload(4, manualUploadDocTypeFor(4), this.files[0])"/>
             <div class="relative h-32 sm:h-36 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(4)">
               <img id="imgPhoto4" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 4" src="/static/placeholders/photo_pending.svg"/>
               
@@ -2433,39 +2437,68 @@
     };
 
     // Switch between Residence and Work/Office Photo Folders
+    const PHOTO_FOLDER_TABS = {
+      residence: { btnId: "folderTabResidence", icon: "home", badgeText: "📁 /residence/", badgeClass: "bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 font-bold font-mono text-[10px]" },
+      work: { btnId: "folderTabWork", icon: "apartment", badgeText: "📁 /work/", badgeClass: "bg-purple-50 text-purple-800 px-2 py-0.5 rounded border border-purple-200 font-bold font-mono text-[10px]" },
+      co_work: { btnId: "folderTabCoWork", icon: "business_center", badgeText: "📁 /co_work/", badgeClass: "bg-amber-50 text-amber-800 px-2 py-0.5 rounded border border-amber-200 font-bold font-mono text-[10px]" },
+    };
+
     function switchPhotoFolder(folder) {
       currentPhotoFolder = folder;
-      const btnRes = document.getElementById("folderTabResidence");
-      const btnWork = document.getElementById("folderTabWork");
       const badge = document.getElementById("activeFolderBadge");
 
-      if (folder === "residence") {
-        btnRes.className = "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 bg-primary-container text-white shadow-sm";
-        btnWork.className = "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high";
-        if (badge) {
-          badge.textContent = "📁 /residence/";
-          badge.className = "bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 font-bold font-mono text-[10px]";
-        }
-      } else {
-        btnWork.className = "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 bg-primary-container text-white shadow-sm";
-        btnRes.className = "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high";
-        if (badge) {
-          badge.textContent = "📁 /work/";
-          badge.className = "bg-purple-50 text-purple-800 px-2 py-0.5 rounded border border-purple-200 font-bold font-mono text-[10px]";
-        }
+      Object.entries(PHOTO_FOLDER_TABS).forEach(([key, tab]) => {
+        const btn = document.getElementById(tab.btnId);
+        if (!btn) return;
+        const isActive = key === folder;
+        const display = btn.classList.contains("hidden") ? "hidden " : "";
+        btn.className = `${display}px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${
+          isActive ? "bg-primary-container text-white shadow-sm" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
+        }`;
+      });
+
+      const activeTab = PHOTO_FOLDER_TABS[folder] || PHOTO_FOLDER_TABS.residence;
+      if (badge) {
+        badge.textContent = activeTab.badgeText;
+        badge.className = activeTab.badgeClass;
       }
 
       renderPhotosForActiveFolder();
     }
 
-    // Render 4 photos dynamically for active folder (Residence vs Work)
+    // Co-Applicant Office tab only makes sense for dual-applicant cases - keep it hidden
+    // otherwise instead of showing an always-empty third folder.
+    function updateCoWorkFolderTabVisibility(c) {
+      const btn = document.getElementById("folderTabCoWork");
+      if (!btn) return;
+      const hasCoApplicant = Boolean(c && c.co_applicant_name);
+      btn.classList.toggle("hidden", !hasCoApplicant);
+      if (!hasCoApplicant && currentPhotoFolder === "co_work") {
+        switchPhotoFolder("residence");
+      }
+    }
+
+    // Manual-upload doc_type for the dashboard's 4-slot grid, matching whichever of the
+    // Residence / Work / Co-Applicant Office folders is currently active.
+    function manualUploadDocTypeFor(index) {
+      const byFolder = {
+        residence: { 1: "PROPERTY_EXTERIOR", 2: "PROPERTY_EXTERIOR", 3: "ELECTRICITY_METER", 4: "NEIGHBOR_VERIFICATION" },
+        work: { 1: "OFFICE_FACADE", 2: "OFFICE_NAMEBOARD", 3: "OFFICE_INTERIOR", 4: "OFFICE_SELFIE" },
+        co_work: { 1: "CO_OFFICE_FACADE", 2: "CO_OFFICE_NAMEBOARD", 3: "CO_OFFICE_INTERIOR", 4: "CO_OFFICE_SELFIE" },
+      };
+      return (byFolder[currentPhotoFolder] || byFolder.residence)[index];
+    }
+
+    // Render 4 photos dynamically for active folder (Residence vs Work vs Co-Applicant Office)
     function renderPhotosForActiveFolder() {
       const c = caseRegistry[activeCaseId];
       if (!c) return;
 
-      const photoList = (currentPhotoFolder === "residence") 
-        ? (c.residence_photos || c.photos) 
-        : (c.work_photos || c.photos);
+      const photoList = currentPhotoFolder === "residence"
+        ? (c.residence_photos || c.photos)
+        : currentPhotoFolder === "co_work"
+          ? (c.co_work_photos || [])
+          : (c.work_photos || c.photos);
 
       for (let i = 1; i <= 4; i++) {
         const p = photoList[i - 1];
@@ -3028,7 +3061,16 @@
           return tB - tA;
         });
         const selfieDoc = selfieDocs[0];
+        // Co-applicant office photos (folder "co_work", doc_type CO_OFFICE_*) must never be
+        // treated as the applicant's own work photos - dt.includes("OFFICE") would otherwise
+        // match "CO_OFFICE_FACADE" too and the two sets would silently compete for the same 4
+        // slots, with whichever side uploaded most recently winning and the other vanishing.
+        const isCoWorkDoc = (d) => {
+          if (d.folder === "co_work" || (d.ocr_data && d.ocr_data.folder === "co_work")) return true;
+          return (d.doc_type || "").toUpperCase().startsWith("CO_OFFICE");
+        };
         const isWorkDoc = (d) => {
+          if (isCoWorkDoc(d)) return false;
           if (d.folder === "work" || (d.ocr_data && d.ocr_data.folder === "work")) return true;
           const dt = (d.doc_type || "").toUpperCase();
           return ["OFFICE_FACADE", "OFFICE_NAMEBOARD", "OFFICE_INTERIOR", "OFFICE_SELFIE", "WORK_FACADE", "WORK_OFFICE", "WORK_DESK", "WORK_APPROACH"].includes(dt) ||
@@ -3045,6 +3087,7 @@
           !(d.doc_type && d.doc_type.toLowerCase().includes("selfie")) &&
           !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
           !isWorkDoc(d) &&
+          !isCoWorkDoc(d) &&
           !isKycDoc(d) &&
           (d.folder === "residence" || (d.ocr_data && d.ocr_data.folder === "residence") || (d.slot_number && d.slot_number >= 1 && d.slot_number <= 4) || SITE_EVIDENCE_TYPES.includes(d.doc_type))
         );
@@ -3269,9 +3312,99 @@
           }
         }
 
+        // 4. Process Co-Applicant Office Evidence Photos (dual-applicant cases only) - same
+        // 4-slot mapping as the applicant's own Work/Office folder, kept completely separate
+        // so the two don't compete for the same slots.
+        const coWorkDocs = (docs || []).filter(d =>
+          d.doc_type !== "AGENT_SELFIE" &&
+          !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
+          !isKycDoc(d) &&
+          isCoWorkDoc(d)
+        );
+        coWorkDocs.sort((a, b) => {
+          const tA = new Date(a.created_at_raw || a.created_at || 0).getTime();
+          const tB = new Date(b.created_at_raw || b.created_at || 0).getTime();
+          return tB - tA;
+        });
+
+        const coWorkSlotMap = { 1: null, 2: null, 3: null, 4: null };
+        coWorkDocs.forEach((d, idx) => {
+          const slot = getWorkDocSlot(d, idx + 1);
+          if (slot >= 1 && slot <= 4 && !coWorkSlotMap[slot]) coWorkSlotMap[slot] = d;
+        });
+        coWorkDocs.forEach(d => {
+          const isAssigned = Object.values(coWorkSlotMap).some(assigned => assigned && assigned.id === d.id);
+          if (!isAssigned) {
+            for (let s = 1; s <= 4; s++) {
+              if (!coWorkSlotMap[s]) { coWorkSlotMap[s] = d; break; }
+            }
+          }
+        });
+        for (let s = 1; s <= 4; s++) {
+          if (!coWorkSlotMap[s]) {
+            const cachedPwa = localStorage.getItem(`pwa_evidence_${caseId}_co_office_slot_${s}`) ||
+                              (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_co_office_slot_${s}`) : null) ||
+                              (c.db_id ? localStorage.getItem(`pwa_evidence_${c.db_id}_co_office_slot_${s}`) : null);
+            if (cachedPwa) {
+              try {
+                const parsed = JSON.parse(cachedPwa);
+                coWorkSlotMap[s] = {
+                  url: parsed.src,
+                  created_at: parsed.timestamp || "Just now (Mobile PWA Upload)",
+                  latitude: parsed.lat || 23.2154,
+                  longitude: parsed.lon || 72.6367,
+                  is_geofence_valid: true
+                };
+              } catch (e) {}
+            }
+          }
+        }
+
+        const coWorkTitles = {
+          1: "Co-Applicant Workplace Facade (Photo 1)",
+          2: "Co-Applicant Office Signboard (Photo 2)",
+          3: "Co-Applicant Workstation / Desk (Photo 3)",
+          4: "Field Staff at Co-Applicant Workplace (Photo 4)"
+        };
+        const coWorkTags = {
+          1: "SLOT 1: CO-APPLICANT WORKPLACE FACADE",
+          2: "SLOT 2: CO-APPLICANT OFFICE NAMEBOARD",
+          3: "SLOT 3: CO-APPLICANT WORK AREA",
+          4: "SLOT 4: CO-APPLICANT WORKPLACE VERIFICATION"
+        };
+        const defaultCoWorkSpecimens = {
+          1: { src: "/static/placeholders/photo_pending.svg", title: coWorkTitles[1], tag: coWorkTags[1], timestamp: "Pending", badge: "AWAITING UPLOAD", status: "PENDING" },
+          2: { src: "/static/placeholders/photo_pending.svg", title: coWorkTitles[2], tag: coWorkTags[2], timestamp: "Pending", badge: "AWAITING UPLOAD", status: "PENDING" },
+          3: { src: "/static/placeholders/photo_pending.svg", title: coWorkTitles[3], tag: coWorkTags[3], timestamp: "Pending", badge: "AWAITING UPLOAD", status: "PENDING" },
+          4: { src: "/static/placeholders/photo_pending.svg", title: coWorkTitles[4], tag: coWorkTags[4], timestamp: "Pending", badge: "AWAITING UPLOAD", status: "PENDING" }
+        };
+
+        const finalCoWorkPhotos = [];
+        for (let s = 1; s <= 4; s++) {
+          const d = coWorkSlotMap[s];
+          if (d) {
+            finalCoWorkPhotos.push({
+              src: d.url,
+              title: coWorkTitles[s],
+              tag: coWorkTags[s],
+              timestamp: d.created_at || "Just now",
+              badge: d.is_geofence_valid ? `GPS: ${d.latitude ? d.latitude.toFixed(4) : '23.2154'}°N, ${d.longitude ? d.longitude.toFixed(4) : '72.6367'}°E (VERIFIED)` : `GPS: ${d.latitude ? d.latitude.toFixed(4) : ''}° (BREACH)`,
+              status: d.is_geofence_valid ? "MATCH" : "FLAGGED",
+              is_live: true,
+              lat: d.latitude,
+              lon: d.longitude
+            });
+          } else {
+            finalCoWorkPhotos.push(defaultCoWorkSpecimens[s]);
+          }
+        }
+
         c.residence_photos = finalPhotos;
         c.work_photos = finalWorkPhotos;
-        c.photos = (currentPhotoFolder === 'residence' ? finalPhotos : finalWorkPhotos).map(p => p.src);
+        c.co_work_photos = finalCoWorkPhotos;
+        c.photos = (currentPhotoFolder === 'residence' ? finalPhotos : currentPhotoFolder === 'co_work' ? finalCoWorkPhotos : finalWorkPhotos).map(p => p.src);
+
+        updateCoWorkFolderTabVisibility(c);
 
         // Update active folder photos in DOM
         renderPhotosForActiveFolder();
@@ -4404,7 +4537,11 @@
       // Update in-memory case registry
       const c = caseRegistry[activeCaseId];
       if (c) {
-        const targetList = (currentPhotoFolder === 'residence') ? c.residence_photos : c.work_photos;
+        const targetList = currentPhotoFolder === 'residence'
+          ? c.residence_photos
+          : currentPhotoFolder === 'co_work'
+            ? c.co_work_photos
+            : c.work_photos;
         if (targetList && targetList[index - 1]) {
           targetList[index - 1].src = previewUrl;
           targetList[index - 1].status = "MANUAL ACTIVE";
