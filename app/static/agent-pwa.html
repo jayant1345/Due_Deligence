@@ -3925,6 +3925,18 @@
 
       try {
         const res = await fetch("/api/v1/cases", { headers: { "Authorization": `Bearer ${token}` } });
+        if (res.status === 401) {
+          // The account behind this token was deactivated (or the token expired) since login.
+          // Clear the stale session instead of leaving the agent looking "logged in" while every
+          // API call silently fails.
+          localStorage.removeItem("pwa_token");
+          localStorage.removeItem("pwa_user");
+          body.innerHTML = `<div class="text-center text-xs text-rose-700 py-8 px-4 font-mono">
+            Your session is no longer valid (account deactivated or login expired).
+            Please close this and log in again.
+          </div>`;
+          return;
+        }
         if (!res.ok) throw new Error("fetch failed");
         const allCases = await res.json();
         // GET /api/v1/cases returns every case in the firm (the same endpoint the CA dashboard

@@ -106,7 +106,13 @@ async def get_optional_current_user(
     db: AsyncSession = Depends(get_db),
     token: Optional[str] = Depends(oauth2_optional_scheme),
 ) -> Optional[User]:
-    """Retrieves current user if token present; falls back to default admin in development."""
+    """Retrieves current user if token present; falls back to default admin ONLY when no
+    token was supplied at all (direct portal access during development). A token that WAS
+    supplied but fails to resolve - expired, tampered, or belonging to a now-deactivated
+    account - must never silently fall through to the admin fallback below: that would hand
+    whoever holds that stale token full unrestricted admin-level access (e.g. every case in
+    the firm instead of a 401), which is exactly what happened to a field agent's old cached
+    login token after their account was deactivated."""
     if token and token != "demo-ca-token":
         try:
             payload = decode_token(token)
@@ -119,8 +125,13 @@ async def get_optional_current_user(
                     return user
         except Exception:
             pass
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or account deactivated. Please log in again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    # Fallback to default admin user for direct portal and development access
+    # No token at all: fall back to default admin user for direct portal and development access
     admin_query = select(User).where(User.role == UserRole.SUPER_ADMIN)
     res = await db.execute(admin_query)
     return res.scalars().first()
