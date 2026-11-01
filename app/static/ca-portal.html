@@ -4865,6 +4865,7 @@
       renderViewerCurrentDoc();
 
       modal.classList.remove("hidden");
+      preloadViewerNeighborImages();
     }
 
     function openSeparatedDocViewer(startIndex = 0) {
@@ -4937,6 +4938,7 @@
       }
 
       if (frontImg) {
+        frontImg.setAttribute("fetchpriority", "high");
         frontImg.src = resolvedSrc;
         frontImg.onerror = function() {
           if (this.src.includes("/storage/separated_docs/")) {
@@ -4995,6 +4997,22 @@
       updateBulkDeleteBar();
       resetDocZoom();
       initZoomPanHandlers();
+      preloadViewerNeighborImages();
+    }
+
+    const preloadedViewerImageSrcs = new Set();
+    function preloadViewerNeighborImages() {
+      if (!viewerDocList || viewerDocList.length === 0) return;
+      // Fetch the next couple of pages in the background at full resolution so Next/Prev shows
+      // an already-decoded image instead of waiting on a fresh network request each click.
+      [viewerCurrentIndex + 1, viewerCurrentIndex - 1, viewerCurrentIndex + 2, viewerCurrentIndex - 2].forEach((idx) => {
+        if (idx < 0 || idx >= viewerDocList.length) return;
+        const item = viewerDocList[idx];
+        if (!item || !item.src || preloadedViewerImageSrcs.has(item.src)) return;
+        preloadedViewerImageSrcs.add(item.src);
+        const img = new Image();
+        img.src = item.src;
+      });
     }
 
     function viewerPrevDoc() {
@@ -5098,6 +5116,12 @@
         }
 
         const img = document.createElement("img");
+        // Thumbnails reuse the same full-resolution file as the main viewer image (there is no
+        // separate small-thumbnail asset). Marking them lazy + low priority stops the browser
+        // from burning bandwidth/decode time on 30+ full-size downloads ahead of the one image
+        // the user is actually looking at, which was making Next/Prev feel stuck.
+        img.loading = "lazy";
+        img.setAttribute("fetchpriority", "low");
         img.src = d.src;
         img.className = "w-full h-12 object-cover rounded pointer-events-none";
         img.onerror = function() {
@@ -5125,7 +5149,9 @@
           const isActive = idx === viewerCurrentIndex;
           if (isActive) {
             thumb.className = "relative shrink-0 w-14 h-18 rounded border-2 border-amber-400 ring-2 ring-amber-400/50 scale-105 overflow-hidden cursor-pointer transition-all bg-slate-900 flex flex-col items-center justify-between p-0.5 opacity-100 shadow-md";
-            thumb.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+            // "auto" (instant) instead of "smooth" - a smooth scroll animation queues up and lags
+            // behind when the user clicks Next/Prev repeatedly in quick succession.
+            thumb.scrollIntoView({ behavior: "auto", block: "nearest", inline: "center" });
           } else if (isSelected) {
             thumb.className = "relative shrink-0 w-14 h-18 rounded border-2 border-red-500 ring-1 ring-red-400 bg-red-950/40 overflow-hidden cursor-pointer transition-all flex flex-col items-center justify-between p-0.5 opacity-100";
           } else {
