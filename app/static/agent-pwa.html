@@ -4197,6 +4197,8 @@
 
         for (let s = 1; s <= 4; s++) {
           const d = serverResSlotMap[s];
+          const cacheKey1 = `pwa_evidence_${sampleCaseId}_slot_${s}`;
+          const cacheKey2 = `pwa_evidence_${activeCaseKey}_slot_${s}`;
           if (d) {
             uploadedResidenceSlots[s] = true;
             uploadedSlots[s] = true;
@@ -4217,9 +4219,32 @@
                 lon: d.longitude || 72.6367,
                 doc_type: d.doc_type
               });
-              localStorage.setItem(`pwa_evidence_${sampleCaseId}_slot_${s}`, resPayload);
-              localStorage.setItem(`pwa_evidence_${activeCaseKey}_slot_${s}`, resPayload);
+              localStorage.setItem(cacheKey1, resPayload);
+              localStorage.setItem(cacheKey2, resPayload);
             } catch(e) {}
+          } else {
+            // No server document for this slot right now. Only clear the cached "uploaded" badge
+            // if what's cached was itself a server-confirmed photo (a /storage/... URL) that has
+            // since been deleted server-side (e.g. a misfiled duplicate removed from the CA
+            // dashboard) - never touch a locally-captured-but-not-yet-synced photo (a blob:/data:
+            // URL from the camera), which is real pending field work waiting to sync, not stale cache.
+            let cached = null;
+            try { cached = JSON.parse(localStorage.getItem(cacheKey2) || localStorage.getItem(cacheKey1) || "null"); } catch (e) {}
+            if (cached && typeof cached.src === "string" && cached.src.startsWith("/storage/")) {
+              localStorage.removeItem(cacheKey1);
+              localStorage.removeItem(cacheKey2);
+              uploadedResidenceSlots[s] = false;
+              uploadedSlots[s] = false;
+              const bRes = document.getElementById(`slot${s}Badge`);
+              const btnRes = document.getElementById(`slot${s}BtnText`);
+              const thumbRes = document.getElementById(`slot${s}Thumb`);
+              if (bRes) {
+                bRes.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
+                bRes.textContent = "PENDING";
+              }
+              if (btnRes) btnRes.textContent = "Capture Photo";
+              if (thumbRes) thumbRes.innerHTML = `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
+            }
           }
         }
 
@@ -4258,6 +4283,8 @@
 
         for (let s = 1; s <= 4; s++) {
           const d = serverOffSlotMap[s];
+          const offCacheKey1 = `pwa_evidence_${sampleCaseId}_office_slot_${s}`;
+          const offCacheKey2 = `pwa_evidence_${activeCaseKey}_office_slot_${s}`;
           if (d) {
             uploadedOfficeSlots[s] = true;
             const bOff = document.getElementById(`slotOffice${s}Badge`);
@@ -4277,9 +4304,28 @@
                 lon: d.longitude || 72.6367,
                 doc_type: d.doc_type
               });
-              localStorage.setItem(`pwa_evidence_${sampleCaseId}_office_slot_${s}`, offPayload);
-              localStorage.setItem(`pwa_evidence_${activeCaseKey}_office_slot_${s}`, offPayload);
+              localStorage.setItem(offCacheKey1, offPayload);
+              localStorage.setItem(offCacheKey2, offPayload);
             } catch(e) {}
+          } else {
+            // Same "only clear a server-confirmed photo that's since been deleted, never a
+            // locally-captured-but-unsynced one" rule as the residence slots above.
+            let cached = null;
+            try { cached = JSON.parse(localStorage.getItem(offCacheKey2) || localStorage.getItem(offCacheKey1) || "null"); } catch (e) {}
+            if (cached && typeof cached.src === "string" && cached.src.startsWith("/storage/")) {
+              localStorage.removeItem(offCacheKey1);
+              localStorage.removeItem(offCacheKey2);
+              uploadedOfficeSlots[s] = false;
+              const bOff = document.getElementById(`slotOffice${s}Badge`);
+              const btnOff = document.getElementById(`slotOffice${s}BtnText`);
+              const thumbOff = document.getElementById(`slotOffice${s}Thumb`);
+              if (bOff) {
+                bOff.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
+                bOff.textContent = "PENDING";
+              }
+              if (btnOff) btnOff.textContent = "Capture Photo";
+              if (thumbOff) thumbOff.innerHTML = `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
+            }
           }
         }
         updateEvidenceProgress();
