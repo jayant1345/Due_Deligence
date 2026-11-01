@@ -3971,6 +3971,19 @@
 
       const combineBtn = document.getElementById("btnDownloadCombinedForm16");
       if (combineBtn) combineBtn.classList.toggle("hidden", !activeSeparatedDocs.some(d => d.doc_type === "FORM_16"));
+
+      updateBulkDeleteBar();
+
+      // If full-mode document inspection viewer is open, refresh its documents playlist
+      const zoomModal = document.getElementById("docZoomModal");
+      if (zoomModal && !zoomModal.classList.contains("hidden")) {
+        if (activeSeparatedDocs.length === 0) {
+          closeDocZoomModal();
+        } else {
+          const nextIndex = Math.min(viewerCurrentIndex, activeSeparatedDocs.length - 1);
+          openSeparatedDocViewer(nextIndex);
+        }
+      }
     }
 
     // Combine every scanned Form 16 page for the active case into one downloadable PDF.
@@ -4057,12 +4070,83 @@
     }
 
     function updateBulkDeleteBar() {
+      const n = selectedSeparatedDocIds.size;
+
+      // Dashboard tray bulk delete button
       const btn = document.getElementById("btnDeleteSelectedDocs");
       const txt = document.getElementById("btnDeleteSelectedDocsText");
-      if (!btn) return;
-      const n = selectedSeparatedDocIds.size;
-      btn.classList.toggle("hidden", n === 0);
+      if (btn) btn.classList.toggle("hidden", n === 0);
       if (txt) txt.textContent = `Delete Selected (${n})`;
+
+      // Full-mode document viewer bulk delete button
+      const viewerBtn = document.getElementById("viewerBtnDeleteSelected");
+      const viewerTxt = document.getElementById("viewerBtnDeleteSelectedText");
+      if (viewerBtn) viewerBtn.classList.toggle("hidden", n === 0);
+      if (viewerTxt) viewerTxt.textContent = `Delete Selected (${n})`;
+
+      // Full-mode viewer current page checkbox
+      const curCheck = document.getElementById("viewerCurrentPageCheckbox");
+      if (curCheck && viewerDocList && viewerDocList[viewerCurrentIndex]) {
+        const curDoc = viewerDocList[viewerCurrentIndex];
+        curCheck.checked = Boolean(curDoc.id && selectedSeparatedDocIds.has(curDoc.id));
+        curCheck.disabled = !curDoc.id;
+      }
+
+      // Viewer Select All / Deselect All button text
+      const selectAllBtn = document.getElementById("viewerBtnSelectAll");
+      if (selectAllBtn && viewerDocList && viewerDocList.length > 0) {
+        const hasSelectable = viewerDocList.some(d => d.id);
+        const allSelected = hasSelectable && viewerDocList.every(d => !d.id || selectedSeparatedDocIds.has(d.id));
+        selectAllBtn.textContent = allSelected ? "Deselect All" : "Select All";
+      }
+
+      // Update checkboxes in bottom thumbnail carousel strip
+      document.querySelectorAll(".viewer-thumb-checkbox").forEach(cb => {
+        const docId = cb.dataset.docId;
+        if (docId) cb.checked = selectedSeparatedDocIds.has(docId);
+      });
+    }
+
+    function toggleCurrentViewerDocSelect(checked) {
+      if (!viewerDocList || !viewerDocList[viewerCurrentIndex]) return;
+      const d = viewerDocList[viewerCurrentIndex];
+      if (!d.id) {
+        alert("This page cannot be selected yet (still processing).");
+        return;
+      }
+      if (checked) {
+        selectedSeparatedDocIds.add(d.id);
+      } else {
+        selectedSeparatedDocIds.delete(d.id);
+      }
+      updateBulkDeleteBar();
+      updateViewerThumbstripActive();
+    }
+
+    function toggleViewerSelectAll() {
+      if (!viewerDocList || viewerDocList.length === 0) return;
+      const hasSelectable = viewerDocList.some(d => d.id);
+      if (!hasSelectable) return;
+      const allSelected = viewerDocList.every(d => !d.id || selectedSeparatedDocIds.has(d.id));
+      if (allSelected) {
+        selectedSeparatedDocIds.clear();
+      } else {
+        viewerDocList.forEach(d => {
+          if (d.id) selectedSeparatedDocIds.add(d.id);
+        });
+      }
+      updateBulkDeleteBar();
+      updateViewerThumbstripActive();
+    }
+
+    async function deleteCurrentViewerDoc() {
+      if (!viewerDocList || !viewerDocList[viewerCurrentIndex]) return;
+      const d = viewerDocList[viewerCurrentIndex];
+      if (!d.id) {
+        alert("This page cannot be removed right now.");
+        return;
+      }
+      await deleteSeparatedDocument(d.id, d.title || d.shortType || "this page");
     }
 
     async function deleteSelectedSeparatedDocuments() {
@@ -4073,6 +4157,8 @@
       const caseId = gfServerId(caseRegistry[activeCaseId]) || activeCaseId;
       const btn = document.getElementById("btnDeleteSelectedDocsText");
       if (btn) btn.textContent = "Deleting...";
+      const vBtn = document.getElementById("viewerBtnDeleteSelectedText");
+      if (vBtn) vBtn.textContent = "Deleting...";
 
       const results = await Promise.allSettled(ids.map(id =>
         fetch(`/api/v1/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(id)}`, {
@@ -4082,9 +4168,7 @@
       ));
       const failed = results.filter(r => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
 
-      // Re-fetch from the server rather than just removing thumbnails locally, so the
-      // cross-document AI summary (PAN/Aadhaar consensus, other-people list) recomputes
-      // correctly now that these pages are gone.
+      // Re-fetch from the server so the tray, cross-check summary, and full-mode viewer update
       await loadSeparatedCaseDocs(caseId);
 
       if (failed > 0) {
@@ -4895,6 +4979,7 @@
       if (floatNext) floatNext.disabled = isLast;
 
       updateViewerThumbstripActive();
+      updateBulkDeleteBar();
       resetDocZoom();
       initZoomPanHandlers();
     }
@@ -4963,11 +5048,41 @@
       }
 
       viewerDocList.forEach((d, idx) => {
+        const isSelected = Boolean(d.id && selectedSeparatedDocIds.has(d.id));
+        const isActive = idx === viewerCurrentIndex;
+
         const thumb = document.createElement("div");
         thumb.id = `viewerThumb_${idx}`;
-        thumb.className = `relative shrink-0 w-14 h-18 rounded border-2 overflow-hidden cursor-pointer transition-all bg-slate-950 flex flex-col items-center justify-between p-0.5 ${idx === viewerCurrentIndex ? 'border-amber-400 ring-2 ring-amber-400/50 scale-105' : 'border-white/20 opacity-70 hover:opacity-100 hover:border-white/60'}`;
-        thumb.title = `Jump to Page ${d.pageNumber || (idx + 1)}: ${d.title || ''}`;
+        thumb.className = `relative shrink-0 w-14 h-18 rounded border-2 overflow-hidden cursor-pointer transition-all bg-slate-950 flex flex-col items-center justify-between p-0.5 ${
+          isActive 
+            ? 'border-amber-400 ring-2 ring-amber-400/50 scale-105 opacity-100 shadow-md' 
+            : isSelected 
+              ? 'border-red-500 ring-1 ring-red-400 bg-red-950/40 opacity-100' 
+              : 'border-white/20 opacity-70 hover:opacity-100 hover:border-white/60'
+        }`;
+        thumb.title = `Jump to Page ${d.pageNumber || (idx + 1)}: ${d.title || ''}${isSelected ? ' • [Selected for deletion]' : ''}`;
         thumb.onclick = () => viewerJumpToPage(idx);
+
+        // Checkbox on top-left of each thumbnail for bulk selection
+        if (d.id) {
+          const checkLabel = document.createElement("label");
+          checkLabel.className = "absolute top-0.5 left-0.5 w-4 h-4 rounded bg-black/85 border border-white/60 flex items-center justify-center cursor-pointer z-10 hover:bg-black";
+          checkLabel.onclick = (ev) => ev.stopPropagation();
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.dataset.docId = d.id;
+          checkbox.className = "viewer-thumb-checkbox w-3 h-3 accent-amber-500 cursor-pointer";
+          checkbox.checked = isSelected;
+          checkbox.onclick = (ev) => {
+            ev.stopPropagation();
+            if (checkbox.checked) selectedSeparatedDocIds.add(d.id);
+            else selectedSeparatedDocIds.delete(d.id);
+            updateBulkDeleteBar();
+            updateViewerThumbstripActive();
+          };
+          checkLabel.appendChild(checkbox);
+          thumb.appendChild(checkLabel);
+        }
 
         const img = document.createElement("img");
         img.src = d.src;
@@ -4979,7 +5094,7 @@
         };
 
         const badge = document.createElement("div");
-        badge.className = "w-full text-center text-[8px] font-mono font-bold text-white bg-black/80 truncate px-0.5 rounded";
+        badge.className = `w-full text-center text-[8px] font-mono font-bold text-white ${isSelected ? 'bg-red-700/90' : 'bg-black/80'} truncate px-0.5 rounded`;
         badge.textContent = `P${d.pageNumber || (idx + 1)}`;
 
         thumb.appendChild(img);
@@ -4990,14 +5105,24 @@
 
     function updateViewerThumbstripActive() {
       if (!viewerDocList || viewerDocList.length <= 1) return;
-      viewerDocList.forEach((_, idx) => {
+      viewerDocList.forEach((d, idx) => {
         const thumb = document.getElementById(`viewerThumb_${idx}`);
         if (thumb) {
-          if (idx === viewerCurrentIndex) {
+          const isSelected = Boolean(d.id && selectedSeparatedDocIds.has(d.id));
+          const isActive = idx === viewerCurrentIndex;
+          if (isActive) {
             thumb.className = "relative shrink-0 w-14 h-18 rounded border-2 border-amber-400 ring-2 ring-amber-400/50 scale-105 overflow-hidden cursor-pointer transition-all bg-slate-900 flex flex-col items-center justify-between p-0.5 opacity-100 shadow-md";
             thumb.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+          } else if (isSelected) {
+            thumb.className = "relative shrink-0 w-14 h-18 rounded border-2 border-red-500 ring-1 ring-red-400 bg-red-950/40 overflow-hidden cursor-pointer transition-all flex flex-col items-center justify-between p-0.5 opacity-100";
           } else {
             thumb.className = "relative shrink-0 w-14 h-18 rounded border-2 border-white/20 opacity-70 hover:opacity-100 hover:border-white/60 overflow-hidden cursor-pointer transition-all bg-slate-950 flex flex-col items-center justify-between p-0.5 hover:scale-105";
+          }
+          const cb = thumb.querySelector(".viewer-thumb-checkbox");
+          if (cb && d.id) cb.checked = isSelected;
+          const badge = thumb.querySelector("div:last-child");
+          if (badge) {
+            badge.className = `w-full text-center text-[8px] font-mono font-bold text-white ${isSelected ? 'bg-red-700/90' : 'bg-black/80'} truncate px-0.5 rounded`;
           }
         }
       });
@@ -7271,6 +7396,19 @@
           e.preventDefault();
           const pInput = document.getElementById("viewerPageJumpInput");
           if (pInput) { pInput.focus(); pInput.select(); }
+        } else if (e.key === "x" || e.key === "X") {
+          e.preventDefault();
+          const curDoc = viewerDocList && viewerDocList[viewerCurrentIndex];
+          if (curDoc && curDoc.id) {
+            toggleCurrentViewerDocSelect(!selectedSeparatedDocIds.has(curDoc.id));
+          }
+        } else if (e.key === "Delete") {
+          e.preventDefault();
+          if (selectedSeparatedDocIds.size > 0) {
+            deleteSelectedSeparatedDocuments();
+          } else {
+            deleteCurrentViewerDoc();
+          }
         } else if (e.key === " " || e.key === "f" || e.key === "F") {
           e.preventDefault();
           flipZoomCard();
@@ -8191,6 +8329,27 @@
         
         <!-- Controls Toolbar -->
         <div class="flex items-center gap-1 sm:gap-1.5 shrink-0 flex-wrap justify-end">
+          <!-- MULTI-SELECT & DELETE CONTROLS -->
+          <div id="viewerMultiSelectToolbar" class="flex items-center gap-1 sm:gap-1.5 bg-surface-container-high px-1.5 py-0.5 rounded-lg border border-outline-variant font-mono text-xs">
+            <label id="viewerCurrentPageCheckLabel" class="inline-flex items-center gap-1 px-2 py-1 rounded bg-surface-container-lowest hover:bg-surface-container border border-outline-variant/60 cursor-pointer text-xs font-bold text-on-surface transition-colors" title="Select / Deselect this page for bulk deletion [X]">
+              <input type="checkbox" id="viewerCurrentPageCheckbox" onchange="toggleCurrentViewerDocSelect(this.checked)" class="w-3.5 h-3.5 accent-amber-500 cursor-pointer rounded"/>
+              <span class="text-[11px] hidden md:inline">Select</span>
+            </label>
+
+            <button type="button" id="viewerBtnSelectAll" onclick="toggleViewerSelectAll()" class="px-2 py-1 rounded hover:bg-surface-container text-on-surface font-bold text-[11px] hidden sm:inline-block transition-colors" title="Select or Deselect all pages">
+              Select All
+            </button>
+
+            <button type="button" id="viewerBtnDeleteSelected" onclick="deleteSelectedSeparatedDocuments()" class="hidden px-2.5 py-1 rounded-md bg-red-600 hover:bg-red-700 text-white font-headline font-bold text-[11px] flex items-center gap-1 shadow-xs transition-all" title="Remove all selected pages from case">
+              <span class="material-symbols-outlined text-[14px]">delete_sweep</span>
+              <span id="viewerBtnDeleteSelectedText">Delete Selected (0)</span>
+            </button>
+
+            <button type="button" onclick="deleteCurrentViewerDoc()" class="p-1 rounded hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors" title="Delete this current page from case [Del]">
+              <span class="material-symbols-outlined text-[16px]">delete</span>
+            </button>
+          </div>
+
           <!-- Zoom & Transform Controls -->
           <div class="inline-flex items-center bg-surface-container-high px-1 py-0.5 rounded-lg border border-outline-variant text-xs gap-0.5 font-mono">
             <button type="button" onclick="zoomDocModal(-0.25)" class="p-1 rounded hover:bg-surface-container text-on-surface" title="Zoom Out (-)">
@@ -8318,7 +8477,7 @@
           <span class="hidden sm:inline">High-Resolution Full Page Viewer • Drag to pan • Scroll to zoom • Double click to toggle</span>
           <span class="sm:hidden">Drag to pan • Scroll to zoom</span>
         </div>
-        <span class="text-outline text-[11px] font-semibold">Shortcuts: [←] / [→] Browse • [J] Jump Page • [+] / [-] Zoom • [0] Reset • [Space/F] Flip • [Esc] Close</span>
+        <span class="text-outline text-[11px] font-semibold">Shortcuts: [←] / [→] Browse • [X] Select Page • [Del] Delete • [J] Jump Page • [+] / [-] Zoom • [Space/F] Flip • [Esc] Close</span>
       </div>
     </div>
   </div>
