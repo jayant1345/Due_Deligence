@@ -4872,23 +4872,11 @@
       }
 
       if (!token || token === "demo-ca-token") {
-        fetch("/api/v1/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "admin", password: "admin@123" })
-        }).then(r => r.ok ? r.json() : null).then(data => {
-          if (data && data.access_token) {
-            localStorage.setItem("ca_token", data.access_token);
-            localStorage.setItem("ca_user", JSON.stringify(data));
-            if (document.getElementById("caUserFullName") && data.full_name) {
-              document.getElementById("caUserFullName").textContent = data.full_name;
-            }
-            if (document.getElementById("caUserRoleTag") && data.role) {
-              document.getElementById("caUserRoleTag").textContent = `${data.role.toLowerCase()} • Logged In`;
-            }
-          }
-        }).catch(() => {});
-        if (modal) modal.classList.add("hidden");
+        // Previously this silently logged in as admin using a hardcoded username/password
+        // right here in the page's own JavaScript - anyone who opened this URL with no stored
+        // session got instant full admin access, and anyone who viewed page source could read
+        // the password outright. Require a real login instead.
+        if (modal) modal.classList.remove("hidden");
       } else {
         if (modal) modal.classList.add("hidden");
         if (userJson) {
@@ -4971,11 +4959,6 @@
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<span>Sign In to CA Scrutiny Desk</span><span class="material-symbols-outlined text-[18px]">login</span>`;
       }
-    }
-
-    function fillAdminDemoCredentials() {
-      document.getElementById("caLoginUsername").value = "admin";
-      document.getElementById("caLoginPassword").value = "admin@123";
     }
 
     function togglePasswordVisibility(fieldId) {
@@ -6044,6 +6027,18 @@
       if (typeof purgeDeletedCasesFromRegistry === "function") purgeDeletedCasesFromRegistry();
       try {
         const res = await fetch("/api/v1/cases", { headers: authHeaders() });
+        if (res.status === 401) {
+          // The stored session is stale/invalid (expired or a deactivated account) - silently
+          // giving up here used to leave the screen stuck showing only a leftover seed case
+          // with no explanation. Clear it and force a real re-login instead.
+          localStorage.removeItem("ca_token");
+          localStorage.removeItem("ca_user");
+          const el = document.getElementById("dataAsOfText");
+          if (el) el.textContent = "Data as of: session expired — please log in again";
+          const modal = document.getElementById("caLoginModal");
+          if (modal) modal.classList.remove("hidden");
+          return;
+        }
         if (!res.ok) return;
         const cases = await res.json();
         const sel = document.getElementById("caseSelectorSelect");
@@ -7812,7 +7807,7 @@
           <label class="block text-xs font-mono font-bold text-on-surface mb-1 uppercase">Username / CA Email</label>
           <div class="relative">
             <span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px]">account_circle</span>
-            <input id="caLoginUsername" type="text" value="admin" required class="w-full pl-9 pr-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm text-on-surface focus:ring-2 focus:ring-primary-container focus:border-transparent font-body"/>
+            <input id="caLoginUsername" type="text" placeholder="Enter your username" autocomplete="off" required class="w-full pl-9 pr-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm text-on-surface focus:ring-2 focus:ring-primary-container focus:border-transparent font-body"/>
           </div>
         </div>
 
@@ -7820,17 +7815,12 @@
           <label class="block text-xs font-mono font-bold text-on-surface mb-1 uppercase">Password</label>
           <div class="relative">
             <span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px]">lock</span>
-            <input id="caLoginPassword" type="password" value="admin@123" required class="w-full pl-9 pr-10 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm text-on-surface focus:ring-2 focus:ring-primary-container focus:border-transparent font-body"/>
+            <input id="caLoginPassword" type="password" placeholder="Enter your password" autocomplete="off" required class="w-full pl-9 pr-10 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm text-on-surface focus:ring-2 focus:ring-primary-container focus:border-transparent font-body"/>
             <button type="button" onclick="togglePasswordVisibility('caLoginPassword')" class="absolute right-3 top-2.5 text-outline hover:text-on-surface">
               <span class="material-symbols-outlined text-[18px]">visibility</span>
             </button>
           </div>
         </div>
-
-        <button type="button" onclick="fillAdminDemoCredentials()" class="w-full py-1.5 px-3 bg-blue-50 border border-blue-200 text-primary-container rounded-lg text-xs font-mono font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5">
-          <span class="material-symbols-outlined text-[15px]">key</span>
-          <span>Fill Demo: admin / admin@123</span>
-        </button>
 
         <button id="caLoginSubmitBtn" type="submit" class="w-full py-2.5 bg-primary-container hover:bg-primary text-white rounded-lg font-headline font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2">
           <span>Sign In to CA Scrutiny Desk</span>
