@@ -949,6 +949,9 @@ async def _ai_ingested_pages(db: AsyncSession, loan_case: LoanCase) -> List[Dict
             page["image_url"] = raw_url
             page["doc_type"] = page.get("llm_doc_type", page.get("doc_type"))
             page["id"] = str(d.id)  # the actual CaseDocument row id, needed to delete this one page
+            # Needed so the frontend can decide "AI scan vs. a later manual re-upload of the same
+            # document type — whichever is newer wins" instead of always trusting the AI scan.
+            page["created_at_raw"] = d.created_at.isoformat() if d.created_at else None
             docs.append(page)
     docs.sort(key=lambda p: p.get("page_number") or 0)
     return docs

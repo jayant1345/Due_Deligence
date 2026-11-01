@@ -3998,13 +3998,29 @@
         const pick = (list, pred) => list.find(pred);
         const field = (name, types) => { const d = own.find(x => x.ocr_data[name] && (!types || types.includes(kind(x)))); return d ? d.ocr_data[name] : null; };
 
+        // Whichever is newer — an AI scan of this doc type, or any upload of the same type
+        // (manual, or a later AI re-scan) — wins. Shared by the AI picks right below and the
+        // manual-upload fallback further down, via a companion "<field>_at" timestamp on the
+        // case object, so neither can regress a card to an older image no matter which runs last.
+        const tsMs = (d) => {
+          const raw = d && (d.created_at_raw || d.created_at);
+          const t = raw ? new Date(raw).getTime() : NaN;
+          return Number.isFinite(t) ? t : 0;
+        };
+        const setKycImageIfNewer = (field, url, timeMs) => {
+          if (!c || !url || !Number.isFinite(timeMs) || timeMs <= 0) return false;
+          const prevAt = c[`${field}_at`] || 0;
+          if (timeMs >= prevAt) { c[field] = url; c[`${field}_at`] = timeMs; return true; }
+          return false;
+        };
+
         if (c) {
           const aFront = pick(own, d => kind(d) === "AADHAAR_CARD" && sub(d) !== "BACK");
           const aBack = pick(own, d => kind(d) === "AADHAAR_CARD" && sub(d) === "BACK") || aFront;
-          if (aFront) c.aadhaar_front_img = aFront.url;
+          if (aFront) setKycImageIfNewer("aadhaar_front_img", aFront.url, tsMs(aFront));
           if (aBack) c.aadhaar_back_img = aBack.url;
           const pFront = pick(own, d => kind(d) === "PAN_CARD" && sub(d) !== "BACK");
-          if (pFront) { c.pan_front_img = pFront.url; c.pan_back_img = (pick(own, d => kind(d) === "PAN_CARD" && sub(d) === "BACK") || pFront).url; }
+          if (pFront) { setKycImageIfNewer("pan_front_img", pFront.url, tsMs(pFront)); c.pan_back_img = (pick(own, d => kind(d) === "PAN_CARD" && sub(d) === "BACK") || pFront).url; }
           const f16 = pick(own, d => kind(d) === "FORM_16");
           if (f16) c.form16_img = f16.url;
           const slip = pick(own, d => kind(d) === "SALARY_SLIP");
@@ -4028,9 +4044,8 @@
           }
 
           const bill = pick(scanned, d => kind(d) === "UTILITY_BILL");
-          if (bill) {
+          if (bill && setKycImageIfNewer("utility_front_img", bill.url, tsMs(bill))) {
             const od = bill.ocr_data;
-            c.utility_front_img = bill.url;
             c.utility_provider = od.utility_provider ? `${od.utility_provider} Electricity Bill` : "Electricity Bill";
             c.utility_no = od.consumer_number ? `Consumer # ${od.consumer_number}` : "";
             c.meter_name = od.holder_name
@@ -4041,9 +4056,9 @@
           // A document uploaded straight from the CA portal's "Manual Upload" tab (or a raw photo
           // of a card/bill) never passes through the AI PDF-ingestion pipeline, so everything above
           // (which only looks at pdf_ingest-sourced docs) never sees it. Same persistence rule as
-          // the CA dashboard's applyFieldCapturedKycFallback(): fall back to the latest raw upload
-          // of each KYC type, in its own dedicated section here too, only when no AI scan already
-          // filled that field — never overwrite a real OCR'd scan with a lesser manual photo.
+          // the CA dashboard's applyFieldCapturedKycFallback(): whichever of the AI scan above or
+          // this latest raw upload is NEWER wins — a re-upload done specifically because the AI
+          // scan was wrong/blurry must be able to replace it, not just fill in when it's missing.
           const isPlaceholderImg = (src) => !src || src.includes("placeholders/doc_pending.svg");
           const latestManualOfType = (type) => {
             const matches = (docs || []).filter(d =>
@@ -4051,20 +4066,20 @@
               !(d.ocr_data && d.ocr_data.source === "pdf_ingest")
             );
             if (!matches.length) return null;
-            matches.sort((a, b) => new Date(b.created_at_raw || b.created_at || 0) - new Date(a.created_at_raw || a.created_at || 0));
+            matches.sort((a, b) => tsMs(b) - tsMs(a));
             return matches[0];
           };
-          if (isPlaceholderImg(c.aadhaar_front_img)) {
-            const m = latestManualOfType("AADHAAR_CARD");
-            if (m) { c.aadhaar_front_img = m.url; if (isPlaceholderImg(c.aadhaar_back_img)) c.aadhaar_back_img = m.url; }
+          const aManual = latestManualOfType("AADHAAR_CARD");
+          if (aManual && setKycImageIfNewer("aadhaar_front_img", aManual.url, tsMs(aManual)) && isPlaceholderImg(c.aadhaar_back_img)) {
+            c.aadhaar_back_img = aManual.url;
           }
-          if (isPlaceholderImg(c.pan_front_img)) {
-            const m = latestManualOfType("PAN_CARD");
-            if (m) { c.pan_front_img = m.url; if (isPlaceholderImg(c.pan_back_img)) c.pan_back_img = m.url; }
+          const pManual = latestManualOfType("PAN_CARD");
+          if (pManual && setKycImageIfNewer("pan_front_img", pManual.url, tsMs(pManual)) && isPlaceholderImg(c.pan_back_img)) {
+            c.pan_back_img = pManual.url;
           }
-          if (isPlaceholderImg(c.utility_front_img)) {
-            const m = latestManualOfType("UTILITY_BILL");
-            if (m) { c.utility_front_img = m.url; c.utility_provider = c.utility_provider || "Electricity Bill (manually uploaded)"; }
+          const uManual = latestManualOfType("UTILITY_BILL");
+          if (uManual && setKycImageIfNewer("utility_front_img", uManual.url, tsMs(uManual))) {
+            c.utility_provider = "Electricity Bill (manually uploaded)";
           }
 
           // Re-render the currently visible case so the real scanned documents show up
