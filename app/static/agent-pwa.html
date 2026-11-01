@@ -1601,8 +1601,8 @@
           <h4 class="font-headline font-bold text-sm text-on-surface">Field Auditor Attestation</h4>
           <p class="text-xs text-outline">Digital signature bound with device hardware GPS</p>
         </div>
-        <span class="font-mono text-[10px] text-secondary bg-surface-container-low px-2 py-0.5 rounded border border-secondary font-bold">
-          2/4 PENDING
+        <span id="attestationProgressBadge" class="font-mono text-[10px] text-secondary bg-surface-container-low px-2 py-0.5 rounded border border-secondary font-bold">
+          0/3 PENDING
         </span>
       </div>
 
@@ -1906,6 +1906,7 @@
       if (!visible && currentPwaFolder === "co_office") {
         switchPwaPhotoFolder("residence");
       }
+      updateAttestationProgress();
     }
 
     // Community is a real, agent-chosen field (no default) - clicking a chip checks its radio
@@ -2179,6 +2180,32 @@
       const count = Object.values(info.slotsMap).filter(Boolean).length;
       const countEl = document.getElementById("evidenceSlotsCount");
       if (countEl) countEl.textContent = `${count} OF 4 COMPLETE (${info.label.toUpperCase()})`;
+      updateAttestationProgress();
+    }
+
+    // The Sign-Off box's "X/Y PENDING" badge used to be a static "2/4 PENDING" string left over
+    // from demo content - it never reflected real upload state, so it kept reading PENDING even
+    // after every required photo and the selfie were actually captured. Computed here from the
+    // same slot-tracking objects the rest of the page already maintains.
+    function updateAttestationProgress() {
+      const badge = document.getElementById("attestationProgressBadge");
+      if (!badge) return;
+      const items = [
+        Object.values(uploadedResidenceSlots).every(Boolean),
+        Object.values(uploadedOfficeSlots).every(Boolean),
+        Boolean(agentSelfieDataUrl),
+      ];
+      const coTab = document.getElementById("pwaTabCoOffice");
+      if (coTab && !coTab.classList.contains("hidden")) {
+        items.push(Object.values(uploadedCoOfficeSlots).every(Boolean));
+      }
+      const total = items.length;
+      const done = items.filter(Boolean).length;
+      const isReady = done === total;
+      badge.textContent = `${done}/${total} ${isReady ? "READY" : "PENDING"}`;
+      badge.className = `font-mono text-[10px] px-2 py-0.5 rounded border font-bold ${
+        isReady ? "text-emerald-700 bg-emerald-50 border-emerald-400" : "text-secondary bg-surface-container-low border-secondary"
+      }`;
     }
 
     // Zero-lag File Upload Handler with Dedicated Evidence Slots (Residence & Office)
@@ -2744,6 +2771,7 @@
             localStorage.setItem("selfie_timestamp_" + sampleCaseId, timeStr);
             localStorage.setItem("selfie_agent_" + sampleCaseId, agentName);
           } catch(e){}
+          updateAttestationProgress();
 
           // Update Preview UI
           const previewImg = document.getElementById("agentSelfiePreview");
@@ -3882,6 +3910,7 @@
         if (btnText) btnText.textContent = "Capture Own Selfie (સેલ્ફી લો)";
         if (metaInfo) metaInfo.classList.add("hidden");
       }
+      updateAttestationProgress();
 
       updateGeofenceUI(currentDeviceLat, currentDeviceLon, 3.2);
     }
