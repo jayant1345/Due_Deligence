@@ -165,6 +165,10 @@
             <span class="material-symbols-outlined text-[16px] text-primary-container">fact_check</span>
             <span>Agent Activity</span>
           </button>
+          <button onclick="openActivityLog()" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-surface-container-low text-rose-800 hover:bg-rose-50 border border-rose-300 transition-colors shadow-2xs whitespace-nowrap" title="Full audit trail: every login, edit, delete, and upload across the dashboard and PWA (ઓડિટ લોગ)">
+            <span class="material-symbols-outlined text-[16px] text-rose-700">history</span>
+            <span>Activity Log</span>
+          </button>
           <button id="navTabArchive" onclick="switchMainPortalView('archive')" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-amber-500/10 text-amber-900 hover:bg-amber-500/20 border border-amber-300 transition-colors shadow-2xs whitespace-nowrap" title="Monthly Case Archival & Local Backup Download (માસિક બેકઅપ અને ક્લાઉડ સફાઈ)">
             <span class="material-symbols-outlined text-[16px] text-amber-700">archive</span>
             <span>Monthly Archive</span>
@@ -7545,6 +7549,94 @@
       if (modal) modal.style.display = "none";
     }
 
+    // Real audit trail across dashboard + PWA (logins, case create/edit/delete, document
+    // actions, field visit check-in/out) - distinct from "Agent Activity" above, which is
+    // just a case-assignment overview, not an action-by-action security log.
+    const ACTIVITY_ACTION_LABELS = {
+      USER_LOGIN: "Logged in",
+      CASE_CREATED: "Created case",
+      CASE_UPDATED: "Edited case details",
+      CASE_DELETED: "Deleted case",
+      CASE_ASSIGNED: "Assigned case to agent",
+      BENCHMARK_AUTO_LOCATED: "Auto-located benchmark",
+      PDF_INGESTED_AND_SEPARATED: "AI-ingested a PDF",
+      IMAGES_INGESTED_AND_CLASSIFIED: "AI-ingested images",
+      DOCUMENT_DELETED: "Deleted a document",
+      DOCUMENT_UPLOADED: "Uploaded a document (PWA)",
+      DOCUMENT_SCRUTINIZED: "Scrutinized a document",
+      AGENT_CHECK_IN: "Checked in on-site (PWA)",
+      AGENT_CHECK_OUT: "Checked out on-site (PWA)",
+      FIELD_FORM_SUBMITTED: "Submitted field form (PWA)",
+      APPLICANT_LOCATION_SHARED: "Shared applicant location",
+    };
+
+    function openActivityLog() {
+      const modal = document.getElementById("modalActivityLog");
+      if (!modal) return;
+      modal.style.display = "flex";
+      loadActivityLog();
+    }
+
+    function closeActivityLog() {
+      const modal = document.getElementById("modalActivityLog");
+      if (modal) modal.style.display = "none";
+    }
+
+    function activityLogMetaSummary(action, meta) {
+      if (!meta) return "";
+      const m = meta;
+      switch (action) {
+        case "USER_LOGIN": return `${m.full_name || ""} (${m.role || ""})`;
+        case "CASE_CREATED": return `${m.case_no || ""} • ${m.bank_name || ""}`;
+        case "CASE_DELETED": return `${m.case_no || ""} — ${m.applicant_name || ""} (${m.bank_name || ""})`;
+        case "CASE_UPDATED": return Object.keys(m).filter(k => k !== "case_no").join(", ");
+        case "DOCUMENT_DELETED": return `${m.title || m.doc_type || ""}`;
+        default: {
+          const keys = Object.keys(m).slice(0, 3);
+          return keys.map(k => `${k}: ${m[k]}`).join(" • ");
+        }
+      }
+    }
+
+    async function loadActivityLog() {
+      const tbody = document.getElementById("alTableBody");
+      const loading = document.getElementById("alLoadingState");
+      const actionFilter = document.getElementById("alActionFilter");
+      if (!tbody) return;
+      if (loading) loading.style.display = "flex";
+      tbody.innerHTML = "";
+      try {
+        const qs = new URLSearchParams({ limit: "200" });
+        if (actionFilter && actionFilter.value) qs.set("action", actionFilter.value);
+        const res = await fetch(`/api/v1/activity-log?${qs.toString()}`, { headers: authHeaders() });
+        if (!res.ok) throw new Error("fetch failed");
+        const entries = await res.json();
+        if (loading) loading.style.display = "none";
+        if (!entries.length) {
+          tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-on-surface-variant font-mono text-xs">No activity recorded yet.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = entries.map(e => {
+          const when = new Date(e.timestamp).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+          const label = ACTIVITY_ACTION_LABELS[e.action] || e.action;
+          const who = (e.user_name || "Unknown user").replace(/</g, "&lt;");
+          const caseNo = (e.case_no || "—").replace(/</g, "&lt;");
+          const details = activityLogMetaSummary(e.action, e.extra_metadata).replace(/</g, "&lt;");
+          const isDelete = e.action.includes("DELETED");
+          return `
+            <tr class="border-b border-outline-variant/50 ${isDelete ? "bg-rose-50/50" : ""}">
+              <td class="py-2 pr-3 font-mono text-[11px] whitespace-nowrap">${when}</td>
+              <td class="py-2 pr-3 font-semibold ${isDelete ? "text-rose-700" : "text-on-surface"}">${label}</td>
+              <td class="py-2 pr-3">${who}</td>
+              <td class="py-2 pr-3 font-mono text-[11px]">${caseNo}</td>
+              <td class="py-2 pr-3 text-on-surface-variant text-[11px]">${details}</td>
+            </tr>`;
+        }).join("");
+      } catch (e) {
+        if (loading) loading.innerHTML = `<span class="text-rose-700">Could not load activity log — check connection and retry.</span>`;
+      }
+    }
+
     function populateAgentActivityFilter() {
       const sel = document.getElementById("aalAgentFilter");
       if (!sel) return;
@@ -8040,6 +8132,70 @@
               </tr>
             </thead>
             <tbody id="aalTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIVITY LOG: full audit trail - every login, create/edit/delete/upload, from both the
+       dashboard and the PWA, with who did it and when -->
+  <div id="modalActivityLog" style="z-index: 99999; display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-5xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fadeIn">
+      <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">history</span>
+          </div>
+          <div>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Activity Log</h3>
+            <p class="font-mono text-[10px] text-outline">Every login, case change, document action and field visit event, dashboard and PWA alike — who, what, when</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="alActionFilter" onchange="loadActivityLog()" class="text-xs bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 font-semibold text-on-surface">
+            <option value="">All Actions</option>
+            <option value="USER_LOGIN">Login</option>
+            <option value="CASE_CREATED">Case Created</option>
+            <option value="CASE_UPDATED">Case Updated</option>
+            <option value="CASE_DELETED">Case Deleted</option>
+            <option value="CASE_ASSIGNED">Case Assigned</option>
+            <option value="BENCHMARK_AUTO_LOCATED">Benchmark Located</option>
+            <option value="PDF_INGESTED_AND_SEPARATED">PDF Ingested</option>
+            <option value="IMAGES_INGESTED_AND_CLASSIFIED">Images Ingested</option>
+            <option value="DOCUMENT_DELETED">Document Deleted</option>
+            <option value="DOCUMENT_UPLOADED">Document Uploaded (PWA)</option>
+            <option value="DOCUMENT_SCRUTINIZED">Document Scrutinized</option>
+            <option value="AGENT_CHECK_IN">Agent Check-In (PWA)</option>
+            <option value="AGENT_CHECK_OUT">Agent Check-Out (PWA)</option>
+            <option value="FIELD_FORM_SUBMITTED">Field Form Submitted (PWA)</option>
+            <option value="APPLICANT_LOCATION_SHARED">Applicant Location Shared</option>
+          </select>
+          <button onclick="loadActivityLog()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant" title="Refresh">
+            <span class="material-symbols-outlined text-[18px]">refresh</span>
+          </button>
+          <button onclick="closeActivityLog()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+      </div>
+      <div class="p-5 overflow-y-auto">
+        <div id="alLoadingState" class="text-center py-6 font-mono text-xs text-outline flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined animate-spin text-[18px]">sync</span>
+          <span>Loading activity log...</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs border-collapse">
+            <thead>
+              <tr class="text-left font-mono text-[10px] text-outline uppercase border-b border-outline-variant">
+                <th class="py-2 pr-3">When</th>
+                <th class="py-2 pr-3">Action</th>
+                <th class="py-2 pr-3">By</th>
+                <th class="py-2 pr-3">Case</th>
+                <th class="py-2 pr-3">Details</th>
+              </tr>
+            </thead>
+            <tbody id="alTableBody"></tbody>
           </table>
         </div>
       </div>

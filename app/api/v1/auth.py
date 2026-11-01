@@ -11,6 +11,7 @@ from app.core.security import (
     verify_password,
 )
 from app.api.deps import get_current_user, require_role
+from app.models.report import AuditLog
 from app.models.user import User, UserRole
 from app.schemas.auth import (
     LoginRequest,
@@ -77,6 +78,14 @@ async def login(
 
     access_token = create_access_token(subject=user.id, role=user.role.value)
     refresh_token = create_refresh_token(subject=user.id, role=user.role.value)
+
+    db.add(AuditLog(
+        case_id=None,
+        user_id=user.id,
+        action="USER_LOGIN",
+        extra_metadata={"full_name": user.full_name, "role": user.role.value, "identifier": identifier},
+    ))
+    await db.commit()
 
     return Token(
         access_token=access_token,

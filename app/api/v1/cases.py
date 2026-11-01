@@ -249,6 +249,8 @@ async def delete_case(
 
     case_no = loan_case.case_no
     case_id_str = str(loan_case.id)
+    applicant_name = loan_case.applicant_name
+    bank_name = loan_case.bank_name
 
     # Clean up uploaded storage folder if it exists
     upload_dir = os.path.join("storage_uploads", "ingested_pdfs", case_id_str)
@@ -257,6 +259,22 @@ async def delete_case(
             shutil.rmtree(upload_dir, ignore_errors=True)
         except Exception:
             pass
+
+    # Record who deleted this case BEFORE deleting it, with case_id left unset - every other
+    # audit entry for this case (CASE_CREATED, DOCUMENT_UPLOADED, etc.) is tied to the case via
+    # a CASCADE foreign key and gets destroyed along with it, so this is the one record that
+    # must survive the deletion itself; the case's identity is preserved in extra_metadata instead.
+    db.add(AuditLog(
+        case_id=None,
+        user_id=current_user.id,
+        action="CASE_DELETED",
+        extra_metadata={
+            "case_id": case_id_str,
+            "case_no": case_no,
+            "applicant_name": applicant_name,
+            "bank_name": bank_name,
+        },
+    ))
 
     await db.delete(loan_case)
     await db.commit()
