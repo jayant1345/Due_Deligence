@@ -4120,7 +4120,7 @@
         selectedSeparatedDocIds.delete(d.id);
       }
       updateBulkDeleteBar();
-      updateViewerThumbstripActive();
+      updateViewerThumbstripActive(true);
     }
 
     function toggleViewerSelectAll() {
@@ -4136,7 +4136,7 @@
         });
       }
       updateBulkDeleteBar();
-      updateViewerThumbstripActive();
+      updateViewerThumbstripActive(true);
     }
 
     async function deleteCurrentViewerDoc() {
@@ -4838,10 +4838,48 @@
     let viewerDocList = [];
     let viewerCurrentIndex = 0;
     let isViewerThumbstripOpen = true;
+    let viewerLastActiveIndex = -1;
+    const preloadedViewerImages = new Set();
+
+    function preloadViewerImages() {
+      if (!viewerDocList || viewerDocList.length === 0) return;
+      // Preload next 3 images and previous 2 images into browser memory cache for instant browsing
+      const toPreload = [
+        viewerCurrentIndex + 1,
+        viewerCurrentIndex - 1,
+        viewerCurrentIndex + 2,
+        viewerCurrentIndex - 2,
+        viewerCurrentIndex + 3
+      ];
+      toPreload.forEach(idx => {
+        if (idx >= 0 && idx < viewerDocList.length) {
+          const item = viewerDocList[idx];
+          if (item && item.src && !preloadedViewerImages.has(item.src)) {
+            const img = new Image();
+            img.src = item.src;
+            preloadedViewerImages.add(item.src);
+          }
+        }
+      });
+
+      // Lazily preload remaining pages when browser is idle
+      if (typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(() => {
+          viewerDocList.forEach(item => {
+            if (item && item.src && !preloadedViewerImages.has(item.src)) {
+              const img = new Image();
+              img.src = item.src;
+              preloadedViewerImages.add(item.src);
+            }
+          });
+        });
+      }
+    }
 
     function openFullDocumentViewer(items, startIndex = 0) {
       if (!items || items.length === 0) return;
       viewerDocList = items;
+      viewerLastActiveIndex = -1;
       viewerCurrentIndex = Math.max(0, Math.min(startIndex, items.length - 1));
 
       const modal = document.getElementById("docZoomModal");
@@ -4852,6 +4890,7 @@
       renderViewerCurrentDoc();
 
       modal.classList.remove("hidden");
+      preloadViewerImages();
     }
 
     function openSeparatedDocViewer(startIndex = 0) {
@@ -4883,6 +4922,7 @@
         }
 
         return {
+          id: d.id || d.document_id || d._id,
           index: i,
           pageNumber: d.page_number || (i + 1),
           title: `Page ${d.page_number || (i + 1)} • ${shortType}`,
@@ -4924,7 +4964,9 @@
       }
 
       if (frontImg) {
-        frontImg.src = resolvedSrc;
+        if (frontImg.src !== resolvedSrc) {
+          frontImg.src = resolvedSrc;
+        }
         frontImg.onerror = function() {
           if (this.src.includes("/storage/separated_docs/")) {
             this.src = this.src.replace("/storage/separated_docs/", "/static/extracted_pages/");
@@ -4959,7 +5001,7 @@
       const currentNum = viewerCurrentIndex + 1;
       const totalNum = viewerDocList.length;
 
-      if (pageInput) {
+      if (pageInput && document.activeElement !== pageInput) {
         pageInput.value = currentNum;
         pageInput.max = totalNum;
       }
@@ -4980,8 +5022,13 @@
 
       updateViewerThumbstripActive();
       updateBulkDeleteBar();
-      resetDocZoom();
+      
+      // Fast navigation: only reset transform if scale or pan was modified
+      if (docZoomState.scale !== 1 || docZoomState.translateX !== 0 || docZoomState.translateY !== 0 || docZoomState.rotation !== 0) {
+        resetDocZoom();
+      }
       initZoomPanHandlers();
+      preloadViewerImages();
     }
 
     function viewerPrevDoc() {
@@ -5006,6 +5053,7 @@
       if (isNaN(targetIndex)) return;
       if (targetIndex < 0) targetIndex = 0;
       if (targetIndex >= viewerDocList.length) targetIndex = viewerDocList.length - 1;
+      if (viewerCurrentIndex === targetIndex) return;
       viewerCurrentIndex = targetIndex;
       renderViewerCurrentDoc();
     }
@@ -5035,6 +5083,53 @@
       });
     }
 
+    function updateSingleThumbState(idx) {
+      if (!viewerDocList || !viewerDocList[idx]) return;
+      const d = viewerDocList[idx];
+      const thumb = document.getElementById(`viewerThumb_${idx}`);
+      if (!thumb) return;
+      const isSelected = Boolean(d.id && selectedSeparatedDocIds.has(d.id));
+      const isActive = idx === viewerCurrentIndex;
+
+      let borderClass = 'border-white/20 opacity-70 bg-slate-950 hover:opacity-100 hover:border-white/60';
+      if (isActive) {
+        borderClass = 'border-amber-400 ring-2 ring-amber-400/50 scale-105 opacity-100 bg-slate-900 shadow-md';
+      } else if (isSelected) {
+        borderClass = 'border-red-500 ring-1 ring-red-400 bg-red-950/40 opacity-100';
+      }
+      thumb.className = `relative shrink-0 w-14 h-18 rounded border-2 overflow-hidden cursor-pointer bg-slate-950 flex flex-col items-center justify-between p-0.5 ${borderClass}`;
+
+      const cb = thumb.querySelector(".viewer-thumb-checkbox");
+      if (cb && d.id) cb.checked = isSelected;
+
+      const badge = thumb.querySelector("div:last-child");
+      if (badge) {
+        badge.className = `w-full text-center text-[8px] font-mono font-bold text-white ${isSelected ? 'bg-red-700/90' : 'bg-black/80'} truncate px-0.5 rounded`;
+      }
+    }
+
+    function updateViewerThumbstripActive(forceAll = false) {
+      if (!viewerDocList || viewerDocList.length <= 1) return;
+      // Fast O(1) update: only re-render previous active thumb and current active thumb
+      if (forceAll || viewerLastActiveIndex === -1) {
+        for (let i = 0; i < viewerDocList.length; i++) {
+          updateSingleThumbState(i);
+        }
+      } else {
+        if (viewerLastActiveIndex >= 0 && viewerLastActiveIndex < viewerDocList.length) {
+          updateSingleThumbState(viewerLastActiveIndex);
+        }
+        updateSingleThumbState(viewerCurrentIndex);
+      }
+      viewerLastActiveIndex = viewerCurrentIndex;
+
+      const activeThumb = document.getElementById(`viewerThumb_${viewerCurrentIndex}`);
+      if (activeThumb) {
+        // Instant non-blocking scroll without laggy animation delays
+        activeThumb.scrollIntoView({ behavior: "auto", block: "nearest", inline: "nearest" });
+      }
+    }
+
     function renderViewerThumbstrip() {
       const strip = document.getElementById("viewerThumbStripContainer");
       if (!strip) return;
@@ -5053,13 +5148,13 @@
 
         const thumb = document.createElement("div");
         thumb.id = `viewerThumb_${idx}`;
-        thumb.className = `relative shrink-0 w-14 h-18 rounded border-2 overflow-hidden cursor-pointer transition-all bg-slate-950 flex flex-col items-center justify-between p-0.5 ${
-          isActive 
-            ? 'border-amber-400 ring-2 ring-amber-400/50 scale-105 opacity-100 shadow-md' 
-            : isSelected 
-              ? 'border-red-500 ring-1 ring-red-400 bg-red-950/40 opacity-100' 
-              : 'border-white/20 opacity-70 hover:opacity-100 hover:border-white/60'
-        }`;
+        let borderClass = 'border-white/20 opacity-70 bg-slate-950 hover:opacity-100 hover:border-white/60';
+        if (isActive) {
+          borderClass = 'border-amber-400 ring-2 ring-amber-400/50 scale-105 opacity-100 bg-slate-900 shadow-md';
+        } else if (isSelected) {
+          borderClass = 'border-red-500 ring-1 ring-red-400 bg-red-950/40 opacity-100';
+        }
+        thumb.className = `relative shrink-0 w-14 h-18 rounded border-2 overflow-hidden cursor-pointer bg-slate-950 flex flex-col items-center justify-between p-0.5 ${borderClass}`;
         thumb.title = `Jump to Page ${d.pageNumber || (idx + 1)}: ${d.title || ''}${isSelected ? ' • [Selected for deletion]' : ''}`;
         thumb.onclick = () => viewerJumpToPage(idx);
 
@@ -5078,7 +5173,7 @@
             if (checkbox.checked) selectedSeparatedDocIds.add(d.id);
             else selectedSeparatedDocIds.delete(d.id);
             updateBulkDeleteBar();
-            updateViewerThumbstripActive();
+            updateViewerThumbstripActive(true);
           };
           checkLabel.appendChild(checkbox);
           thumb.appendChild(checkLabel);
@@ -5086,6 +5181,7 @@
 
         const img = document.createElement("img");
         img.src = d.src;
+        img.loading = "lazy";
         img.className = "w-full h-12 object-cover rounded pointer-events-none";
         img.onerror = function() {
           if (this.src.includes("/storage/separated_docs/")) {
@@ -5101,31 +5197,7 @@
         thumb.appendChild(badge);
         strip.appendChild(thumb);
       });
-    }
-
-    function updateViewerThumbstripActive() {
-      if (!viewerDocList || viewerDocList.length <= 1) return;
-      viewerDocList.forEach((d, idx) => {
-        const thumb = document.getElementById(`viewerThumb_${idx}`);
-        if (thumb) {
-          const isSelected = Boolean(d.id && selectedSeparatedDocIds.has(d.id));
-          const isActive = idx === viewerCurrentIndex;
-          if (isActive) {
-            thumb.className = "relative shrink-0 w-14 h-18 rounded border-2 border-amber-400 ring-2 ring-amber-400/50 scale-105 overflow-hidden cursor-pointer transition-all bg-slate-900 flex flex-col items-center justify-between p-0.5 opacity-100 shadow-md";
-            thumb.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-          } else if (isSelected) {
-            thumb.className = "relative shrink-0 w-14 h-18 rounded border-2 border-red-500 ring-1 ring-red-400 bg-red-950/40 overflow-hidden cursor-pointer transition-all flex flex-col items-center justify-between p-0.5 opacity-100";
-          } else {
-            thumb.className = "relative shrink-0 w-14 h-18 rounded border-2 border-white/20 opacity-70 hover:opacity-100 hover:border-white/60 overflow-hidden cursor-pointer transition-all bg-slate-950 flex flex-col items-center justify-between p-0.5 hover:scale-105";
-          }
-          const cb = thumb.querySelector(".viewer-thumb-checkbox");
-          if (cb && d.id) cb.checked = isSelected;
-          const badge = thumb.querySelector("div:last-child");
-          if (badge) {
-            badge.className = `w-full text-center text-[8px] font-mono font-bold text-white ${isSelected ? 'bg-red-700/90' : 'bg-black/80'} truncate px-0.5 rounded`;
-          }
-        }
-      });
+      viewerLastActiveIndex = viewerCurrentIndex;
     }
 
     function toggleViewerThumbstrip() {
