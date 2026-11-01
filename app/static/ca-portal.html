@@ -7669,7 +7669,36 @@
     // ==========================================
     // REPORT READINESS — what the final report will print as "Not Captured", fillable here
     // ==========================================
-    const RR_COMPOSITE_FIELDS = new Set(["neighbours", "family_members", "occupation"]);
+    const RR_COMPOSITE_FIELDS = new Set(["neighbours", "family_members"]);
+
+    // Mirrors the exact dropdown option values the PWA field form itself offers for these
+    // fields, so a value typed here reads identically to one the field agent would have picked.
+    const RR_FIELD_OPTIONS = {
+      "qualification": ["Graduate", "Post Graduate", "12th Pass", "10th Pass", "8th Pass"],
+      "community": ["Hindu", "Muslim", "Christian"],
+      "marital_status": ["Married (પરિણિત)", "Unmarried (અપરિણિત)"],
+      "building_type": ["Bungalow", "Flat", "Independent House"],
+      "ownership": ["Owned", "Rented", "Government Provided", "Company Provided"],
+      "occupation": ["Job", "Business", "House Wife", "Retired"],
+      "bank_account_status": ["Active / Regular", "Active / Irregular", "Dormant", "Not Verified"],
+      "office_details.location": ["Commercial", "Residential", "Industrial", "Mixed"],
+      "office_details.firm_type": ["Government / Government Job", "Proprietorship", "Partnership", "Private Limited", "LLP", "Corporation", "Public Limited", "Trust / Society", "Other"],
+      "office_details.premises_ownership": ["Owned", "Rented", "NA"],
+      "office_details_co.location": ["Commercial", "Residential", "Industrial", "Mixed"],
+      "office_details_co.firm_type": ["Government / Government Job", "Proprietorship", "Partnership", "Private Limited", "LLP", "Corporation", "Public Limited", "Trust / Society", "Other"],
+      "office_details_co.premises_ownership": ["Owned", "Rented", "NA"],
+    };
+
+    function rrInputHtml(f) {
+      const options = RR_FIELD_OPTIONS[f.field];
+      if (options) {
+        return `<select data-rr-field="${f.field}" class="w-full text-xs rounded border border-outline-variant bg-white p-1.5 text-on-surface">
+          <option value="">-- Select --</option>
+          ${options.map(o => `<option value="${o.replace(/"/g, "&quot;")}">${o}</option>`).join("")}
+        </select>`;
+      }
+      return `<input type="text" data-rr-field="${f.field}" placeholder="Type the answer if the CA office already knows it..." class="w-full text-xs rounded border border-outline-variant bg-white p-1.5 text-on-surface"/>`;
+    }
 
     function openReportReadiness() {
       if (!activeCaseId) { alert("Select a case first."); return; }
@@ -7740,7 +7769,7 @@
             return `
             <div class="p-2 rounded-lg bg-surface-container-low border border-outline-variant text-xs space-y-1">
               <label class="font-bold text-on-surface block">${f.label}</label>
-              <input type="text" data-rr-field="${f.field}" placeholder="Type the answer if the CA office already knows it..." class="w-full text-xs rounded border border-outline-variant bg-white p-1.5 text-on-surface"/>
+              ${rrInputHtml(f)}
             </div>`;
           }).join("");
         }
