@@ -4392,7 +4392,16 @@
         // ==========================================
         // RESTORE UPLOADED FIELD EVIDENCE PHOTOS & SELFIE FROM SERVER (PERSISTENCE)
         // ==========================================
+        // Co-applicant office docs (folder "co_work", doc_type CO_OFFICE_*) must never be
+        // treated as the applicant's own work docs - dt.includes("OFFICE") would otherwise
+        // match "CO_OFFICE_FACADE" too, silently restoring the co-applicant's photos into the
+        // applicant's own Office Evidence slots after a refresh.
+        const isCoWorkDoc = (d) => {
+          if (d.folder === "co_work" || (d.ocr_data && d.ocr_data.folder === "co_work")) return true;
+          return (d.doc_type || "").toUpperCase().startsWith("CO_OFFICE");
+        };
         const isWorkDoc = (d) => {
+          if (isCoWorkDoc(d)) return false;
           if (d.folder === "work" || (d.ocr_data && d.ocr_data.folder === "work")) return true;
           const dt = (d.doc_type || "").toUpperCase();
           return ["OFFICE_FACADE", "OFFICE_NAMEBOARD", "OFFICE_INTERIOR", "OFFICE_SELFIE", "WORK_FACADE", "WORK_OFFICE", "WORK_DESK", "WORK_APPROACH"].includes(dt) ||
@@ -4414,6 +4423,7 @@
           d.doc_type !== "AGENT_SELFIE" &&
           !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
           !isWorkDoc(d) &&
+          !isCoWorkDoc(d) &&
           !isKycDoc(d)
         );
 
@@ -4421,6 +4431,13 @@
           d.doc_type !== "AGENT_SELFIE" &&
           !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
           isWorkDoc(d) &&
+          !isKycDoc(d)
+        );
+
+        const coOfficeDocs = (docs || []).filter(d =>
+          d.doc_type !== "AGENT_SELFIE" &&
+          !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
+          isCoWorkDoc(d) &&
           !isKycDoc(d)
         );
 
@@ -4432,6 +4449,7 @@
 
         sortNewest(residenceDocs);
         sortNewest(officeDocs);
+        sortNewest(coOfficeDocs);
 
         // 1. Restore Residence Slots
         const serverResSlotMap = { 1: null, 2: null, 3: null, 4: null };
@@ -4596,6 +4614,77 @@
               }
               if (btnOff) btnOff.textContent = "Capture Photo";
               if (thumbOff) thumbOff.innerHTML = `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
+            }
+          }
+        }
+
+        // 3. Restore Co-Applicant Office / Workplace Slots - same server-authoritative pass as
+        // the applicant's own Office slots above. Without this, these slots only ever checked
+        // localStorage (switchPwaCase's cachedCoOff lookup), so a cleared cache, a different
+        // device, or simply enough time passing made successfully-uploaded, server-stored
+        // co-applicant office photos show as PENDING again after a refresh, even though the CA
+        // dashboard (which reads straight from the server) still showed them correctly.
+        const serverCoOffSlotMap = { 1: null, 2: null, 3: null, 4: null };
+        coOfficeDocs.forEach((d, idx) => {
+          const s = getOffSlot(d, idx + 1);
+          if (s >= 1 && s <= 4 && !serverCoOffSlotMap[s]) {
+            serverCoOffSlotMap[s] = d;
+          }
+        });
+        coOfficeDocs.forEach(d => {
+          const isAssigned = Object.values(serverCoOffSlotMap).some(assigned => assigned && assigned.id === d.id);
+          if (!isAssigned) {
+            for (let s = 1; s <= 4; s++) {
+              if (!serverCoOffSlotMap[s]) {
+                serverCoOffSlotMap[s] = d;
+                break;
+              }
+            }
+          }
+        });
+
+        for (let s = 1; s <= 4; s++) {
+          const d = serverCoOffSlotMap[s];
+          const coOffCacheKey1 = `pwa_evidence_${sampleCaseId}_co_office_slot_${s}`;
+          const coOffCacheKey2 = `pwa_evidence_${activeCaseKey}_co_office_slot_${s}`;
+          if (d) {
+            uploadedCoOfficeSlots[s] = true;
+            const bCoOff = document.getElementById(`slotCoOffice${s}Badge`);
+            const btnCoOff = document.getElementById(`slotCoOffice${s}BtnText`);
+            const thumbCoOff = document.getElementById(`slotCoOffice${s}Thumb`);
+            if (bCoOff) {
+              bCoOff.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+              bCoOff.textContent = "✓ UPLOADED";
+            }
+            if (btnCoOff) btnCoOff.textContent = "Re-take Photo";
+            if (thumbCoOff) thumbCoOff.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
+            try {
+              const coOffPayload = JSON.stringify({
+                src: d.url,
+                timestamp: d.created_at || "Verified on Server",
+                lat: d.latitude || 23.2154,
+                lon: d.longitude || 72.6367,
+                doc_type: d.doc_type
+              });
+              localStorage.setItem(coOffCacheKey1, coOffPayload);
+              localStorage.setItem(coOffCacheKey2, coOffPayload);
+            } catch(e) {}
+          } else {
+            let cached = null;
+            try { cached = JSON.parse(localStorage.getItem(coOffCacheKey2) || localStorage.getItem(coOffCacheKey1) || "null"); } catch (e) {}
+            if (cached && typeof cached.src === "string" && cached.src.startsWith("/storage/")) {
+              localStorage.removeItem(coOffCacheKey1);
+              localStorage.removeItem(coOffCacheKey2);
+              uploadedCoOfficeSlots[s] = false;
+              const bCoOff = document.getElementById(`slotCoOffice${s}Badge`);
+              const btnCoOff = document.getElementById(`slotCoOffice${s}BtnText`);
+              const thumbCoOff = document.getElementById(`slotCoOffice${s}Thumb`);
+              if (bCoOff) {
+                bCoOff.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
+                bCoOff.textContent = "PENDING";
+              }
+              if (btnCoOff) btnCoOff.textContent = "Capture Photo";
+              if (thumbCoOff) thumbCoOff.innerHTML = `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
             }
           }
         }
