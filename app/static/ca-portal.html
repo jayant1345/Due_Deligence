@@ -3879,7 +3879,7 @@
 
       // Built with textContent, never innerHTML: titles/names come from AI-read document text.
       list.innerHTML = "";
-      activeSeparatedDocs.forEach(d => {
+      activeSeparatedDocs.forEach((d, idx) => {
         let badgeColor = "bg-blue-900 text-blue-200 border-blue-600";
         let shortType = (d.doc_type || "OTHER").replace(/_/g, " ");
         if (d.scan_status === "FAILED") {
@@ -3911,12 +3911,7 @@
         const col = document.createElement("div");
         col.className = "group relative rounded-lg bg-black/60 border border-white/20 p-1 flex flex-col items-center hover:border-amber-400 cursor-pointer transition-all";
         col.title = `${d.document_title || ""}${d.holder_name ? "\nHolder: " + d.holder_name : ""}${(d.discrepancies || []).length ? "\n⚠ " + d.discrepancies.join("\n⚠ ") : ""}`;
-        col.onclick = () => openVaultDocZoom(
-          `Page ${d.page_number || ''} • ${shortType}`,
-          `${d.holder_name || ''} ${d.document_title || ''}`,
-          docSrc,
-          d.scan_status || 'VERIFIED'
-        );
+        col.onclick = () => openSeparatedDocViewer(idx);
 
         const frame = document.createElement("div");
         frame.className = "relative w-full h-16 rounded overflow-hidden bg-slate-900 mb-1 flex items-center justify-center";
@@ -4753,10 +4748,80 @@
       });
     }
 
-    function openDocZoomModal(section) {
-      currentZoomSection = section;
+    // ==========================================
+    // FULL-MODE DOCUMENT VIEWER ENGINE (BROWSE & PAGE JUMP)
+    // ==========================================
+    let viewerDocList = [];
+    let viewerCurrentIndex = 0;
+    let isViewerThumbstripOpen = true;
+
+    function openFullDocumentViewer(items, startIndex = 0) {
+      if (!items || items.length === 0) return;
+      viewerDocList = items;
+      viewerCurrentIndex = Math.max(0, Math.min(startIndex, items.length - 1));
+
       const modal = document.getElementById("docZoomModal");
-      const title = document.getElementById("zoomModalTitle");
+      if (!modal) return;
+
+      populateViewerPageDropdown();
+      renderViewerThumbstrip();
+      renderViewerCurrentDoc();
+
+      modal.classList.remove("hidden");
+    }
+
+    function openSeparatedDocViewer(startIndex = 0) {
+      if (!activeSeparatedDocs || activeSeparatedDocs.length === 0) return;
+      const items = activeSeparatedDocs.map((d, i) => {
+        let badgeColor = "bg-blue-900 text-blue-200 border-blue-600";
+        let shortType = (d.doc_type || "OTHER").replace(/_/g, " ");
+        if (d.scan_status === "FAILED") {
+          shortType = "NOT SCANNED"; badgeColor = "bg-red-950 text-red-300 border-red-600";
+        } else if (d.relationship_to_applicant === "DIFFERENT_PERSON") {
+          shortType = shortType + " (OTHER PERSON)"; badgeColor = "bg-orange-950 text-orange-300 border-orange-600";
+        } else if (d.doc_type === "UTILITY_BILL") {
+          shortType = (d.utility_provider ? d.utility_provider + " " : "") + "BILL"; badgeColor = "bg-emerald-950 text-emerald-300 border-emerald-600";
+        } else if (d.doc_type === "PAN_CARD") {
+          badgeColor = "bg-sky-950 text-sky-300 border-sky-600";
+        } else if (d.doc_type === "AADHAAR_CARD") {
+          badgeColor = "bg-amber-950 text-amber-300 border-amber-600";
+        } else if (d.doc_type === "SALARY_SLIP") {
+          shortType = "PAYSLIP"; badgeColor = "bg-purple-950 text-purple-300 border-purple-600";
+        } else if (d.doc_type === "FORM_16") {
+          const ay = typeof formAssessmentYearOf === "function" ? formAssessmentYearOf(d) : null;
+          shortType = ay ? `FORM 16 (A.Y. ${ay})` : "FORM 16";
+          badgeColor = "bg-indigo-950 text-indigo-300 border-indigo-600";
+        }
+
+        let docSrc = d.image_url || "";
+        if (docSrc.includes("/static/extracted_pages/")) {
+          docSrc = docSrc.replace("/static/extracted_pages/", "/storage/separated_docs/");
+        }
+
+        return {
+          index: i,
+          pageNumber: d.page_number || (i + 1),
+          title: `Page ${d.page_number || (i + 1)} • ${shortType}`,
+          sub: `${d.holder_name || ''} ${d.document_title || ''}`.trim() || 'AI Scanned Document',
+          src: docSrc,
+          status: d.scan_status || 'VERIFIED',
+          shortType: shortType,
+          docType: d.doc_type || 'OTHER',
+          badgeColor: badgeColor,
+          holderName: d.holder_name || '',
+          discrepancies: d.discrepancies || []
+        };
+      });
+
+      openFullDocumentViewer(items, startIndex);
+    }
+
+    function renderViewerCurrentDoc() {
+      if (!viewerDocList || viewerDocList.length === 0) return;
+      const d = viewerDocList[viewerCurrentIndex];
+      if (!d) return;
+
+      const modalTitle = document.getElementById("zoomModalTitle");
       const frontImg = document.getElementById("zoomFrontImg");
       const backImg = document.getElementById("zoomBackImg");
       const frontLabel = document.getElementById("zoomFrontLabel");
@@ -4764,44 +4829,246 @@
       const flipCard = document.getElementById("zoomFlipCard");
       const sideControls = document.getElementById("zoomSideControls");
       const flipBtn = document.getElementById("zoomFlipBtn");
-      const c = caseRegistry[activeCaseId] || {};
 
-      if (sideControls) sideControls.classList.remove("hidden");
-      if (flipBtn) flipBtn.classList.remove("hidden");
-
-      if (section === "aadhaar") {
-        title.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">badge</span> Aadhaar Card (Front / Back) • ${c.applicant_name || 'Scrutiny'}`;
-        frontImg.src = document.getElementById("dispAadhaarFrontImg") ? document.getElementById("dispAadhaarFrontImg").src : "/static/placeholders/doc_pending.svg";
-        backImg.src = document.getElementById("dispAadhaarBackImg") ? document.getElementById("dispAadhaarBackImg").src : "/static/placeholders/doc_pending.svg";
-        frontLabel.textContent = `Aadhaar Front Side - Identity, Photo, DOB & UIDAI Digitally Verified (${c.applicant_name})`;
-        backLabel.textContent = `Aadhaar Back Side - Address Corroboration: ${c.address}`;
-      } else if (section === "pan") {
-        title.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">credit_card</span> Permanent Account Number (PAN) • ${c.pan} (${c.applicant_name})`;
-        frontImg.src = document.getElementById("dispPanFrontImg") ? document.getElementById("dispPanFrontImg").src : "/static/placeholders/doc_pending.svg";
-        backImg.src = document.getElementById("dispPanBackImg") ? document.getElementById("dispPanBackImg").src : "/static/placeholders/doc_pending.svg";
-        frontLabel.textContent = `Income Tax Department Physical Card - ${c.pan} (${(c.applicant_name || '').toUpperCase()})`;
-        backLabel.textContent = `Official NSDL Online Verification Portal - Active Jurisdiction: ${c.ward || 'WARD 1'}`;
-      } else if (section === "utility") {
-        title.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">assignment</span> UGVCL Electricity Bill & CPV Due Diligence Verification`;
-        frontImg.src = document.getElementById("dispUtilityFrontImg") ? document.getElementById("dispUtilityFrontImg").src : "/static/placeholders/doc_pending.svg";
-        backImg.src = document.getElementById("dispUtilityBackImg") ? document.getElementById("dispUtilityBackImg").src : "/static/placeholders/doc_pending.svg";
-        frontLabel.textContent = `Electricity Bill - ${c.applicant_name} (${c.address})`;
-        backLabel.textContent = `Physical CPV Due Diligence Inspection Form - Completed for ${c.applicant_name}`;
+      let resolvedSrc = d.src || "";
+      if (resolvedSrc.includes("/static/extracted_pages/")) {
+        resolvedSrc = resolvedSrc.replace("/static/extracted_pages/", "/storage/separated_docs/");
       }
 
-      if (docState[section] && docState[section].isFlipped) {
+      if (modalTitle) {
+        modalTitle.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">description</span> <span class="truncate">${d.title || 'Document Inspection'} • Authentic Scanned Record</span>`;
+      }
+
+      if (frontImg) {
+        frontImg.src = resolvedSrc;
+        frontImg.onerror = function() {
+          if (this.src.includes("/storage/separated_docs/")) {
+            this.src = this.src.replace("/storage/separated_docs/", "/static/extracted_pages/");
+          }
+        };
+      }
+      if (backImg) {
+        backImg.src = d.backSrc || resolvedSrc;
+      }
+
+      if (frontLabel) {
+        frontLabel.textContent = `${d.title || ''} • ${d.sub || ''} (${d.status || 'VERIFIED'})`;
+      }
+      if (backLabel) {
+        backLabel.textContent = d.backLabel || `CA Vault Certified Scan • SHA256 Intact • Tamper Sealed`;
+      }
+
+      const hasBack = Boolean(d.backSrc);
+      if (sideControls) sideControls.classList.toggle("hidden", !hasBack);
+      if (flipBtn) flipBtn.classList.toggle("hidden", !hasBack);
+      if (flipCard && !hasBack) flipCard.classList.remove("is-flipped");
+
+      // Update Navigation Bar & Counter
+      const pageInput = document.getElementById("viewerPageJumpInput");
+      const totalCount = document.getElementById("viewerTotalPagesCount");
+      const pageDropdown = document.getElementById("viewerPageDropdown");
+      const prevBtn = document.getElementById("viewerNavPrevBtn");
+      const nextBtn = document.getElementById("viewerNavNextBtn");
+      const floatPrev = document.getElementById("viewerFloatingPrevBtn");
+      const floatNext = document.getElementById("viewerFloatingNextBtn");
+
+      const currentNum = viewerCurrentIndex + 1;
+      const totalNum = viewerDocList.length;
+
+      if (pageInput) {
+        pageInput.value = currentNum;
+        pageInput.max = totalNum;
+      }
+      if (totalCount) {
+        totalCount.textContent = totalNum;
+      }
+      if (pageDropdown) {
+        pageDropdown.value = viewerCurrentIndex;
+      }
+
+      const isFirst = viewerCurrentIndex === 0;
+      const isLast = viewerCurrentIndex >= totalNum - 1;
+
+      if (prevBtn) prevBtn.disabled = isFirst;
+      if (nextBtn) nextBtn.disabled = isLast;
+      if (floatPrev) floatPrev.disabled = isFirst;
+      if (floatNext) floatNext.disabled = isLast;
+
+      updateViewerThumbstripActive();
+      resetDocZoom();
+      initZoomPanHandlers();
+    }
+
+    function viewerPrevDoc() {
+      if (!viewerDocList || viewerDocList.length === 0) return;
+      if (viewerCurrentIndex > 0) {
+        viewerCurrentIndex--;
+        renderViewerCurrentDoc();
+      }
+    }
+
+    function viewerNextDoc() {
+      if (!viewerDocList || viewerDocList.length === 0) return;
+      if (viewerCurrentIndex < viewerDocList.length - 1) {
+        viewerCurrentIndex++;
+        renderViewerCurrentDoc();
+      }
+    }
+
+    function viewerJumpToPage(target) {
+      if (!viewerDocList || viewerDocList.length === 0) return;
+      let targetIndex = parseInt(target, 10);
+      if (isNaN(targetIndex)) return;
+      if (targetIndex < 0) targetIndex = 0;
+      if (targetIndex >= viewerDocList.length) targetIndex = viewerDocList.length - 1;
+      viewerCurrentIndex = targetIndex;
+      renderViewerCurrentDoc();
+    }
+
+    function handleViewerPageJumpInput() {
+      const input = document.getElementById("viewerPageJumpInput");
+      if (!input || !viewerDocList || viewerDocList.length === 0) return;
+      const pageNum = parseInt(input.value, 10);
+      if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= viewerDocList.length) {
+        viewerJumpToPage(pageNum - 1);
+      } else {
+        input.value = viewerCurrentIndex + 1;
+      }
+    }
+
+    function populateViewerPageDropdown() {
+      const select = document.getElementById("viewerPageDropdown");
+      if (!select) return;
+      select.innerHTML = "";
+      if (!viewerDocList || viewerDocList.length === 0) return;
+      viewerDocList.forEach((d, idx) => {
+        const opt = document.createElement("option");
+        opt.value = idx;
+        const pageLabel = d.pageNumber ? `P${d.pageNumber}: ` : `[${idx + 1}] `;
+        opt.textContent = `${pageLabel}${d.shortType || d.docType || 'Doc'} - ${d.sub || ''}`.substring(0, 42);
+        select.appendChild(opt);
+      });
+    }
+
+    function renderViewerThumbstrip() {
+      const strip = document.getElementById("viewerThumbStripContainer");
+      if (!strip) return;
+      strip.innerHTML = "";
+      if (!viewerDocList || viewerDocList.length <= 1) {
+        strip.classList.add("hidden");
+        return;
+      }
+      if (isViewerThumbstripOpen) {
+        strip.classList.remove("hidden");
+      }
+
+      viewerDocList.forEach((d, idx) => {
+        const thumb = document.createElement("div");
+        thumb.id = `viewerThumb_${idx}`;
+        thumb.className = `relative shrink-0 w-14 h-18 rounded border-2 overflow-hidden cursor-pointer transition-all bg-slate-950 flex flex-col items-center justify-between p-0.5 ${idx === viewerCurrentIndex ? 'border-amber-400 ring-2 ring-amber-400/50 scale-105' : 'border-white/20 opacity-70 hover:opacity-100 hover:border-white/60'}`;
+        thumb.title = `Jump to Page ${d.pageNumber || (idx + 1)}: ${d.title || ''}`;
+        thumb.onclick = () => viewerJumpToPage(idx);
+
+        const img = document.createElement("img");
+        img.src = d.src;
+        img.className = "w-full h-12 object-cover rounded pointer-events-none";
+        img.onerror = function() {
+          if (this.src.includes("/storage/separated_docs/")) {
+            this.src = this.src.replace("/storage/separated_docs/", "/static/extracted_pages/");
+          }
+        };
+
+        const badge = document.createElement("div");
+        badge.className = "w-full text-center text-[8px] font-mono font-bold text-white bg-black/80 truncate px-0.5 rounded";
+        badge.textContent = `P${d.pageNumber || (idx + 1)}`;
+
+        thumb.appendChild(img);
+        thumb.appendChild(badge);
+        strip.appendChild(thumb);
+      });
+    }
+
+    function updateViewerThumbstripActive() {
+      if (!viewerDocList || viewerDocList.length <= 1) return;
+      viewerDocList.forEach((_, idx) => {
+        const thumb = document.getElementById(`viewerThumb_${idx}`);
+        if (thumb) {
+          if (idx === viewerCurrentIndex) {
+            thumb.className = "relative shrink-0 w-14 h-18 rounded border-2 border-amber-400 ring-2 ring-amber-400/50 scale-105 overflow-hidden cursor-pointer transition-all bg-slate-900 flex flex-col items-center justify-between p-0.5 opacity-100 shadow-md";
+            thumb.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+          } else {
+            thumb.className = "relative shrink-0 w-14 h-18 rounded border-2 border-white/20 opacity-70 hover:opacity-100 hover:border-white/60 overflow-hidden cursor-pointer transition-all bg-slate-950 flex flex-col items-center justify-between p-0.5 hover:scale-105";
+          }
+        }
+      });
+    }
+
+    function toggleViewerThumbstrip() {
+      const strip = document.getElementById("viewerThumbStripContainer");
+      const btn = document.getElementById("btnToggleThumbstrip");
+      if (!strip) return;
+      isViewerThumbstripOpen = !isViewerThumbstripOpen;
+      strip.classList.toggle("hidden", !isViewerThumbstripOpen);
+      if (btn) {
+        btn.classList.toggle("bg-primary-container", isViewerThumbstripOpen);
+        btn.classList.toggle("text-white", isViewerThumbstripOpen);
+      }
+    }
+
+    function openDocZoomModal(section) {
+      currentZoomSection = section;
+      const c = caseRegistry[activeCaseId] || {};
+      const kycItems = [
+        {
+          section: 'aadhaar',
+          pageNumber: 1,
+          title: `Aadhaar Card (Front / Back) • ${c.applicant_name || 'Scrutiny'}`,
+          sub: `Identity & Address Corroboration: ${c.address || ''}`,
+          src: document.getElementById("dispAadhaarFrontImg") ? document.getElementById("dispAadhaarFrontImg").src : "/static/placeholders/doc_pending.svg",
+          backSrc: document.getElementById("dispAadhaarBackImg") ? document.getElementById("dispAadhaarBackImg").src : "/static/placeholders/doc_pending.svg",
+          frontLabel: `Aadhaar Front Side - Identity, Photo, DOB & UIDAI Digitally Verified (${c.applicant_name})`,
+          backLabel: `Aadhaar Back Side - Address Corroboration: ${c.address}`,
+          status: 'UIDAI VERIFIED',
+          shortType: 'AADHAAR'
+        },
+        {
+          section: 'pan',
+          pageNumber: 2,
+          title: `Permanent Account Number (PAN) • ${c.pan || ''} (${c.applicant_name || ''})`,
+          sub: `Official NSDL Online Verification Portal • Ward: ${c.ward || 'WARD 1'}`,
+          src: document.getElementById("dispPanFrontImg") ? document.getElementById("dispPanFrontImg").src : "/static/placeholders/doc_pending.svg",
+          backSrc: document.getElementById("dispPanBackImg") ? document.getElementById("dispPanBackImg").src : "/static/placeholders/doc_pending.svg",
+          frontLabel: `Income Tax Department Physical Card - ${c.pan} (${(c.applicant_name || '').toUpperCase()})`,
+          backLabel: `Official NSDL Online Verification Portal - Active Jurisdiction: ${c.ward || 'WARD 1'}`,
+          status: 'NSDL VERIFIED',
+          shortType: 'PAN CARD'
+        },
+        {
+          section: 'utility',
+          pageNumber: 3,
+          title: `UGVCL Electricity Bill & CPV Due Diligence Verification`,
+          sub: `Consumer: ${c.utility_holder || c.applicant_name || ''} (${c.address || ''})`,
+          src: document.getElementById("dispUtilityFrontImg") ? document.getElementById("dispUtilityFrontImg").src : "/static/placeholders/doc_pending.svg",
+          backSrc: document.getElementById("dispUtilityBackImg") ? document.getElementById("dispUtilityBackImg").src : "/static/placeholders/doc_pending.svg",
+          frontLabel: `Electricity Bill - ${c.applicant_name} (${c.address})`,
+          backLabel: `Physical CPV Due Diligence Inspection Form - Completed for ${c.applicant_name}`,
+          status: 'UTILITY VERIFIED',
+          shortType: 'ELECTRICITY'
+        }
+      ];
+
+      let startIdx = 0;
+      if (section === 'pan') startIdx = 1;
+      else if (section === 'utility') startIdx = 2;
+
+      openFullDocumentViewer(kycItems, startIdx);
+
+      const flipCard = document.getElementById("zoomFlipCard");
+      if (docState[section] && docState[section].isFlipped && flipCard) {
         flipCard.classList.add("is-flipped");
         document.getElementById("zoomSideBtnFront").className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
         document.getElementById("zoomSideBtnBack").className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
-      } else {
-        flipCard.classList.remove("is-flipped");
-        document.getElementById("zoomSideBtnFront").className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm";
-        document.getElementById("zoomSideBtnBack").className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant";
       }
-
-      resetDocZoom();
-      initZoomPanHandlers();
-      modal.classList.remove("hidden");
     }
 
     function flipZoomCard() {
@@ -6978,7 +7245,33 @@
         closeHandoverModal();
       }
       if (isZoomOpen) {
-        if (e.key === " " || e.key === "f" || e.key === "F") {
+        // If user is typing in an input/select/textarea, allow natural input
+        if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT")) {
+          if (e.key === "Enter" && e.target.id === "viewerPageJumpInput") {
+            e.preventDefault();
+            handleViewerPageJumpInput();
+          }
+          return;
+        }
+
+        // Left / Right Document Browsing & Page Navigation
+        if (e.key === "ArrowLeft" || e.key === "PageUp" || e.key === "p" || e.key === "P") {
+          e.preventDefault();
+          viewerPrevDoc();
+        } else if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === "n" || e.key === "N") {
+          e.preventDefault();
+          viewerNextDoc();
+        } else if (e.key === "Home") {
+          e.preventDefault();
+          viewerJumpToPage(0);
+        } else if (e.key === "End") {
+          e.preventDefault();
+          viewerJumpToPage(viewerDocList.length - 1);
+        } else if (e.key === "j" || e.key === "J") {
+          e.preventDefault();
+          const pInput = document.getElementById("viewerPageJumpInput");
+          if (pInput) { pInput.focus(); pInput.select(); }
+        } else if (e.key === " " || e.key === "f" || e.key === "F") {
           e.preventDefault();
           flipZoomCard();
         } else if (e.key === "+" || e.key === "=") {
@@ -7034,11 +7327,11 @@
         return;
       }
 
-      items.forEach(([key, d]) => {
+      items.forEach(([key, d], idx) => {
         const row = document.createElement("div");
         row.className = "p-2 rounded-lg bg-surface-container-low hover:bg-surface-container border border-outline-variant flex items-center justify-between gap-2.5 transition-all group";
         row.innerHTML = `
-          <div class="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer" onclick="openVaultDocZoom('${d.title.replace(/'/g, "\'")}', '${d.sub.replace(/'/g, "\'")}', '${d.src}', '${d.status}')">
+          <div class="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer" onclick="openVaultDocListZoom(${idx})">
             <div class="relative w-11 h-11 rounded-md overflow-hidden border border-outline-variant shrink-0 bg-slate-900 shadow-2xs">
               <img src="${d.src}" alt="${d.title}" class="w-full h-full object-cover group-hover:scale-110 transition-transform"/>
               <span class="absolute bottom-0 inset-x-0 bg-black/75 text-white font-mono text-[7px] text-center font-bold">${d.type.toUpperCase()}</span>
@@ -7050,7 +7343,7 @@
             </div>
           </div>
           <div class="flex items-center gap-1 shrink-0">
-            <button type="button" onclick="openVaultDocZoom('${d.title.replace(/'/g, "\'")}', '${d.sub.replace(/'/g, "\'")}', '${d.src}', '${d.status}')" class="p-1 rounded text-outline hover:text-primary-container hover:bg-surface-container-lowest" title="Enlarge Document">
+            <button type="button" onclick="openVaultDocListZoom(${idx})" class="p-1 rounded text-outline hover:text-primary-container hover:bg-surface-container-lowest" title="Enlarge Document">
               <span class="material-symbols-outlined text-[16px]">zoom_in</span>
             </button>
             <label class="p-1 rounded text-outline hover:text-emerald-700 hover:bg-surface-container-lowest cursor-pointer" title="Replace with new scan">
@@ -7090,7 +7383,7 @@
 
       const docs = c.vault_documents || {};
 
-      Object.entries(docs).forEach(([key, d]) => {
+      Object.entries(docs).forEach(([key, d], idx) => {
         const card = document.createElement("div");
         card.className = "bg-surface-container-low hover:bg-surface-container rounded-xl border border-outline-variant hover:border-primary-container shadow-2xs p-3 flex flex-col justify-between gap-3 transition-all group";
         card.innerHTML = `
@@ -7099,7 +7392,7 @@
               <span class="font-headline font-bold text-xs text-on-surface truncate group-hover:text-primary-container">${d.title}</span>
               <span class="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded ${d.status === 'VERIFIED' ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' : 'bg-blue-50 text-blue-800 border border-blue-300'}">${d.status}</span>
             </div>
-            <div class="relative w-full h-44 rounded-lg overflow-hidden border border-outline-variant bg-slate-900 mt-2.5 cursor-pointer shadow-inner" onclick="openVaultDocZoom('${d.title.replace(/'/g, "\'")}', '${d.sub.replace(/'/g, "\'")}', '${d.src}', '${d.status}')">
+            <div class="relative w-full h-44 rounded-lg overflow-hidden border border-outline-variant bg-slate-900 mt-2.5 cursor-pointer shadow-inner" onclick="openVaultDocListZoom(${idx})">
               <img src="${d.src}" alt="${d.title}" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"/>
               <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-2 font-mono text-xs font-bold">
                 <span class="material-symbols-outlined text-[20px]">zoom_in</span> Click to Inspect
@@ -7109,7 +7402,7 @@
           </div>
 
           <div class="flex items-center justify-between pt-2 border-t border-outline-variant/60 text-xs">
-            <button type="button" onclick="openVaultDocZoom('${d.title.replace(/'/g, "\'")}', '${d.sub.replace(/'/g, "\'")}', '${d.src}', '${d.status}')" class="px-2.5 py-1 rounded-lg bg-surface-container-lowest hover:bg-surface-container border border-outline-variant font-headline font-bold text-[11px] text-primary-container flex items-center gap-1 shadow-2xs">
+            <button type="button" onclick="openVaultDocListZoom(${idx})" class="px-2.5 py-1 rounded-lg bg-surface-container-lowest hover:bg-surface-container border border-outline-variant font-headline font-bold text-[11px] text-primary-container flex items-center gap-1 shadow-2xs">
               <span class="material-symbols-outlined text-[14px]">fullscreen</span>
               <span>Inspect</span>
             </button>
@@ -7129,42 +7422,19 @@
       renderVaultMini();
     }
 
-    function openVaultDocZoom(title, sub, src, status) {
-      const modal = document.getElementById("docZoomModal");
-      const modalTitle = document.getElementById("zoomModalTitle");
-      const frontImg = document.getElementById("zoomFrontImg");
-      const backImg = document.getElementById("zoomBackImg");
-      const frontLabel = document.getElementById("zoomFrontLabel");
-      const backLabel = document.getElementById("zoomBackLabel");
-      const flipCard = document.getElementById("zoomFlipCard");
-
-      if (!modal) return;
-
-      let resolvedSrc = src || "";
-      if (resolvedSrc.includes("/static/extracted_pages/")) {
-        resolvedSrc = resolvedSrc.replace("/static/extracted_pages/", "/storage/separated_docs/");
-      }
-
-      modalTitle.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">verified_user</span> ${title} • Authentic Scanned Document`;
-      frontImg.src = resolvedSrc;
-      backImg.src = resolvedSrc;
-      frontImg.onerror = function() {
-        if (this.src.includes("/storage/separated_docs/")) {
-          this.src = this.src.replace("/storage/separated_docs/", "/static/extracted_pages/");
-        }
-      };
-      frontLabel.textContent = `${title} • ${sub} (${status})`;
-      backLabel.textContent = `CA Vault Certified Scan • SHA256 Intact • Tamper Sealed`;
-
-      const sideControls = document.getElementById("zoomSideControls");
-      const flipBtn = document.getElementById("zoomFlipBtn");
-      if (sideControls) sideControls.classList.add("hidden");
-      if (flipBtn) flipBtn.classList.add("hidden");
-
-      if (flipCard) flipCard.classList.remove("is-flipped");
-      resetDocZoom();
-      initZoomPanHandlers();
-      modal.classList.remove("hidden");
+    function openVaultDocListZoom(startIndex = 0) {
+      const c = caseRegistry[activeCaseId];
+      if (!c || !c.vault_documents) return;
+      const items = Object.entries(c.vault_documents).map(([key, d], i) => ({
+        index: i,
+        pageNumber: i + 1,
+        title: d.title || 'Vault Document',
+        sub: d.sub || key.toUpperCase(),
+        src: d.src,
+        status: d.status || 'VERIFIED',
+        shortType: (d.type || 'DOCUMENT').toUpperCase()
+      }));
+      openFullDocumentViewer(items, startIndex);
     }
 
     function directReplaceDocCard(section, file) {
@@ -7888,14 +8158,39 @@
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
     <div id="docZoomModalBox" class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-6xl w-[96vw] h-[94vh] flex flex-col shadow-2xl overflow-hidden transition-all duration-200">
       <!-- Modal Header -->
-      <div class="px-4 py-2.5 sm:px-5 sm:py-3 border-b border-outline-variant flex items-center justify-between bg-surface-container-low shrink-0 gap-2">
-        <h3 id="zoomModalTitle" class="font-headline font-bold text-xs sm:text-sm text-on-surface flex items-center gap-2 truncate">
-          <span class="material-symbols-outlined text-primary-container text-[20px]">verified_user</span>
-          <span>Document Inspection</span>
-        </h3>
+      <div class="px-3 py-2 sm:px-5 sm:py-2.5 border-b border-outline-variant flex items-center justify-between bg-surface-container-low shrink-0 gap-2 flex-wrap sm:flex-nowrap">
+        <div class="flex items-center gap-2 min-w-0">
+          <h3 id="zoomModalTitle" class="font-headline font-bold text-xs sm:text-sm text-on-surface flex items-center gap-1.5 truncate">
+            <span class="material-symbols-outlined text-primary-container text-[20px]">description</span>
+            <span class="truncate">Document Inspection</span>
+          </h3>
+        </div>
+
+        <!-- BROWSE & PAGE JUMP TOOLBAR -->
+        <div id="viewerBrowseToolbar" class="flex items-center gap-1 sm:gap-1.5 bg-surface-container-high px-2 py-1 rounded-lg border border-outline-variant font-mono text-xs">
+          <button id="viewerNavPrevBtn" type="button" onclick="viewerPrevDoc()" class="px-2 py-1 rounded hover:bg-surface-container text-on-surface font-bold flex items-center gap-0.5 disabled:opacity-25 disabled:pointer-events-none transition-colors" title="Previous Document [←]">
+            <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+            <span class="hidden sm:inline text-[11px]">Prev</span>
+          </button>
+          
+          <div class="flex items-center gap-1 px-1.5 py-0.5 bg-surface-container-lowest rounded border border-outline-variant/60">
+            <span class="text-outline text-[11px] hidden sm:inline">Page</span>
+            <input id="viewerPageJumpInput" type="number" min="1" value="1" onkeydown="if(event.key==='Enter')handleViewerPageJumpInput()" class="w-10 sm:w-12 text-center font-mono font-bold text-xs bg-transparent border-none text-on-surface p-0 focus:ring-0 focus:outline-none" title="Type page number and press Enter"/>
+            <span class="text-outline text-[11px]">/</span>
+            <span id="viewerTotalPagesCount" class="font-bold text-primary-container text-xs pr-1">1</span>
+            <button type="button" onclick="handleViewerPageJumpInput()" class="px-1.5 py-0.5 rounded bg-primary-container hover:bg-primary text-white text-[10px] font-bold font-headline transition-colors shadow-2xs" title="Jump to typed page number">Go</button>
+          </div>
+
+          <select id="viewerPageDropdown" onchange="viewerJumpToPage(parseInt(this.value, 10))" class="hidden xl:inline-block max-w-[200px] 2xl:max-w-[260px] text-[11px] font-mono bg-surface-container-lowest border border-outline-variant/60 rounded py-1 px-1.5 text-on-surface truncate cursor-pointer hover:border-primary-container transition-colors" title="Select specific document / page from list"></select>
+
+          <button id="viewerNavNextBtn" type="button" onclick="viewerNextDoc()" class="px-2 py-1 rounded hover:bg-surface-container text-on-surface font-bold flex items-center gap-0.5 disabled:opacity-25 disabled:pointer-events-none transition-colors" title="Next Document [→]">
+            <span class="hidden sm:inline text-[11px]">Next</span>
+            <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+          </button>
+        </div>
         
         <!-- Controls Toolbar -->
-        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap justify-end">
+        <div class="flex items-center gap-1 sm:gap-1.5 shrink-0 flex-wrap justify-end">
           <!-- Zoom & Transform Controls -->
           <div class="inline-flex items-center bg-surface-container-high px-1 py-0.5 rounded-lg border border-outline-variant text-xs gap-0.5 font-mono">
             <button type="button" onclick="zoomDocModal(-0.25)" class="p-1 rounded hover:bg-surface-container text-on-surface" title="Zoom Out (-)">
@@ -7910,16 +8205,22 @@
             <div class="w-px h-3.5 bg-outline-variant/60 mx-0.5"></div>
             <button type="button" onclick="fitDocToPage()" class="px-2 py-0.5 rounded hover:bg-surface-container text-on-surface text-[10px] font-bold flex items-center gap-1" title="Fit Full Page Height">
               <span class="material-symbols-outlined text-[15px]">fit_screen</span>
-              <span class="hidden md:inline">Fit Page</span>
+              <span class="hidden lg:inline">Fit Page</span>
             </button>
             <button type="button" onclick="fitDocToWidth()" class="px-2 py-0.5 rounded hover:bg-surface-container text-on-surface text-[10px] font-bold flex items-center gap-1" title="Fit Full Width">
               <span class="material-symbols-outlined text-[15px]">width</span>
-              <span class="hidden md:inline">Fit Width</span>
+              <span class="hidden lg:inline">Fit Width</span>
             </button>
-            <button type="button" onclick="rotateDocModal()" class="p-1 rounded hover:bg-surface-container text-on-surface" title="Rotate 90° Clockwise">
+            <button type="button" onclick="rotateDocModal()" class="p-1 rounded hover:bg-surface-container text-on-surface" title="Rotate 90° Clockwise [R]">
               <span class="material-symbols-outlined text-[17px]">rotate_right</span>
             </button>
           </div>
+
+          <!-- Bottom Thumbstrip Toggle Button -->
+          <button type="button" id="btnToggleThumbstrip" onclick="toggleViewerThumbstrip()" class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant font-headline font-bold text-[11px] flex items-center gap-1 shadow-2xs transition-colors" title="Toggle Thumbnail Strip">
+            <span class="material-symbols-outlined text-[16px]">view_carousel</span>
+            <span class="hidden sm:inline">Thumbnails</span>
+          </button>
 
           <!-- Fullscreen / Maximize Toggle -->
           <button type="button" onclick="toggleDocZoomFullscreen()" id="btnDocFullscreen" class="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant flex items-center justify-center transition-all" title="Toggle Fullscreen / Maximize View">
@@ -7931,7 +8232,7 @@
             <span class="material-symbols-outlined text-[18px]">open_in_new</span>
           </button>
 
-          <!-- Front / Back Flip Side Controls -->
+          <!-- Front / Back Flip Side Controls (for 2-sided KYC cards) -->
           <div id="zoomSideControls" class="inline-flex items-center bg-surface-container-high p-0.5 rounded-full border border-outline-variant text-xs">
             <button id="zoomSideBtnFront" onclick="setZoomSide('front')" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-container text-white shadow-sm">Front Side</button>
             <button id="zoomSideBtnBack" onclick="setZoomSide('back')" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant">Back Side</button>
@@ -7950,9 +8251,19 @@
 
       <!-- Modal Body (Viewer Container with Pan, Scroll, and 3D Flip) -->
       <div id="zoomViewport" class="flex-1 w-full overflow-hidden relative flex items-center justify-center bg-slate-950 p-2 select-none cursor-grab active:cursor-grabbing" style="min-height: 480px;">
+        <!-- Floating Left Arrow Button for Quick Browsing -->
+        <button id="viewerFloatingPrevBtn" onclick="viewerPrevDoc()" type="button" class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-slate-900/80 hover:bg-black text-white/90 hover:text-white flex items-center justify-center backdrop-blur-md border border-white/25 shadow-2xl transition-all hover:scale-110 active:scale-95 cursor-pointer disabled:opacity-20 disabled:pointer-events-none group" title="Previous Page / Document [←]">
+          <span class="material-symbols-outlined text-[28px] sm:text-[34px] group-hover:-translate-x-0.5 transition-transform">arrow_back_ios_new</span>
+        </button>
+
+        <!-- Floating Right Arrow Button for Quick Browsing -->
+        <button id="viewerFloatingNextBtn" onclick="viewerNextDoc()" type="button" class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-slate-900/80 hover:bg-black text-white/90 hover:text-white flex items-center justify-center backdrop-blur-md border border-white/25 shadow-2xl transition-all hover:scale-110 active:scale-95 cursor-pointer disabled:opacity-20 disabled:pointer-events-none group" title="Next Page / Document [→]">
+          <span class="material-symbols-outlined text-[28px] sm:text-[34px] group-hover:translate-x-0.5 transition-transform">arrow_forward_ios</span>
+        </button>
+
         <div id="zoomTransformContainer" class="transition-transform duration-100 ease-out flex items-center justify-center" style="transform: translate(0px, 0px) scale(1) rotate(0deg); transform-origin: center center;">
-          <div class="doc-flip-container w-[820px] max-w-[94vw]" style="perspective: 1600px;">
-            <div id="zoomFlipCard" class="doc-flip-card shadow-2xl rounded-xl relative" style="height: 78vh; min-height: 520px; max-height: 900px;">
+          <div class="doc-flip-container w-[920px] max-w-[95vw]" style="perspective: 1600px;">
+            <div id="zoomFlipCard" class="doc-flip-card shadow-2xl rounded-xl relative" style="height: 76vh; min-height: 520px; max-height: 920px;">
               <!-- Modal Front Face -->
               <div class="doc-flip-face doc-flip-front flex flex-col items-stretch bg-slate-900 rounded-xl overflow-hidden border border-white/20">
                 <div class="shrink-0 bg-black/75 backdrop-blur-md px-3 py-1.5 text-xs text-white flex items-center justify-between font-mono shadow-md z-10">
@@ -7995,14 +8306,19 @@
         </div>
       </div>
 
+      <!-- Bottom Thumbnail Carousel Strip for direct page jumping -->
+      <div id="viewerThumbStripContainer" class="bg-slate-900 border-t border-white/10 px-3 py-2 shrink-0 flex items-center gap-2 overflow-x-auto custom-scrollbar select-none transition-all" style="max-height: 98px;">
+        <!-- Dynamic thumbnails injected by JavaScript -->
+      </div>
+
       <!-- Modal Footer -->
-      <div class="px-5 py-2 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-xs text-on-surface-variant font-mono shrink-0">
+      <div class="px-5 py-2 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-xs text-on-surface-variant font-mono shrink-0 flex-wrap gap-2">
         <div class="flex items-center gap-2">
           <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span class="hidden sm:inline">High-Resolution Full Page Viewer • Drag to pan • Scroll to zoom • Double click to toggle</span>
           <span class="sm:hidden">Drag to pan • Scroll to zoom</span>
         </div>
-        <span class="text-outline text-[11px]">Tip: [+] / [-] zoom • [Space] / [F] flip • [Esc] close</span>
+        <span class="text-outline text-[11px] font-semibold">Shortcuts: [←] / [→] Browse • [J] Jump Page • [+] / [-] Zoom • [0] Reset • [Space/F] Flip • [Esc] Close</span>
       </div>
     </div>
   </div>
