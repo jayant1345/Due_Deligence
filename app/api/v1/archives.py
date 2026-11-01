@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.deps import get_current_ca_user, get_optional_current_user
+from app.api.deps import get_current_ca_user
 from app.core.database import get_db
 from app.models.user import User
 from app.services.archive_service import (
@@ -25,7 +25,7 @@ class PurgeMonthRequest(BaseModel):
 @router.get("/months", response_model=List[Dict[str, Any]])
 async def list_archive_months(
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_ca_user),
 ):
     """
     List all available month-years grouped from portfolio cases,
@@ -40,7 +40,7 @@ async def download_monthly_archive_zip(
     month: Optional[str] = Query("ALL", description="e.g. 'AUG - 2026', 'SEP - 2026', 'OCT - 2026', or 'ALL'"),
     bank: Optional[str] = Query("ALL", description="Specific bank name filter or 'ALL'"),
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_ca_user),
 ):
     """
     Generate and stream a hierarchical ZIP file organized as:

@@ -106,35 +106,32 @@ async def get_optional_current_user(
     db: AsyncSession = Depends(get_db),
     token: Optional[str] = Depends(oauth2_optional_scheme),
 ) -> Optional[User]:
-    """Retrieves current user if token present; falls back to default admin ONLY when no
-    token was supplied at all (direct portal access during development). A token that WAS
-    supplied but fails to resolve - expired, tampered, or belonging to a now-deactivated
-    account - must never silently fall through to the admin fallback below: that would hand
-    whoever holds that stale token full unrestricted admin-level access (e.g. every case in
-    the firm instead of a 401), which is exactly what happened to a field agent's old cached
-    login token after their account was deactivated."""
-    if token and token not in ("demo-ca-token", "demo-pwa-token"):
-        try:
-            payload = decode_token(token)
-            if payload and payload.get("type") == "access":
-                user_uuid = uuid.UUID(payload.get("sub"))
-                query = select(User).where(User.id == user_uuid)
-                result = await db.execute(query)
-                user = result.scalar_one_or_none()
-                if user and user.is_active:
-                    return user
-        except Exception:
-            pass
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired or account deactivated. Please log in again.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # No token at all: fall back to default admin user for direct portal and development access
-    admin_query = select(User).where(User.role == UserRole.SUPER_ADMIN)
-    res = await db.execute(admin_query)
-    return res.scalars().first()
+    """True optional auth: returns the real user for a valid token, None when no token was
+    supplied at all, and 401 for a token that WAS supplied but fails to resolve - expired,
+    tampered, or belonging to a now-deactivated account. This used to silently fall back to a
+    default SUPER_ADMIN user in both the "no token" and "bad token" cases - on a live system
+    handling real client financial data, that meant anyone who reached the API with no
+    credentials, or whose session had gone stale, got full unrestricted admin access instead
+    of being asked to log in. Callers that genuinely need to require a real, logged-in user
+    (not just "any user or admin") must check the return value themselves, e.g. get_current_ca_user."""
+    if not token or token in ("demo-ca-token", "demo-pwa-token"):
+        return None
+    try:
+        payload = decode_token(token)
+        if payload and payload.get("type") == "access":
+            user_uuid = uuid.UUID(payload.get("sub"))
+            query = select(User).where(User.id == user_uuid)
+            result = await db.execute(query)
+            user = result.scalar_one_or_none()
+            if user and user.is_active:
+                return user
+    except Exception:
+        pass
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Session expired or account deactivated. Please log in again.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 async def get_current_ca_user(
@@ -142,21 +139,18 @@ async def get_current_ca_user(
     user: Optional[User] = Depends(get_optional_current_user),
 ) -> User:
     """
-    Returns the authenticated user or falls back to the default CA Partner / Admin user.
-    Guarantees CA Portal scrutiny operations (PDF ingestion, case creation, document separation)
-    never fail with 401 authentication errors.
+    Returns the authenticated user. Used for every CA Portal scrutiny operation (case
+    create/list/update/delete, PDF ingestion, document management, report compilation) - this
+    is the real client financial/KYC data boundary, so it must genuinely require a logged-in
+    CA user. This previously fell back to a default admin account whenever no real user was
+    resolved, meaning none of those operations actually required login at all; any request
+    with no token, or a stale/invalid one, silently got full admin access instead of a 401.
     """
     if user:
         return user
-
-    admin_query = select(User).where(User.email.in_(["admin", "admin@valuexca.com"]))
-    res = await db.execute(admin_query)
-    fallback_user = res.scalars().first()
-    if fallback_user:
-        return fallback_user
-
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate authentication credentials",
+        detail="Please log in to the CA Scrutiny Desk to continue.",
+        headers={"WWW-Authenticate": "Bearer"},
     )
 

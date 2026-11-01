@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.deps import get_current_user, get_optional_current_user, require_role
+from app.api.deps import get_current_ca_user, require_role
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.loan_case import LoanCase
@@ -82,7 +82,7 @@ async def generate_cpv_template_report(
 async def generate_report(
     req: ReportGenerateRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_ca_user),
 ):
     """
     Trigger compilation of certified, bank-ready PDF report with UDIN and SHA-256 fingerprint.
@@ -96,7 +96,7 @@ async def generate_report(
     if not loan_case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
 
-    user_id_str = str(current_user.id) if current_user else str(uuid.uuid4())
+    user_id_str = str(current_user.id)
 
     # Generate the report directly on current async db session
     from app.workers.celery_tasks import async_generate_report_pdf
@@ -127,7 +127,7 @@ async def generate_report(
 async def get_case_reports(
     case_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_ca_user),
 ):
     """List all certified reports generated for a loan case."""
     rep_res = await db.execute(
