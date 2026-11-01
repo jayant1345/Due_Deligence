@@ -179,6 +179,99 @@ async def update_case(
     return loan_case
 
 
+@router.get("/{case_id}/report-readiness")
+async def get_report_readiness(
+    case_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_ca_user),
+):
+    """
+    What the certified CPV report will print as "Not Captured" for this case, computed without
+    generating the PDF, so CA office staff can fill the gaps - either here on the dashboard (for
+    facts the office already knows) or by sending the field agent back for an on-site detail -
+    before a bank-ready report goes out with blanks in it.
+    """
+    import json
+    from app.services.report_readiness import compute_report_readiness
+
+    loan_case = await resolve_loan_case(db, str(case_id))
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+
+    try:
+        field_form = json.loads(loan_case.field_form_data or "{}")
+        if not isinstance(field_form, dict):
+            field_form = {}
+    except (TypeError, ValueError):
+        field_form = {}
+
+    docs_result = await db.execute(select(CaseDocument).where(CaseDocument.case_id == loan_case.id))
+    has_form16 = any(
+        isinstance(d.ocr_data, dict) and (d.ocr_data.get("llm_doc_type") or d.ocr_data.get("doc_type")) == "FORM_16"
+        for d in docs_result.scalars().all()
+    )
+
+    missing = compute_report_readiness(
+        applicant_name=loan_case.applicant_name,
+        applicant_phone=loan_case.applicant_phone,
+        target_address=loan_case.target_address,
+        loan_amount=loan_case.loan_amount,
+        field_form=field_form,
+        co_applicant_name=loan_case.co_applicant_name,
+        has_form16=has_form16,
+    )
+    return {"case_id": str(case_id), "missing_count": len(missing), "missing_fields": missing}
+
+
+@router.patch("/{case_id}/report-fields")
+async def patch_report_fields(
+    case_id: uuid.UUID,
+    req: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_ca_user),
+):
+    """
+    Lets CA office staff fill in missing field-visit questionnaire answers directly from the
+    dashboard (e.g. a bank account status they already have on file) without overwriting
+    anything the field agent already submitted - merges into the existing field_form_data
+    instead of the field agent's own full-form POST, which replaces it wholesale.
+
+    Body: a flat dict of top-level field_form keys to set (e.g. {"qualification": "Graduate"}),
+    plus optional "office_details" / "office_details_co" dicts merged one level deep.
+    """
+    import json
+
+    loan_case = await resolve_loan_case(db, str(case_id))
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+
+    try:
+        field_form = json.loads(loan_case.field_form_data or "{}")
+        if not isinstance(field_form, dict):
+            field_form = {}
+    except (TypeError, ValueError):
+        field_form = {}
+
+    for key, val in (req or {}).items():
+        if key in ("office_details", "office_details_co") and isinstance(val, dict):
+            nested = field_form.get(key) if isinstance(field_form.get(key), dict) else {}
+            nested.update(val)
+            field_form[key] = nested
+        else:
+            field_form[key] = val
+
+    loan_case.field_form_data = json.dumps(field_form)
+    audit = AuditLog(
+        case_id=loan_case.id,
+        user_id=current_user.id,
+        action="CASE_UPDATED",
+        extra_metadata={"source": "ca_office_report_fields", "fields_filled": list((req or {}).keys())},
+    )
+    db.add(audit)
+    await db.commit()
+    return {"status": "SUCCESS", "field_form": field_form}
+
+
 @router.post("/{case_id}/auto-locate")
 async def auto_locate_case(
     case_id: str,

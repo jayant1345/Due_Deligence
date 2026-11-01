@@ -112,7 +112,9 @@ def _first(pages: List[Dict[str, Any]], field: str, types: Optional[set] = None)
 
 def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: date,
             contact: Optional[str] = None, marital: Optional[str] = None,
-            office_form: Optional[Dict[str, Any]] = None, fallback_name: Optional[str] = None) -> Dict[str, Any]:
+            community: Optional[str] = None, qualification: Optional[str] = None,
+            office_form: Optional[Dict[str, Any]] = None, fallback_name: Optional[str] = None,
+            itr_ack_no: Optional[str] = None, itr_filing_date: Optional[str] = None) -> Dict[str, Any]:
     office_form = office_form or {}
     ident = {"AADHAAR_CARD", "PAN_CARD"}
     name = _first(pages, "holder_name", ident) or _first(pages, "holder_name") or fallback_name
@@ -141,6 +143,8 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
         row = itr.setdefault(ay, {"ay": ay, "ack_no": None, "filed_on": None, "total_income": None,
                                   "status": "Form No. 16 provided (no ITR acknowledgement on record)"})
         row["total_income"] = row["total_income"] or _inr(p.get("annual_taxable_income"))
+        row["ack_no"] = row["ack_no"] or itr_ack_no
+        row["filed_on"] = row["filed_on"] or itr_filing_date
 
     sal = _salutation(gender, marital)
     display = f"{sal} {_title(name)}".strip() if name else ""
@@ -152,11 +156,11 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
         "age": _age(dob, on),
         "gender": gender.capitalize() if gender else None,
         "marital_status": marital,
-        "community": None,
+        "community": community,
         "pan": _first(pages, "extracted_pan", {"PAN_CARD"}) or _first(pages, "extracted_pan"),
         "aadhaar": _first(pages, "extracted_aadhaar", {"AADHAAR_CARD"}),
         "father_name": _first(pages, "father_or_spouse_name", ident),
-        "qualification": None,
+        "qualification": qualification,
         "occupation": form_occupation or ((f"Service — {_title(designation)}" if designation else "Service") if has_salary else None),
         "itr": sorted(itr.values(), key=lambda r: r["ay"], reverse=True)[:3],
         "office": {
@@ -170,7 +174,11 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
             "nameboard": office_form.get("nameboard") or None,
             "infrastructure": office_form.get("infrastructure") or None,
             "experience": _years_since(doj, on),
-            "established_since": None,
+            "established_since": office_form.get("established_since") or None,
+            "location": office_form.get("location") or None,
+            "assets": office_form.get("assets") or None,
+            "reference": office_form.get("reference") or None,
+            "who_meet": office_form.get("who_meet") or None,
             # The ID card carries the official employee code; payslips often print box numbers
             "reg_or_emp_no": _first(pages, "employee_code", {"EMPLOYEE_ID_CARD"}),
             "position": _title(form_position) if form_position else _title(designation),
@@ -185,7 +193,7 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     }
 
 
-def _bank(all_pages: List[Dict[str, Any]], summary_bank: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def _bank(all_pages: List[Dict[str, Any]], summary_bank: Optional[Dict[str, Any]], account_status: Optional[str] = None) -> Dict[str, Any]:
     if not summary_bank:
         return {}
     bank_pages = [p for p in all_pages if p.get("doc_type") == "BANK_STATEMENT"]
@@ -194,7 +202,7 @@ def _bank(all_pages: List[Dict[str, Any]], summary_bank: Optional[Dict[str, Any]
         "bank_name": _title(summary_bank.get("bank_name")),
         "account_number": summary_bank.get("account_number"),
         "branch": branch or (f"IFSC {summary_bank['ifsc_code']}" if summary_bank.get("ifsc_code") else None),
-        "account_status": None,
+        "account_status": account_status,
         "account_type": None,
     }
 
@@ -245,11 +253,18 @@ async def assemble_cpv_report_data(
     applicant_name = assign_relationships(pages, loan_case.applicant_name) or loan_case.applicant_name
     summary = reconcile_case_documents(pages, loan_case.applicant_name)
     form = _form(loan_case)
+    # The dashboard saves this literal placeholder when a case is created without typing a real
+    # address (awaiting a later AI/manual correction) - it must never be treated as an actual,
+    # verified address in a bank-facing report.
+    target_address = loan_case.target_address if loan_case.target_address != "Pending AI Extraction" else None
 
     own = [p for p in pages if p.get("relationship_to_applicant") == "SELF"]
-    applicant = _person(own, pages, on, contact=loan_case.applicant_phone, marital=form.get("marital_status") or None,
-                        office_form=form.get("office_details"))
-    applicant["bank"] = _bank(pages, (summary.get("applicant") or {}).get("bank_account"))
+    applicant = _person(own, pages, on, contact=loan_case.applicant_phone or form.get("contact_number") or None,
+                        marital=form.get("marital_status") or None,
+                        community=form.get("community") or None, qualification=form.get("qualification") or None,
+                        office_form=form.get("office_details"),
+                        itr_ack_no=form.get("itr_acknowledgement_no") or None, itr_filing_date=form.get("itr_filing_date") or None)
+    applicant["bank"] = _bank(pages, (summary.get("applicant") or {}).get("bank_account"), form.get("bank_account_status") or None)
     if not applicant["name"]:
         applicant["name"] = _title(applicant_name)
         applicant["display_name"] = applicant["name"]
@@ -294,9 +309,9 @@ async def assemble_cpv_report_data(
 
     refs = [(form.get("neighbour_1"), "Neighbour"), (form.get("neighbour_2"), "Neighbour")]
     residence = {
-        "verified_address": loan_case.target_address if visited else None,
+        "verified_address": target_address if visited else None,
         "aadhaar_address": (summary.get("applicant") or {}).get("residential_address"),
-        "landmark": None,
+        "landmark": form.get("landmark") or None,
         "references": [(n, r) for n, r in refs if n],
         "building_type": form.get("building_type") or None,
         "floor": None,
@@ -319,7 +334,7 @@ async def assemble_cpv_report_data(
     a_name = applicant["display_name"] or applicant["name"] or "the applicant"
     if visited:
         res = [
-            f"A residence verification was conducted for the applicant, {a_name}, at the following address Viz: {loan_case.target_address}"
+            f"A residence verification was conducted for the applicant, {a_name}, at the following address Viz: {target_address or 'address pending confirmation'}"
             + (f", on {visit_date}." if visit_date else "."),
         ]
         if residence["met"]["name"] or residence["stay_period"]:
@@ -333,7 +348,7 @@ async def assemble_cpv_report_data(
                 f"Residence is {residence['ownership']}." if residence["ownership"] else None,
             ])))
     else:
-        res = [f"A residence verification visit for the applicant, {a_name}, at {loan_case.target_address} is pending."]
+        res = [f"A residence verification visit for the applicant, {a_name}, at {target_address or 'the address on file'} is pending."]
 
     work = []
     if applicant["office"].get("firm_name") or applicant["office"].get("address") or applicant["_employer"] or applicant["_workplace"]:

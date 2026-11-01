@@ -1276,6 +1276,11 @@
 
       <!-- Action Cluster -->
       <div class="space-y-2 mt-auto">
+        <button id="btnReportReadiness" onclick="openReportReadiness()" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-headline text-xs font-bold py-2.5 px-4 rounded-lg shadow-xs transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+          <span class="material-symbols-outlined text-[16px]">fact_check</span>
+          <span id="btnReportReadinessText">Check Report Readiness</span>
+        </button>
+
         <button id="btnCertify" onclick="generateCertifiedDossier()" class="w-full bg-primary-container hover:bg-primary text-white font-headline text-sm font-semibold py-3 px-4 rounded-lg shadow transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
           <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">verified</span>
           <span id="btnCertifyText">Generate Specimen Dossier (PDF & DOCX)</span>
@@ -5490,7 +5495,16 @@
       const loanType = document.getElementById("tabNcLoanType") ? document.getElementById("tabNcLoanType").value : "Home Loan (HL)";
       const loanAmountRaw = document.getElementById("tabNcLoanAmount") ? document.getElementById("tabNcLoanAmount").value.trim() : "";
       const loanAmount = parseInt(loanAmountRaw.replace(/[^0-9]/g, "")) || 0;
-      const address = (document.getElementById("tabNcAddress") ? document.getElementById("tabNcAddress").value.trim() : "") || "Pending AI Extraction";
+      // Unlike applicant name, there is no AI step that ever corrects the address later - a
+      // silent placeholder here stays wrong forever and can leak into the bank-facing report,
+      // so the CA must type a real address before the case is created.
+      const addressEl = document.getElementById("tabNcAddress");
+      const address = addressEl ? addressEl.value.trim() : "";
+      if (!address) {
+        alert("Please enter the property / inspection address before creating the case. It cannot be left blank — there is no AI step that fills this in later.");
+        if (addressEl) addressEl.focus();
+        return;
+      }
 
       const progressBox = document.getElementById("tabNcScanProgressBox");
       const progressBar = document.getElementById("tabNcScanProgressBar");
@@ -6067,11 +6081,17 @@
       const loanType = document.getElementById("ncLoanType").value;
       const loanAmount = document.getElementById("ncLoanAmount").value.trim();
       const month = document.getElementById("ncMonth").value;
-      // Address left as an honest placeholder (never a fabricated specific address) if the
-      // CA leaves it blank; the benchmark lat/lon below stay at a registered placeholder
-      // coordinate (PLACEHOLDER_COORDS in geocoder.py) so Auto-Locate can still correct them
-      // once a real address is entered, instead of permanently locking in a wrong pin.
-      const address = document.getElementById("ncAddress").value.trim() || "Pending AI Extraction";
+      // The textarea's own "required" attribute only fires on a real <form> submit, not this
+      // onclick handler - so it was silently doing nothing. There is no AI step that ever
+      // fills the address in later (unlike applicant name), so a blank/placeholder address
+      // here stays wrong forever and can leak into the bank-facing report - block it here.
+      const ncAddressEl = document.getElementById("ncAddress");
+      const address = ncAddressEl.value.trim();
+      if (!address) {
+        alert("Please enter the property / inspection address before creating the case. It cannot be left blank — there is no AI step that fills this in later.");
+        ncAddressEl.focus();
+        return;
+      }
       const lat = document.getElementById("ncLat").value.trim() || "23.2156";
       const lon = document.getElementById("ncLon").value.trim() || "72.6369";
       const allottedBy = document.getElementById("ncAllottedBy").value;
@@ -7637,6 +7657,131 @@
       }
     }
 
+    // ==========================================
+    // REPORT READINESS — what the final report will print as "Not Captured", fillable here
+    // ==========================================
+    const RR_COMPOSITE_FIELDS = new Set(["neighbours", "family_members", "occupation"]);
+
+    function openReportReadiness() {
+      if (!activeCaseId) { alert("Select a case first."); return; }
+      const modal = document.getElementById("modalReportReadiness");
+      if (!modal) return;
+      modal.style.display = "flex";
+      loadReportReadiness();
+    }
+
+    function closeReportReadiness() {
+      const modal = document.getElementById("modalReportReadiness");
+      if (modal) modal.style.display = "none";
+    }
+
+    async function loadReportReadiness() {
+      const loading = document.getElementById("rrLoadingState");
+      const allGood = document.getElementById("rrAllGoodState");
+      const dashSection = document.getElementById("rrDashboardSection");
+      const ffSection = document.getElementById("rrFieldFormSection");
+      const dashList = document.getElementById("rrDashboardList");
+      const ffList = document.getElementById("rrFieldFormList");
+      const subtitle = document.getElementById("rrSubtitle");
+      if (!loading || !activeCaseId) return;
+      loading.style.display = "flex";
+      allGood.classList.add("hidden");
+      dashSection.classList.add("hidden");
+      ffSection.classList.add("hidden");
+      dashList.innerHTML = "";
+      ffList.innerHTML = "";
+      try {
+        const res = await fetch(`/api/v1/cases/${activeCaseId}/report-readiness`, { headers: authHeaders() });
+        if (!res.ok) throw new Error("fetch failed");
+        const data = await res.json();
+        loading.style.display = "none";
+        const c = caseRegistry[activeCaseId];
+        subtitle.textContent = `${c ? c.case_no + " — " + c.applicant_name + " • " : ""}${data.missing_count} field(s) will print as "Not Captured"`;
+
+        if (data.missing_count === 0) {
+          allGood.classList.remove("hidden");
+          return;
+        }
+
+        const dashItems = data.missing_fields.filter(f => f.source === "dashboard");
+        const ffItems = data.missing_fields.filter(f => f.source === "field_form");
+
+        if (dashItems.length) {
+          dashSection.classList.remove("hidden");
+          dashList.innerHTML = dashItems.map(f => `
+            <div class="flex items-center justify-between p-2 rounded-lg bg-amber-50 border border-amber-200 text-xs">
+              <div>
+                <span class="font-bold text-amber-900">${f.label}</span>
+                <span class="text-amber-700 block text-[10px] font-mono">${f.how}</span>
+              </div>
+              <button onclick="closeReportReadiness(); openEditCaseModal('${activeCaseId}');" class="px-2.5 py-1 bg-white border border-amber-300 text-amber-900 rounded font-bold text-[10px] hover:bg-amber-100 shrink-0">Fix in Edit Case</button>
+            </div>`).join("");
+        }
+
+        if (ffItems.length) {
+          ffSection.classList.remove("hidden");
+          ffList.innerHTML = ffItems.map(f => {
+            if (RR_COMPOSITE_FIELDS.has(f.field)) {
+              return `
+              <div class="p-2 rounded-lg bg-surface-container-low border border-outline-variant text-xs">
+                <span class="font-bold text-on-surface">${f.label}</span>
+                <span class="text-outline block text-[10px] font-mono">${f.how} — ask the field agent, this needs several structured entries</span>
+              </div>`;
+            }
+            return `
+            <div class="p-2 rounded-lg bg-surface-container-low border border-outline-variant text-xs space-y-1">
+              <label class="font-bold text-on-surface block">${f.label}</label>
+              <input type="text" data-rr-field="${f.field}" placeholder="Type the answer if the CA office already knows it..." class="w-full text-xs rounded border border-outline-variant bg-white p-1.5 text-on-surface"/>
+            </div>`;
+          }).join("");
+        }
+      } catch (e) {
+        loading.innerHTML = `<span class="text-rose-700">Could not check report readiness — check connection and retry.</span>`;
+      }
+    }
+
+    async function saveReportReadinessFields() {
+      const inputs = document.querySelectorAll("#rrFieldFormList [data-rr-field]");
+      const flat = {};
+      const officeDetails = {};
+      const officeDetailsCo = {};
+      inputs.forEach(inp => {
+        const val = inp.value.trim();
+        if (!val) return;
+        const field = inp.getAttribute("data-rr-field");
+        if (field.startsWith("office_details_co.")) {
+          officeDetailsCo[field.split(".")[1]] = val;
+        } else if (field.startsWith("office_details.")) {
+          officeDetails[field.split(".")[1]] = val;
+        } else {
+          flat[field] = val;
+        }
+      });
+      if (Object.keys(officeDetails).length) flat.office_details = officeDetails;
+      if (Object.keys(officeDetailsCo).length) flat.office_details_co = officeDetailsCo;
+
+      if (Object.keys(flat).length === 0) {
+        alert("Type at least one answer before saving.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/v1/cases/${activeCaseId}/report-fields`, {
+          method: "PATCH",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify(flat),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(`Could not save: ${err.detail || "Server error"}`);
+          return;
+        }
+        await loadReportReadiness();
+      } catch (e) {
+        alert(`Network error saving report fields: ${e.message}`);
+      }
+    }
+
     function populateAgentActivityFilter() {
       const sel = document.getElementById("aalAgentFilter");
       if (!sel) return;
@@ -8197,6 +8342,55 @@
             </thead>
             <tbody id="alTableBody"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPORT READINESS MODAL: everything the certified report will print as "Not Captured"
+       for the active case, fillable right here by CA office staff where they already know the
+       answer, so the final report goes out with no blank/"Not Captured" fields. -->
+  <div id="modalReportReadiness" style="z-index: 99999; display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fadeIn">
+      <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">fact_check</span>
+          </div>
+          <div>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Report Readiness</h3>
+            <p class="font-mono text-[10px] text-outline" id="rrSubtitle">Checking what the final report will print as "Not Captured"...</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="loadReportReadiness()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant" title="Re-check">
+            <span class="material-symbols-outlined text-[18px]">refresh</span>
+          </button>
+          <button onclick="closeReportReadiness()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4">
+        <div id="rrLoadingState" class="text-center py-6 font-mono text-xs text-outline flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined animate-spin text-[18px]">sync</span>
+          <span>Checking report readiness...</span>
+        </div>
+        <div id="rrAllGoodState" class="hidden text-center py-6 flex flex-col items-center gap-2">
+          <span class="material-symbols-outlined text-emerald-600 text-[32px]">task_alt</span>
+          <p class="text-sm font-bold text-emerald-800">Nothing missing — the report will not show any "Not Captured" fields.</p>
+        </div>
+        <div id="rrDashboardSection" class="hidden space-y-2">
+          <p class="font-mono text-[10px] font-bold text-outline uppercase">Fix on this Dashboard (Edit Case)</p>
+          <div id="rrDashboardList" class="space-y-1.5"></div>
+        </div>
+        <div id="rrFieldFormSection" class="hidden space-y-2">
+          <p class="font-mono text-[10px] font-bold text-outline uppercase">Field Visit Questionnaire — fill here if the CA office already has the answer, otherwise ask the field agent</p>
+          <div id="rrFieldFormList" class="space-y-1.5"></div>
+          <button onclick="saveReportReadinessFields()" class="w-full py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-[16px]">save</span>
+            <span>Save These Answers</span>
+          </button>
         </div>
       </div>
     </div>

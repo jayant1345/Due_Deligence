@@ -576,14 +576,14 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Community (કોમ / ધર્મ)*</label>
-            <div class="flex gap-2">
-              <label class="flex-1 py-1.5 px-2 rounded-lg bg-blue-50 border border-blue-300 text-primary-container font-bold text-center cursor-pointer text-xs">
-                <input type="radio" name="pwaCommRadio" value="Hindu" checked class="hidden"/> Hindu (હિન્દુ)
+            <div id="pwaCommRadioGroup" class="flex gap-2">
+              <label class="pwa-comm-chip flex-1 py-1.5 px-2 rounded-lg bg-white border border-outline-variant text-on-surface text-center cursor-pointer text-xs" onclick="selectCommunityChip(this)">
+                <input type="radio" name="pwaCommRadio" value="Hindu" class="hidden"/> Hindu (હિન્દુ)
               </label>
-              <label class="flex-1 py-1.5 px-2 rounded-lg bg-white border border-outline-variant text-on-surface text-center cursor-pointer text-xs">
+              <label class="pwa-comm-chip flex-1 py-1.5 px-2 rounded-lg bg-white border border-outline-variant text-on-surface text-center cursor-pointer text-xs" onclick="selectCommunityChip(this)">
                 <input type="radio" name="pwaCommRadio" value="Muslim" class="hidden"/> Muslim
               </label>
-              <label class="flex-1 py-1.5 px-2 rounded-lg bg-white border border-outline-variant text-on-surface text-center cursor-pointer text-xs">
+              <label class="pwa-comm-chip flex-1 py-1.5 px-2 rounded-lg bg-white border border-outline-variant text-on-surface text-center cursor-pointer text-xs" onclick="selectCommunityChip(this)">
                 <input type="radio" name="pwaCommRadio" value="Christian" class="hidden"/> Christian
               </label>
             </div>
@@ -591,7 +591,8 @@
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Qualification (લાયકાત)*</label>
             <select id="formQualification" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
-              <option value="Graduate" selected>Graduate (સ્નાતક)</option>
+              <option value="" selected>-- Select Qualification --</option>
+              <option value="Graduate">Graduate (સ્નાતક)</option>
               <option value="Post Graduate">Post Graduate (અનુસ્નાતક)</option>
               <option value="12th Pass">12th Pass (ધોરણ ૧૨)</option>
               <option value="10th Pass">10th Pass (ધોરણ ૧૦)</option>
@@ -704,6 +705,12 @@
             <label class="font-mono text-[10px] text-outline block mb-1">References (2 Neighbour Name, Relation)*</label>
             <input id="formReferences" value="1 - Narendrasinh Devda - Neighbour, 2 - Bhagvatsinh Rathod - Neighbour" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
           </div>
+        </div>
+
+        <!-- Landmark Near Residence (PAGE 5) -->
+        <div>
+          <label class="font-mono text-[10px] text-outline block mb-1">Landmark Near Residence (ઘરની નજીકનું લેન્ડમાર્ક)</label>
+          <input id="formLandmark" value="" placeholder="e.g. Near Shiv Mandir, Opp. XYZ School" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
         </div>
 
         <!-- Assets Visible at Site (PAGE 7) - Changeable & Addable -->
@@ -837,6 +844,42 @@
           </div>
         </div>
 
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Landmark (લેન્ડમાર્ક)</label>
+            <input id="formOfficeLandmark" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Near XYZ Circle"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Established Since (ક્યારથી શરૂ છે)</label>
+            <input id="formEstablishedSince" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. 15-03-2007 or 10 Years"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Location Type (વિસ્તારનો પ્રકાર)</label>
+            <select id="formOfficeLocation" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select --</option>
+              <option value="Commercial">Commercial</option>
+              <option value="Residential">Residential</option>
+              <option value="Industrial">Industrial</option>
+              <option value="Mixed">Mixed</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Assets Visible at Office (ઓફીસમાં દેખાતી વસ્તુઓ)</label>
+            <input id="formOfficeAssets" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Computers, Furniture, Inventory"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Reference at Workplace (ઓફીસ નો સંદર્ભ)</label>
+            <input id="formOfficeReference" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Colleague / HR name"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Who Did You Meet (કોને મળ્યા)</label>
+            <input id="formOfficeWhoMeet" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. HR Manager, Owner"/>
+          </div>
+        </div>
+
         <!-- DYNAMIC NOTIFICATION: EMPLOYED VS HOUSEWIFE -->
         <div id="officeVerificationNotice" class="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2">
           <span class="material-symbols-outlined text-[18px] text-primary-container shrink-0 mt-0.5">verified</span>
@@ -955,6 +998,42 @@
           </div>
         </div>
 
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Landmark</label>
+            <input id="formCoOfficeLandmark" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Near XYZ Circle"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Established Since</label>
+            <input id="formCoEstablishedSince" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. 15-03-2007 or 10 Years"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Location Type</label>
+            <select id="formCoOfficeLocation" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select --</option>
+              <option value="Commercial">Commercial</option>
+              <option value="Residential">Residential</option>
+              <option value="Industrial">Industrial</option>
+              <option value="Mixed">Mixed</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Assets Visible at Office</label>
+            <input id="formCoOfficeAssets" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Computers, Furniture, Inventory"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Reference at Workplace</label>
+            <input id="formCoOfficeReference" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Colleague / HR name"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Who Did You Meet</label>
+            <input id="formCoOfficeWhoMeet" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. HR Manager, Owner"/>
+          </div>
+        </div>
+
         <div id="coApplicantOfficeNotice" class="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2">
           <span class="material-symbols-outlined text-[18px] text-primary-container shrink-0 mt-0.5">verified</span>
           <div>
@@ -998,6 +1077,37 @@
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Authorized Dealership Date*</label>
             <input id="formDealershipDate" value="" placeholder="DD/MM/YYYY" class="w-full text-xs font-mono font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODULE 5: Income Tax & Bank Verification (ITR / બેંક વિગત) -->
+      <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/80 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-purple-700 text-[18px]">receipt_long</span>
+            <span class="font-headline font-bold text-xs text-on-surface">5. Income Tax &amp; Bank Verification</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">ITR Acknowledgement No.</label>
+            <input id="formItrAckNo" value="" placeholder="e.g. 123456789012345" class="w-full text-xs font-mono font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">ITR Date of Filing</label>
+            <input id="formItrFilingDate" value="" placeholder="DD/MM/YYYY" class="w-full text-xs font-mono font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Bank Account Status</label>
+            <select id="formBankAccountStatus" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select --</option>
+              <option value="Active / Regular">Active / Regular</option>
+              <option value="Active / Irregular">Active / Irregular</option>
+              <option value="Dormant">Dormant</option>
+              <option value="Not Verified">Not Verified</option>
+            </select>
           </div>
         </div>
       </div>
@@ -1791,6 +1901,19 @@
       if (!visible && currentPwaFolder === "co_office") {
         switchPwaPhotoFolder("residence");
       }
+    }
+
+    // Community is a real, agent-chosen field (no default) - clicking a chip checks its radio
+    // and highlights it; the others reset to the plain unselected look.
+    function selectCommunityChip(labelEl) {
+      const input = labelEl.querySelector('input[name="pwaCommRadio"]');
+      if (input) input.checked = true;
+      document.querySelectorAll(".pwa-comm-chip").forEach(l => {
+        l.classList.remove("bg-blue-50", "border-blue-300", "text-primary-container", "font-bold");
+        l.classList.add("bg-white", "border-outline-variant", "text-on-surface");
+      });
+      labelEl.classList.remove("bg-white", "border-outline-variant", "text-on-surface");
+      labelEl.classList.add("bg-blue-50", "border-blue-300", "text-primary-container", "font-bold");
     }
 
     // Toggle Occupation UI between Employed/Teacher/Business and Housewife
@@ -2767,6 +2890,26 @@
       }
     }
 
+    // The family member UI tracks "Occupation" (what they do), not a separate Yes/No earning
+    // toggle - the report's "Earning" column is derived from it rather than left uncaptured.
+    function familyMemberEarningStatus(occupation) {
+      const o = (occupation || "").toLowerCase();
+      if (o.startsWith("house wife") || o.startsWith("student") || o.startsWith("dependent")) return "No";
+      return "Yes";
+    }
+
+    // Structured {name, relation, age, earning} rows for the report - the raw familyMembers
+    // array also carries "occupation", which the report's family table does not have a column
+    // for, so it is intentionally left out here.
+    function buildFamilyMembersForReport() {
+      return familyMembers.map(m => ({
+        name: m.name || "",
+        relation: (m.relation || "").split(" (")[0].trim(),
+        age: m.age || "",
+        earning: familyMemberEarningStatus(m.occupation),
+      }));
+    }
+
     function syncFamilyTextarea() {
       const textarea = document.getElementById("formFamily");
       if (!textarea) return;
@@ -3156,15 +3299,19 @@
 
       const exec = document.getElementById("formExecutive").value;
       const persona = document.getElementById("formPersona").value;
+      const contactNumber = document.getElementById("formContactNumber") ? document.getElementById("formContactNumber").value.trim() : "";
       const marital = document.getElementById("formMarital").value;
       const ageComm = (document.getElementById("formAge") || {}).value || "";
-      const family = document.getElementById("formFamily").value;
+      const communityChecked = document.querySelector('input[name="pwaCommRadio"]:checked');
+      const community = communityChecked ? communityChecked.value : "";
+      const qualification = document.getElementById("formQualification") ? document.getElementById("formQualification").value : "";
       const bType = document.getElementById("formBuildingType").value;
       const bhk = document.getElementById("formBhk").value;
       const own = document.getElementById("formOwnership").value;
       const stay = document.getElementById("formStayDuration").value;
       const owner = document.getElementById("formOwnerName").value;
       const refs = document.getElementById("formReferences").value;
+      const landmark = document.getElementById("formLandmark") ? document.getElementById("formLandmark").value.trim() : "";
       const personMet = document.getElementById("formPersonMet").value;
       const occupation = document.getElementById("formOccupation") ? document.getElementById("formOccupation").value : "Job";
       const firmName = document.getElementById("formFirmName") ? document.getElementById("formFirmName").value : "";
@@ -3177,10 +3324,19 @@
       const infrastructure = document.getElementById("formInfrastructure") ? document.getElementById("formInfrastructure").value : "";
       const premisesOwnership = document.getElementById("formPremisesOwnership") ? document.getElementById("formPremisesOwnership").value : "";
       const premisesOwnerName = document.getElementById("formPremisesOwnerName") ? document.getElementById("formPremisesOwnerName").value.trim() : "";
+      const officeLandmark = document.getElementById("formOfficeLandmark") ? document.getElementById("formOfficeLandmark").value.trim() : "";
+      const establishedSince = document.getElementById("formEstablishedSince") ? document.getElementById("formEstablishedSince").value.trim() : "";
+      const officeLocation = document.getElementById("formOfficeLocation") ? document.getElementById("formOfficeLocation").value : "";
+      const officeAssets = document.getElementById("formOfficeAssets") ? document.getElementById("formOfficeAssets").value.trim() : "";
+      const officeReference = document.getElementById("formOfficeReference") ? document.getElementById("formOfficeReference").value.trim() : "";
+      const officeWhoMeet = document.getElementById("formOfficeWhoMeet") ? document.getElementById("formOfficeWhoMeet").value.trim() : "";
       const prevLoanType = document.getElementById("formLoanType") ? document.getElementById("formLoanType").value : "";
       const prevLoanAmount = document.getElementById("formLoanAmount") ? document.getElementById("formLoanAmount").value.trim() : "";
       const prevLoanBank = document.getElementById("formPrevBank") ? document.getElementById("formPrevBank").value.trim() : "";
       const prevLoanDate = document.getElementById("formDealershipDate") ? document.getElementById("formDealershipDate").value.trim() : "";
+      const itrAckNo = document.getElementById("formItrAckNo") ? document.getElementById("formItrAckNo").value.trim() : "";
+      const itrFilingDate = document.getElementById("formItrFilingDate") ? document.getElementById("formItrFilingDate").value.trim() : "";
+      const bankAccountStatus = document.getElementById("formBankAccountStatus") ? document.getElementById("formBankAccountStatus").value : "";
 
       // Co-applicant office details - only actually submitted when this case has a
       // co-applicant (Module 3B visible); omitted entirely for ordinary single-applicant
@@ -3204,6 +3360,12 @@
           infrastructure: document.getElementById("formCoInfrastructure") ? document.getElementById("formCoInfrastructure").value : "",
           premises_ownership: document.getElementById("formCoPremisesOwnership") ? document.getElementById("formCoPremisesOwnership").value : "",
           premises_owner: document.getElementById("formCoPremisesOwnerName") ? document.getElementById("formCoPremisesOwnerName").value.trim() : "",
+          landmark: document.getElementById("formCoOfficeLandmark") ? document.getElementById("formCoOfficeLandmark").value.trim() : "",
+          established_since: document.getElementById("formCoEstablishedSince") ? document.getElementById("formCoEstablishedSince").value.trim() : "",
+          location: document.getElementById("formCoOfficeLocation") ? document.getElementById("formCoOfficeLocation").value : "",
+          assets: document.getElementById("formCoOfficeAssets") ? document.getElementById("formCoOfficeAssets").value.trim() : "",
+          reference: document.getElementById("formCoOfficeReference") ? document.getElementById("formCoOfficeReference").value.trim() : "",
+          who_meet: document.getElementById("formCoOfficeWhoMeet") ? document.getElementById("formCoOfficeWhoMeet").value.trim() : "",
         };
       }
 
@@ -3215,19 +3377,26 @@
         persona: persona,
         agent_selfie: agentSelfieDataUrl || localStorage.getItem("selfie_" + sampleCaseId) || null,
         agent_selfie_captured_at: localStorage.getItem("selfie_timestamp_" + sampleCaseId) || new Date().toISOString(),
+        contact_number: contactNumber,
         marital_status: marital,
         age_community: ageComm,
-        family_members: family,
+        community: community,
+        qualification: qualification,
+        family_members: buildFamilyMembersForReport(),
         building_type: `${bhk} ${bType}`,
         ownership: own,
         period_of_stay: stay,
         owner_name: owner,
         neighbour_1: (refs.split(",")[0] || "").trim(),
         neighbour_2: (refs.split(",")[1] || "").trim(),
+        landmark: landmark,
         person_met: personMet,
         assets_observed: assetsObserved,
         nameboard_visible: "",
         occupation: occupation,
+        itr_acknowledgement_no: itrAckNo,
+        itr_filing_date: itrFilingDate,
+        bank_account_status: bankAccountStatus,
         office_details: {
           occupation: occupation,
           designation: designation,
@@ -3241,6 +3410,12 @@
           infrastructure: infrastructure,
           premises_ownership: premisesOwnership,
           premises_owner: premisesOwnerName,
+          landmark: officeLandmark,
+          established_since: establishedSince,
+          location: officeLocation,
+          assets: officeAssets,
+          reference: officeReference,
+          who_meet: officeWhoMeet,
           verification_status: occupation === 'House Wife' ? 'Not Applicable (Home Maker)' : 'Office Verification Conducted'
         },
         previous_loan: {
@@ -3265,10 +3440,17 @@
           owner_name: owner,
           marital_status: marital,
           age_community: ageComm,
+          community: community,
+          qualification: qualification,
+          contact_number: contactNumber,
+          landmark: landmark,
           person_met: personMet,
           neighbors: [(refs.split(",")[0] || "").trim(), (refs.split(",")[1] || "").trim()].filter(Boolean),
           family_members: familyMembers,
           active_asset_ids: visibleAssets.filter(a => a.active).map(a => a.id),
+          itr_acknowledgement_no: itrAckNo,
+          itr_filing_date: itrFilingDate,
+          bank_account_status: bankAccountStatus,
         },
       };
 
@@ -3382,6 +3564,17 @@
       if (fAge) fAge.value = c.age || "";
       const fMarital = document.getElementById("formMarital");
       if (fMarital && c.marital) fMarital.value = c.marital;
+      document.querySelectorAll('input[name="pwaCommRadio"]').forEach(r => { r.checked = false; });
+      document.querySelectorAll(".pwa-comm-chip").forEach(l => {
+        l.classList.remove("bg-blue-50", "border-blue-300", "text-primary-container", "font-bold");
+        l.classList.add("bg-white", "border-outline-variant", "text-on-surface");
+      });
+      if (c.community) {
+        const fCommInput = document.querySelector(`input[name="pwaCommRadio"][value="${c.community}"]`);
+        if (fCommInput) selectCommunityChip(fCommInput.closest(".pwa-comm-chip"));
+      }
+      const fQual = document.getElementById("formQualification");
+      if (fQual) fQual.value = c.qualification || "";
       const fAddr = document.getElementById("formAddressVisited");
       if (fAddr) fAddr.value = c.address;
       const fOwn = document.getElementById("formOwnership");
@@ -3398,7 +3591,9 @@
       if (fMet) fMet.value = c.person_met || "";
       const fRefs = document.getElementById("formReferences");
       if (fRefs) fRefs.value = (c.neighbors || []).join(", ");
-      
+      const fLandmark = document.getElementById("formLandmark");
+      if (fLandmark) fLandmark.value = c.landmark || "";
+
       // Update dynamic family members
       if (c.family_members && Array.isArray(c.family_members)) {
         familyMembers = JSON.parse(JSON.stringify(c.family_members));
@@ -3462,6 +3657,26 @@
       const fPremOwnerName = document.getElementById("formPremisesOwnerName");
       if (fPremOwnerName) fPremOwnerName.value = c.premises_owner || "";
 
+      const fOffLandmark = document.getElementById("formOfficeLandmark");
+      if (fOffLandmark) fOffLandmark.value = c.office_landmark || "";
+      const fEstSince = document.getElementById("formEstablishedSince");
+      if (fEstSince) fEstSince.value = c.office_established_since || "";
+      const fOffLocation = document.getElementById("formOfficeLocation");
+      if (fOffLocation) fOffLocation.value = c.office_location || "";
+      const fOffAssets = document.getElementById("formOfficeAssets");
+      if (fOffAssets) fOffAssets.value = c.office_assets || "";
+      const fOffReference = document.getElementById("formOfficeReference");
+      if (fOffReference) fOffReference.value = c.office_reference || "";
+      const fOffWhoMeet = document.getElementById("formOfficeWhoMeet");
+      if (fOffWhoMeet) fOffWhoMeet.value = c.office_who_meet || "";
+
+      const fItrAckNo = document.getElementById("formItrAckNo");
+      if (fItrAckNo) fItrAckNo.value = c.itr_ack_no || "";
+      const fItrFilingDate = document.getElementById("formItrFilingDate");
+      if (fItrFilingDate) fItrFilingDate.value = c.itr_filing_date || "";
+      const fBankAccountStatus = document.getElementById("formBankAccountStatus");
+      if (fBankAccountStatus) fBankAccountStatus.value = c.bank_account_status || "";
+
       const fPrevLoanType = document.getElementById("formLoanType");
       if (fPrevLoanType) fPrevLoanType.value = c.prev_loan_type || "Home";
 
@@ -3509,6 +3724,18 @@
         if (fCoPremOwnership) fCoPremOwnership.value = c.co_premises_ownership || "";
         const fCoPremOwnerName = document.getElementById("formCoPremisesOwnerName");
         if (fCoPremOwnerName) fCoPremOwnerName.value = c.co_premises_owner || "";
+        const fCoOffLandmark = document.getElementById("formCoOfficeLandmark");
+        if (fCoOffLandmark) fCoOffLandmark.value = c.co_office_landmark || "";
+        const fCoEstSince = document.getElementById("formCoEstablishedSince");
+        if (fCoEstSince) fCoEstSince.value = c.co_office_established_since || "";
+        const fCoOffLocation = document.getElementById("formCoOfficeLocation");
+        if (fCoOffLocation) fCoOffLocation.value = c.co_office_location || "";
+        const fCoOffAssets = document.getElementById("formCoOfficeAssets");
+        if (fCoOffAssets) fCoOffAssets.value = c.co_office_assets || "";
+        const fCoOffReference = document.getElementById("formCoOfficeReference");
+        if (fCoOffReference) fCoOffReference.value = c.co_office_reference || "";
+        const fCoOffWhoMeet = document.getElementById("formCoOfficeWhoMeet");
+        if (fCoOffWhoMeet) fCoOffWhoMeet.value = c.co_office_who_meet || "";
         const fCoWfh = document.getElementById("formCoWorkFromHome");
         if (fCoWfh) fCoWfh.value = (fCoOcc && fCoOcc.value === "House Wife") ? "Yes" : "No";
         handleCoOccupationChange(fCoOcc ? fCoOcc.value : "Job");
@@ -3743,11 +3970,20 @@
           const offInfrastructure = off.infrastructure || "";
           const offPremisesOwnership = off.premises_ownership || "";
           const offPremisesOwnerName = off.premises_owner || "";
+          const offLandmark = off.landmark || "";
+          const offEstablishedSince = off.established_since || "";
+          const offLocation = off.location || "";
+          const offAssets = off.assets || "";
+          const offReference = off.reference || "";
+          const offWhoMeet = off.who_meet || "";
           const prevLoan = parsedFormData.previous_loan || {};
           // Co-applicant office details - a case only has these when target.co_applicant_name
           // is set server-side (dual-applicant case); the co-applicant's workplace is captured
           // entirely separately from the primary applicant's, since they're frequently different.
           const offCo = parsedFormData.office_details_co || {};
+          const itrAckNoSaved = parsedFormData.itr_acknowledgement_no || "";
+          const itrFilingDateSaved = parsedFormData.itr_filing_date || "";
+          const bankAccountStatusSaved = parsedFormData.bank_account_status || "";
           // The lossless fields saved alongside the flattened report fields - see the
           // "restore" comment in submitDueDiligenceForm(). Without these, every Residential
           // Details & Family input went back to blank the moment the agent switched to a
@@ -3764,10 +4000,17 @@
           if (r.owner_name !== undefined) restorePatch.owner_name = r.owner_name;
           if (r.marital_status !== undefined) restorePatch.marital = r.marital_status;
           if (r.age_community !== undefined) restorePatch.age = r.age_community;
+          if (r.community !== undefined) restorePatch.community = r.community;
+          if (r.qualification !== undefined) restorePatch.qualification = r.qualification;
+          if (r.contact_number !== undefined) restorePatch.phone = r.contact_number;
+          if (r.landmark !== undefined) restorePatch.landmark = r.landmark;
           if (r.person_met !== undefined) restorePatch.person_met = r.person_met;
           if (r.neighbors !== undefined) restorePatch.neighbors = r.neighbors;
           if (r.family_members !== undefined) restorePatch.family_members = r.family_members;
           if (r.active_asset_ids !== undefined) restorePatch.active_asset_ids = r.active_asset_ids;
+          if (r.itr_acknowledgement_no !== undefined) restorePatch.itr_ack_no = r.itr_acknowledgement_no;
+          if (r.itr_filing_date !== undefined) restorePatch.itr_filing_date = r.itr_filing_date;
+          if (r.bank_account_status !== undefined) restorePatch.bank_account_status = r.bank_account_status;
 
           const mergedCase = Object.assign({}, caseRegistryPwa[key] || {}, {
             id: target.id,
@@ -3795,6 +4038,15 @@
             infrastructure: offInfrastructure,
             premises_ownership: offPremisesOwnership,
             premises_owner: offPremisesOwnerName,
+            office_landmark: offLandmark,
+            office_established_since: offEstablishedSince,
+            office_location: offLocation,
+            office_assets: offAssets,
+            office_reference: offReference,
+            office_who_meet: offWhoMeet,
+            itr_ack_no: itrAckNoSaved,
+            itr_filing_date: itrFilingDateSaved,
+            bank_account_status: bankAccountStatusSaved,
             prev_loan_type: prevLoan.loan_type || "",
             prev_loan_amount: prevLoan.amount || "",
             prev_loan_bank: prevLoan.bank || "",
@@ -3811,6 +4063,12 @@
             co_infrastructure: offCo.infrastructure || "",
             co_premises_ownership: offCo.premises_ownership || "",
             co_premises_owner: offCo.premises_owner || "",
+            co_office_landmark: offCo.landmark || "",
+            co_office_established_since: offCo.established_since || "",
+            co_office_location: offCo.location || "",
+            co_office_assets: offCo.assets || "",
+            co_office_reference: offCo.reference || "",
+            co_office_who_meet: offCo.who_meet || "",
             is_live_case: true,
           }, restorePatch);
 

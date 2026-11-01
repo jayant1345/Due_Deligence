@@ -63,14 +63,18 @@ def generate_certified_cpv_report(
     NOT_CAPTURED = "Not Captured"
 
     applicant_name = case_data.get("applicant_name") or "Not Captured"
-    applicant_phone = case_data.get("applicant_phone") or "Not Captured"
-    target_address = case_data.get("target_address") or "Not Captured"
+    field_form = case_data.get("field_form") or {}
+    # The dashboard saves this literal placeholder when a case is created without typing a
+    # real address (awaiting a later AI/manual correction) - it must never be printed as if it
+    # were an actual, verified address in a bank-facing report.
+    raw_target_address = case_data.get("target_address")
+    target_address = raw_target_address if raw_target_address and raw_target_address != "Pending AI Extraction" else "Not Captured"
+    applicant_phone = case_data.get("applicant_phone") or field_form.get("contact_number") or "Not Captured"
     bank_name = case_data.get("bank_name") or "Not Captured"
     branch = case_data.get("branch") or "Not Captured"
     loan_type = case_data.get("loan_type") or "Not Captured"
     loan_amount = case_data.get("loan_amount")
     loan_amount_str = f"Rs. {loan_amount:,.0f}/-" if loan_amount else NOT_CAPTURED
-    field_form = case_data.get("field_form") or {}
     co_applicant_name = case_data.get("co_applicant_name") or None
     co_applicant_phone = case_data.get("co_applicant_phone") or None
 
@@ -684,12 +688,14 @@ def generate_certified_cpv_report(
     story.append(Paragraph(f"Applicant: <b>{applicant_name}</b>", body_style))
     story.append(Spacer(1, 3))
 
+    itr_ack_no = field_form.get("itr_acknowledgement_no") or NOT_CAPTURED
+    itr_filing_date = field_form.get("itr_filing_date") or NOT_CAPTURED
     if form16_ay_list:
         itr_grid = [[Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)]]
         for ay in form16_ay_list:
             income = form16_rows[ay]["income"]
             status = f"Rs. {income}" if income else "Form No. 16 provided (no ITR acknowledgement on record)"
-            itr_grid.append([Paragraph(ay, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(status, table_cell_style)])
+            itr_grid.append([Paragraph(ay, table_cell_style), Paragraph(itr_ack_no, table_cell_style), Paragraph(itr_filing_date, table_cell_style), Paragraph(status, table_cell_style)])
     else:
         itr_grid = [
             [Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)],
@@ -737,7 +743,7 @@ def generate_certified_cpv_report(
     bank_grid = [
         [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(f"{bank_name}, {branch}", table_cell_style)],
         [Paragraph("<b>A/C Holder Name</b>", table_cell_bold), Paragraph(applicant_name, table_cell_style)],
-        [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+        [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(field_form.get("bank_account_status") or NOT_CAPTURED, table_cell_style)],
         [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(loan_type, table_cell_style)],
     ]
     t_bank = Table(bank_grid, colWidths=[2.5 * inch, 5.0 * inch])
