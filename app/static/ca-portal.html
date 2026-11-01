@@ -8831,4 +8831,526 @@
           <button onclick="closeAgentActivityLog()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant">
             <span class="material-symbols-outlined text-[18px]">close</span>
 
-... [truncated for diff preview]
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="p-5 overflow-y-auto">
+        <div id="aalLoadingState" class="text-center py-6 font-mono text-xs text-outline flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined animate-spin text-[18px]">sync</span>
+          <span>Loading agent activity...</span>
+        </div>
+        <div id="aalSummaryBar" class="hidden mb-3 text-xs font-mono text-on-surface-variant"></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs border-collapse">
+            <thead>
+              <tr class="text-left font-mono text-[10px] text-outline uppercase border-b border-outline-variant">
+                <th class="py-2 pr-3">Agent</th>
+                <th class="py-2 pr-3">Case No</th>
+                <th class="py-2 pr-3">Applicant</th>
+                <th class="py-2 pr-3">Address</th>
+                <th class="py-2 pr-3">Status</th>
+                <th class="py-2 pr-3">Assigned</th>
+                <th class="py-2 pr-3">Completed</th>
+              </tr>
+            </thead>
+            <tbody id="aalTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIVITY LOG: full audit trail - every login, create/edit/delete/upload, from both the
+       dashboard and the PWA, with who did it and when -->
+  <div id="modalActivityLog" style="z-index: 99999; display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-5xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fadeIn">
+      <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">history</span>
+          </div>
+          <div>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Activity Log</h3>
+            <p class="font-mono text-[10px] text-outline">Every login, case change, document action and field visit event, dashboard and PWA alike — who, what, when</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="alActionFilter" onchange="loadActivityLog()" class="text-xs bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 font-semibold text-on-surface">
+            <option value="">All Actions</option>
+            <option value="USER_LOGIN">Login</option>
+            <option value="CASE_CREATED">Case Created</option>
+            <option value="CASE_UPDATED">Case Updated</option>
+            <option value="CASE_DELETED">Case Deleted</option>
+            <option value="CASE_ASSIGNED">Case Assigned</option>
+            <option value="BENCHMARK_AUTO_LOCATED">Benchmark Located</option>
+            <option value="PDF_INGESTED_AND_SEPARATED">PDF Ingested</option>
+            <option value="IMAGES_INGESTED_AND_CLASSIFIED">Images Ingested</option>
+            <option value="DOCUMENT_DELETED">Document Deleted</option>
+            <option value="DOCUMENT_UPLOADED">Document Uploaded (PWA)</option>
+            <option value="DOCUMENT_SCRUTINIZED">Document Scrutinized</option>
+            <option value="AGENT_CHECK_IN">Agent Check-In (PWA)</option>
+            <option value="AGENT_CHECK_OUT">Agent Check-Out (PWA)</option>
+            <option value="FIELD_FORM_SUBMITTED">Field Form Submitted (PWA)</option>
+            <option value="APPLICANT_LOCATION_SHARED">Applicant Location Shared</option>
+          </select>
+          <button onclick="loadActivityLog()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant" title="Refresh">
+            <span class="material-symbols-outlined text-[18px]">refresh</span>
+          </button>
+          <button onclick="closeActivityLog()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+      </div>
+      <div class="p-5 overflow-y-auto">
+        <div id="alLoadingState" class="text-center py-6 font-mono text-xs text-outline flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined animate-spin text-[18px]">sync</span>
+          <span>Loading activity log...</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs border-collapse">
+            <thead>
+              <tr class="text-left font-mono text-[10px] text-outline uppercase border-b border-outline-variant">
+                <th class="py-2 pr-3">When</th>
+                <th class="py-2 pr-3">Action</th>
+                <th class="py-2 pr-3">By</th>
+                <th class="py-2 pr-3">Case</th>
+                <th class="py-2 pr-3">Details</th>
+              </tr>
+            </thead>
+            <tbody id="alTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPORT READINESS MODAL: everything the certified report will print as "Not Captured"
+       for the active case, fillable right here by CA office staff where they already know the
+       answer, so the final report goes out with no blank/"Not Captured" fields. -->
+  <div id="modalReportReadiness" style="z-index: 99999; display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fadeIn">
+      <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">fact_check</span>
+          </div>
+          <div>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Report Readiness</h3>
+            <p class="font-mono text-[10px] text-outline" id="rrSubtitle">Checking what the final report will print as "Not Captured"...</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="loadReportReadiness()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant" title="Re-check">
+            <span class="material-symbols-outlined text-[18px]">refresh</span>
+          </button>
+          <button onclick="closeReportReadiness()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4">
+        <div id="rrLoadingState" class="text-center py-6 font-mono text-xs text-outline flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined animate-spin text-[18px]">sync</span>
+          <span>Checking report readiness...</span>
+        </div>
+        <div id="rrAllGoodState" class="hidden text-center py-6 flex flex-col items-center gap-2">
+          <span class="material-symbols-outlined text-emerald-600 text-[32px]">task_alt</span>
+          <p class="text-sm font-bold text-emerald-800">Nothing missing — the report will not show any "Not Captured" fields.</p>
+        </div>
+        <div id="rrDashboardSection" class="hidden space-y-2">
+          <p class="font-mono text-[10px] font-bold text-outline uppercase">Fix on this Dashboard (Edit Case)</p>
+          <div id="rrDashboardList" class="space-y-1.5"></div>
+        </div>
+        <div id="rrFieldFormSection" class="hidden space-y-2">
+          <p class="font-mono text-[10px] font-bold text-outline uppercase">Field Visit Questionnaire — fill here if the CA office already has the answer, otherwise ask the field agent</p>
+          <div id="rrFieldFormList" class="space-y-1.5"></div>
+          <button onclick="saveReportReadinessFields()" class="w-full py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-[16px]">save</span>
+            <span>Save These Answers</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. BANK PROVIDED DOCUMENTS FOLDER SELECTION & CASE ONBOARDING MODAL -->
+  <div id="newCaseModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[94vh] animate-fadeIn">
+      <!-- Modal Header -->
+      <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-primary-container text-white flex items-center justify-center shadow-sm">
+            <span class="material-symbols-outlined text-[22px]">folder_zip</span>
+          </div>
+          <div>
+            <h3 class="font-headline font-bold text-base text-on-surface">Bank Documents Folder Ingestion & Case Onboarding</h3>
+            <p class="font-mono text-[10px] text-outline">Select bank case folder • AI scans & arranges all photos • Allot to field staff</p>
+          </div>
+        </div>
+        <button onclick="closeNewCaseModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <!-- Modal Form Body -->
+      <form id="newCaseForm" onsubmit="handleCreateNewCase(event)" class="p-5 overflow-y-auto space-y-4">
+        <!-- AI Folder Scanner Dropzone -->
+        <div class="p-4 rounded-xl bg-gradient-to-r from-blue-50/80 via-indigo-50/70 to-surface-container-lowest border-2 border-dashed border-primary-container/40 space-y-2.5">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-primary-container text-[20px]">drive_folder_upload</span>
+              <span class="font-headline font-bold text-xs sm:text-sm text-primary-container">Select Bank Case Documents Folder (બેંક ફોલ્ડર સિલેક્શન)</span>
+            </div>
+            <button type="button" onclick="quickFillSampleBankFolder()" class="px-2.5 py-1 rounded bg-blue-100 hover:bg-blue-200 text-primary-container font-mono text-[10px] font-bold flex items-center gap-1 transition-colors" title="Quickly import sample bank case folder">
+              <span class="material-symbols-outlined text-[13px]">auto_fix_high</span>
+              <span>Sample Bank Folder Demo</span>
+            </button>
+          </div>
+          <p class="text-xs text-on-surface-variant leading-relaxed">
+            Select the folder provided by the bank (e.g. <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-outline-variant text-[11px] font-bold text-primary-container">VAGHELA RAJKUNVARBA-HL-20 LACS</code>). AI will scan all photos, identify Aadhaar/PAN/Utility bills, arrange evidence, and prefill details.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            <!-- Directory Selection Input -->
+            <input type="file" id="newCaseFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleNewCaseFolderSelected(this.files)"/>
+            <button type="button" onclick="document.getElementById('newCaseFolderInput').click()" class="px-4 py-2 bg-primary-container hover:bg-primary text-white rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[17px]">folder_open</span>
+              <span>📁 Select Bank Case Folder from PC...</span>
+            </button>
+
+            <!-- Multi-file Ingest Input -->
+            <input type="file" id="newCaseFilesInput" multiple class="hidden" onchange="handleNewCaseFilesSelected(this.files)"/>
+            <button type="button" onclick="document.getElementById('newCaseFilesInput').click()" class="px-3.5 py-2 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-on-surface rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 transition-colors">
+              <span class="material-symbols-outlined text-[17px]">upload_file</span>
+              <span>📄 Select Files...</span>
+            </button>
+          </div>
+
+          <!-- AI Detection & Arranged Files Preview Tray -->
+          <div id="newCaseFilesTray" class="hidden p-3 rounded-lg bg-surface-container-lowest border border-outline-variant space-y-2">
+            <div class="flex items-center justify-between text-[11px] font-mono border-b border-outline-variant pb-1.5">
+              <span class="font-bold text-emerald-800 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[15px] text-emerald-600">verified</span>
+                <span id="newCaseAiStatusText">AI Scan Complete • 18 Files Arranged</span>
+              </span>
+              <span id="newCaseFolderName" class="text-outline truncate max-w-xs font-semibold">Folder: /</span>
+            </div>
+            <div id="newCaseFilesList" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pt-0.5">
+              <!-- Dynamically populated tags -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Editable Case Details Section (CA Office can modify if anything is not clear) -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-headline font-bold text-xs text-on-surface flex items-center gap-1.5 uppercase">
+              <span class="material-symbols-outlined text-primary-container text-[17px]">edit_note</span>
+              <span>Review & Modify Case Details (જો કંઈ સ્પષ્ટ ન હોય તો સુધારો કરી શકો છો)</span>
+            </span>
+            <span class="font-mono text-[9px] text-outline">All fields fully editable by CA office</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Case Reference No.*</label>
+              <input id="ncCaseNo" type="text" required placeholder="e.g. UBI-HL-2026-101" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Full Name (અરજદાર નું નામ) <span class="font-normal normal-case text-outline">(type it, or leave blank for Gemini AI to read off the ID card)</span></label>
+              <input id="ncApplicantName" type="text" placeholder="e.g. Ramesh Kumar Patel" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Permanent Account Number (PAN) <span class="font-normal normal-case text-outline">(auto-filled by Gemini AI after scan)</span></label>
+              <input id="ncPan" type="text" placeholder="Leave blank — Gemini AI reads this from the scanned PAN card" class="w-full text-xs font-mono font-bold uppercase bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Masked Aadhaar Number (આધાર નંબર) <span class="font-normal normal-case text-outline">(auto-filled by Gemini AI after scan)</span></label>
+              <input id="ncAadhaar" type="text" placeholder="Leave blank — Gemini AI reads this from the scanned Aadhaar card" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Date of Birth (DOB - જન્મ તારીખ) <span class="font-normal normal-case text-outline">(optional)</span></label>
+              <input id="ncDob" type="text" placeholder="e.g. 14/08/1993 (if known)" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Gender (જાતિ)*</label>
+              <select id="ncGender" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="Female" selected>Female (સ્ત્રી)</option>
+                <option value="Male">Male (પુરૂષ)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Phone / WhatsApp*</label>
+              <input id="ncApplicantPhone" type="text" required placeholder="e.g. +91 94283 51920" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Full Name <span class="font-normal normal-case text-outline">(leave blank for a single-applicant case)</span></label>
+              <input id="ncCoApplicantName" type="text" placeholder="e.g. Mrs. Sunita Ramesh Patel" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Phone <span class="font-normal normal-case text-outline">(optional)</span></label>
+              <input id="ncCoApplicantPhone" type="text" placeholder="e.g. +91 94283 51921" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Empanelled Bank Name (બેંક)*</label>
+              <select id="ncBankName" required class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="Union Bank of India">Union Bank of India</option>
+                <option value="State Bank of India">State Bank of India</option>
+                <option value="HDFC Bank">HDFC Bank</option>
+                <option value="ICICI Bank">ICICI Bank</option>
+                <option value="Bank of Baroda">Bank of Baroda</option>
+                <option value="Canara Bank">Canara Bank</option>
+                <option value="Punjab National Bank">Punjab National Bank</option>
+                <option value="Axis Bank">Axis Bank</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Branch Name (શાખા)*</label>
+              <input id="ncBranch" type="text" required placeholder="e.g. Amrapura Branch" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Loan Facility & Type*</label>
+              <select id="ncLoanType" required class="w-full text-xs font-medium bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="Home Loan (HL)">Home Loan (HL)</option>
+                <option value="Loan Against Property (LAP)">Loan Against Property (LAP)</option>
+                <option value="Commercial Mortgage (CM)">Commercial Mortgage (CM)</option>
+                <option value="Business / MSME Loan">Business / MSME Loan</option>
+                <option value="Personal Loan (PL)">Personal Loan (PL)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Sanction / Loan Amount (₹)*</label>
+              <input id="ncLoanAmount" type="text" required placeholder="e.g. 20,00,000 (20 Lacs)" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Intake Month (મહિનો)*</label>
+              <select id="ncMonth" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="October 2026" selected>October 2026</option>
+                <option value="September 2026">September 2026</option>
+                <option value="August 2026">August 2026</option>
+                <option value="July 2026">July 2026</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Target Inspection Property Address (સંપત્તિ સરનામું)*</label>
+            <textarea id="ncAddress" rows="2" required placeholder="e.g. Plot 42, Gayatri Nagar, Sector 8, Gandhinagar - 382007" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 font-mono text-[11px]">
+            <div>
+              <label class="block text-[9px] font-bold text-outline uppercase mb-0.5">Target Latitude (અક્ષાંશ)</label>
+              <input id="ncLat" type="number" step="any" value="23.2156" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-mono"/>
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-outline uppercase mb-0.5">Target Longitude (રેખાંશ)</label>
+              <input id="ncLon" type="number" step="any" value="72.6369" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-mono"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- File Allotment & Field Staff Allocation -->
+        <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-headline font-bold text-xs text-primary-container flex items-center gap-1.5 uppercase">
+              <span class="material-symbols-outlined text-[17px]">assignment_turned_in</span>
+              <span>Case Allotment & Field Staff Allocation (કેસ સોંપણી)</span>
+            </span>
+            <span class="font-mono text-[9px] text-secondary bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold">DISPATCH READY</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">File Allotted By (સોંપનાર)*</label>
+              <select id="ncAllottedBy" class="w-full text-xs font-medium bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="Suresh Sir (Operations Lead)" selected>Suresh Sir (Operations Lead)</option>
+                <option value="CA Pranav Shah (Sr. Partner)">CA Pranav Shah (Sr. Partner)</option>
+                <option value="CA Rohan Parekh (Partner)">CA Rohan Parekh (Partner)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Allocate to Field Staff (સર્વે કરનાર સ્ટાફ)*</label>
+              <select id="ncFieldStaff" class="w-full text-xs font-bold text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="Nilesh & Kamal Bhai (Field Team)" selected>Joint Team: Nilesh & Kamal Bhai</option>
+                <option value="Kamal Bhai (FA-7702)">Kamal Bhai (Field Officer - FA-7702)</option>
+                <option value="Nilesh (FA-7701)">Nilesh (Field Verification Executive - FA-7701)</option>
+                <option value="Rajesh Varma (FA-9042)">Rajesh Varma (Senior CPV Officer - FA-9042)</option>
+                <option value="Amit Shah (FA-5011)">Amit Shah (Field Officer - FA-5011)</option>
+                <option value="Sneha Desai (FA-3104)">Sneha Desai (Field Associate - FA-3104)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="pt-2 flex items-center justify-end gap-2.5 border-t border-outline-variant">
+          <button type="button" onclick="closeNewCaseModal()" class="px-4 py-2 rounded-lg bg-surface-container border border-outline-variant text-on-surface hover:bg-surface-container-high text-xs font-headline font-bold transition-all">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-lg bg-primary-container hover:bg-primary text-white text-xs font-headline font-bold flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all active:scale-95">
+            <span class="material-symbols-outlined text-[18px]">verified</span>
+            <span>Confirm & Create Case in Portal (સાચવો અને સોંપો)</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. EDIT / MODIFY CASE DETAILS MODAL (FOR EXISTING OR INGESTED CASES) -->
+  <div id="editCaseModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fadeIn">
+      <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary-container text-[22px]">edit_square</span>
+          <div>
+            <h3 class="font-headline font-bold text-base text-on-surface">Modify Case Details & Telemetry</h3>
+            <p class="font-mono text-[10px] text-outline">Edit applicant info, address, bank, branch, or field staff allotment</p>
+          </div>
+        </div>
+        <button onclick="closeEditCaseModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <form id="editCaseForm" onsubmit="handleSaveCaseEdit(event)" class="p-5 overflow-y-auto space-y-3.5 text-xs">
+        <input type="hidden" id="ecCaseId"/>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Case No</label>
+            <input id="ecCaseNo" type="text" class="w-full text-xs font-mono font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2" readonly/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Name</label>
+            <input id="ecApplicantName" type="text" required class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Name <span class="font-normal normal-case text-outline">(leave blank for single-applicant)</span></label>
+            <input id="ecCoApplicantName" type="text" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Phone <span class="font-normal normal-case text-outline">(optional)</span></label>
+            <input id="ecCoApplicantPhone" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Contact Number</label>
+            <input id="ecApplicantPhone" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Loan Amount (Rs.)</label>
+            <input id="ecLoanAmount" type="number" min="0" step="1" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Bank Name</label>
+            <input id="ecBank" type="text" required class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Branch Name</label>
+            <input id="ecBranch" type="text" required class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Permanent Account Number (PAN)</label>
+            <input id="ecPan" type="text" required class="w-full text-xs font-mono font-bold uppercase bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Masked Aadhaar (આધાર નંબર)</label>
+            <input id="ecAadhaar" type="text" required class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Date of Birth (DOB - જન્મ તારીખ)</label>
+            <input id="ecDob" type="text" required class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Gender (જાતિ)</label>
+            <select id="ecGender" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+              <option value="Female">Female (સ્ત્રી)</option>
+              <option value="Male">Male (પુરૂષ)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Target Address</label>
+          <textarea id="ecAddress" rows="2" required class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Assigned Field Staff</label>
+            <select id="ecStaff" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+              <option value="">-- Unassigned --</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Status</label>
+            <select id="ecStatus" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+              <option value="PENDING_CA_REVIEW">PENDING_CA_REVIEW</option>
+              <option value="ASSIGNED">ASSIGNED</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="CERTIFIED">CERTIFIED</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2 border-t border-outline-variant">
+          <button type="button" onclick="closeEditCaseModal()" class="px-3.5 py-2 rounded-lg bg-surface-container border border-outline-variant text-on-surface font-headline font-bold text-xs">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline font-bold text-xs flex items-center gap-1 shadow-sm">
+            <span class="material-symbols-outlined text-[16px]">save</span>
+            <span>Save Modifications</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. FIELD STAFF ATTENDANCE SELFIE ZOOM INSPECTION MODAL -->
+  <div id="selfieModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col animate-fadeIn">
+      <div class="px-5 py-3 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-emerald-600 text-[20px]">photo_camera_front</span>
+          <div>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Field Staff Attendance Verification Selfie</h3>
+            <p class="font-mono text-[10px] text-outline">Indelible On-Site Attendance & Arrival Telemetry</p>
+          </div>
+        </div>
+        <button onclick="closeSelfieModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+      <div class="p-4 bg-slate-950 flex flex-col items-center justify-center">
+        <img id="selfieModalImg" src="/static/placeholders/photo_pending.svg" alt="Field Staff Attendance Selfie" class="max-h-[58vh] w-auto rounded-lg shadow-lg border border-white/20 object-contain"/>
+      </div>
+      <div class="p-4 bg-surface-container-lowest border-t border-outline-variant font-mono text-xs space-y-1.5">
+        <div class="flex justify-between items-center">
+          <span class="text-outline">Staff Executive:</span>
+          <strong id="selfieModalStaffName" class="text-on-surface">Nilesh & Kamal Bhai (Field Team)</strong>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-outline">Attendance Time:</span>
+          <span id="selfieModalTimestamp" class="text-on-surface font-semibold">04-Aug-2026, 11:30 IST</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-outline">Hardware GPS Stamp:</span>
+          <span id="selfieModalGps" class="text-emerald-700 font-bold">23.2154° N, 72.6367° E (±3.2m)</span>
+        </div>
+        <div class="p-2 rounded bg-emerald-50 text-emerald-900 border border-emerald-200 text-[11px] font-bold text-center flex items-center justify-center gap-1.5 mt-1">
+          <span class="material-symbols-outlined text-[15px] text-emerald-600">verified</span>
+          <span>Survey Commenced On-Site • Attendance Selfie Authenticated</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
