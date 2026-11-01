@@ -969,9 +969,13 @@ async def delete_case_document(
     Gemini folder/PDF scan swept up — e.g. someone else's document, a blurry re-scan, a
     generic site photo that doesn't belong in the KYC bundle) from a case.
 
-    Deliberately restricted to pdf_ingest-sourced pages only: field-staff evidence photos
-    and the attendance selfie are compliance evidence with their own retake-based lifecycle
-    and must never be removable through this "tidy up the ingestion tray" action.
+    Restricted to pdf_ingest-sourced pages, PLUS unslotted doc_type=OTHER uploads: field-staff
+    EVIDENCE photos (PROPERTY_EXTERIOR, AGENT_SELFIE, OFFICE_*, anything with a slot_number...)
+    are compliance evidence with their own retake-based lifecycle and must never be removable
+    through this "tidy up" action. An unslotted OTHER document, by contrast, is never real
+    classified evidence - it's always a misfiled/duplicate manual upload (e.g. a page meant for
+    the Manual Upload tab that a client-side bug sent into the residence evidence folder
+    instead with an invalid doc_type the server couldn't classify) and is always safe to clear.
     """
     loan_case = await resolve_loan_case(db, case_id)
     if not loan_case:
@@ -983,10 +987,13 @@ async def delete_case_document(
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found on this case")
-    if not (isinstance(doc.ocr_data, dict) and doc.ocr_data.get("source") == "pdf_ingest"):
+    is_pdf_ingest = isinstance(doc.ocr_data, dict) and doc.ocr_data.get("source") == "pdf_ingest"
+    doc_type_str = doc.doc_type.value if hasattr(doc.doc_type, "value") else str(doc.doc_type)
+    is_unslotted_other = doc_type_str == "OTHER" and not getattr(doc, "slot_number", None)
+    if not (is_pdf_ingest or is_unslotted_other):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only AI-ingested scan pages can be removed this way — not field evidence photos or the selfie.",
+            detail="Only AI-ingested scan pages and misfiled/unclassified uploads can be removed this way — not field evidence photos or the selfie.",
         )
 
     removed_title = doc.ocr_data.get("document_title") or doc.ocr_data.get("doc_type")
