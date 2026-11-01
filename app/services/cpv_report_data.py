@@ -444,9 +444,10 @@ async def assemble_cpv_report_data(
         if resolved and resolved not in residence_photos:
             residence_photos.append(resolved)
 
+    # NEVER fall back to another case's extracted-photos folder here - a bank-certified report
+    # must show only this applicant's own evidence or honestly show none, never a different
+    # real applicant's photos picked up from an unrelated case's directory.
     case_extracted_photos = os.path.join("app", "static", "extracted_pages", str(loan_case.id), "field_photos")
-    if not os.path.exists(case_extracted_photos):
-        case_extracted_photos = os.path.join("app", "static", "extracted_pages", "b8df82fd-e33a-493e-8d4b-a802861cf294", "field_photos")
 
     if not residence_photos and os.path.exists(case_extracted_photos):
         residence_photos = [

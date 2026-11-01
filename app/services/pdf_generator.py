@@ -864,8 +864,9 @@ def generate_certified_cpv_report(
         cand_dirs.append(os.path.join("storage_uploads", f"case_{case_id_val}"))
         cand_dirs.append(os.path.join("storage_uploads", case_id_val))
         cand_dirs.append(os.path.join("app", "static", "extracted_pages", case_id_val, "field_photos"))
-    cand_dirs.append(os.path.join("storage_uploads", "case_b8df82fde33a493e8d4ba802861cf294"))
-    cand_dirs.append(os.path.join("app", "static", "extracted_pages", "b8df82fd-e33a-493e-8d4b-a802861cf294", "field_photos"))
+    # NEVER add another case's folder here as a fallback - a bank-certified report must show
+    # only this applicant's own evidence or honestly show nothing, never another real
+    # applicant's photos picked up from an unrelated case's directory.
 
     field_photos_dir = None
     for cd in cand_dirs:
@@ -901,10 +902,9 @@ def generate_certified_cpv_report(
         cand = os.path.join(field_photos_dir, "page_8_img_2.jpeg")
         if os.path.exists(cand):
             pan_img_path = cand
-    if not pan_img_path:
-        cand = os.path.join("app", "static", "specimen_assets", "page_7_img_2_Image2.jpg")
-        if os.path.exists(cand):
-            pan_img_path = cand
+    # No generic/specimen image fallback here on purpose - a bank-certified report must never
+    # show a stock photo as if it were this applicant's own PAN evidence. If nothing real was
+    # scanned, the except branch below prints an honest text-only line instead.
 
     if pan_img_path and is_valid_image(pan_img_path):
         try:
@@ -914,7 +914,7 @@ def generate_certified_cpv_report(
         except Exception:
             story.append(Paragraph(f"PAN Card Verification: {applicant_name} (Active)", body_style))
     else:
-        story.append(Paragraph(f"PAN Card Verification: {applicant_name} (Active)", body_style))
+        story.append(Paragraph(f"PAN Card Verification: {NOT_CAPTURED} (no PAN card or NSDL/e-filing verification scanned for {applicant_name})", body_style))
 
     # ================= PAGE 8: RESIDENCE VISIT PHOTOGRAPHS =================
     story.append(PageBreak())
@@ -990,18 +990,10 @@ def generate_certified_cpv_report(
                         slot_photos[s] = df
                         break
 
-    specimen_fallback = [
-        os.path.join("app", "static", "specimen_assets", "page_8_img_2_Image2.jpg"),
-        os.path.join("app", "static", "specimen_assets", "page_8_img_3_Image3.jpg"),
-        os.path.join("app", "static", "specimen_assets", "page_8_img_4_Image4.jpg"),
-        os.path.join("app", "static", "specimen_assets", "page_8_img_5_Image5.jpg"),
-    ]
-    res_photos = [
-        slot_photos[1] or specimen_fallback[0],
-        slot_photos[2] or specimen_fallback[1],
-        slot_photos[3] or specimen_fallback[2],
-        slot_photos[4] or specimen_fallback[3],
-    ]
+    # No specimen/stock-photo fallback here on purpose - a bank-certified report must never show
+    # generic stock photography as if it were this applicant's own site evidence. _make_cell()
+    # below already handles a missing slot gracefully by printing just the caption, no image.
+    res_photos = [slot_photos[1], slot_photos[2], slot_photos[3], slot_photos[4]]
 
     # Resolve Field Staff Attendance Selfie
     selfie_img_path = None
