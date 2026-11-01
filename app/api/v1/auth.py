@@ -55,7 +55,11 @@ async def login(
             User.phone.like(f"%{last10}%"),
             User.phone == identifier,
         ])
-    query = select(User).where(or_(*conditions))
+    # Two accounts can legitimately share one phone number (e.g. a leftover demo/seed agent
+    # reusing a real field agent's number for testing) - order_by(created_at.desc()) picks the
+    # most recently created match first, so a real, newer account always wins login-by-phone
+    # over stale seed data instead of whichever row the database happens to return first.
+    query = select(User).where(or_(*conditions)).order_by(User.created_at.desc())
     result = await db.execute(query)
     user = result.scalars().first()
 
