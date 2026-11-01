@@ -3926,7 +3926,15 @@
       try {
         const res = await fetch("/api/v1/cases", { headers: { "Authorization": `Bearer ${token}` } });
         if (!res.ok) throw new Error("fetch failed");
-        const cases = await res.json();
+        const allCases = await res.json();
+        // GET /api/v1/cases returns every case in the firm (the same endpoint the CA dashboard
+        // uses) — this view's own heading promises "All cases ever assigned to you", so it must
+        // be scoped to this agent's own assigned_agent_id, not shown unfiltered.
+        let myUserId = null;
+        try { myUserId = (JSON.parse(localStorage.getItem("pwa_user") || "{}") || {}).user_id || null; } catch (e) {}
+        const cases = myUserId
+          ? (Array.isArray(allCases) ? allCases.filter(c => c.assigned_agent_id === myUserId) : [])
+          : allCases;
         if (!Array.isArray(cases) || cases.length === 0) {
           body.innerHTML = `<div class="text-center text-xs text-on-surface-variant py-8 font-mono">No cases have been assigned to you yet.</div>`;
           return;
