@@ -41,6 +41,12 @@ class DocumentType(str, enum.Enum):
     UTILITY_BILL = "UTILITY_BILL"
     SALARY_SLIP = "SALARY_SLIP"
     PROPERTY_TITLE_DEED = "PROPERTY_TITLE_DEED"
+    # Self-employed / business applicants have no Form 16 - their income proof is an ITR-V
+    # acknowledgement (filing receipt) and/or the CA's own computation-of-income sheet, which
+    # a salaried applicant never has either.
+    ITR_ACKNOWLEDGEMENT = "ITR_ACKNOWLEDGEMENT"
+    COMPUTATION_OF_INCOME = "COMPUTATION_OF_INCOME"
+    PROFIT_LOSS_BALANCE_SHEET = "PROFIT_LOSS_BALANCE_SHEET"
     OTHER = "OTHER"
 
 

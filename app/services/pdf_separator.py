@@ -49,6 +49,9 @@ LLM_TO_DOCUMENT_TYPE = {
     "EMPLOYEE_ID_CARD": DocumentType.OTHER,
     "PROPERTY_DOCUMENT": DocumentType.PROPERTY_TITLE_DEED,
     "APPLICATION_FORM": DocumentType.OTHER,
+    "ITR_ACKNOWLEDGEMENT": DocumentType.ITR_ACKNOWLEDGEMENT,
+    "COMPUTATION_OF_INCOME": DocumentType.COMPUTATION_OF_INCOME,
+    "PROFIT_LOSS_BALANCE_SHEET": DocumentType.PROFIT_LOSS_BALANCE_SHEET,
     "OTHER": DocumentType.OTHER,
 }
 ALLOWED_DOC_TYPES = set(LLM_TO_DOCUMENT_TYPE.keys())
@@ -236,9 +239,19 @@ STRICT RULES
    Never infer, complete, or "correct" a value. Never return the string "null".
 2. Classify the page as exactly one of:
    AADHAAR_CARD, PAN_CARD, UTILITY_BILL, SALARY_SLIP, FORM_16, BANK_STATEMENT,
-   EMPLOYEE_ID_CARD, PROPERTY_DOCUMENT, APPLICATION_FORM, OTHER.
+   EMPLOYEE_ID_CARD, PROPERTY_DOCUMENT, APPLICATION_FORM, ITR_ACKNOWLEDGEMENT,
+   COMPUTATION_OF_INCOME, PROFIT_LOSS_BALANCE_SHEET, OTHER.
    A Form 16 Part-B / Annexure page is FORM_16 (not SALARY_SLIP). A page that only continues a
    previous document (e.g. a verification block, more ledger rows) keeps that document's type.
+   A self-employed/business applicant never has a Form 16 - their income proof is instead:
+   ITR_ACKNOWLEDGEMENT (the ITR-V acknowledgement/filing receipt - carries an acknowledgement
+   number and filing date), COMPUTATION_OF_INCOME (the CA's "Computation of Total Income"
+   sheet showing income-head-wise income and the final taxable income figure, sometimes titled
+   "Computation of Income" or just shows PAN/A.Y. with a tax computation layout), and
+   PROFIT_LOSS_BALANCE_SHEET (Trading Account / Profit & Loss Account / Capital Account /
+   Balance Sheet pages for the business - filed for the CA's own record, not itself a source of
+   the headline income figure). These three are frequently in the same bundle for one business
+   applicant - classify each page as whichever of the three it actually is, not OTHER.
    When the physical PAN card itself is not provided, the CA office instead verifies the PAN on
    the Income Tax e-filing portal and includes that printout - a "Know Your Jurisdictional
    Assessing Officer" page, an NSDL/e-filing "Verify Your PAN" result, or any other official
@@ -310,8 +323,9 @@ Return ONLY a JSON object with exactly these keys:
   "assessment_year": "string or null",
   "employer_tan": "string or null",
   "annual_gross_salary": "string or null",
-  "annual_taxable_income": "string or null",
+  "annual_taxable_income": "string or null (ITR_ACKNOWLEDGEMENT/COMPUTATION_OF_INCOME: the final Total/Taxable Income figure)",
   "annual_tax_payable": "string or null",
+  "itr_acknowledgement_number": "string or null (ITR_ACKNOWLEDGEMENT only - the acknowledgement/receipt number, not the PAN)",
   "bank_name": "string or null",
   "account_number": "string or null",
   "ifsc_code": "string or null",

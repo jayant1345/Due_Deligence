@@ -764,8 +764,8 @@
             </select>
           </div>
           <div>
-            <label class="font-mono text-[10px] text-outline block mb-1">Designation / Role (હોદ્દો / પોઝિશન)*</label>
-            <input id="formDesignation" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Teacher, Clerk, Manager"/>
+            <label class="font-mono text-[10px] text-outline block mb-1">Position / Nature of Business (હોદ્દો / ધંધો શેનો કરે છે)*</label>
+            <input id="formDesignation" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Teacher, Manager — or for Business: Furniture Retailer, Kirana Store"/>
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Work From Home (ઘરે થી કામ કરે છે?)*</label>
@@ -871,13 +871,18 @@
             <input id="formOfficeAssets" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Computers, Furniture, Inventory"/>
           </div>
           <div>
-            <label class="font-mono text-[10px] text-outline block mb-1">Reference at Workplace (ઓફીસ નો સંદર્ભ)</label>
-            <input id="formOfficeReference" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Colleague / HR name"/>
+            <label class="font-mono text-[10px] text-outline block mb-1">References at Workplace (2, name - relation)</label>
+            <input id="formOfficeReferences" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Decor Plast - Purchase, Deepak Jangid - Sales"/>
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Who Did You Meet (કોને મળ્યા)</label>
             <input id="formOfficeWhoMeet" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. HR Manager, Owner"/>
           </div>
+        </div>
+
+        <div>
+          <label class="font-mono text-[10px] text-outline block mb-1">Overall Assessment / Remarks (optional - e.g. a business proof caveat)</label>
+          <input id="formOfficeAssessment" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="Leave blank for the default POSITIVE assessment, or note e.g. 'Branch should obtain Business Proof like GST, Udyam, Gumasta etc.'"/>
         </div>
 
         <!-- DYNAMIC NOTIFICATION: EMPLOYED VS HOUSEWIFE -->
@@ -1025,8 +1030,8 @@
             <input id="formCoOfficeAssets" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Computers, Furniture, Inventory"/>
           </div>
           <div>
-            <label class="font-mono text-[10px] text-outline block mb-1">Reference at Workplace</label>
-            <input id="formCoOfficeReference" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Colleague / HR name"/>
+            <label class="font-mono text-[10px] text-outline block mb-1">References at Workplace (2, name - relation)</label>
+            <input id="formCoOfficeReferences" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Decor Plast - Purchase, Deepak Jangid - Sales"/>
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Who Did You Meet</label>
@@ -3328,8 +3333,9 @@
       const establishedSince = document.getElementById("formEstablishedSince") ? document.getElementById("formEstablishedSince").value.trim() : "";
       const officeLocation = document.getElementById("formOfficeLocation") ? document.getElementById("formOfficeLocation").value : "";
       const officeAssets = document.getElementById("formOfficeAssets") ? document.getElementById("formOfficeAssets").value.trim() : "";
-      const officeReference = document.getElementById("formOfficeReference") ? document.getElementById("formOfficeReference").value.trim() : "";
+      const officeReferencesRaw = document.getElementById("formOfficeReferences") ? document.getElementById("formOfficeReferences").value : "";
       const officeWhoMeet = document.getElementById("formOfficeWhoMeet") ? document.getElementById("formOfficeWhoMeet").value.trim() : "";
+      const officeAssessment = document.getElementById("formOfficeAssessment") ? document.getElementById("formOfficeAssessment").value.trim() : "";
       const prevLoanType = document.getElementById("formLoanType") ? document.getElementById("formLoanType").value : "";
       const prevLoanAmount = document.getElementById("formLoanAmount") ? document.getElementById("formLoanAmount").value.trim() : "";
       const prevLoanBank = document.getElementById("formPrevBank") ? document.getElementById("formPrevBank").value.trim() : "";
@@ -3364,7 +3370,8 @@
           established_since: document.getElementById("formCoEstablishedSince") ? document.getElementById("formCoEstablishedSince").value.trim() : "",
           location: document.getElementById("formCoOfficeLocation") ? document.getElementById("formCoOfficeLocation").value : "",
           assets: document.getElementById("formCoOfficeAssets") ? document.getElementById("formCoOfficeAssets").value.trim() : "",
-          reference: document.getElementById("formCoOfficeReference") ? document.getElementById("formCoOfficeReference").value.trim() : "",
+          reference_1: (() => { const v = document.getElementById("formCoOfficeReferences") ? document.getElementById("formCoOfficeReferences").value : ""; return (v.split(",")[0] || "").trim(); })(),
+          reference_2: (() => { const v = document.getElementById("formCoOfficeReferences") ? document.getElementById("formCoOfficeReferences").value : ""; return (v.split(",")[1] || "").trim(); })(),
           who_meet: document.getElementById("formCoOfficeWhoMeet") ? document.getElementById("formCoOfficeWhoMeet").value.trim() : "",
         };
       }
@@ -3414,8 +3421,10 @@
           established_since: establishedSince,
           location: officeLocation,
           assets: officeAssets,
-          reference: officeReference,
+          reference_1: (officeReferencesRaw.split(",")[0] || "").trim(),
+          reference_2: (officeReferencesRaw.split(",")[1] || "").trim(),
           who_meet: officeWhoMeet,
+          assessment: officeAssessment,
           verification_status: occupation === 'House Wife' ? 'Not Applicable (Home Maker)' : 'Office Verification Conducted'
         },
         previous_loan: {
@@ -3665,10 +3674,12 @@
       if (fOffLocation) fOffLocation.value = c.office_location || "";
       const fOffAssets = document.getElementById("formOfficeAssets");
       if (fOffAssets) fOffAssets.value = c.office_assets || "";
-      const fOffReference = document.getElementById("formOfficeReference");
-      if (fOffReference) fOffReference.value = c.office_reference || "";
+      const fOffReferences = document.getElementById("formOfficeReferences");
+      if (fOffReferences) fOffReferences.value = (c.office_references || []).join(", ");
       const fOffWhoMeet = document.getElementById("formOfficeWhoMeet");
       if (fOffWhoMeet) fOffWhoMeet.value = c.office_who_meet || "";
+      const fOffAssessment = document.getElementById("formOfficeAssessment");
+      if (fOffAssessment) fOffAssessment.value = c.office_assessment || "";
 
       const fItrAckNo = document.getElementById("formItrAckNo");
       if (fItrAckNo) fItrAckNo.value = c.itr_ack_no || "";
@@ -3732,8 +3743,8 @@
         if (fCoOffLocation) fCoOffLocation.value = c.co_office_location || "";
         const fCoOffAssets = document.getElementById("formCoOfficeAssets");
         if (fCoOffAssets) fCoOffAssets.value = c.co_office_assets || "";
-        const fCoOffReference = document.getElementById("formCoOfficeReference");
-        if (fCoOffReference) fCoOffReference.value = c.co_office_reference || "";
+        const fCoOffReferences = document.getElementById("formCoOfficeReferences");
+        if (fCoOffReferences) fCoOffReferences.value = (c.co_office_references || []).join(", ");
         const fCoOffWhoMeet = document.getElementById("formCoOfficeWhoMeet");
         if (fCoOffWhoMeet) fCoOffWhoMeet.value = c.co_office_who_meet || "";
         const fCoWfh = document.getElementById("formCoWorkFromHome");
@@ -3974,8 +3985,9 @@
           const offEstablishedSince = off.established_since || "";
           const offLocation = off.location || "";
           const offAssets = off.assets || "";
-          const offReference = off.reference || "";
+          const offReferences = [off.reference_1 || off.reference, off.reference_2].filter(Boolean);
           const offWhoMeet = off.who_meet || "";
+          const offAssessment = off.assessment || "";
           const prevLoan = parsedFormData.previous_loan || {};
           // Co-applicant office details - a case only has these when target.co_applicant_name
           // is set server-side (dual-applicant case); the co-applicant's workplace is captured
@@ -4042,8 +4054,9 @@
             office_established_since: offEstablishedSince,
             office_location: offLocation,
             office_assets: offAssets,
-            office_reference: offReference,
+            office_references: offReferences,
             office_who_meet: offWhoMeet,
+            office_assessment: offAssessment,
             itr_ack_no: itrAckNoSaved,
             itr_filing_date: itrFilingDateSaved,
             bank_account_status: bankAccountStatusSaved,
@@ -4067,7 +4080,7 @@
             co_office_established_since: offCo.established_since || "",
             co_office_location: offCo.location || "",
             co_office_assets: offCo.assets || "",
-            co_office_reference: offCo.reference || "",
+            co_office_references: [offCo.reference_1 || offCo.reference, offCo.reference_2].filter(Boolean),
             co_office_who_meet: offCo.who_meet || "",
             is_live_case: true,
           }, restorePatch);
@@ -4394,7 +4407,7 @@
         // uploaded from the CA portal's "Manual Upload" tab carry no folder tag at all, so without
         // this explicit exclusion they fell through the catch-all below and got mistaken for a
         // residence evidence photo (e.g. a scanned electricity bill landing in a Residence slot).
-        const KYC_DOC_TYPES = ["AADHAAR_CARD", "PAN_CARD", "UTILITY_BILL", "SALARY_SLIP", "PROPERTY_TITLE_DEED", "FORM_16", "OTHER"];
+        const KYC_DOC_TYPES = ["AADHAAR_CARD", "PAN_CARD", "UTILITY_BILL", "SALARY_SLIP", "PROPERTY_TITLE_DEED", "FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET", "OTHER"];
         const isKycDoc = (d) => KYC_DOC_TYPES.includes((d.doc_type || "").toUpperCase());
 
         const residenceDocs = (docs || []).filter(d =>

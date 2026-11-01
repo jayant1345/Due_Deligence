@@ -135,16 +135,20 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     form_position = office_form.get("position") or office_form.get("designation") or None
     form_occupation = office_form.get("occupation") or None
 
+    # A salaried applicant's income proof is FORM_16; a self-employed/business applicant has
+    # none - their equivalent is ITR_ACKNOWLEDGEMENT (ack no / filing date) and/or
+    # COMPUTATION_OF_INCOME (the final taxable income figure), scanned as their own doc types.
+    ITR_INCOME_DOC_TYPES = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME"}
     itr: Dict[str, Dict[str, Any]] = {}
-    for p in sorted((p for p in pages if p.get("doc_type") == "FORM_16"), key=lambda p: p.get("page_number") or 0):
+    for p in sorted((p for p in pages if p.get("doc_type") in ITR_INCOME_DOC_TYPES), key=lambda p: p.get("page_number") or 0):
         ay = _ay_of(p)
         if not ay:
             continue
         row = itr.setdefault(ay, {"ay": ay, "ack_no": None, "filed_on": None, "total_income": None,
-                                  "status": "Form No. 16 provided (no ITR acknowledgement on record)"})
+                                  "status": "Income Tax Return provided (total income not on record)"})
         row["total_income"] = row["total_income"] or _inr(p.get("annual_taxable_income"))
-        row["ack_no"] = row["ack_no"] or itr_ack_no
-        row["filed_on"] = row["filed_on"] or itr_filing_date
+        row["ack_no"] = row["ack_no"] or p.get("itr_acknowledgement_number") or itr_ack_no
+        row["filed_on"] = row["filed_on"] or p.get("document_date") or itr_filing_date
 
     sal = _salutation(gender, marital)
     display = f"{sal} {_title(name)}".strip() if name else ""
@@ -177,8 +181,13 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
             "established_since": office_form.get("established_since") or None,
             "location": office_form.get("location") or None,
             "assets": office_form.get("assets") or None,
-            "reference": office_form.get("reference") or None,
+            "references": [
+                tuple((r.split(" - ", 1) + [""])[:2]) if " - " in r else (r, "")
+                for r in [office_form.get("reference_1") or office_form.get("reference"), office_form.get("reference_2")]
+                if r
+            ],
             "who_meet": office_form.get("who_meet") or None,
+            "assessment": office_form.get("assessment") or None,
             # The ID card carries the official employee code; payslips often print box numbers
             "reg_or_emp_no": _first(pages, "employee_code", {"EMPLOYEE_ID_CARD"}),
             "position": _title(form_position) if form_position else _title(designation),

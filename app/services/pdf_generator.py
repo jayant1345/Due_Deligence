@@ -96,10 +96,22 @@ def generate_certified_cpv_report(
                 return od[field_name]
         return None
 
+    def _ocr_residential_address(co_applicant: bool = False):
+        for d in document_items:
+            od = d.get("ocr_data") or {}
+            real_doc_type = od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")
+            is_co_doc = od.get("relationship_to_applicant") == "DIFFERENT_PERSON"
+            if co_applicant != is_co_doc:
+                continue
+            if real_doc_type == "AADHAAR_CARD" and od.get("address") and od.get("address_type") == "RESIDENTIAL":
+                return od["address"]
+        return None
+
     real_pan = _ocr_first("extracted_pan", {"PAN_CARD"}) or _ocr_first("extracted_pan")
     real_aadhaar = _ocr_first("extracted_aadhaar", {"AADHAAR_CARD"})
     real_dob = _ocr_first("date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"})
     real_gender = _ocr_first("gender", {"AADHAAR_CARD"})
+    real_aadhaar_address = _ocr_residential_address()
 
     # Same OCR lookups, scoped to the co-applicant's own scanned documents (a different
     # person from the one who's own KYC the applicant's lookups above are scoped to).
@@ -352,41 +364,40 @@ def generate_certified_cpv_report(
     # pages, or several years filed together); each page is deduplicated by its own A.Y.
     from app.services.cpv_report_data import _ay_of, _inr
 
-    def _is_form16(d):
-        # FORM_16 is a real Gemini classification but not a stored DocumentType enum value -
-        # the DB column collapses it to SALARY_SLIP, so the real page type must come from
-        # ocr_data, the same way _ocr_first() above resolves doc types for OCR lookups.
-        od = d.get("ocr_data") or {}
-        return (od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")) == "FORM_16"
+    # A salaried applicant's income proof is FORM_16; a self-employed/business applicant has no
+    # Form 16 at all - their equivalent is an ITR_ACKNOWLEDGEMENT (ack no / filing date) and/or
+    # a COMPUTATION_OF_INCOME sheet (the final taxable income figure). All three are collapsed
+    # to other DocumentType enum values in the DB column, so the real page type must come from
+    # ocr_data, the same way _ocr_first() above resolves doc types for OCR lookups.
+    ITR_INCOME_DOC_TYPES = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME"}
 
-    form16_rows = {}
-    for d in document_items:
-        if not _is_form16(d):
-            continue
-        if (d.get("ocr_data") or {}).get("relationship_to_applicant") == "DIFFERENT_PERSON":
-            continue
+    def _is_itr_income_doc(d):
         od = d.get("ocr_data") or {}
-        ay = _ay_of(od)
-        if not ay:
-            continue
-        row = form16_rows.setdefault(ay, {"ay": ay, "income": None})
-        row["income"] = row["income"] or _inr(od.get("annual_taxable_income"))
+        return (od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")) in ITR_INCOME_DOC_TYPES
+
+    def _build_itr_rows(co_applicant: bool):
+        rows = {}
+        for d in document_items:
+            if not _is_itr_income_doc(d):
+                continue
+            od = d.get("ocr_data") or {}
+            is_co_doc = od.get("relationship_to_applicant") == "DIFFERENT_PERSON"
+            if co_applicant != is_co_doc:
+                continue
+            ay = _ay_of(od)
+            if not ay:
+                continue
+            row = rows.setdefault(ay, {"ay": ay, "income": None, "ack_no": None, "filed_on": None})
+            row["income"] = row["income"] or _inr(od.get("annual_taxable_income"))
+            row["ack_no"] = row["ack_no"] or od.get("itr_acknowledgement_number")
+            row["filed_on"] = row["filed_on"] or od.get("document_date")
+        return rows
+
+    form16_rows = _build_itr_rows(co_applicant=False)
     form16_ay_list = sorted(form16_rows.keys(), reverse=True)
     form16_ay_str = ", ".join(f"A.Y.{ay}" for ay in form16_ay_list) if form16_ay_list else NOT_CAPTURED
 
-    # Same extraction, scoped to the co-applicant's own scanned Form 16 pages.
-    form16_rows_co = {}
-    for d in document_items:
-        if not _is_form16(d):
-            continue
-        od = d.get("ocr_data") or {}
-        if od.get("relationship_to_applicant") != "DIFFERENT_PERSON":
-            continue
-        ay = _ay_of(od)
-        if not ay:
-            continue
-        row = form16_rows_co.setdefault(ay, {"ay": ay, "income": None})
-        row["income"] = row["income"] or _inr(od.get("annual_taxable_income"))
+    form16_rows_co = _build_itr_rows(co_applicant=True)
 
     work_bullet = ""
     if is_working:
@@ -432,7 +443,7 @@ def generate_certified_cpv_report(
     {work_bullet}
     {co_work_bullet}
     <b>ITR:</b><br/><br/>
-     {("The applicant has submitted Form No. 16 for the Assessment year(s) <b>" + form16_ay_str + "</b> as proof of income, provided for our verification.") if form16_ay_list else "No Income Tax Returns or Form No. 16 were provided for our verification."}<br/><br/>
+     {("The applicant has submitted Income Tax Return(s) / Form No. 16 for the Assessment year(s) <b>" + form16_ay_str + "</b> as proof of income, provided for our verification.") if form16_ay_list else "No Income Tax Returns or Form No. 16 were provided for our verification."}<br/><br/>
     <b>KYC:</b><br/><br/>
      {kyc_line}
     """
@@ -536,9 +547,29 @@ def generate_certified_cpv_report(
     neighbours_list = [n for n in [neighbour_1, neighbour_2] if n]
     neighbours_val = "<br/>".join(f"{i + 1}. {n}" for i, n in enumerate(neighbours_list)) or NOT_CAPTURED
 
+    def _aadhaar_address_label(aadhaar_addr: Optional[str], verified_addr: str) -> str:
+        # Never assert a match that was never actually checked - a CA-certified report must
+        # state the true relationship between the two addresses, not a copy-pasted claim.
+        if not aadhaar_addr:
+            return NOT_CAPTURED + " (Aadhaar card not scanned for this case)"
+        if not verified_addr or verified_addr == NOT_CAPTURED:
+            return aadhaar_addr
+        norm = lambda s: set(re.sub(r"[^a-z0-9 ]", " ", s.lower()).split())
+        a_tokens, v_tokens = norm(aadhaar_addr), norm(verified_addr)
+        a_pin = re.search(r"\b\d{6}\b", aadhaar_addr)
+        v_pin = re.search(r"\b\d{6}\b", verified_addr)
+        same_pin = bool(a_pin and v_pin and a_pin.group() == v_pin.group())
+        overlap = len(a_tokens & v_tokens) / max(1, min(len(a_tokens), len(v_tokens)))
+        if same_pin and overlap >= 0.4:
+            return "As Above (Matches with Verified Address)"
+        return f"{aadhaar_addr} (Differs from the Verified Address above - applicant's Aadhaar-registered address)"
+
+    import re
+    aadhaar_addr_val = _aadhaar_address_label(real_aadhaar_address, target_address)
+
     prem_grid = [
         [Paragraph("<b>Verified Address Situated At</b>", table_cell_bold), Paragraph(target_address, table_cell_style)],
-        [Paragraph("<b>Address as per Aadhar card</b>", table_cell_bold), Paragraph("As Above (Matches 100% with Verified Address)", table_cell_style)],
+        [Paragraph("<b>Address as per Aadhar card</b>", table_cell_bold), Paragraph(aadhaar_addr_val, table_cell_style)],
         [Paragraph("<b>Landmark</b>", table_cell_bold), Paragraph(res_landmark, table_cell_style)],
         [Paragraph("<b>References (Neighbours)</b>", table_cell_bold), Paragraph(neighbours_val, table_cell_style)],
         [Paragraph("<b>Type of Building & Floor</b>", table_cell_bold), Paragraph(res_bldg, table_cell_style)],
@@ -588,9 +619,17 @@ def generate_certified_cpv_report(
     add_firm_header(5)
     
     is_working = isinstance(field_form, dict) and field_form.get("occupation") not in ("Housewife", "House Wife", None)
+    is_business = str(field_form.get("occupation") or "").strip().lower() == "business"
     if is_working:
-        story.append(Paragraph("__________Annexure ‘B’__________<br/>Office Verification (Salaried / Employer Premises)", anx_title_style))
+        anx_b_title = "Office Verification (Business Premises)" if is_business else "Office Verification (Salaried / Employer Premises)"
+        story.append(Paragraph(f"__________Annexure ‘B’__________<br/>{anx_b_title}", anx_title_style))
         story.append(Spacer(1, 4))
+        # Two named references, same pattern as the residence neighbours - back-compat with the
+        # older single "reference" field for cases saved before this was split in two.
+        office_refs_list = [r for r in [office.get("reference_1") or office.get("reference"), office.get("reference_2")] if r]
+        office_refs_val = "<br/>".join(f"{i + 1}. {r}" for i, r in enumerate(office_refs_list)) or NOT_CAPTURED
+        office_assessment = office.get("assessment") or None
+        assessment_html = f"<font color='#059669'><b>{office_assessment}</b></font>" if office_assessment else "<font color='#059669'><b>POSITIVE</b></font>"
         p5_grid = [
             [Paragraph("<b>Firm Name</b>", table_cell_bold), Paragraph(firm_name or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Premises Address</b>", table_cell_bold), Paragraph(office_addr or NOT_CAPTURED, table_cell_style)],
@@ -603,10 +642,10 @@ def generate_certified_cpv_report(
             [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph(office.get("nameboard") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Infrastructure of premises</b>", table_cell_bold), Paragraph(office.get("infrastructure") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Number of Workers</b>", table_cell_bold), Paragraph(office.get("employees") or NOT_CAPTURED, table_cell_style)],
-            [Paragraph("<b>Line of business / Position at Work</b>", table_cell_bold), Paragraph(position or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Line of Business / Position at Work</b>", table_cell_bold), Paragraph(position or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph(office.get("assets") or NOT_CAPTURED, table_cell_style)],
-            [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph(office.get("reference") or NOT_CAPTURED, table_cell_style)],
-            [Paragraph("<b>Overall Assessment</b>", table_cell_bold), Paragraph("<font color='#059669'><b>POSITIVE</b></font>", table_cell_style)],
+            [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph(office_refs_val, table_cell_style)],
+            [Paragraph("<b>Overall Assessment</b>", table_cell_bold), Paragraph(assessment_html, table_cell_style)],
             [Paragraph("<b>Who meet?</b>", table_cell_bold), Paragraph(office.get("who_meet") or NOT_CAPTURED, table_cell_style)],
         ]
     else:
@@ -637,8 +676,14 @@ def generate_certified_cpv_report(
         story.append(PageBreak())
         add_firm_header("5A")
         if is_co_working:
-            story.append(Paragraph("__________Annexure ‘B’ (Co-Applicant)__________<br/>Office Verification (Salaried / Employer Premises)", anx_title_style))
+            co_is_business = str(office_co.get("occupation") or "").strip().lower() == "business"
+            co_anx_b_title = "Office Verification (Business Premises)" if co_is_business else "Office Verification (Salaried / Employer Premises)"
+            story.append(Paragraph(f"__________Annexure ‘B’ (Co-Applicant)__________<br/>{co_anx_b_title}", anx_title_style))
             story.append(Spacer(1, 4))
+            co_office_refs_list = [r for r in [office_co.get("reference_1") or office_co.get("reference"), office_co.get("reference_2")] if r]
+            co_office_refs_val = "<br/>".join(f"{i + 1}. {r}" for i, r in enumerate(co_office_refs_list)) or NOT_CAPTURED
+            co_office_assessment = office_co.get("assessment") or None
+            co_assessment_html = f"<font color='#059669'><b>{co_office_assessment}</b></font>" if co_office_assessment else "<font color='#059669'><b>POSITIVE</b></font>"
             p5_grid_co = [
                 [Paragraph("<b>Firm Name</b>", table_cell_bold), Paragraph(co_firm_name or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Premises Address</b>", table_cell_bold), Paragraph(co_office_addr or NOT_CAPTURED, table_cell_style)],
@@ -651,10 +696,10 @@ def generate_certified_cpv_report(
                 [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph(office_co.get("nameboard") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Infrastructure of premises</b>", table_cell_bold), Paragraph(office_co.get("infrastructure") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Number of Workers</b>", table_cell_bold), Paragraph(office_co.get("employees") or NOT_CAPTURED, table_cell_style)],
-                [Paragraph("<b>Line of business / Position at Work</b>", table_cell_bold), Paragraph(co_position or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Line of Business / Position at Work</b>", table_cell_bold), Paragraph(co_position or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph(office_co.get("assets") or NOT_CAPTURED, table_cell_style)],
-                [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph(office_co.get("reference") or NOT_CAPTURED, table_cell_style)],
-                [Paragraph("<b>Overall Assessment</b>", table_cell_bold), Paragraph("<font color='#059669'><b>POSITIVE</b></font>", table_cell_style)],
+                [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph(co_office_refs_val, table_cell_style)],
+                [Paragraph("<b>Overall Assessment</b>", table_cell_bold), Paragraph(co_assessment_html, table_cell_style)],
                 [Paragraph("<b>Who meet?</b>", table_cell_bold), Paragraph(office_co.get("who_meet") or NOT_CAPTURED, table_cell_style)],
             ]
         else:
@@ -688,18 +733,23 @@ def generate_certified_cpv_report(
     story.append(Paragraph(f"Applicant: <b>{applicant_name}</b>", body_style))
     story.append(Spacer(1, 3))
 
-    itr_ack_no = field_form.get("itr_acknowledgement_no") or NOT_CAPTURED
-    itr_filing_date = field_form.get("itr_filing_date") or NOT_CAPTURED
+    # Manually-entered fallback (CA office knows it but it wasn't scanned) - only used for a
+    # row the OCR itself didn't supply an ack no / filing date for.
+    manual_itr_ack_no = field_form.get("itr_acknowledgement_no") or None
+    manual_itr_filing_date = field_form.get("itr_filing_date") or None
     if form16_ay_list:
         itr_grid = [[Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)]]
         for ay in form16_ay_list:
-            income = form16_rows[ay]["income"]
-            status = f"Rs. {income}" if income else "Form No. 16 provided (no ITR acknowledgement on record)"
-            itr_grid.append([Paragraph(ay, table_cell_style), Paragraph(itr_ack_no, table_cell_style), Paragraph(itr_filing_date, table_cell_style), Paragraph(status, table_cell_style)])
+            row = form16_rows[ay]
+            income = row["income"]
+            ack_no = row["ack_no"] or manual_itr_ack_no or NOT_CAPTURED
+            filed_on = row["filed_on"] or manual_itr_filing_date or NOT_CAPTURED
+            status = f"Rs. {income}" if income else "Income Tax Return provided (total income not on record)"
+            itr_grid.append([Paragraph(ay, table_cell_style), Paragraph(ack_no, table_cell_style), Paragraph(filed_on, table_cell_style), Paragraph(status, table_cell_style)])
     else:
         itr_grid = [
             [Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)],
-            [Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph("No Form No. 16 / ITR documents on record", table_cell_style)],
+            [Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph("No Form No. 16 / ITR Acknowledgement / Computation of Income on record", table_cell_style)],
         ]
     t_itr = Table(itr_grid, colWidths=[1.5 * inch, 2.0 * inch, 1.8 * inch, 2.2 * inch])
     t_itr.setStyle(TableStyle([
@@ -719,13 +769,14 @@ def generate_certified_cpv_report(
         if co_form16_ay_list:
             itr_grid_co = [[Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)]]
             for ay in co_form16_ay_list:
-                income = form16_rows_co[ay]["income"]
-                status = f"Rs. {income}" if income else "Form No. 16 provided (no ITR acknowledgement on record)"
-                itr_grid_co.append([Paragraph(ay, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(status, table_cell_style)])
+                row = form16_rows_co[ay]
+                income = row["income"]
+                status = f"Rs. {income}" if income else "Income Tax Return provided (total income not on record)"
+                itr_grid_co.append([Paragraph(ay, table_cell_style), Paragraph(row["ack_no"] or NOT_CAPTURED, table_cell_style), Paragraph(row["filed_on"] or NOT_CAPTURED, table_cell_style), Paragraph(status, table_cell_style)])
         else:
             itr_grid_co = [
                 [Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)],
-                [Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph("No Form No. 16 / ITR documents on record", table_cell_style)],
+                [Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph("No Form No. 16 / ITR Acknowledgement / Computation of Income on record", table_cell_style)],
             ]
         t_itr_co = Table(itr_grid_co, colWidths=[1.5 * inch, 2.0 * inch, 1.8 * inch, 2.2 * inch])
         t_itr_co.setStyle(TableStyle([
