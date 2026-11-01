@@ -1674,7 +1674,7 @@
         <div class="space-y-3 text-xs">
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Empanelled Bank (બેંક)*</label>
-            <select id="tabNcBankName" class="w-full text-xs font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
+            <select id="tabNcBankName" onchange="syncTabNcCaseNoPrefix()" class="w-full text-xs font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
               <option value="Bank of Baroda" selected>Bank of Baroda (BOB)</option>
               <option value="Union Bank of India">Union Bank of India (UBI)</option>
               <option value="State Bank of India">State Bank of India (SBI)</option>
@@ -5826,17 +5826,38 @@
     let tabStagedPdfs = [];
     let tabStagedImages = [];
 
+    const TAB_NC_BANK_PREFIXES = ["BOB", "UBI", "SBI", "HDFC", "ICICI", "AXIS", "CANARA", "PNB"];
+    function tabNcBankPrefix(bank) {
+      bank = bank || "";
+      if (bank.includes("Union")) return "UBI";
+      if (bank.includes("State")) return "SBI";
+      if (bank.includes("HDFC")) return "HDFC";
+      if (bank.includes("ICICI")) return "ICICI";
+      if (bank.includes("Axis")) return "AXIS";
+      if (bank.includes("Canara")) return "CANARA";
+      if (bank.includes("Punjab")) return "PNB";
+      return "BOB";
+    }
+
     function autoGenTabCaseNo() {
-      const bank = document.getElementById("tabNcBankName") ? document.getElementById("tabNcBankName").value : "BOB";
-      let prefix = "BOB";
-      if (bank.includes("Union")) prefix = "UBI";
-      else if (bank.includes("State")) prefix = "SBI";
-      else if (bank.includes("HDFC")) prefix = "HDFC";
-      else if (bank.includes("ICICI")) prefix = "ICICI";
-      else if (bank.includes("Axis")) prefix = "AXIS";
+      const bank = document.getElementById("tabNcBankName") ? document.getElementById("tabNcBankName").value : "";
+      const prefix = tabNcBankPrefix(bank);
       const rand = Math.floor(100 + Math.random() * 900);
       const caseNoInput = document.getElementById("tabNcCaseNo");
       if (caseNoInput) caseNoInput.value = `${prefix}-HL-2026-${rand}`;
+    }
+
+    // Keep an already-generated case no.'s bank prefix in sync when the CA switches banks
+    // after the number was first auto-filled, instead of leaving a stale prefix (e.g. a case
+    // number that still reads "BOB-..." after the bank dropdown was changed to Union Bank).
+    function syncTabNcCaseNoPrefix() {
+      const caseNoInput = document.getElementById("tabNcCaseNo");
+      if (!caseNoInput || !caseNoInput.value) return;
+      const parts = caseNoInput.value.split("-");
+      if (parts.length < 2 || !TAB_NC_BANK_PREFIXES.includes(parts[0].toUpperCase())) return;
+      const bank = document.getElementById("tabNcBankName") ? document.getElementById("tabNcBankName").value : "";
+      parts[0] = tabNcBankPrefix(bank);
+      caseNoInput.value = parts.join("-");
     }
 
     function initNewCaseTabFields() {

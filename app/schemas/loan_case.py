@@ -22,6 +22,7 @@ class CaseCreate(BaseModel):
 
 
 class CaseUpdate(BaseModel):
+    case_no: Optional[str] = None
     status: Optional[CaseStatus] = None
     assigned_agent_id: Optional[uuid.UUID] = None
     applicant_name: Optional[str] = None
