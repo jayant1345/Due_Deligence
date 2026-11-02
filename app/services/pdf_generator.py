@@ -941,13 +941,25 @@ def generate_certified_cpv_report(
     # Residence visit photos resolution across slots 1 to 4
     slot_photos = {1: None, 2: None, 3: None, 4: None}
 
+    # Co-applicant office photos (folder "co_work", doc_type CO_OFFICE_*) must never be treated
+    # as the applicant's own work photos - "OFFICE" in dt would otherwise also match
+    # "CO_OFFICE_FACADE" etc., which is exactly what let the co-applicant's office photos get
+    # pulled into the applicant's own Annexure E gallery (and vice versa) whenever the
+    # co-applicant's docs happened to sort earlier/match a slot first.
+    def _is_co_work_doc(doc):
+        if doc.get("folder") == "co_work" or (doc.get("ocr_data") or {}).get("folder") == "co_work":
+            return True
+        return str(doc.get("doc_type") or "").upper().startswith("CO_OFFICE")
+
     def _is_work_doc(doc):
+        if _is_co_work_doc(doc):
+            return False
         if doc.get("folder") == "work" or (doc.get("ocr_data") or {}).get("folder") == "work":
             return True
         dt = str(doc.get("doc_type") or "").upper()
         return any(w in dt for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"])
 
-    residence_sorted_docs = [d for d in sorted_docs if not _is_work_doc(d)]
+    residence_sorted_docs = [d for d in sorted_docs if not _is_work_doc(d) and not _is_co_work_doc(d)]
 
     # Pass 1: explicit slot numbers (from newest residence docs)
     for d in residence_sorted_docs:
@@ -1183,7 +1195,7 @@ def generate_certified_cpv_report(
         story.append(Paragraph("Annexure ‘E’ (Part 4) — Co-Applicant Business / Employer Premises visit photographs:", anx_title_style))
         story.append(Spacer(1, 4))
 
-        co_office_docs = [d for d in sorted_docs if "CO_OFFICE" in str(d.get("doc_type") or "").upper()]
+        co_office_docs = [d for d in sorted_docs if _is_co_work_doc(d)]
         co_off_slot_map = {1: None, 2: None, 3: None, 4: None}
         co_off_type_to_slot = {
             "CO_OFFICE_FACADE": 1,
