@@ -1,5 +1,6 @@
 import hashlib
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -538,8 +539,18 @@ def generate_certified_cpv_report(
     res_landmark = (field_form.get("landmark") if isinstance(field_form, dict) else None) or NOT_CAPTURED
     res_bldg = (field_form.get("building_type") if isinstance(field_form, dict) else None) or NOT_CAPTURED
     res_stay = (field_form.get("period_of_stay") if isinstance(field_form, dict) else None) or NOT_CAPTURED
-    res_owner = (field_form.get("owner_name") if isinstance(field_form, dict) else None) or NOT_CAPTURED
-    res_rel = (field_form.get("ownership") if isinstance(field_form, dict) else None) or NOT_CAPTURED
+    # The PWA's Owner Name field is filled as a single string in the form "(Name) Relation"
+    # (e.g. "(Ranjanba Vaghela) Mother in law") - there is no separate relation input. This
+    # used to show the residence Ownership status (Owned/Rented) in the Relation cell instead,
+    # which isn't a relation at all; parse the real relation out of the owner_name string.
+    res_owner_raw = (field_form.get("owner_name") if isinstance(field_form, dict) else None) or ""
+    _owner_match = re.match(r"^\s*\(([^)]+)\)\s*(.*)$", res_owner_raw)
+    if _owner_match:
+        res_owner = _owner_match.group(1).strip() or NOT_CAPTURED
+        res_rel = _owner_match.group(2).strip() or NOT_CAPTURED
+    else:
+        res_owner = res_owner_raw.strip() or NOT_CAPTURED
+        res_rel = NOT_CAPTURED
     res_met = (field_form.get("person_met") if isinstance(field_form, dict) else None) or NOT_CAPTURED
 
     neighbour_1 = field_form.get("neighbour_1") if isinstance(field_form, dict) else None
@@ -642,6 +653,7 @@ def generate_certified_cpv_report(
             [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph(office.get("nameboard") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Infrastructure of premises</b>", table_cell_bold), Paragraph(office.get("infrastructure") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Number of Workers</b>", table_cell_bold), Paragraph(office.get("employees") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Reg No. / Emp No.</b>", table_cell_bold), Paragraph(office.get("reg_no") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Line of Business / Position at Work</b>", table_cell_bold), Paragraph(position or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph(office.get("assets") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph(office_refs_val, table_cell_style)],
@@ -654,8 +666,8 @@ def generate_certified_cpv_report(
         b_rows = [
             "Firm Name", "Premises Address", "Landmark", "Firm Type", "Premises Ownership",
             "Premises Owner Name", "Established since", "Location", "Name board Visibility",
-            "Infrastructure of premises", "Line of business / Position at Work", "Assets Visible",
-            "Reference", "Overall Assessment", "Who meet?"
+            "Infrastructure of premises", "Reg No. / Emp No.", "Line of business / Position at Work",
+            "Assets Visible", "Reference", "Overall Assessment", "Who meet?"
         ]
         p5_grid = [
             [Paragraph(f"<b>{r}</b>", table_cell_bold), Paragraph("Not Applicable (Applicant is a Housewife / Co-Applicant)", table_cell_style)]
@@ -696,6 +708,7 @@ def generate_certified_cpv_report(
                 [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph(office_co.get("nameboard") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Infrastructure of premises</b>", table_cell_bold), Paragraph(office_co.get("infrastructure") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Number of Workers</b>", table_cell_bold), Paragraph(office_co.get("employees") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Reg No. / Emp No.</b>", table_cell_bold), Paragraph(office_co.get("reg_no") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Line of Business / Position at Work</b>", table_cell_bold), Paragraph(co_position or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph(office_co.get("assets") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph(co_office_refs_val, table_cell_style)],
@@ -708,8 +721,9 @@ def generate_certified_cpv_report(
             b_rows_co = [
                 "Firm Name", "Premises Address", "Landmark", "Firm Type", "Premises Ownership",
                 "Premises Owner Name", "Established since", "Location", "Name board Visibility",
-                "Infrastructure of premises", "Number of Workers", "Line of business / Position at Work",
-                "Assets Visible", "Reference", "Overall Assessment", "Who meet?"
+                "Infrastructure of premises", "Number of Workers", "Reg No. / Emp No.",
+                "Line of business / Position at Work", "Assets Visible", "Reference",
+                "Overall Assessment", "Who meet?"
             ]
             p5_grid_co = [
                 [Paragraph(f"<b>{r}</b>", table_cell_bold), Paragraph("Not Applicable (Co-Applicant is a Housewife)", table_cell_style)]
@@ -1256,9 +1270,10 @@ def generate_certified_cpv_report(
             Paragraph(
                 "<b>CONFIRMATION BY BRANCH HEAD:</b><br/><br/>"
                 "This is to certify that we have verified the report and found the same "
-                "compiled with due care and all relevant details are filled in.<br/><br/>"
+                "compiled / Not Complied with due care and all relevant details are filled "
+                "in / Not Filled in.<br/><br/>"
                 "Hence, the report is:<br/>"
-                "<b>[✓] ACCEPTED</b>  /  [   ] NOT ACCEPTED<br/><br/>"
+                "<b>[&nbsp;&nbsp;] ACCEPTED</b>  /  <b>[&nbsp;&nbsp;] NOT ACCEPTED</b><br/><br/>"
                 f"Place: {branch}<br/>"
                 f"Date: {rep_date}<br/><br/>"
                 "<b>(Signature of Branch Manager / RLP Head)</b>",

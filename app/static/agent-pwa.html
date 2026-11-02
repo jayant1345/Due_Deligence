@@ -878,6 +878,10 @@
             <label class="font-mono text-[10px] text-outline block mb-1">Who Did You Meet (કોને મળ્યા)</label>
             <input id="formOfficeWhoMeet" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. HR Manager, Owner"/>
           </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Reg. No. / Emp. No. (UDYAM, GST, Employee ID etc.)</label>
+            <input id="formOfficeRegNo" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. UDYAM-GJ-01-0191573"/>
+          </div>
         </div>
 
         <div>
@@ -1036,6 +1040,10 @@
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Who Did You Meet</label>
             <input id="formCoOfficeWhoMeet" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. HR Manager, Owner"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Reg. No. / Emp. No. (UDYAM, GST, Employee ID etc.)</label>
+            <input id="formCoOfficeRegNo" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. UDYAM-GJ-01-0191573"/>
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Co-Applicant Bank Account Status</label>
@@ -3373,6 +3381,7 @@
       const officeAssets = document.getElementById("formOfficeAssets") ? document.getElementById("formOfficeAssets").value.trim() : "";
       const officeReferencesRaw = document.getElementById("formOfficeReferences") ? document.getElementById("formOfficeReferences").value : "";
       const officeWhoMeet = document.getElementById("formOfficeWhoMeet") ? document.getElementById("formOfficeWhoMeet").value.trim() : "";
+      const officeRegNo = document.getElementById("formOfficeRegNo") ? document.getElementById("formOfficeRegNo").value.trim() : "";
       const officeAssessment = document.getElementById("formOfficeAssessment") ? document.getElementById("formOfficeAssessment").value.trim() : "";
       const prevLoanType = document.getElementById("formLoanType") ? document.getElementById("formLoanType").value : "";
       const prevLoanAmount = document.getElementById("formLoanAmount") ? document.getElementById("formLoanAmount").value.trim() : "";
@@ -3412,6 +3421,7 @@
           reference_1: (() => { const v = document.getElementById("formCoOfficeReferences") ? document.getElementById("formCoOfficeReferences").value : ""; return (v.split(",")[0] || "").trim(); })(),
           reference_2: (() => { const v = document.getElementById("formCoOfficeReferences") ? document.getElementById("formCoOfficeReferences").value : ""; return (v.split(",")[1] || "").trim(); })(),
           who_meet: document.getElementById("formCoOfficeWhoMeet") ? document.getElementById("formCoOfficeWhoMeet").value.trim() : "",
+          reg_no: document.getElementById("formCoOfficeRegNo") ? document.getElementById("formCoOfficeRegNo").value.trim() : "",
         };
       }
 
@@ -3464,6 +3474,7 @@
           reference_1: (officeReferencesRaw.split(",")[0] || "").trim(),
           reference_2: (officeReferencesRaw.split(",")[1] || "").trim(),
           who_meet: officeWhoMeet,
+          reg_no: officeRegNo,
           assessment: officeAssessment,
           verification_status: occupation === 'House Wife' ? 'Not Applicable (Home Maker)' : 'Office Verification Conducted'
         },
@@ -3719,6 +3730,8 @@
       if (fOffReferences) fOffReferences.value = (c.office_references || []).join(", ");
       const fOffWhoMeet = document.getElementById("formOfficeWhoMeet");
       if (fOffWhoMeet) fOffWhoMeet.value = c.office_who_meet || "";
+      const fOffRegNo = document.getElementById("formOfficeRegNo");
+      if (fOffRegNo) fOffRegNo.value = c.office_reg_no || "";
       const fOffAssessment = document.getElementById("formOfficeAssessment");
       if (fOffAssessment) fOffAssessment.value = c.office_assessment || "";
 
@@ -3790,6 +3803,8 @@
         if (fCoOffReferences) fCoOffReferences.value = (c.co_office_references || []).join(", ");
         const fCoOffWhoMeet = document.getElementById("formCoOfficeWhoMeet");
         if (fCoOffWhoMeet) fCoOffWhoMeet.value = c.co_office_who_meet || "";
+        const fCoOffRegNo = document.getElementById("formCoOfficeRegNo");
+        if (fCoOffRegNo) fCoOffRegNo.value = c.co_office_reg_no || "";
         const fCoWfh = document.getElementById("formCoWorkFromHome");
         if (fCoWfh) fCoWfh.value = (fCoOcc && fCoOcc.value === "House Wife") ? "Yes" : "No";
         handleCoOccupationChange(fCoOcc ? fCoOcc.value : "Job");
@@ -4031,6 +4046,7 @@
           const offAssets = off.assets || "";
           const offReferences = [off.reference_1 || off.reference, off.reference_2].filter(Boolean);
           const offWhoMeet = off.who_meet || "";
+          const offRegNo = off.reg_no || "";
           const offAssessment = off.assessment || "";
           const prevLoan = parsedFormData.previous_loan || {};
           // Co-applicant office details - a case only has these when target.co_applicant_name
@@ -4102,6 +4118,7 @@
             office_assets: offAssets,
             office_references: offReferences,
             office_who_meet: offWhoMeet,
+            office_reg_no: offRegNo,
             office_assessment: offAssessment,
             itr_ack_no: itrAckNoSaved,
             itr_filing_date: itrFilingDateSaved,
@@ -4129,6 +4146,7 @@
             co_office_assets: offCo.assets || "",
             co_office_references: [offCo.reference_1 || offCo.reference, offCo.reference_2].filter(Boolean),
             co_office_who_meet: offCo.who_meet || "",
+            co_office_reg_no: offCo.reg_no || "",
             is_live_case: true,
           }, restorePatch);
 

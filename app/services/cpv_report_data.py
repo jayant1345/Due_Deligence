@@ -188,8 +188,10 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
             ],
             "who_meet": office_form.get("who_meet") or None,
             "assessment": office_form.get("assessment") or None,
-            # The ID card carries the official employee code; payslips often print box numbers
-            "reg_or_emp_no": _first(pages, "employee_code", {"EMPLOYEE_ID_CARD"}),
+            # The ID card carries the official employee code; payslips often print box numbers.
+            # Falls back to the field visit form's manually-typed Reg No. / UDYAM / GST number
+            # when nothing was OCR'd (e.g. a self-employed applicant with no ID card to scan).
+            "reg_or_emp_no": _first(pages, "employee_code", {"EMPLOYEE_ID_CARD"}) or office_form.get("reg_no") or None,
             "position": _title(form_position) if form_position else _title(designation),
         },
         "_has_pan_card": any(p.get("doc_type") == "PAN_CARD" for p in pages),
