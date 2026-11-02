@@ -133,22 +133,24 @@ def generate_certified_cpv_report(
     styles = getSampleStyleSheet()
 
     # Specimen typography styles
+    # Matches the real letterhead: firm name in an italic script-style face (closest built-in
+    # approximation to the firm's actual cursive logotype, which isn't an embeddable font here).
     firm_title_style = ParagraphStyle(
         "FirmTitle",
         parent=styles["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=13,
-        leading=16,
+        fontName="Times-BoldItalic",
+        fontSize=15,
+        leading=18,
         textColor=colors.HexColor("#0F172A"),
-        alignment=1,  # Center
+        alignment=1,  # Center within its column
     )
     firm_sub_style = ParagraphStyle(
         "FirmSub",
         parent=styles["Normal"],
         fontName="Helvetica-Bold",
-        fontSize=8.5,
+        fontSize=9,
         leading=11,
-        textColor=colors.HexColor("#1E40AF"),
+        textColor=colors.HexColor("#0F172A"),
         alignment=1,
     )
     firm_partners_style = ParagraphStyle(
@@ -157,8 +159,8 @@ def generate_certified_cpv_report(
         fontName="Helvetica-Bold",
         fontSize=8,
         leading=11,
-        textColor=colors.HexColor("#334155"),
-        alignment=1,
+        textColor=colors.HexColor("#0F172A"),
+        alignment=0,  # Left, stacked under the logo like the real letterhead
     )
     firm_addr_style = ParagraphStyle(
         "FirmAddr",
@@ -235,13 +237,40 @@ def generate_certified_cpv_report(
 
     story = []
 
+    logo_path = os.path.join("app", "static", "ca_india_logo.jpg")
+    has_logo = os.path.exists(logo_path)
+
     def add_firm_header(page_num: int):
-        story.append(Paragraph("Naimish N. Shah & Co.", firm_title_style))
-        story.append(Paragraph("CHARTERED ACCOUNTANTS", firm_sub_style))
-        story.append(Paragraph("CA PRANAV N. SHAH                                  CA TANMAY J. DESAI", firm_partners_style))
+        # Two-column letterhead matching the firm's real report: CA India logo + both partner
+        # names stacked on the left, the firm's script-style name + "CHARTERED ACCOUNTANTS" on
+        # the right - not centered as one stacked block like the earlier layout had it.
+        left_cell = []
+        if has_logo:
+            left_cell.append(Image(logo_path, width=0.95 * inch, height=0.52 * inch))
+            left_cell.append(Spacer(1, 2))
+        left_cell.append(Paragraph("CA PRANAV N. SHAH", firm_partners_style))
+        left_cell.append(Paragraph("CA TANMAY J. DESAI", firm_partners_style))
+
+        right_cell = [
+            Paragraph("Naimish N. Shah & Co.", firm_title_style),
+            Paragraph("CHARTERED ACCOUNTANTS", firm_sub_style),
+        ]
+
+        header_table = Table([[left_cell, right_cell]], colWidths=[2.8 * inch, 4.7 * inch])
+        header_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (0, 0), (0, 0), "LEFT"),
+            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        story.append(header_table)
+        story.append(Spacer(1, 3))
         story.append(Paragraph(
             "“SHREE GANESH”, B/3, Trupti Apartments, 3rd Floor, Next to Old High Court (interchange) Metro Station, Navrangpura, "
-            "Ahmedabad – 380 009. E-Mail: contact@nnshahco.co.in (O).: (079)27546336 Mobile: 98240 21625, 98790 05671",
+            "Ahmedabad – 380 009. E-Mail: contact@nnshahco.in (O).: (079)27546336 Mobile: 98240 21625, 98790 05671",
             firm_addr_style
         ))
         story.append(Spacer(1, 2))
