@@ -284,7 +284,7 @@ def generate_certified_cpv_report(
         [Paragraph("3", table_cell_style), Paragraph("Income tax Return", table_cell_style), Paragraph("Annexure 'C'", table_cell_style)],
         [Paragraph("4", table_cell_style), Paragraph("Bank Details", table_cell_style), Paragraph("Annexure 'D'", table_cell_style)],
         [Paragraph("5", table_cell_style), Paragraph("Visit Photographs", table_cell_style), Paragraph("Annexure 'E'", table_cell_style)],
-        [Paragraph("6", table_cell_style), Paragraph("Total Pages", table_cell_style), Paragraph("09", table_cell_style)],
+        [Paragraph("6", table_cell_style), Paragraph("Total Pages", table_cell_style), Paragraph("13" if co_applicant_name else "11", table_cell_style)],
     ]
     t_idx = Table(idx_grid, colWidths=[0.8 * inch, 4.4 * inch, 2.3 * inch])
     t_idx.setStyle(TableStyle([
@@ -809,10 +809,12 @@ def generate_certified_cpv_report(
 
     if co_applicant_name:
         story.append(Spacer(1, 8))
+        # Same lending bank/branch as the applicant's row above (it's one joint loan account,
+        # not two separate personal banks) - only Account Status is genuinely per-person data.
         bank_grid_co = [
-            [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(f"{bank_name}, {branch}", table_cell_style)],
             [Paragraph("<b>A/C Holder Name</b>", table_cell_bold), Paragraph(co_applicant_name, table_cell_style)],
-            [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(field_form.get("bank_account_status_co") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(loan_type, table_cell_style)],
         ]
         t_bank_co = Table(bank_grid_co, colWidths=[2.5 * inch, 5.0 * inch])

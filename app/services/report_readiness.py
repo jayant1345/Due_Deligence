@@ -131,4 +131,8 @@ def compute_report_readiness(
                     missing.append(_entry(f"office_details_co.{key}", label, "field_form",
                                            "Field Visit Form -> Co-Applicant Office Details"))
 
+        if _missing(field_form.get("bank_account_status_co")):
+            missing.append(_entry("bank_account_status_co", "Co-Applicant Bank Account Status", "field_form",
+                                   "Field Visit Form -> Co-Applicant Office Details"))
+
     return missing

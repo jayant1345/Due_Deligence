@@ -203,14 +203,19 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
 
 
 def _bank(all_pages: List[Dict[str, Any]], summary_bank: Optional[Dict[str, Any]], account_status: Optional[str] = None) -> Dict[str, Any]:
-    if not summary_bank:
+    # A manually-entered account_status (from the field visit form) must still show up even
+    # when no bank statement was ever OCR'd - returning {} here discarded it entirely, which
+    # is exactly the gap that left the co-applicant's bank status permanently "Not Captured"
+    # no matter what the field agent typed, since no co-applicant bank summary exists at all.
+    if not summary_bank and not account_status:
         return {}
+    summary_bank = summary_bank or {}
     bank_pages = [p for p in all_pages if p.get("doc_type") == "BANK_STATEMENT"]
     branch = next((p.get("extracted_address") for p in bank_pages if p.get("address_type") == "BRANCH" and p.get("extracted_address")), None)
     return {
-        "bank_name": _title(summary_bank.get("bank_name")),
-        "account_number": summary_bank.get("account_number"),
-        "branch": branch or (f"IFSC {summary_bank['ifsc_code']}" if summary_bank.get("ifsc_code") else None),
+        "bank_name": _title(summary_bank.get("bank_name")) if summary_bank else None,
+        "account_number": summary_bank.get("account_number") if summary_bank else None,
+        "branch": (branch or (f"IFSC {summary_bank['ifsc_code']}" if summary_bank.get("ifsc_code") else None)) if summary_bank else None,
         "account_status": account_status,
         "account_type": None,
     }
@@ -302,7 +307,7 @@ async def assemble_cpv_report_data(
     if include_co_applicant is not False and (co_pages or loan_case.co_applicant_name):
         co = _person(co_pages, pages, on, contact=loan_case.co_applicant_phone,
                     office_form=form.get("office_details_co"), fallback_name=loan_case.co_applicant_name)
-        co["bank"] = {}
+        co["bank"] = _bank(co_pages, None, form.get("bank_account_status_co") or None)
         if not co["pan"]:
             co["pan"] = _first(co_pages, "extracted_pan")
 

@@ -1037,6 +1037,16 @@
             <label class="font-mono text-[10px] text-outline block mb-1">Who Did You Meet</label>
             <input id="formCoOfficeWhoMeet" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. HR Manager, Owner"/>
           </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Co-Applicant Bank Account Status</label>
+            <select id="formCoBankAccountStatus" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select --</option>
+              <option value="Active / Regular">Active / Regular</option>
+              <option value="Active / Irregular">Active / Irregular</option>
+              <option value="Dormant">Dormant</option>
+              <option value="Not Verified">Not Verified</option>
+            </select>
+          </div>
         </div>
 
         <div id="coApplicantOfficeNotice" class="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2">
@@ -3371,6 +3381,7 @@
       const itrAckNo = document.getElementById("formItrAckNo") ? document.getElementById("formItrAckNo").value.trim() : "";
       const itrFilingDate = document.getElementById("formItrFilingDate") ? document.getElementById("formItrFilingDate").value.trim() : "";
       const bankAccountStatus = document.getElementById("formBankAccountStatus") ? document.getElementById("formBankAccountStatus").value : "";
+      const bankAccountStatusCo = document.getElementById("formCoBankAccountStatus") ? document.getElementById("formCoBankAccountStatus").value : "";
 
       // Co-applicant office details - only actually submitted when this case has a
       // co-applicant (Module 3B visible); omitted entirely for ordinary single-applicant
@@ -3432,6 +3443,7 @@
         itr_acknowledgement_no: itrAckNo,
         itr_filing_date: itrFilingDate,
         bank_account_status: bankAccountStatus,
+        bank_account_status_co: bankAccountStatusCo,
         office_details: {
           occupation: occupation,
           designation: designation,
@@ -3488,6 +3500,7 @@
           itr_acknowledgement_no: itrAckNo,
           itr_filing_date: itrFilingDate,
           bank_account_status: bankAccountStatus,
+          bank_account_status_co: bankAccountStatusCo,
         },
       };
 
@@ -3715,6 +3728,8 @@
       if (fItrFilingDate) fItrFilingDate.value = c.itr_filing_date || "";
       const fBankAccountStatus = document.getElementById("formBankAccountStatus");
       if (fBankAccountStatus) fBankAccountStatus.value = c.bank_account_status || "";
+      const fCoBankAccountStatus = document.getElementById("formCoBankAccountStatus");
+      if (fCoBankAccountStatus) fCoBankAccountStatus.value = c.bank_account_status_co || "";
 
       const fPrevLoanType = document.getElementById("formLoanType");
       if (fPrevLoanType) fPrevLoanType.value = c.prev_loan_type || "Home";
@@ -4025,6 +4040,7 @@
           const itrAckNoSaved = parsedFormData.itr_acknowledgement_no || "";
           const itrFilingDateSaved = parsedFormData.itr_filing_date || "";
           const bankAccountStatusSaved = parsedFormData.bank_account_status || "";
+          const bankAccountStatusCoSaved = parsedFormData.bank_account_status_co || "";
           // The lossless fields saved alongside the flattened report fields - see the
           // "restore" comment in submitDueDiligenceForm(). Without these, every Residential
           // Details & Family input went back to blank the moment the agent switched to a
@@ -4052,6 +4068,7 @@
           if (r.itr_acknowledgement_no !== undefined) restorePatch.itr_ack_no = r.itr_acknowledgement_no;
           if (r.itr_filing_date !== undefined) restorePatch.itr_filing_date = r.itr_filing_date;
           if (r.bank_account_status !== undefined) restorePatch.bank_account_status = r.bank_account_status;
+          if (r.bank_account_status_co !== undefined) restorePatch.bank_account_status_co = r.bank_account_status_co;
 
           const mergedCase = Object.assign({}, caseRegistryPwa[key] || {}, {
             id: target.id,
@@ -4089,6 +4106,7 @@
             itr_ack_no: itrAckNoSaved,
             itr_filing_date: itrFilingDateSaved,
             bank_account_status: bankAccountStatusSaved,
+            bank_account_status_co: bankAccountStatusCoSaved,
             prev_loan_type: prevLoan.loan_type || "",
             prev_loan_amount: prevLoan.amount || "",
             prev_loan_bank: prevLoan.bank || "",
