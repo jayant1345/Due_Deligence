@@ -1310,7 +1310,7 @@
           <div class="grid grid-cols-2 gap-2 mt-1">
             <a id="pdfDownloadLink" href="#" target="_blank" class="py-2.5 px-2 bg-secondary text-white font-headline font-bold text-center rounded hover:opacity-90 transition-all flex items-center justify-center gap-1.5 text-xs shadow-sm">
               <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
-              Download PDF (9 Pages)
+              <span id="pdfDownloadLinkText">Download PDF</span>
             </a>
             <a id="docxDownloadLink" href="#" target="_blank" class="py-2.5 px-2 bg-blue-700 text-white font-headline font-bold text-center rounded hover:opacity-90 transition-all flex items-center justify-center gap-1.5 text-xs shadow-sm">
               <span class="material-symbols-outlined text-[16px]">description</span>
@@ -4723,7 +4723,7 @@
 
         if (response.ok) {
           const report = await response.json();
-          showPdfSuccess(report.id, report.file_hash_sha256, report.udin);
+          showPdfSuccess(report.id, report.file_hash_sha256, report.udin, report.page_count);
         } else {
           const errData = await response.json().catch(() => ({}));
           alert("Dossier compilation error: " + (errData.detail || response.statusText));
@@ -4736,12 +4736,20 @@
       }
     }
 
-    function showPdfSuccess(reportId, hash, udin) {
+    function showPdfSuccess(reportId, hash, udin, pageCount) {
       const card = document.getElementById("pdfSuccessCard");
       const hashText = document.getElementById("pdfHashText");
       const udinBadge = document.getElementById("pdfUdinBadge");
       const dlLink = document.getElementById("pdfDownloadLink");
+      const dlLinkText = document.getElementById("pdfDownloadLinkText");
       const docxLink = document.getElementById("docxDownloadLink");
+
+      // Real page count read back from the actual generated file server-side (pypdf) - never
+      // a guess. If it's missing for some reason, say so honestly instead of showing a stale
+      // or made-up number.
+      if (dlLinkText) {
+        dlLinkText.textContent = pageCount ? `Download PDF (${pageCount} Pages)` : "Download PDF";
+      }
 
       const c = caseRegistry[activeCaseId] || {};
       const appName = c.applicant_name || "Applicant";

@@ -120,7 +120,11 @@ async def generate_report(
         .where(CertifiedReport.id == uuid.UUID(result["report_id"]))
     )
     report = rep_res.scalar_one()
-    return report
+    # page_count isn't a stored column - it's the real page count pypdf read back from the
+    # just-generated file, passed straight through so the dashboard never has to guess it.
+    response = ReportResponse.model_validate(report)
+    response.page_count = result.get("page_count")
+    return response
 
 
 @router.get("/case/{case_id}", response_model=List[ReportResponse])

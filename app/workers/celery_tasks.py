@@ -348,6 +348,17 @@ async def async_generate_report_pdf(
     except Exception:
         pass
 
+    # Real page count of the actual generated file - the cover index's "Total Pages" cell is
+    # just static text matching the firm's template convention and was never guaranteed to equal
+    # the real ReportLab-paginated output, so the dashboard's download button needs the true
+    # count read back from the finished PDF rather than repeating that same guess.
+    real_page_count = None
+    try:
+        import pypdf
+        real_page_count = len(pypdf.PdfReader(output_pdf).pages)
+    except Exception:
+        pass
+
     # Store in DB
     certified_report = CertifiedReport(
         case_id=loan_case.id,
@@ -384,6 +395,7 @@ async def async_generate_report_pdf(
         "udin": report_meta["udin"],
         "report_url": output_pdf,
         "docx_url": output_docx,
+        "page_count": real_page_count,
     }
 
 

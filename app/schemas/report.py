@@ -33,6 +33,7 @@ class ReportResponse(BaseModel):
     udin: Optional[str] = None
     generated_at: datetime
     generated_by_id: uuid.UUID
+    page_count: Optional[int] = None
 
     class Config:
         from_attributes = True
