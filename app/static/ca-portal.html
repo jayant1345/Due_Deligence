@@ -3829,12 +3829,67 @@
       }
     }
 
+    // Small reusable toast - the CA office asked for the dashboard to visibly refresh when a
+    // field agent submits new data, not just silently update underlying state nobody notices.
+    function showToast(message, durationMs = 6000) {
+      let container = document.getElementById("globalToastContainer");
+      if (!container) {
+        container = document.createElement("div");
+        container.id = "globalToastContainer";
+        container.className = "fixed top-3 right-3 z-[9999] flex flex-col gap-2 items-end pointer-events-none";
+        document.body.appendChild(container);
+      }
+      const toast = document.createElement("div");
+      toast.className = "pointer-events-auto max-w-sm bg-emerald-600 text-white text-xs font-bold px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-fadeIn";
+      toast.innerHTML = `<span class="material-symbols-outlined text-[18px]">sync</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => { toast.remove(); }, durationMs);
+    }
+
+    // Tracks the last-seen field_form_data per case so the 4s live-sync poll can detect when a
+    // field agent submits/updates the due-diligence questionnaire from the PWA and tell the CA
+    // about it - previously the dashboard only auto-polled photo/document uploads, never the
+    // questionnaire text data, so a CA watching a case never saw a submission land without a
+    // manual full page reload.
+    const lastSeenFieldFormData = {};
+    async function checkLiveFieldFormUpdate(caseId) {
+      if (!caseId) return;
+      try {
+        const res = await fetch(`/api/v1/cases/${caseId}`, { headers: authHeaders() });
+        if (!res.ok) return;
+        const dc = await res.json();
+        const raw = dc.field_form_data || "";
+        const prev = lastSeenFieldFormData[caseId];
+        const c = caseRegistry[caseId];
+        if (c) c.field_form_data = raw;
+
+        if (prev === undefined) {
+          // First time seeing this case this session - record the baseline silently, don't
+          // alert on data that was already there before the CA opened the case.
+          lastSeenFieldFormData[caseId] = raw;
+          return;
+        }
+        if (raw && raw !== prev) {
+          lastSeenFieldFormData[caseId] = raw;
+          const label = c ? `${c.case_no} (${c.applicant_name})` : caseId;
+          showToast(`✓ Field visit data updated by ${c && c.agent ? c.agent : "the field agent"} for ${label}`);
+          if (caseId === activeCaseId && typeof loadReportReadiness === "function") {
+            loadReportReadiness();
+          }
+        }
+      } catch (err) {
+        console.warn("field-form live-update check notice:", err);
+      }
+    }
+
     function startLiveDocumentSync() {
       if (liveSyncInterval) clearInterval(liveSyncInterval);
       fetchLiveCaseDocuments(activeCaseId);
+      checkLiveFieldFormUpdate(activeCaseId);
       // Auto-poll every 4 seconds
       liveSyncInterval = setInterval(() => {
         fetchLiveCaseDocuments(activeCaseId);
+        checkLiveFieldFormUpdate(activeCaseId);
       }, 4000);
     }
 

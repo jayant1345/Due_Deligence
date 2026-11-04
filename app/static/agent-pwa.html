@@ -1259,6 +1259,10 @@
         <span class="material-symbols-outlined text-[18px]">save</span>
         <span>Save & Sync Questionnaire Data (પ્રશ્નાવલી ડેટા સેવ કરો)</span>
       </button>
+      <!-- Confirmation shown right here, next to the button just tapped - the shared uploadAlert
+           banner further down the page (past two whole other sections) was easy to miss, so the
+           screen looked unchanged after submitting even though the save had actually gone through. -->
+      <div id="formSubmitConfirm" class="hidden p-3 rounded-lg text-xs font-bold flex items-center gap-2"></div>
     </section>
 
     <!-- Real-Time Geofence Compass & Radar Card -->
@@ -4276,6 +4280,18 @@
       alertText.textContent = "Syncing Due Diligence Form to CA Verification Portal...";
       setUploadAlertIcon(true, "text-blue-600", "autorenew");
 
+      // Shown right next to the Save button itself, scrolled into view, so the agent sees
+      // confirmation at the exact spot they just tapped - not only in the shared status banner
+      // two whole sections further down the page, which was easy to miss on a phone screen.
+      const confirmBox = document.getElementById("formSubmitConfirm");
+      const showSubmitConfirm = (cls, html) => {
+        if (!confirmBox) return;
+        confirmBox.className = `p-3 rounded-lg text-xs font-bold flex items-center gap-2 ${cls}`;
+        confirmBox.innerHTML = html;
+        confirmBox.classList.remove("hidden");
+        confirmBox.scrollIntoView({ behavior: "smooth", block: "center" });
+      };
+
       try {
         const res = await fetch(`/api/v1/visits/cases/${sampleCaseId}/field-form`, {
           method: "POST",
@@ -4286,18 +4302,31 @@
           alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
           alertText.innerHTML = `<b>✓ Data Uploaded Successfully!</b> ${bhk} ${bType} (${own}), ${stay} stay, ${visibleAssets.filter(a=>a.active).length} assets. Pushed to CA Portal for Scrutiny.`;
           setUploadAlertIcon(false, "text-emerald-600", "check_circle");
+          const savedAt = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+          showSubmitConfirm(
+            "bg-emerald-50 border border-emerald-300 text-emerald-900",
+            `<span class="material-symbols-outlined text-[18px] text-emerald-600">check_circle</span><span>Saved & synced to CA Portal at ${savedAt}</span>`
+          );
           alert(`[✓] Due Diligence Form Synced Successfully!\nExecutive: ${exec}\nPersona: ${persona}\nProperty: ${bhk} ${bType} (${own})\nDuration of Stay: ${stay}\nAssets: ${assetsObserved}\nData has been pushed to CA Verification Desk.`);
         } else {
           localStorage.setItem(`field_form_${sampleCaseId}`, JSON.stringify(payload));
           alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
           alertText.innerHTML = `<b>✓ Cached Locally:</b> Form saved in PWA offline queue. Will auto-sync when online.`;
           setUploadAlertIcon(false, "text-amber-600", "cloud_off");
+          showSubmitConfirm(
+            "bg-amber-50 border border-amber-300 text-amber-900",
+            `<span class="material-symbols-outlined text-[18px] text-amber-600">cloud_off</span><span>Saved on this phone - will sync to CA Portal once back online</span>`
+          );
         }
       } catch (e) {
         localStorage.setItem(`field_form_${sampleCaseId}`, JSON.stringify(payload));
         alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
         alertText.innerHTML = `<b>✓ Offline Mode:</b> Form cached in PWA device storage. Will auto-sync when back in network.`;
         setUploadAlertIcon(false, "text-amber-600", "cloud_off");
+        showSubmitConfirm(
+          "bg-amber-50 border border-amber-300 text-amber-900",
+          `<span class="material-symbols-outlined text-[18px] text-amber-600">cloud_off</span><span>Saved on this phone (offline) - will sync to CA Portal once back online</span>`
+        );
         alert(`[✓ Offline Saved] Due Diligence Form cached locally on your device. It will auto-sync with the CA Office portal when you are back in network.`);
       }
     }
