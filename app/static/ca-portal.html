@@ -4905,27 +4905,34 @@
       return branches;
     }
 
+    function fillBranchSelect(selId, allLabel, branches) {
+      const sel = document.getElementById(selId);
+      if (!sel) return;
+      const prevValue = sel.value || "ALL";
+      sel.innerHTML = "";
+      const allOpt = document.createElement("option");
+      allOpt.value = "ALL";
+      allOpt.textContent = allLabel;
+      sel.appendChild(allOpt);
+      branches.forEach(b => {
+        const opt = document.createElement("option");
+        opt.value = b;
+        opt.textContent = b;
+        sel.appendChild(opt);
+      });
+      // Keep whatever was selected, if it still exists among the real branches - otherwise
+      // fall back to "ALL" rather than silently resting on a now-nonexistent value.
+      sel.value = branches.includes(prevValue) || prevValue === "ALL" ? prevValue : "ALL";
+    }
+
     function rebuildBranchFilterOptions() {
-      const sel = document.getElementById("filterBranchSelect");
       const branches = getDistinctCaseBranches();
 
-      if (sel) {
-        const prevValue = sel.value || "ALL";
-        sel.innerHTML = "";
-        const allOpt = document.createElement("option");
-        allOpt.value = "ALL";
-        allOpt.textContent = "All Branches";
-        sel.appendChild(allOpt);
-        branches.forEach(b => {
-          const opt = document.createElement("option");
-          opt.value = b;
-          opt.textContent = b;
-          sel.appendChild(opt);
-        });
-        // Keep whatever the CA had selected, if it still exists among the real branches -
-        // otherwise fall back to "ALL" rather than silently resting on a now-nonexistent value.
-        sel.value = branches.includes(prevValue) || prevValue === "ALL" ? prevValue : "ALL";
-      }
+      // Two independent "Branches" dropdowns exist - the header's case selector filter, and
+      // the Management Portal's "Multi-Dimensional Records Filter" - both were separately
+      // hardcoded to the same 5 fake demo branch names and are kept in sync here together.
+      fillBranchSelect("filterBranchSelect", "All Branches", branches);
+      fillBranchSelect("mgmtFilterBranch", "All Branches (બધી શાખાઓ)", branches);
 
       // Typeahead suggestions on the New Case / Edit Case branch inputs (<input list="...">) -
       // staff can still type a genuinely new branch freely, but existing ones are one tap away
@@ -8538,7 +8545,10 @@
         filtered = filtered.filter(c => c.bank === bankFilter);
       }
       if (branchFilter !== "ALL") {
-        filtered = filtered.filter(c => c.branch === branchFilter);
+        // Case-insensitive, same as the header's Branches filter fix - "Gota" and "gota" typed
+        // by different staff must still match the one branch the CA selected here.
+        const normBranchFilter = branchFilter.trim().toLowerCase();
+        filtered = filtered.filter(c => (c.branch || "").trim().toLowerCase() === normBranchFilter);
       }
       if (staffFilter !== "ALL") {
         filtered = filtered.filter(c => (c.agent || "").toLowerCase().includes(staffFilter.toLowerCase()));
