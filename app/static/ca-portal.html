@@ -9244,6 +9244,38 @@
       hoSelect.appendChild(custOpt);
 
       onHandoverAgentChanged(hoSelect.value);
+      rebuildFieldStaffFilterOptions();
+    }
+
+    // Management Portal's "Field Staff" filter used to be a hardcoded list of fake demo names
+    // (Kamal Bhai, Nilesh, Rajesh Varma...) completely disconnected from who cases are actually
+    // assigned to - rebuilt from the real registered agents every time the roster loads, same
+    // pattern as rebuildBranchFilterOptions(). Option value is full_name (not username) because
+    // applyManagementFilters() matches it against c.agent, which is stored as
+    // "{full_name} ({designation})" via resolveAgentName() - a substring match on full_name
+    // works regardless of designation text.
+    function rebuildFieldStaffFilterOptions() {
+      const sel = document.getElementById("mgmtFilterStaff");
+      if (!sel) return;
+      const prevValue = sel.value || "ALL";
+
+      sel.innerHTML = "";
+      const allOpt = document.createElement("option");
+      allOpt.value = "ALL";
+      allOpt.textContent = "All Field Staff (બધા એજન્ટ)";
+      sel.appendChild(allOpt);
+
+      (window.allAgents || []).forEach(a => {
+        if (!a || !a.full_name) return;
+        const opt = document.createElement("option");
+        opt.value = a.full_name;
+        const dummyTag = a.is_dummy ? " [Dummy / Test]" : "";
+        opt.textContent = `${a.full_name}${a.username ? " (" + a.username + ")" : ""}${dummyTag}`;
+        sel.appendChild(opt);
+      });
+
+      const values = Array.from(sel.options).map(o => o.value);
+      sel.value = values.includes(prevValue) ? prevValue : "ALL";
     }
 
     function openQuickAgentModal() {
