@@ -1560,6 +1560,13 @@
           <span id="mgmtFilteredCount" class="font-mono text-[10px] px-2 py-0.5 rounded bg-blue-50 text-primary-container border border-blue-200 font-bold">5 Cases Found</span>
         </div>
         <div class="flex items-center gap-2">
+          <!-- Active cases load by default (fast); Completed/Certified cases are only fetched
+               from the server when this tab is opened, so a growing archive of finished cases
+               never has to be loaded just to view what's still active. -->
+          <div class="flex items-center gap-0.5 bg-surface-container-high p-0.5 rounded-full border border-outline-variant font-mono text-[10px]">
+            <button type="button" id="mgmtTabActive" onclick="switchMgmtView('active')" class="px-3 py-1 rounded-full transition-all font-bold bg-primary-container text-white">Active Cases</button>
+            <button type="button" id="mgmtTabCompleted" onclick="switchMgmtView('completed')" class="px-3 py-1 rounded-full transition-all font-medium text-on-surface-variant">Completed Cases</button>
+          </div>
           <button onclick="exportManagementCsv()" class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant text-[11px] font-bold text-on-surface flex items-center gap-1 transition-colors">
             <span class="material-symbols-outlined text-[15px]">download</span>
             <span>Export CSV</span>
@@ -8142,33 +8149,89 @@
       if (elKpi) elKpi.textContent = count;
     }
 
-    function renderManagementPortal() {
-      updateGlobalCaseCounters();
-      const cases = getUniqueCasesList();
+    // Management Portal's own data, independent of the global caseRegistry (used by the case
+    // selector / Scrutiny Desk, which still loads everything as before). Active cases are
+    // fetched fresh every time the Management tab renders, but the server now excludes
+    // CERTIFIED cases from that request (exclude_status=CERTIFIED) - a case that's finished
+    // and archived no longer has to be downloaded just to view what's still in progress.
+    // Completed/certified cases are only fetched when the CA explicitly opens that tab.
+    let mgmtViewMode = "active";
+    let mgmtActiveCases = [];
+    let mgmtCompletedCases = null; // null = not loaded yet this session
 
-      // 1. Calculate KPIs
-      const totalCases = cases.length;
-      const allottedCases = cases.filter(c => c.status === "ASSIGNED_TO_FIELD" || c.status === "IN_PROGRESS" || c.status === "ASSIGNED").length;
-      // "Completed" means field work is done and it's past the agent's hands, whatever the CA
-      // ultimately decided - APPROVED/FLAGGED/REJECTED were missing here, so a flagged or
-      // rejected case silently vanished from both this KPI and "Allotted", undercounting the
-      // total and making it look like cases had disappeared.
-      const completedCases = cases.filter(c => ["PENDING_CA_REVIEW", "APPROVED", "CERTIFIED", "FLAGGED", "REJECTED"].includes(c.status)).length;
-      const certifiedCases = cases.filter(c => c.status === "CERTIFIED").length;
+    function buildMgmtEntriesFromApi(apiCases) {
+      return (apiCases || []).map(dc => buildCaseEntry({
+        case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
+        phone: dc.applicant_phone, co_applicant_name: dc.co_applicant_name, co_applicant_phone: dc.co_applicant_phone,
+        co_applicant_address: dc.co_applicant_address,
+        applicant_3_name: dc.applicant_3_name, applicant_3_phone: dc.applicant_3_phone,
+        applicant_4_name: dc.applicant_4_name, applicant_4_phone: dc.applicant_4_phone,
+        applicant_5_name: dc.applicant_5_name, applicant_5_phone: dc.applicant_5_phone,
+        applicant_home_sharing: dc.applicant_home_sharing,
+        applicant_3_address: dc.applicant_3_address, applicant_4_address: dc.applicant_4_address, applicant_5_address: dc.applicant_5_address,
+        loan_type: dc.loan_type, loan_amount: dc.loan_amount, address: dc.target_address,
+        office_address: dc.office_address,
+        benchmark_lat: dc.target_lat, benchmark_lon: dc.target_lon, status: dc.status, db_id: dc.id,
+        agent: resolveAgentName(dc.assigned_agent_id), assigned_agent_id: dc.assigned_agent_id,
+        capture_lat: dc.capture_lat, capture_lon: dc.capture_lon, distance_m: dc.distance_m,
+      }));
+    }
 
-      const kpiTotal = document.getElementById("mgmtKpiTotal");
-      const kpiAllotted = document.getElementById("mgmtKpiAllotted");
-      const kpiCompleted = document.getElementById("mgmtKpiCompleted");
-      const kpiCertified = document.getElementById("mgmtKpiCertified");
+    async function loadManagementActiveCases() {
+      if (!window.allAgents || window.allAgents.length === 0) await loadFieldAgents();
+      try {
+        const res = await fetch("/api/v1/cases?exclude_status=CERTIFIED", { headers: authHeaders() });
+        if (!res.ok) return;
+        mgmtActiveCases = buildMgmtEntriesFromApi(await res.json());
+      } catch (e) {
+        console.warn("Could not load active cases for Management Portal:", e);
+      }
+    }
 
-      if (kpiTotal) kpiTotal.textContent = totalCases;
-      if (kpiAllotted) kpiAllotted.textContent = allottedCases;
-      if (kpiCompleted) kpiCompleted.textContent = completedCases;
-      if (kpiCertified) kpiCertified.textContent = certifiedCases;
+    async function loadManagementCompletedCases() {
+      if (!window.allAgents || window.allAgents.length === 0) await loadFieldAgents();
+      try {
+        const res = await fetch("/api/v1/cases?status=CERTIFIED", { headers: authHeaders() });
+        if (!res.ok) return;
+        mgmtCompletedCases = buildMgmtEntriesFromApi(await res.json());
+      } catch (e) {
+        console.warn("Could not load completed cases for Management Portal:", e);
+      }
+    }
 
-      // 2. Render Bank Distribution Cards
+    async function loadManagementStats() {
+      try {
+        const res = await fetch("/api/v1/cases/stats", { headers: authHeaders() });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    const MGMT_TAB_ACTIVE_CLASS = "px-3 py-1 rounded-full transition-all font-bold bg-primary-container text-white";
+    const MGMT_TAB_INACTIVE_CLASS = "px-3 py-1 rounded-full transition-all font-medium text-on-surface-variant";
+
+    // Switches between the default "Active Cases" view and "Completed Cases" - completed
+    // cases are fetched from the server the first time this tab is opened, not before.
+    async function switchMgmtView(mode) {
+      mgmtViewMode = mode;
+      const btnActive = document.getElementById("mgmtTabActive");
+      const btnCompleted = document.getElementById("mgmtTabCompleted");
+      if (btnActive) btnActive.className = mode === "active" ? MGMT_TAB_ACTIVE_CLASS : MGMT_TAB_INACTIVE_CLASS;
+      if (btnCompleted) btnCompleted.className = mode === "completed" ? MGMT_TAB_ACTIVE_CLASS : MGMT_TAB_INACTIVE_CLASS;
+      if (mode === "completed") {
+        if (btnCompleted) btnCompleted.innerHTML = `<span class="material-symbols-outlined text-[14px] animate-spin align-middle">sync</span> Loading...`;
+        await loadManagementCompletedCases();
+        if (btnCompleted) btnCompleted.textContent = `Completed Cases (${(mgmtCompletedCases || []).length})`;
+      }
+      renderMgmtBankCards(mode === "completed" ? (mgmtCompletedCases || []) : mgmtActiveCases);
+      applyManagementFilters();
+    }
+
+    function renderMgmtBankCards(cases) {
       const bankMap = {};
-      cases.forEach(c => {
+      (cases || []).forEach(c => {
         const b = c.bank || "Other";
         if (!bankMap[b]) bankMap[b] = { count: 0, totalAmount: 0 };
         bankMap[b].count++;
@@ -8176,41 +8239,68 @@
       });
 
       const bankContainer = document.getElementById("mgmtBankCardsContainer");
-      if (bankContainer) {
-        bankContainer.innerHTML = "";
-        const bankIcons = {
-          "Union Bank of India": "account_balance",
-          "State Bank of India": "assured_workload",
-          "HDFC Bank": "corporate_fare",
-          "ICICI Bank": "account_balance_wallet",
-          "Bank of Baroda": "savings"
-        };
+      if (!bankContainer) return;
+      bankContainer.innerHTML = "";
+      const bankIcons = {
+        "Union Bank of India": "account_balance",
+        "State Bank of India": "assured_workload",
+        "HDFC Bank": "corporate_fare",
+        "ICICI Bank": "account_balance_wallet",
+        "Bank of Baroda": "savings"
+      };
 
-        Object.entries(bankMap).forEach(([bankName, info]) => {
-          const card = document.createElement("div");
-          card.onclick = () => {
-            const filterBank = document.getElementById("mgmtFilterBank");
-            if (filterBank) {
-              filterBank.value = bankName;
-              applyManagementFilters();
-            }
-          };
-          card.className = "cursor-pointer bg-surface-container-lowest hover:bg-surface-container-low p-3 rounded-xl border border-outline-variant hover:border-primary-container shadow-2xs hover:shadow-sm transition-all group";
-          card.innerHTML = `
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] font-bold text-on-surface truncate group-hover:text-primary-container">${bankName}</span>
-              <span class="material-symbols-outlined text-outline group-hover:text-primary-container text-[18px]">${bankIcons[bankName] || 'domain'}</span>
-            </div>
-            <div class="mt-2 flex items-baseline justify-between">
-              <span class="font-headline font-bold text-lg text-primary-container">${info.count} <span class="text-[10px] font-mono text-outline font-normal">cases</span></span>
-              <span class="font-mono text-[10px] font-bold text-secondary">₹${(info.totalAmount / 100000).toFixed(1)}L</span>
-            </div>
-          `;
-          bankContainer.appendChild(card);
-        });
+      Object.entries(bankMap).forEach(([bankName, info]) => {
+        const card = document.createElement("div");
+        card.onclick = () => {
+          const filterBank = document.getElementById("mgmtFilterBank");
+          if (filterBank) {
+            filterBank.value = bankName;
+            applyManagementFilters();
+          }
+        };
+        card.className = "cursor-pointer bg-surface-container-lowest hover:bg-surface-container-low p-3 rounded-xl border border-outline-variant hover:border-primary-container shadow-2xs hover:shadow-sm transition-all group";
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-on-surface truncate group-hover:text-primary-container">${bankName}</span>
+            <span class="material-symbols-outlined text-outline group-hover:text-primary-container text-[18px]">${bankIcons[bankName] || 'domain'}</span>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="font-headline font-bold text-lg text-primary-container">${info.count} <span class="text-[10px] font-mono text-outline font-normal">cases</span></span>
+            <span class="font-mono text-[10px] font-bold text-secondary">₹${(info.totalAmount / 100000).toFixed(1)}L</span>
+          </div>
+        `;
+        bankContainer.appendChild(card);
+      });
+    }
+
+    async function renderManagementPortal() {
+      updateGlobalCaseCounters();
+
+      const [stats] = await Promise.all([loadManagementStats(), loadManagementActiveCases()]);
+
+      // KPIs come from the cheap /stats endpoint (true totals across every case, including
+      // completed ones not currently loaded) rather than whatever's currently in memory.
+      const kpiTotal = document.getElementById("mgmtKpiTotal");
+      const kpiAllotted = document.getElementById("mgmtKpiAllotted");
+      const kpiCompleted = document.getElementById("mgmtKpiCompleted");
+      const kpiCertified = document.getElementById("mgmtKpiCertified");
+      if (stats && stats.by_status) {
+        const byStatus = stats.by_status;
+        const allottedCases = (byStatus["ASSIGNED"] || 0) + (byStatus["IN_PROGRESS"] || 0);
+        const completedCases = ["PENDING_CA_REVIEW", "APPROVED", "CERTIFIED", "FLAGGED", "REJECTED"]
+          .reduce((sum, s) => sum + (byStatus[s] || 0), 0);
+        if (kpiTotal) kpiTotal.textContent = stats.total;
+        if (kpiAllotted) kpiAllotted.textContent = allottedCases;
+        if (kpiCompleted) kpiCompleted.textContent = completedCases;
+        if (kpiCertified) kpiCertified.textContent = stats.certified;
       }
 
-      // 3. Render Table Rows
+      const btnCompleted = document.getElementById("mgmtTabCompleted");
+      if (btnCompleted && mgmtViewMode !== "completed") {
+        btnCompleted.textContent = stats ? `Completed Cases (${stats.certified})` : "Completed Cases";
+      }
+
+      renderMgmtBankCards(mgmtViewMode === "completed" ? (mgmtCompletedCases || []) : mgmtActiveCases);
       applyManagementFilters();
     }
 
@@ -8226,7 +8316,7 @@
       if (!tbody) return;
       tbody.innerHTML = "";
 
-      let filtered = getUniqueCasesList();
+      let filtered = mgmtViewMode === "completed" ? (mgmtCompletedCases || []) : mgmtActiveCases;
 
       if (monthFilter !== "ALL") {
         filtered = filtered.filter(c => (c.month || "").toLowerCase().includes(monthFilter.toLowerCase()));

@@ -18,7 +18,7 @@ from app.services.pdf_separator import (
     reconcile_case_documents,
     tag_applicant_slots,
 )
-from sqlalchemy import asc, desc, select
+from sqlalchemy import asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_current_ca_user, require_role
 from app.api.v1.auth import login_aliases
@@ -55,6 +55,7 @@ async def resolve_loan_case(db: AsyncSession, case_id: str) -> Optional[LoanCase
 @router.get("", response_model=List[CaseResponse])
 async def list_cases(
     status_filter: Optional[CaseStatus] = Query(None, alias="status"),
+    exclude_status: Optional[CaseStatus] = Query(None),
     bank_name: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_ca_user),
@@ -63,6 +64,9 @@ async def list_cases(
     List loan verification cases.
     - FIELD_AGENT sees only cases assigned to them.
     - CA_VERIFIER and SUPER_ADMIN see all cases.
+    - exclude_status: lets the Management Portal's default "Active Cases" view fetch
+      everything except CERTIFIED in one request, instead of loading every case (including
+      ones that are already finished and archived) on every page load/poll.
     """
     query = select(LoanCase).order_by(desc(LoanCase.created_at))
 
@@ -71,6 +75,9 @@ async def list_cases(
 
     if status_filter:
         query = query.where(LoanCase.status == status_filter)
+
+    if exclude_status:
+        query = query.where(LoanCase.status != exclude_status)
 
     if bank_name:
         query = query.where(LoanCase.bank_name.ilike(f"%{bank_name}%"))
@@ -173,6 +180,28 @@ async def create_case(
     await db.commit()
     await db.refresh(loan_case)
     return loan_case
+
+
+@router.get("/stats")
+async def get_case_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_ca_user),
+):
+    """
+    Cheap per-status case counts (one GROUP BY query, no case rows returned) - lets the
+    Management Portal show accurate KPI totals (including how many completed/certified cases
+    exist) without having to fetch every case's full data just to count them.
+    """
+    query = select(LoanCase.status, func.count(LoanCase.id)).group_by(LoanCase.status)
+    if current_user.role == UserRole.FIELD_AGENT:
+        query = query.where(LoanCase.assigned_agent_id == current_user.id)
+    result = await db.execute(query)
+    counts = {row[0].value: row[1] for row in result.all()}
+    return {
+        "by_status": counts,
+        "total": sum(counts.values()),
+        "certified": counts.get("CERTIFIED", 0),
+    }
 
 
 @router.get("/{case_id}", response_model=CaseResponse)
