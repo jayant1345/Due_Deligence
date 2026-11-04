@@ -1247,36 +1247,12 @@
         </div>
       </div>
 
-      <!-- MODULE 5: Income Tax & Bank Verification (ITR / બેંક વિગત) -->
-      <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/80 space-y-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-purple-700 text-[18px]">receipt_long</span>
-            <span class="font-headline font-bold text-xs text-on-surface">5. Income Tax &amp; Bank Verification</span>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-          <div>
-            <label class="font-mono text-[10px] text-outline block mb-1">ITR Acknowledgement No.</label>
-            <input id="formItrAckNo" value="" placeholder="e.g. 123456789012345" class="w-full text-xs font-mono font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
-          </div>
-          <div>
-            <label class="font-mono text-[10px] text-outline block mb-1">ITR Date of Filing</label>
-            <input id="formItrFilingDate" value="" placeholder="DD/MM/YYYY" class="w-full text-xs font-mono font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
-          </div>
-          <div>
-            <label class="font-mono text-[10px] text-outline block mb-1">Bank Account Status</label>
-            <select id="formBankAccountStatus" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
-              <option value="" selected>-- Select --</option>
-              <option value="Active / Regular">Active / Regular</option>
-              <option value="Active / Irregular">Active / Irregular</option>
-              <option value="Dormant">Dormant</option>
-              <option value="Not Verified">Not Verified</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <!-- MODULE 5 (Income Tax & Bank Verification) removed from the field agent's form - the CA
+           office fills ITR Acknowledgement No./Date and Bank Account Status themselves from the
+           scanned documents, not the field agent on-site. The underlying formItrAckNo/
+           formItrFilingDate/formBankAccountStatus fields it used to populate are read defensively
+           (getElementById returns null, guarded with "? ... : ''") so removing this block doesn't
+           break the save payload - those fields just stay empty until the CA office fills them. -->
 
       <!-- Questionnaire Save & Push Action Button -->
       <button onclick="submitDueDiligenceForm()" class="w-full py-3 rounded-xl bg-primary-container hover:bg-primary text-white font-headline text-xs sm:text-sm font-bold shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
