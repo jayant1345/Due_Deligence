@@ -4905,6 +4905,30 @@
       return branches;
     }
 
+    // Same idea as getDistinctCaseBranches() but for Bank - the header's "Empanelled Banks" and
+    // the Management Portal's "Bank" filter were both hardcoded to a fixed 5-bank list, which
+    // doesn't reflect which banks actually have cases entered (and would silently omit a bank
+    // with real cases if it were ever typo'd or not on that fixed list).
+    function getDistinctCaseBanks() {
+      const seen = new Set();
+      const banks = [];
+      Object.values(caseRegistry).forEach(c => {
+        const b = (c && c.bank || "").trim();
+        if (b && !seen.has(b.toLowerCase())) {
+          seen.add(b.toLowerCase());
+          banks.push(b);
+        }
+      });
+      banks.sort((a, b) => a.localeCompare(b));
+      return banks;
+    }
+
+    function rebuildBankFilterOptions() {
+      const banks = getDistinctCaseBanks();
+      fillBranchSelect("filterBankSelect", `All Empanelled Banks (${banks.length})`, banks);
+      fillBranchSelect("mgmtFilterBank", "All Empanelled Banks (બધી બેંક)", banks);
+    }
+
     function fillBranchSelect(selId, allLabel, branches) {
       const sel = document.getElementById(selId);
       if (!sel) return;
@@ -5030,6 +5054,7 @@
       caseSelect.appendChild(opt);
       caseSelect.value = newId;
       rebuildBranchFilterOptions();
+      rebuildBankFilterOptions();
 
       document.getElementById("totalCaseCount").textContent = Object.keys(caseRegistry).length;
       onCaseSelected(newId);
@@ -7057,6 +7082,7 @@
         selector.insertBefore(opt, selector.firstChild);
         selector.value = newCaseId;
         rebuildBranchFilterOptions();
+      rebuildBankFilterOptions();
       }
       activeCaseId = newCaseId;
 
@@ -7702,6 +7728,7 @@
         updateGlobalCaseCounters();
         updateDataAsOfIndicator();
         rebuildBranchFilterOptions();
+      rebuildBankFilterOptions();
         // The open case may have been shown before its server benchmark was known.
         const openCase = caseRegistry[activeCaseId];
         if (openCase && gfServerId(openCase)) {
@@ -7842,6 +7869,7 @@
         selector.value = newCaseId;
       }
       rebuildBranchFilterOptions();
+      rebuildBankFilterOptions();
 
       const counterEl = document.getElementById("totalCaseCount");
       if (counterEl) {
