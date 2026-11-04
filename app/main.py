@@ -30,6 +30,12 @@ async def lifespan(app: FastAPI):
         await conn.execute(text(
             "ALTER TABLE loan_cases ADD COLUMN IF NOT EXISTS co_applicant_phone VARCHAR(50)"
         ))
+        await conn.execute(text(
+            "ALTER TABLE loan_cases ADD COLUMN IF NOT EXISTS office_address TEXT"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE loan_cases ADD COLUMN IF NOT EXISTS co_applicant_address TEXT"
+        ))
 
     # Seed default simple users (admin / admin@123 and agent1 / agent1@123)
     async with AsyncSessionLocal() as session:

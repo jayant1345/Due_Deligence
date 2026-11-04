@@ -39,6 +39,14 @@ from app.models.document import DocumentType
 
 logger = logging.getLogger(__name__)
 
+
+class PdfPasswordRequired(Exception):
+    """Raised when a PDF is encrypted and no password was supplied yet."""
+
+
+class PdfWrongPassword(Exception):
+    """Raised when a PDF is encrypted and the supplied password doesn't open it."""
+
 LLM_TO_DOCUMENT_TYPE = {
     "AADHAAR_CARD": DocumentType.AADHAAR_CARD,
     "PAN_CARD": DocumentType.PAN_CARD,
@@ -63,7 +71,7 @@ IFSC_FORMAT = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
 AADHAAR_IN_TEXT = re.compile(r"(?<!\d)(\d{4})[ -]?(\d{4})[ -]?(\d{4})(?![ -]?\d)")
 VID_IN_TEXT = re.compile(r"(?<!\d)\d{4}[ -]?\d{4}[ -]?\d{4}[ -]?\d{4}(?!\d)")
 
-PAGE_SCAN_WORKERS = 6
+PAGE_SCAN_WORKERS = 12
 REQUEST_TIMEOUT_SECONDS = 180.0
 MAX_ATTEMPTS = 2
 
@@ -194,21 +202,32 @@ def _to_amount(value: Any) -> Optional[str]:
 
 # Honorific suffixes routinely appended to a given name or father's name across Indian
 # records — a bank's electricity bill, PAN, and Aadhaar for the SAME person commonly differ
-# on exactly these (Ramesh / Rameshbhai / Rameshkumar; Bhanuram / Bhanubhai), while the core
-# name, father's/middle name and surname stay the same. Stripped before comparing names so
-# this normal variation is never mistaken for "a different person".
-_INDIAN_NAME_HONORIFIC_SUFFIXES = ("BHAI", "BEN", "KUMAR", "KUMARI")
+# on exactly these (Ramesh / Rameshbhai / Rameshkumar / Rameshlal; Bhanuram / Bhanubhai), while
+# the core name, father's/middle name and surname stay the same. Stripped before comparing names
+# so this normal variation is never mistaken for "a different person" - whether attached to the
+# name as a suffix (RAMESHBHAI) or printed as its own separate word (RAMESH BHAI).
+_INDIAN_NAME_HONORIFIC_SUFFIXES = ("BHAI", "BEN", "KUMAR", "KUMARI", "LAL")
+# Courtesy titles that precede a name on a hand-filled form or a salutation line - these carry
+# no identity information at all and must never make an otherwise-identical name look different.
+_INDIAN_NAME_TITLES = {"MR", "MRS", "MS", "MISS", "SHRI", "SMT", "KUM"}
 
 
 def _normalize_indian_name(name: str) -> str:
-    def _strip(token: str) -> str:
+    cleaned = re.sub(r"[^A-Z ]", " ", name.upper())
+    out = []
+    for token in cleaned.split():
+        if token in _INDIAN_NAME_TITLES:
+            continue
+        if token in _INDIAN_NAME_HONORIFIC_SUFFIXES:
+            continue  # the honorific printed as its own word (e.g. "JITENDRA BHAI PATEL")
         for suffix in _INDIAN_NAME_HONORIFIC_SUFFIXES:
             # Keep at least a 3-letter root so a short name that merely ends in these letters
             # (e.g. "KUMAR" alone, or "BEN" as a surname) is never stripped down to nothing.
             if token.endswith(suffix) and len(token) - len(suffix) >= 3:
-                return token[: -len(suffix)]
-        return token
-    return " ".join(_strip(t) for t in name.split())
+                token = token[: -len(suffix)]
+                break
+        out.append(token)
+    return " ".join(out)
 
 
 def _name_score(extracted: Optional[str], reference: Optional[str]) -> Optional[float]:
@@ -219,6 +238,60 @@ def _name_score(extracted: Optional[str], reference: Optional[str]) -> Optional[
         return float(round(fuzz.token_set_ratio(a, b), 1))
     ta, tb = set(a.split()), set(b.split())
     return round(100.0 * len(ta & tb) / max(1, min(len(ta), len(tb))), 1)
+
+
+def _names_equivalent(a: Optional[str], b: Optional[str]) -> bool:
+    """
+    True when two name strings are the same person written differently - same honorific
+    variation _normalize_indian_name already handles, PLUS:
+    - a middle/father's name abbreviated to a single initial in one document and spelled out in
+      full in another (e.g. the father's name "L" on one card and "Liladhar"/"Liladharbhai" on
+      another), and
+    - a middle/father's name present in one document and left out entirely in another (e.g. a
+      salary slip printing just "Jitendrakumar Patel" while the Aadhaar prints the full
+      "Jitendrakumar Liladhar Patel") - both routine differences in how a bank form vs. an ID
+      card records a name, not a discrepancy to flag to the CA.
+    The first and last token (given name, surname) must still agree - this never merges two
+    genuinely different people who happen to share a common name.
+    """
+    if not a or not b:
+        return False
+    ta, tb = _normalize_indian_name(a.upper()).split(), _normalize_indian_name(b.upper()).split()
+    if not ta or not tb:
+        return False
+    if sorted(ta) == sorted(tb):
+        return True
+
+    def _tok_eq(x: str, y: str) -> bool:
+        if x == y:
+            return True
+        if len(x) == 1 and y.startswith(x):
+            return True
+        if len(y) == 1 and x.startswith(y):
+            return True
+        return False
+
+    if not _tok_eq(ta[0], tb[0]) or not _tok_eq(ta[-1], tb[-1]):
+        return False
+
+    shorter, longer = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
+    remaining = list(longer)
+    for x in shorter:
+        match = next((y for y in remaining if _tok_eq(x, y)), None)
+        if match is None:
+            return False
+        remaining.remove(match)
+    return True
+
+
+def _cluster_name_variants(variants: List[str]) -> List[str]:
+    """One representative per group of variants that are the same person under
+    _names_equivalent - e.g. ['JITENDRABHAI PATEL', 'JITENDRA BHAI PATEL'] collapses to one."""
+    clusters: List[str] = []
+    for v in variants:
+        if not any(_names_equivalent(v, c) for c in clusters):
+            clusters.append(v)
+    return clusters
 
 
 # ---------------------------------------------------------------------------
@@ -631,8 +704,23 @@ def redact_aadhaar_in_image(image_path: str, last4: Optional[str]) -> Dict[str, 
         pad = max(4, run[0]["h"] // 3)
         draw.rectangle(_box(run, pad), fill="black")
 
-    residual_a, residual_v = _aadhaar_sequences(_ocr_digit_groups(im), None)
-    residual = [r for r in residual_a if not (last4 and r[0]["d"] == last4)] + residual_v
+    def _residual():
+        residual_a, residual_v = _aadhaar_sequences(_ocr_digit_groups(im), None)
+        return [r for r in residual_a if not (last4 and r[0]["d"] == last4)] + residual_v
+
+    residual = _residual()
+    # A number sometimes still reads back after the first masking pass not because masking
+    # failed outright, but because the same Aadhaar number is printed a second time elsewhere
+    # on the page (a photocopy stamp, a repeated header) that the first OCR pass didn't catch
+    # as part of the same run. Black out those specific leftover spots too before giving up -
+    # this keeps the rest of a genuinely legible document (name, address, photo) readable
+    # instead of nuking the whole image over one missed region.
+    if residual:
+        for run in residual:
+            pad = max(4, run[0]["h"] // 3)
+            draw.rectangle(_box(run, pad), fill="black")
+        residual = _residual()
+
     blurred = False
     if pytesseract is None or residual or (not aadhaar_runs and not vid_runs):
         im = im.filter(ImageFilter.GaussianBlur(radius=18))
@@ -655,8 +743,10 @@ def _finalize_page_item(
             redaction = redact_aadhaar_in_image(path, last4 if last4 and last4.isdigit() else None)
         if redaction.get("image_blurred"):
             analysis.setdefault("discrepancies", []).append(
-                "Aadhaar number could not be reliably masked on the page image, so the image has "
-                "been blurred (UIDAI). Extracted data is unaffected; view the original offline."
+                "Image quality too low to safely mask the Aadhaar number (UIDAI) — the whole "
+                "page has been blurred as a precaution instead of risking an unmasked number. "
+                "The extracted data above is unaffected, but please re-upload a clearer photo "
+                "of this Aadhaar card (flat, well-lit, in focus) so the image itself is usable."
             )
     item = _build_item_from_llm_analysis(analysis, page_idx, total_pages, relative_web_url, image_paths[0],
                                          redaction.get("aadhaar_masked", 0) + redaction.get("vid_masked", 0))
@@ -691,12 +781,20 @@ PLACEHOLDER_APPLICANT_NAMES = {"", "PENDING AI IDENTIFICATION", "UNKNOWN", "APPL
 _BELONGS_PREFIX = "Document belongs to '"
 
 
-def identify_applicant_name(items: List[Dict[str, Any]], applicant_name: str = "") -> Optional[str]:
+def identify_applicant_name(items: List[Dict[str, Any]], applicant_name: str = "", co_applicant_name: str = "") -> Optional[str]:
     """
     Decide who the applicant is at case level. The name on file wins only if it matches the
     holder of at least one identity document; otherwise (blank/placeholder name, or a typo)
     the holder of the Aadhaar card — failing that the PAN card, then the most frequent
     holder — is the applicant, because a bank's KYC folder is built around the borrower.
+
+    In a dual-applicant case this fallback used to grab whichever identity document happened
+    to sort first - with 2 Aadhaar cards on file and no reliable applicant_name yet (blank/
+    placeholder, or a typo that doesn't match either), that was a coin flip that could just as
+    easily land on the CO-applicant's Aadhaar, silently swapping the two people's identities
+    (and their card images) across the whole case. Any identity document whose holder clearly
+    matches the known co-applicant name is excluded from the fallback candidates so the guess
+    never lands on the wrong person when the other person's name IS known.
     """
     holders = [it for it in items if it.get("holder_name") and it.get("scan_status") != "FAILED"]
     if not holders:
@@ -706,19 +804,32 @@ def identify_applicant_name(items: List[Dict[str, Any]], applicant_name: str = "
     if on_file.upper() not in PLACEHOLDER_APPLICANT_NAMES:
         if any((_name_score(it["holder_name"], on_file) or 0) >= 85 for it in (identity or holders)):
             return on_file
+
+    co_on_file = (co_applicant_name or "").strip()
+    def _is_co_applicant_holder(it):
+        return bool(co_on_file) and (_name_score(it["holder_name"], co_on_file) or 0) >= 85
+
+    not_co = [it for it in identity if not _is_co_applicant_holder(it)]
+    # Only exclude the co-applicant's own documents when doing so still leaves at least one
+    # identity document to guess from - if every identity doc on file matches the co-applicant
+    # (e.g. the applicant's own Aadhaar genuinely hasn't been scanned yet), falling back to the
+    # unfiltered list is still strictly better than returning nothing.
+    identity_for_fallback = not_co if not_co else identity
     for doc_type in ("AADHAAR_CARD", "PAN_CARD"):
-        hit = next((it for it in identity if it.get("doc_type") == doc_type), None)
+        hit = next((it for it in identity_for_fallback if it.get("doc_type") == doc_type), None)
         if hit:
             return hit["holder_name"]
+    holders_for_fallback = [it for it in holders if not _is_co_applicant_holder(it)] or holders
     counts: Dict[str, int] = {}
-    for it in holders:
+    for it in holders_for_fallback:
         counts[it["holder_name"]] = counts.get(it["holder_name"], 0) + 1
     return max(counts.items(), key=lambda kv: kv[1])[0]
 
 
-def assign_relationships(items: List[Dict[str, Any]], applicant_name: str = "") -> Optional[str]:
+def assign_relationships(items: List[Dict[str, Any]], applicant_name: str = "", co_applicant_name: str = "") -> Optional[str]:
     """Re-evaluate SELF / DIFFERENT_PERSON for every page against the case-level applicant (in place)."""
-    reference = identify_applicant_name(items, applicant_name)
+    reference = identify_applicant_name(items, applicant_name, co_applicant_name)
+    co_on_file = (co_applicant_name or "").strip()
     for it in items:
         it["discrepancies"] = [d for d in (it.get("discrepancies") or []) if not str(d).startswith(_BELONGS_PREFIX)]
         holder = it.get("holder_name")
@@ -732,20 +843,26 @@ def assign_relationships(items: List[Dict[str, Any]], applicant_name: str = "") 
             it["relationship_to_applicant"] = "SELF"
         else:
             it["relationship_to_applicant"] = "DIFFERENT_PERSON"
-            it["discrepancies"].insert(0,
-                f"{_BELONGS_PREFIX}{holder}', not the applicant '{reference}' "
-                f"(name match {score}%). Confirm relationship (co-applicant / spouse / guarantor).")
+            # A document that matches the known co-applicant's name is expected, not a
+            # discrepancy - flagging it as "document belongs to someone else, confirm
+            # relationship" every time a dual-applicant case's own co-applicant documents
+            # scan correctly is just noise the CA has to dismiss on every single case.
+            is_known_co_applicant = bool(co_on_file) and (_name_score(holder, co_on_file) or 0) >= 85
+            if not is_known_co_applicant:
+                it["discrepancies"].insert(0,
+                    f"{_BELONGS_PREFIX}{holder}', not the applicant '{reference}' "
+                    f"(name match {score}%). Confirm relationship (co-applicant / spouse / guarantor).")
     return reference
 
 
-def reconcile_case_documents(items: List[Dict[str, Any]], applicant_name: str = "") -> Dict[str, Any]:
+def reconcile_case_documents(items: List[Dict[str, Any]], applicant_name: str = "", co_applicant_name: str = "") -> Dict[str, Any]:
     """
     Cross-check identity fields across every scanned page of a case. A PAN or DOB that
     differs between documents of the SAME person is a red flag the CA must see, so
     conflicts are listed rather than silently resolved.
     """
     items = [dict(it) for it in items]
-    applicant_name = assign_relationships(items, applicant_name) or applicant_name
+    applicant_name = assign_relationships(items, applicant_name, co_applicant_name) or applicant_name
 
     def _collect(field: str, pages: List[Dict[str, Any]]) -> Dict[str, List[int]]:
         seen: Dict[str, List[int]] = {}
@@ -776,7 +893,13 @@ def reconcile_case_documents(items: List[Dict[str, Any]], applicant_name: str = 
         pages = [it for it in applicant_pages if sources is None or it.get("doc_type") in sources]
         values = _collect(field, pages)
         applicant[field] = _consensus(values)
-        if len(values) > 1:
+        distinct_values = list(values.keys())
+        # father_or_spouse_name is a name, not an exact-match identifier like a PAN/Aadhaar
+        # number - "JITENDRABHAI PATEL" vs "JITENDRA BHAI PATEL" is the same father recorded
+        # with a space in a different place, not a genuine conflict the CA needs to resolve.
+        if field == "father_or_spouse_name":
+            distinct_values = _cluster_name_variants(distinct_values)
+        if len(distinct_values) > 1:
             detail = "; ".join(f"'{v}' on page(s) {pgs}" for v, pgs in values.items())
             conflicts.append(f"Applicant {field.replace('extracted_', '').upper()} differs across documents: {detail}")
 
@@ -819,9 +942,13 @@ def reconcile_case_documents(items: List[Dict[str, Any]], applicant_name: str = 
         entry["pages"].append(it.get("page_number"))
         entry["documents"].append(it.get("doc_type"))
     for o in others:
-        # Word order differs between document types; only a different SPELLING is a red flag
-        spellings = {tuple(sorted(re.sub(r"[^A-Z ]", "", v.upper()).split())) for v in o["name_variants"]}
-        if len(spellings) > 1:
+        # Word order differs between document types, and so does the usual Indian-name
+        # variation _names_equivalent already accounts for (Rameshbhai/Ramesh Bhai/Rameshkumar,
+        # Mr./Mrs./Miss titles, a middle/father's name abbreviated to its initial on one
+        # document and spelled out on another) - only a GENUINE spelling difference beyond all
+        # of that is a red flag worth asking the CA to confirm.
+        distinct_spellings = _cluster_name_variants(o["name_variants"])
+        if len(distinct_spellings) > 1:
             conflicts.append(f"Name spelled differently across documents: {o['name_variants']} (pages {o['pages']}).")
 
     utility = [it for it in items if it.get("doc_type") == "UTILITY_BILL"]
@@ -935,6 +1062,7 @@ def burst_and_separate_pdf_with_llm(
     case_id: str,
     applicant_name: str,
     target_address: str,
+    password: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Burst a PDF into 300 DPI page images and have Gemini classify/extract every page
@@ -957,24 +1085,18 @@ def burst_and_separate_pdf_with_llm(
     os.makedirs(static_dir, exist_ok=True)
 
     doc = fitz.open(pdf_path)
+    if doc.needs_pass:
+        if not password:
+            doc.close()
+            raise PdfPasswordRequired(f"'{os.path.basename(pdf_path)}' is password-protected.")
+        if not doc.authenticate(password):
+            doc.close()
+            raise PdfWrongPassword(f"The password entered for '{os.path.basename(pdf_path)}' is incorrect.")
     total_pages = len(doc)
     logger.info("Bursting PDF '%s' (%d pages) for case %s", pdf_path, total_pages, case_id)
 
     pdf_base = os.path.splitext(os.path.basename(pdf_path))[0]
     safe_slug = re.sub(r'[^a-zA-Z0-9_-]', '_', pdf_base)[:20]
-
-    pages = []
-    for page_num in range(total_pages):
-        page = doc.load_page(page_num)
-        page_idx = page_num + 1
-        img_name = f"{safe_slug}_page_{page_idx}.jpg"
-        storage_img_path = os.path.join(storage_dir, img_name)
-        static_img_path = os.path.join(static_dir, img_name)
-        pix = page.get_pixmap(dpi=300)
-        pix.save(storage_img_path, jpg_quality=95)
-        pix.save(static_img_path, jpg_quality=95)
-        pages.append((page_idx, page.get_text(), storage_img_path, static_img_path, f"/storage/separated_docs/{case_id}/{img_name}"))
-    doc.close()
 
     def _scan(entry):
         page_idx, raw_text, storage_img_path, static_img_path, web_url = entry
@@ -986,8 +1108,30 @@ def burst_and_separate_pdf_with_llm(
         )
         return _finalize_page_item(analysis, page_idx, total_pages, web_url, [storage_img_path, static_img_path])
 
+    # Rasterizing a page (PyMuPDF render + 2 JPEG writes) is a fraction of the time a Gemini
+    # vision call takes - but it used to run for ALL pages first, sequentially, before a single
+    # AI scan even started, so that time was pure dead weight added on top of the scan time
+    # instead of overlapping with it. PyMuPDF page rendering itself isn't safe to parallelize
+    # across threads on one shared Document handle, so rasterization here stays sequential (as
+    # before, no behavior change / no new risk there) - but each page's scan is now submitted to
+    # the thread pool the moment that page is ready, instead of waiting for every page to finish
+    # rasterizing first. In effect the scan queue starts draining almost immediately and keeps
+    # pace with rasterization, so the two phases run concurrently instead of back-to-back.
     with ThreadPoolExecutor(max_workers=PAGE_SCAN_WORKERS) as pool:
-        separated_results = list(pool.map(_scan, pages))
+        futures = []
+        for page_num in range(total_pages):
+            page = doc.load_page(page_num)
+            page_idx = page_num + 1
+            img_name = f"{safe_slug}_page_{page_idx}.jpg"
+            storage_img_path = os.path.join(storage_dir, img_name)
+            static_img_path = os.path.join(static_dir, img_name)
+            pix = page.get_pixmap(dpi=300)
+            pix.save(storage_img_path, jpg_quality=95)
+            pix.save(static_img_path, jpg_quality=95)
+            entry = (page_idx, page.get_text(), storage_img_path, static_img_path, f"/storage/separated_docs/{case_id}/{img_name}")
+            futures.append(pool.submit(_scan, entry))
+        doc.close()
+        separated_results = [f.result() for f in futures]
 
     _reattribute_form16_signatory_pages(separated_results)
 

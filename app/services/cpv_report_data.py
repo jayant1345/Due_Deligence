@@ -88,6 +88,12 @@ def _years_since(dmy: Optional[str], on: date) -> Optional[str]:
     return f"{years} Years (since {dmy})"
 
 
+def _strip_regional_suffix(val: Optional[str]) -> Optional[str]:
+    # The PWA's Marital Status dropdown stores a bilingual value, e.g. "Married (પરિણિત)" -
+    # fonts used for the report have no Gujarati glyphs, so that suffix prints as black boxes.
+    return re.sub(r"\s*\([^)]*\)\s*$", "", val).strip() if val else val
+
+
 def _title(name: Optional[str]) -> Optional[str]:
     if not name:
         return None
@@ -141,14 +147,27 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     ITR_INCOME_DOC_TYPES = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME"}
     itr: Dict[str, Dict[str, Any]] = {}
     for p in sorted((p for p in pages if p.get("doc_type") in ITR_INCOME_DOC_TYPES), key=lambda p: p.get("page_number") or 0):
-        ay = _ay_of(p)
-        if not ay:
-            continue
+        # A document with no cleanly-extracted A.Y. must still print its income, not vanish
+        # from the table - fall back to the raw scanned period text rather than dropping it.
+        ay = _ay_of(p) or p.get("document_period") or p.get("assessment_year") or "NA"
         row = itr.setdefault(ay, {"ay": ay, "ack_no": None, "filed_on": None, "total_income": None,
                                   "status": "Income Tax Return provided (total income not on record)"})
-        row["total_income"] = row["total_income"] or _inr(p.get("annual_taxable_income"))
+        # annual_taxable_income is only ever populated by Gemini for an ITR Acknowledgement or
+        # Computation of Income page - a Form 16 states the figure as annual_gross_salary
+        # instead. Without this fallback, a Form-16-only case always showed no income figure.
+        row["total_income"] = row["total_income"] or _inr(p.get("annual_taxable_income") or p.get("annual_gross_salary"))
         row["ack_no"] = row["ack_no"] or p.get("itr_acknowledgement_number") or itr_ack_no
         row["filed_on"] = row["filed_on"] or p.get("document_date") or itr_filing_date
+
+    # No Form 16 / ITR Acknowledgement / Computation of Income document was scanned for this
+    # person, but the field agent recorded an acknowledgement no. / filing date on-site (e.g.
+    # the applicant showed the e-filing portal/SMS rather than a printed copy) - that
+    # verification must still appear here rather than the report showing no ITR row at all.
+    if not itr and (itr_ack_no or itr_filing_date):
+        itr["NA"] = {
+            "ay": "NA", "ack_no": itr_ack_no, "filed_on": itr_filing_date, "total_income": None,
+            "status": "Income Tax Return filed - acknowledgement recorded on-site by the field agent (supporting document not scanned)",
+        }
 
     sal = _salutation(gender, marital)
     display = f"{sal} {_title(name)}".strip() if name else ""
@@ -159,7 +178,7 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
         "dob": dob.replace("/", "-") if dob else None,
         "age": _age(dob, on),
         "gender": gender.capitalize() if gender else None,
-        "marital_status": marital,
+        "marital_status": _strip_regional_suffix(marital),
         "community": community,
         "pan": _first(pages, "extracted_pan", {"PAN_CARD"}) or _first(pages, "extracted_pan"),
         "aadhaar": _first(pages, "extracted_aadhaar", {"AADHAAR_CARD"}),
@@ -266,8 +285,8 @@ async def assemble_cpv_report_data(
 ) -> Dict[str, Any]:
     on = report_date or date.today()
     pages = [dict(p) for p in pages if p.get("scan_status") != "FAILED"]
-    applicant_name = assign_relationships(pages, loan_case.applicant_name) or loan_case.applicant_name
-    summary = reconcile_case_documents(pages, loan_case.applicant_name)
+    applicant_name = assign_relationships(pages, loan_case.applicant_name, loan_case.co_applicant_name) or loan_case.applicant_name
+    summary = reconcile_case_documents(pages, loan_case.applicant_name, loan_case.co_applicant_name)
     form = _form(loan_case)
     # The dashboard saves this literal placeholder when a case is created without typing a real
     # address (awaiting a later AI/manual correction) - it must never be treated as an actual,

@@ -73,8 +73,13 @@ async def check_in_site(
     )
     db.add(visit)
 
-    # Transition case to IN_PROGRESS
-    loan_case.status = CaseStatus.IN_PROGRESS
+    # Transition case to IN_PROGRESS - but never downgrade a case that has already moved past
+    # this stage (PENDING_CA_REVIEW, APPROVED, CERTIFIED, FLAGGED, REJECTED). Without this guard,
+    # a field agent checking in again on an already-certified case (a retake, a late correction,
+    # or just re-testing) silently reverted its status, undoing the certification even though no
+    # one actually un-certified it.
+    if loan_case.status in (CaseStatus.DRAFT, CaseStatus.ASSIGNED):
+        loan_case.status = CaseStatus.IN_PROGRESS
 
     audit = AuditLog(
         case_id=loan_case.id,
@@ -312,6 +317,11 @@ async def zero_lag_upload_document(
                     pass
 
             is_work = is_co_work or (norm_folder == "work") or any(w in doc_type_str for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"])
+            # A co-applicant who lives at a different address from the primary applicant gets
+            # their own residence folder/visit, exactly as co_work already does for a different
+            # workplace - without this, their residence photos were watermarked with the
+            # applicant's own address even when the two live apart.
+            is_co_residence = (norm_folder == "co_residence")
             if is_work:
                 visit_type = "CO-APPLICANT WORKPLACE / OFFICE" if is_co_work else "WORKPLACE / OFFICE"
                 # No fabricated specific address when the office_details haven't been filled in
@@ -319,6 +329,10 @@ async def zero_lag_upload_document(
                 # it is never a safe stand-in here.
                 active_address = office_address or "Office Address Not Yet Captured"
                 applicant_label = loan_case.co_applicant_name if (is_co_work and loan_case.co_applicant_name) else loan_case.applicant_name
+            elif is_co_residence:
+                visit_type = "CO-APPLICANT RESIDENCE / HOME"
+                active_address = loan_case.co_applicant_address or loan_case.target_address
+                applicant_label = loan_case.co_applicant_name or loan_case.applicant_name
             else:
                 visit_type = "RESIDENCE / HOME"
                 active_address = loan_case.target_address
@@ -364,8 +378,11 @@ async def zero_lag_upload_document(
     )
     db.add(doc)
 
-    # Advance case status to IN_PROGRESS or PENDING_CA_REVIEW
-    loan_case.status = CaseStatus.IN_PROGRESS
+    # Advance case status to IN_PROGRESS - same guard as check-in above: a later document
+    # upload (retake, correction, an "Additional Photos" test) must never silently undo an
+    # already-certified case's status.
+    if loan_case.status in (CaseStatus.DRAFT, CaseStatus.ASSIGNED):
+        loan_case.status = CaseStatus.IN_PROGRESS
 
     audit = AuditLog(
         case_id=loan_case.id,
@@ -418,10 +435,12 @@ async def check_out_site(
     if req.notes:
         visit.notes = f"{visit.notes or ''} | Check-out: {req.notes}".strip(" | ")
 
-    # Update case status to PENDING_CA_REVIEW
+    # Update case status to PENDING_CA_REVIEW - same guard: a check-out on a case that's
+    # already been certified (or approved/flagged/rejected by the CA) must not silently
+    # regress it back to an earlier review stage.
     case_res = await db.execute(select(LoanCase).where(LoanCase.id == visit.case_id))
     loan_case = case_res.scalar_one_or_none()
-    if loan_case:
+    if loan_case and loan_case.status in (CaseStatus.DRAFT, CaseStatus.ASSIGNED, CaseStatus.IN_PROGRESS):
         loan_case.status = CaseStatus.PENDING_CA_REVIEW
 
     audit = AuditLog(

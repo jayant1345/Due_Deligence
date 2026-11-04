@@ -9,6 +9,8 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     HRFlowable,
     Image,
@@ -61,27 +63,45 @@ def generate_certified_cpv_report(
     effective_udin = udin or "NOT YET GENERATED"
     rep_date = case_data.get("report_date") or datetime.now().strftime("%d-%m-%Y")
 
-    NOT_CAPTURED = "Not Captured"
+    NOT_CAPTURED = "NA"
 
-    applicant_name = case_data.get("applicant_name") or "Not Captured"
+    applicant_name = case_data.get("applicant_name") or NOT_CAPTURED
     field_form = case_data.get("field_form") or {}
     # The dashboard saves this literal placeholder when a case is created without typing a
     # real address (awaiting a later AI/manual correction) - it must never be printed as if it
     # were an actual, verified address in a bank-facing report.
     raw_target_address = case_data.get("target_address")
-    target_address = raw_target_address if raw_target_address and raw_target_address != "Pending AI Extraction" else "Not Captured"
-    applicant_phone = case_data.get("applicant_phone") or field_form.get("contact_number") or "Not Captured"
-    bank_name = case_data.get("bank_name") or "Not Captured"
-    branch = case_data.get("branch") or "Not Captured"
-    loan_type = case_data.get("loan_type") or "Not Captured"
+    target_address = raw_target_address if raw_target_address and raw_target_address != "Pending AI Extraction" else NOT_CAPTURED
+    applicant_phone = case_data.get("applicant_phone") or field_form.get("contact_number") or NOT_CAPTURED
+    bank_name = case_data.get("bank_name") or NOT_CAPTURED
+    branch = case_data.get("branch") or NOT_CAPTURED
+    loan_type = case_data.get("loan_type") or NOT_CAPTURED
     loan_amount = case_data.get("loan_amount")
     loan_amount_str = f"Rs. {loan_amount:,.0f}/-" if loan_amount else NOT_CAPTURED
     co_applicant_name = case_data.get("co_applicant_name") or None
     co_applicant_phone = case_data.get("co_applicant_phone") or None
+    # Only set when the CA office has flagged the co-applicant as living at a separate address
+    # from the primary applicant - the overwhelming majority of dual-applicant cases (e.g.
+    # spouses) leave this blank and share the one Annexure A residence section below.
+    co_applicant_address = case_data.get("co_applicant_address") or None
 
     # Real OCR'd identity facts (Aadhaar/PAN/Employee ID scans), when the CA office has
     # actually scanned those documents for this case - never a stand-in from another case.
     document_items = document_items or []
+
+    # A page whose holder name couldn't be read at all (blurry/back-side scan, OCR failure) is
+    # tagged relationship_to_applicant="UNKNOWN" by assign_relationships - genuinely unidentified,
+    # not "assume it's the applicant". Treating UNKNOWN the same as "not DIFFERENT_PERSON" (the
+    # old check) let an unreadable duplicate scan of the CO-APPLICANT's own card - same Aadhaar
+    # number, just no holder name on that particular page - get attributed to the PRIMARY
+    # APPLICANT instead, printing the co-applicant's Aadhaar number in the applicant's own slot.
+    # None/absent (no relationship tag at all, e.g. a document scanned before this field existed)
+    # still defaults to the applicant's own, matching the equivalent fallback already used for
+    # the dashboard's KYC card slots.
+    def _belongs_to(rel: Optional[str], co_applicant: bool) -> bool:
+        if co_applicant:
+            return rel == "DIFFERENT_PERSON"
+        return rel in (None, "SELF")
 
     def _ocr_first(field_name: str, doc_types: Optional[set] = None, co_applicant: bool = False):
         for d in document_items:
@@ -90,8 +110,7 @@ def generate_certified_cpv_report(
             # employee ID card) down to OTHER - the real Gemini classification lives
             # inside ocr_data itself, same as _ai_ingested_pages() resolves it.
             real_doc_type = od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")
-            is_co_doc = od.get("relationship_to_applicant") == "DIFFERENT_PERSON"
-            if co_applicant != is_co_doc:
+            if not _belongs_to(od.get("relationship_to_applicant"), co_applicant):
                 continue
             if od.get(field_name) and (doc_types is None or real_doc_type in doc_types):
                 return od[field_name]
@@ -101,8 +120,7 @@ def generate_certified_cpv_report(
         for d in document_items:
             od = d.get("ocr_data") or {}
             real_doc_type = od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")
-            is_co_doc = od.get("relationship_to_applicant") == "DIFFERENT_PERSON"
-            if co_applicant != is_co_doc:
+            if not _belongs_to(od.get("relationship_to_applicant"), co_applicant):
                 continue
             if real_doc_type == "AADHAAR_CARD" and od.get("address") and od.get("address_type") == "RESIDENTIAL":
                 return od["address"]
@@ -132,15 +150,27 @@ def generate_certified_cpv_report(
 
     styles = getSampleStyleSheet()
 
+    # The real letterhead renders the firm name in "Monotype Corsiva" (confirmed by extracting
+    # the embedded font program straight out of a genuine CA-office-delivered report PDF) - not
+    # an italic serif approximation. Register the real font so this is an exact match, not a
+    # lookalike.
+    firm_script_font = "Times-BoldItalic"
+    _corsiva_path = os.path.join("app", "static", "fonts", "MonotypeCorsiva.ttf")
+    if os.path.exists(_corsiva_path):
+        try:
+            if "MonotypeCorsiva" not in pdfmetrics.getRegisteredFontNames():
+                pdfmetrics.registerFont(TTFont("MonotypeCorsiva", _corsiva_path))
+            firm_script_font = "MonotypeCorsiva"
+        except Exception:
+            firm_script_font = "Times-BoldItalic"
+
     # Specimen typography styles
-    # Matches the real letterhead: firm name in an italic script-style face (closest built-in
-    # approximation to the firm's actual cursive logotype, which isn't an embeddable font here).
     firm_title_style = ParagraphStyle(
         "FirmTitle",
         parent=styles["Normal"],
-        fontName="Times-BoldItalic",
-        fontSize=15,
-        leading=18,
+        fontName=firm_script_font,
+        fontSize=19,
+        leading=22,
         textColor=colors.HexColor("#0F172A"),
         alignment=1,  # Center within its column
     )
@@ -384,6 +414,11 @@ def generate_certified_cpv_report(
     # Co-applicant's own office, submitted separately in the PWA questionnaire since the
     # co-applicant's workplace is frequently a different premises from the applicant's.
     office_co = field_form.get("office_details_co") or {}
+
+    # Co-applicant's own residence details, only ever submitted by the PWA when the CA office
+    # flagged co_applicant_address on the case record (most dual-applicant cases share one home
+    # and never have this).
+    residence_co = field_form.get("residence_details_co") or {}
     co_firm_name = office_co.get("firm_name") or ""
     co_office_addr = office_co.get("address") or ""
     co_position = office_co.get("position") or NOT_CAPTURED
@@ -414,11 +449,19 @@ def generate_certified_cpv_report(
             is_co_doc = od.get("relationship_to_applicant") == "DIFFERENT_PERSON"
             if co_applicant != is_co_doc:
                 continue
-            ay = _ay_of(od)
-            if not ay:
-                continue
+            # A document with no cleanly-extracted A.Y. must still print its income, not
+            # vanish from the table - fall back to the raw scanned period text (e.g. a Form 16
+            # that only states "FY 2024-25" in a format _ay_of()/_short_ay() can't parse)
+            # rather than dropping the whole row.
+            ay = _ay_of(od) or od.get("document_period") or od.get("assessment_year") or NOT_CAPTURED
             row = rows.setdefault(ay, {"ay": ay, "income": None, "ack_no": None, "filed_on": None})
-            row["income"] = row["income"] or _inr(od.get("annual_taxable_income"))
+            # annual_taxable_income is only ever populated by Gemini for an ITR Acknowledgement
+            # or Computation of Income page (see pdf_separator.py's extraction schema) - a Form
+            # 16 states the figure as annual_gross_salary instead. Without this fallback, a
+            # Form-16-only case (no ITR Acknowledgement on record) always printed "total income
+            # not on record" even though the Form 16 itself states the income.
+            income_val = od.get("annual_taxable_income") or od.get("annual_gross_salary")
+            row["income"] = row["income"] or _inr(income_val)
             row["ack_no"] = row["ack_no"] or od.get("itr_acknowledgement_number")
             row["filed_on"] = row["filed_on"] or od.get("document_date")
         return rows
@@ -485,7 +528,12 @@ def generate_certified_cpv_report(
     story.append(Paragraph("__________Annexure ‘A’__________<br/>Residence Verification", anx_title_style))
     story.append(Spacer(1, 4))
 
-    marital_val = field_form.get("marital_status") or NOT_CAPTURED
+    # The PWA's dropdown stores a bilingual value, e.g. "Married (પરિણિત)" - the report's PDF
+    # font has no Gujarati glyphs, so that suffix renders as solid black boxes. Strip it here.
+    def _strip_regional_suffix(val):
+        return re.sub(r"\s*\([^)]*\)\s*$", "", val).strip() if val else val
+
+    marital_val = _strip_regional_suffix(field_form.get("marital_status")) or NOT_CAPTURED
     community_val = field_form.get("community") or NOT_CAPTURED
     qual_val = field_form.get("qualification") or NOT_CAPTURED
     dob_age_gender_val = " / ".join(filter(None, [real_dob, real_gender])) or NOT_CAPTURED
@@ -513,10 +561,10 @@ def generate_certified_cpv_report(
         dob_age_gender_val_co = " / ".join(filter(None, [real_dob_co, real_gender_co])) or NOT_CAPTURED
         anxA_p3_co = [
             [Paragraph("<b>Name of Co-Applicant</b>", table_cell_bold), Paragraph(co_applicant_name, table_cell_style), Paragraph("<b>Contact Number</b>", table_cell_bold), Paragraph(co_applicant_phone or NOT_CAPTURED, table_cell_style)],
-            [Paragraph("<b>DOB / Age / Gender</b>", table_cell_bold), Paragraph(dob_age_gender_val_co, table_cell_style), Paragraph("<b>Marital Status</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
-            [Paragraph("<b>Community</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph("<b>KYC PAN No.</b>", table_cell_bold), Paragraph(real_pan_co or NOT_CAPTURED, table_cell_style)],
-            [Paragraph("<b>Aadhar Card No.</b>", table_cell_bold), Paragraph(real_aadhaar_co or NOT_CAPTURED, table_cell_style), Paragraph("<b>Qualification</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
-            [Paragraph("<b>Occupation</b>", table_cell_bold), Paragraph(co_occupation_val, table_cell_style), Paragraph("<b>Relation to Applicant</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>DOB / Age / Gender</b>", table_cell_bold), Paragraph(dob_age_gender_val_co, table_cell_style), Paragraph("<b>Marital Status</b>", table_cell_bold), Paragraph(_strip_regional_suffix(office_co.get("marital_status")) or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Community</b>", table_cell_bold), Paragraph(office_co.get("community") or NOT_CAPTURED, table_cell_style), Paragraph("<b>KYC PAN No.</b>", table_cell_bold), Paragraph(real_pan_co or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Aadhar Card No.</b>", table_cell_bold), Paragraph(real_aadhaar_co or NOT_CAPTURED, table_cell_style), Paragraph("<b>Qualification</b>", table_cell_bold), Paragraph(office_co.get("qualification") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Occupation</b>", table_cell_bold), Paragraph(co_occupation_val, table_cell_style), Paragraph("<b>Relation to Applicant</b>", table_cell_bold), Paragraph(office_co.get("relation_to_applicant") or NOT_CAPTURED, table_cell_style)],
         ]
         t_anxA_p3_co = Table(anxA_p3_co, colWidths=[1.8 * inch, 2.0 * inch, 1.8 * inch, 1.9 * inch])
         t_anxA_p3_co.setStyle(TableStyle([
@@ -654,6 +702,51 @@ def generate_certified_cpv_report(
     ]))
     story.append(t_p4)
 
+    # Annexure A (Co-Applicant) - only printed when the CA office has flagged the co-applicant
+    # as living at a separate address from the primary applicant (co_applicant_address set).
+    # Most dual-applicant cases share one home and never generate this page - the primary
+    # applicant's Annexure A above already covers a shared residence for both.
+    if co_applicant_name and co_applicant_address:
+        story.append(PageBreak())
+        add_firm_header("4A")
+        story.append(Paragraph("__________Annexure ‘A’ (Co-Applicant)__________<br/>Residence Verification", anx_title_style))
+        story.append(Spacer(1, 4))
+
+        res_co_landmark = residence_co.get("landmark") or NOT_CAPTURED
+        res_co_bldg = residence_co.get("building_type") or NOT_CAPTURED
+        res_co_stay = residence_co.get("period_of_stay") or NOT_CAPTURED
+        res_co_owner_raw = residence_co.get("owner_name") or ""
+        _owner_match_co = re.match(r"^\s*\(([^)]+)\)\s*(.*)$", res_co_owner_raw)
+        if _owner_match_co:
+            res_co_owner = _owner_match_co.group(1).strip() or NOT_CAPTURED
+            res_co_rel = _owner_match_co.group(2).strip() or NOT_CAPTURED
+        else:
+            res_co_owner = res_co_owner_raw.strip() or NOT_CAPTURED
+            res_co_rel = NOT_CAPTURED
+        res_co_met = residence_co.get("person_met") or NOT_CAPTURED
+        co_neighbours_list = [n for n in [residence_co.get("neighbour_1"), residence_co.get("neighbour_2")] if n]
+        co_neighbours_val = "<br/>".join(f"{i + 1}. {n}" for i, n in enumerate(co_neighbours_list)) or NOT_CAPTURED
+
+        anxA_co_grid = [
+            [Paragraph("<b>Name of Co-Applicant</b>", table_cell_bold), Paragraph(co_applicant_name, table_cell_style), Paragraph("<b>Contact Number</b>", table_cell_bold), Paragraph(co_applicant_phone or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Aadhar Card No.</b>", table_cell_bold), Paragraph(real_aadhaar_co or NOT_CAPTURED, table_cell_style), Paragraph("<b>KYC PAN No.</b>", table_cell_bold), Paragraph(real_pan_co or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Verified Address Situated At</b>", table_cell_bold), Paragraph(co_applicant_address, table_cell_style), Paragraph("<b>Landmark</b>", table_cell_bold), Paragraph(res_co_landmark, table_cell_style)],
+            [Paragraph("<b>Type of Building & Floor</b>", table_cell_bold), Paragraph(res_co_bldg, table_cell_style), Paragraph("<b>Period of Stay</b>", table_cell_bold), Paragraph(res_co_stay, table_cell_style)],
+            [Paragraph("<b>Owner Name</b>", table_cell_bold), Paragraph(res_co_owner, table_cell_style), Paragraph("<b>Relation with Co-Applicant</b>", table_cell_bold), Paragraph(res_co_rel, table_cell_style)],
+            [Paragraph("<b>References (Neighbours)</b>", table_cell_bold), Paragraph(co_neighbours_val, table_cell_style), Paragraph("<b>Person Met at Site</b>", table_cell_bold), Paragraph(res_co_met, table_cell_style)],
+            [Paragraph("<b>Overall Assessment</b>", table_cell_bold), Paragraph("<font color='#059669'><b>POSITIVE</b></font>", table_cell_style), Paragraph("", table_cell_style), Paragraph("", table_cell_style)],
+        ]
+        t_anxA_co = Table(anxA_co_grid, colWidths=[1.8 * inch, 2.0 * inch, 1.8 * inch, 1.9 * inch])
+        t_anxA_co.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8FAFC")),
+            ("BACKGROUND", (2, 0), (2, -1), colors.HexColor("#F8FAFC")),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(t_anxA_co)
+
     # ================= PAGE 5 =================
     story.append(PageBreak())
     add_firm_header(5)
@@ -789,6 +882,15 @@ def generate_certified_cpv_report(
             filed_on = row["filed_on"] or manual_itr_filing_date or NOT_CAPTURED
             status = f"Rs. {income}" if income else "Income Tax Return provided (total income not on record)"
             itr_grid.append([Paragraph(ay, table_cell_style), Paragraph(ack_no, table_cell_style), Paragraph(filed_on, table_cell_style), Paragraph(status, table_cell_style)])
+    elif manual_itr_ack_no or manual_itr_filing_date:
+        # No Form 16 / ITR Acknowledgement / Computation of Income document was scanned for
+        # this case, but the field agent recorded an acknowledgement no. / filing date on-site
+        # (e.g. the applicant showed the e-filing portal/SMS rather than a printed copy) - that
+        # verification must still appear here, not get silently overwritten by "no record".
+        itr_grid = [
+            [Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)],
+            [Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(manual_itr_ack_no or NOT_CAPTURED, table_cell_style), Paragraph(manual_itr_filing_date or NOT_CAPTURED, table_cell_style), Paragraph("Income Tax Return filed - acknowledgement recorded on-site by the field agent (supporting document not scanned)", table_cell_style)],
+        ]
     else:
         itr_grid = [
             [Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)],
@@ -988,7 +1090,57 @@ def generate_certified_cpv_report(
         dt = str(doc.get("doc_type") or "").upper()
         return any(w in dt for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"])
 
-    residence_sorted_docs = [d for d in sorted_docs if not _is_work_doc(d) and not _is_co_work_doc(d)]
+    # Co-applicant residence photos (folder "co_residence") reuse the applicant's own generic
+    # residence doc types (PROPERTY_EXTERIOR/ELECTRICITY_METER/NEIGHBOR_VERIFICATION) - the
+    # folder tag is the only signal, so without this exclusion they would land in the
+    # applicant's own Annexure A gallery, the same class of bug co_work was fixed for above.
+    def _is_co_residence_doc(doc):
+        return doc.get("folder") == "co_residence" or (doc.get("ocr_data") or {}).get("folder") == "co_residence"
+
+    residence_sorted_docs = [d for d in sorted_docs if not _is_work_doc(d) and not _is_co_work_doc(d) and not _is_co_residence_doc(d)]
+    co_residence_sorted_docs = [d for d in sorted_docs if _is_co_residence_doc(d)]
+
+    # A doc explicitly tagged slot_number > 4 is a genuine "Additional Photo" from the PWA's
+    # unbounded extra-capture facility, not a candidate for one of the 4 mandatory slots.
+    def _is_explicit_extra(doc):
+        sn = doc.get("slot_number") or (doc.get("ocr_data") or {}).get("slot_number")
+        try:
+            return bool(sn) and int(sn) > 4
+        except (TypeError, ValueError):
+            return False
+
+    # None = CA never touched the report-inclusion toggle for this doc (the overwhelming
+    # majority of docs/cases) - True/False only once the CA has explicitly picked a selection
+    # in the CA dashboard's "Report" checkboxes.
+    def _include_flag(doc):
+        ocr = doc.get("ocr_data") or {}
+        if "include_in_report" in ocr:
+            return bool(ocr.get("include_in_report"))
+        return None
+
+    def _apply_report_selection(candidate_docs, default_slots):
+        """If the CA has explicitly curated which photos go in the report for this section
+        (any doc here carries an explicit include_in_report flag), that selection wins outright
+        - capped at 4, ordered by original slot number where available. Otherwise the existing
+        slot-resolution result (Pass 1-4 below) is left untouched, so every case that has never
+        touched the new per-photo "Report" checkboxes behaves exactly as it always has."""
+        if not any(_include_flag(d) is not None for d in candidate_docs):
+            return default_slots
+        selected = [d for d in candidate_docs if _include_flag(d) is True]
+        def _sel_key(d):
+            sn = d.get("slot_number") or (d.get("ocr_data") or {}).get("slot_number")
+            try:
+                return int(sn)
+            except (TypeError, ValueError):
+                return 99
+        selected.sort(key=_sel_key)
+        selected = selected[:4]
+        override = {1: None, 2: None, 3: None, 4: None}
+        for i, d in enumerate(selected, start=1):
+            p_path = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+            if p_path and os.path.exists(p_path):
+                override[i] = p_path
+        return override
 
     # Pass 1: explicit slot numbers (from newest residence docs)
     for d in residence_sorted_docs:
@@ -1012,6 +1164,8 @@ def generate_certified_cpv_report(
         "NEIGHBOR_VERIFICATION": 4,
     }
     for d in residence_sorted_docs:
+        if _is_explicit_extra(d):
+            continue
         dtype = d.get("doc_type")
         target_slot = type_to_slot.get(dtype)
         if target_slot and slot_photos[target_slot] is None:
@@ -1021,6 +1175,8 @@ def generate_certified_cpv_report(
 
     # Pass 3: Fill empty slots from any remaining evidence docs
     for d in residence_sorted_docs:
+        if _is_explicit_extra(d):
+            continue
         dtype = d.get("doc_type")
         if dtype in ("PROPERTY_EXTERIOR", "PROPERTY_INTERIOR", "ELECTRICITY_METER", "SOCIETY_BOARD", "NEIGHBOR_VERIFICATION"):
             p_path = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
@@ -1050,6 +1206,7 @@ def generate_certified_cpv_report(
     # No specimen/stock-photo fallback here on purpose - a bank-certified report must never show
     # generic stock photography as if it were this applicant's own site evidence. _make_cell()
     # below already handles a missing slot gracefully by printing just the caption, no image.
+    slot_photos = _apply_report_selection(residence_sorted_docs, slot_photos)
     res_photos = [slot_photos[1], slot_photos[2], slot_photos[3], slot_photos[4]]
 
     # Resolve Field Staff Attendance Selfie
@@ -1147,6 +1304,8 @@ def generate_certified_cpv_report(
         office_sorted_docs = [d for d in sorted_docs if _is_work_doc(d)]
         off_slot_map = {1: None, 2: None, 3: None, 4: None}
         for d in office_sorted_docs:
+            if _is_explicit_extra(d):
+                continue
             s_num = d.get("slot_number") or (d.get("ocr_data") or {}).get("slot_number")
             if s_num:
                 try:
@@ -1169,6 +1328,8 @@ def generate_certified_cpv_report(
             "WORK_APPROACH": 4,
         }
         for d in office_sorted_docs:
+            if _is_explicit_extra(d):
+                continue
             dt = d.get("doc_type")
             t_slot = off_type_to_slot.get(dt)
             if t_slot and off_slot_map[t_slot] is None:
@@ -1181,9 +1342,17 @@ def generate_certified_cpv_report(
             if off_slot_map[s]:
                 off_photos.append(off_slot_map[s])
         for d in office_sorted_docs:
+            if _is_explicit_extra(d):
+                continue
             cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
             if cand and os.path.exists(cand) and cand not in off_photos:
                 off_photos.append(cand)
+
+        # CA-curated report selection (dashboard "Report" checkboxes) overrides the slot
+        # resolution above outright, when present - same rule as the residence gallery.
+        off_slot_map = _apply_report_selection(office_sorted_docs, off_slot_map)
+        off_photos = [off_slot_map[s] for s in [1, 2, 3, 4] if off_slot_map[s]]
+
         if not off_photos and field_photos_dir:
             off_photos = [
                 os.path.join(field_photos_dir, f) for f in sorted(os.listdir(field_photos_dir))
@@ -1233,6 +1402,8 @@ def generate_certified_cpv_report(
             "CO_OFFICE_SELFIE": 4,
         }
         for d in co_office_docs:
+            if _is_explicit_extra(d):
+                continue
             s_num = d.get("slot_number") or (d.get("ocr_data") or {}).get("slot_number")
             if s_num:
                 try:
@@ -1244,12 +1415,15 @@ def generate_certified_cpv_report(
                 except (ValueError, TypeError):
                     pass
         for d in co_office_docs:
+            if _is_explicit_extra(d):
+                continue
             t_slot = co_off_type_to_slot.get(d.get("doc_type"))
             if t_slot and co_off_slot_map[t_slot] is None:
                 cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
                 if cand and os.path.exists(cand):
                     co_off_slot_map[t_slot] = cand
 
+        co_off_slot_map = _apply_report_selection(co_office_docs, co_off_slot_map)
         co_off_photos = [co_off_slot_map[s] for s in [1, 2, 3, 4] if co_off_slot_map[s]]
         co_off_caps = [
             "1. Office Building Exterior & Nameboard",
@@ -1278,6 +1452,75 @@ def generate_certified_cpv_report(
             ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ]))
         story.append(t_co_off_photos)
+
+    # ================= CO-APPLICANT RESIDENCE PREMISES VISIT PHOTOGRAPHS =================
+    # Only printed when the CA office flagged the co-applicant as living at a separate address -
+    # otherwise their residence is the shared Annexure E (Part 2) gallery above.
+    if co_applicant_name and co_applicant_address:
+        story.append(PageBreak())
+        add_firm_header("9B")
+        story.append(Paragraph("Annexure ‘E’ (Part 2A) — Co-Applicant Residence premises Visit photographs:", anx_title_style))
+        story.append(Spacer(1, 4))
+
+        co_res_slot_map = {1: None, 2: None, 3: None, 4: None}
+        co_res_type_to_slot = {
+            "PROPERTY_EXTERIOR": 1,
+            "PROPERTY_INTERIOR": 2,
+            "ELECTRICITY_METER": 3,
+            "SOCIETY_BOARD": 3,
+            "NEIGHBOR_VERIFICATION": 4,
+        }
+        # Pass 1: explicit slot numbers (the PWA always tags co-residence captures this way)
+        for d in co_residence_sorted_docs:
+            s_num = d.get("slot_number") or (d.get("ocr_data") or {}).get("slot_number")
+            if s_num:
+                try:
+                    s_int = int(s_num)
+                    if 1 <= s_int <= 4 and co_res_slot_map[s_int] is None:
+                        p_path = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+                        if p_path and os.path.exists(p_path):
+                            co_res_slot_map[s_int] = p_path
+                except (ValueError, TypeError):
+                    pass
+        # Pass 2: doc_type fallback for any doc missing an explicit slot number
+        for d in co_residence_sorted_docs:
+            if _is_explicit_extra(d):
+                continue
+            target_slot = co_res_type_to_slot.get(d.get("doc_type"))
+            if target_slot and co_res_slot_map[target_slot] is None:
+                p_path = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+                if p_path and os.path.exists(p_path):
+                    co_res_slot_map[target_slot] = p_path
+
+        co_res_slot_map = _apply_report_selection(co_residence_sorted_docs, co_res_slot_map)
+        co_res_photos = [co_res_slot_map[s] for s in [1, 2, 3, 4]]
+        co_res_caps = [
+            "1. Co-Applicant Building / Society Gate",
+            "2. Co-Applicant House Door & Name Plate",
+            "3. Co-Applicant Living Room & Electric Meter",
+            "4. Co-Applicant Person Met at Site",
+        ]
+
+        def _make_co_res_cell(idx):
+            if idx < len(co_res_photos) and is_valid_image(co_res_photos[idx]):
+                try:
+                    return [Image(co_res_photos[idx], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{co_res_caps[idx]}</b>", ParagraphStyle(f"CoResCap{idx}", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))]
+                except Exception:
+                    pass
+            return [Paragraph(co_res_caps[idx] if idx < len(co_res_caps) else f"Residence Photo {idx+1}", table_cell_style)]
+
+        co_res_grid = [
+            [_make_co_res_cell(0), _make_co_res_cell(1)],
+            [_make_co_res_cell(2), _make_co_res_cell(3)],
+        ]
+        t_co_res_photos = Table(co_res_grid, colWidths=[3.75 * inch, 3.75 * inch])
+        t_co_res_photos.setStyle(TableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story.append(t_co_res_photos)
 
     # ================= PAGE 9: FINAL CERTIFICATE =================
     story.append(PageBreak())

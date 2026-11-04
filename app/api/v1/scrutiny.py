@@ -122,6 +122,33 @@ async def update_document_scrutiny(
     return doc
 
 
+@router.post("/documents/{document_id}/report-inclusion")
+async def set_document_report_inclusion(
+    document_id: uuid.UUID,
+    include: bool,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.CA_VERIFIER, UserRole.SUPER_ADMIN)),
+):
+    """
+    CA marks a site/office evidence photo as one of the (max 4) photos for that section that
+    should actually appear in the generated report. Needed once a section can hold more than 4
+    photos (mandatory slots + optional extras) - the report itself still only ever shows 4 per
+    section, so the CA picks which 4 win when there are more candidates than that.
+    """
+    query = select(CaseDocument).where(CaseDocument.id == document_id)
+    result = await db.execute(query)
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    ocr = dict(doc.ocr_data or {})
+    ocr["include_in_report"] = include
+    doc.ocr_data = ocr
+    await db.commit()
+    await db.refresh(doc)
+    return {"document_id": str(doc.id), "include_in_report": include}
+
+
 @router.get("/metrics")
 async def get_scrutiny_metrics(
     db: AsyncSession = Depends(get_db),

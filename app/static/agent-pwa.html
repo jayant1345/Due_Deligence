@@ -69,6 +69,15 @@
     }
   </script>
   <style>
+    /* No part of this app ever needs horizontal page panning - if any element (a long
+       applicant name, a wide select, a dynamically-rendered row) ever becomes a pixel wider
+       than the viewport, these two rules stop the WHOLE page from sliding sideways on mobile
+       instead of just clipping that one element, which is what made it feel like the entire
+       screen was "sliding" rather than one small thing overflowing. */
+    html, body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
     .material-symbols-outlined {
       font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
       display: inline-block;
@@ -122,10 +131,10 @@
         <span class="material-symbols-outlined text-[16px]">task_alt</span>
         <span>MY TASK:</span>
       </div>
-      <!-- Field staff see ONLY the one case allocated to them — no case-switching control.
-           This is a read-only display (not a <select>), populated from the agent's real
-           assigned case(s) on the backend via loadAssignedCaseForAgent(). -->
-      <select id="pwaCaseSelector" disabled class="text-xs bg-surface-container-low border border-outline-variant rounded-lg font-semibold text-on-surface py-1.5 px-2 w-full truncate opacity-90 cursor-not-allowed">
+      <!-- Real switcher across every case assigned to this agent - populated from the server
+           (GET /api/v1/cases, already filtered to just their own) via populatePwaCaseSelector(),
+           not a hardcoded demo option. -->
+      <select id="pwaCaseSelector" onchange="handlePwaCaseDropdownChange(this.value)" class="text-xs bg-surface-container-low border border-outline-variant rounded-lg font-semibold text-on-surface py-1.5 px-2 w-full truncate cursor-pointer">
         <option value="UBI-HL-2026-20L" selected>[UBI-HL-2026-20L] - Mrs. Rajkunvarba Vaghela (Gandhinagar)</option>
       </select>
     </div>
@@ -916,6 +925,44 @@
           <span class="font-mono text-[9px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded uppercase font-bold">Dual Applicant</span>
         </div>
 
+        <!-- Co-Applicant's own personal/KYC particulars (separate from the office/workplace
+             details below) - these print on Annexure A alongside the primary applicant's own
+             Marital Status / Community / Qualification / Relation to Applicant, which otherwise
+             have nowhere to be captured for the co-applicant at all. -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Marital Status*</label>
+            <select id="formCoMarital" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="Married (પરિણિત)" selected>Married (પરિણિત)</option>
+              <option value="Unmarried (અપરિણિત)">Unmarried (અપરિણિત)</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Community*</label>
+            <select id="formCoCommunity" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select --</option>
+              <option value="Hindu">Hindu (હિન્દુ)</option>
+              <option value="Muslim">Muslim</option>
+              <option value="Christian">Christian</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Qualification*</label>
+            <select id="formCoQualification" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select --</option>
+              <option value="Graduate">Graduate (સ્નાતક)</option>
+              <option value="Post Graduate">Post Graduate (અનુસ્નાતક)</option>
+              <option value="12th Pass">12th Pass (ધોરણ ૧૨)</option>
+              <option value="10th Pass">10th Pass (ધોરણ ૧૦)</option>
+              <option value="8th Pass">8th Pass</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Relation to Applicant*</label>
+            <input id="formCoRelationToApplicant" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Spouse, Brother, Partner"/>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Occupation (વ્યવસાય)*</label>
@@ -1069,6 +1116,68 @@
         </div>
       </div>
 
+      <!-- MODULE 3C: Co-Applicant Residence Details - only shown when the CA office has flagged
+           a separate co-applicant home address on the case record (most dual-applicant cases
+           share one home and never see this module). -->
+      <div id="coApplicantResidenceModule" class="hidden p-3.5 rounded-xl bg-purple-50/40 border border-purple-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-purple-700 text-[18px]">home</span>
+            <span class="font-headline font-bold text-xs text-on-surface">3C. Co-Applicant Residence Details (<span id="coApplicantResNameLabel">Co-Applicant</span>)</span>
+          </div>
+          <span class="font-mono text-[9px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded uppercase font-bold">Separate Address</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Type of Building & Floor*</label>
+            <select id="formCoResBuildingType" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select --</option>
+              <option value="Bungalow">Bungalow</option>
+              <option value="Flat">Flat</option>
+              <option value="Independent House">Independent House</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Period of Stay in Present Premises*</label>
+            <input id="formCoResPeriodOfStay" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. 5 Years"/>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Owner Name (Relation)</label>
+            <input id="formCoResOwnerName" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. (Ramesh Patel) Self"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Landmark</label>
+            <input id="formCoResLandmark" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Near XYZ Circle"/>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Person Met at Site*</label>
+            <input id="formCoResPersonMet" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Co-applicant / family member"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Reference / Neighbour 1</label>
+            <input id="formCoResNeighbour1" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Name - relation to area"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Reference / Neighbour 2</label>
+            <input id="formCoResNeighbour2" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Name - relation to area"/>
+          </div>
+        </div>
+
+        <div id="coApplicantResidenceNotice" class="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2">
+          <span class="material-symbols-outlined text-[18px] text-primary-container shrink-0 mt-0.5">verified</span>
+          <div>
+            <b>Co-Applicant Residence Verification Required:</b> Switch to the "Co-Applicant Residence" tab below in Photo Slots and capture 4 Geotagged Residence Evidence Photos for the co-applicant's home.
+          </div>
+        </div>
+      </div>
+
       <!-- MODULE 4: Previous Loan Details (અગાઉની લોનની વિગત - PAGE 14 & 15) -->
       <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/80 space-y-3">
         <div class="flex items-center justify-between">
@@ -1082,7 +1191,8 @@
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Loan Type (કઈ લોન છે?)*</label>
-            <select id="formLoanType" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+            <select id="formLoanType" onchange="handlePrevLoanNaToggle(this.value === 'NA')" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="NA">No Existing Loan (NA)</option>
               <option value="Home" selected>Home Loan (હાઉસિંગ લોન)</option>
               <option value="Car">Car Loan</option>
               <option value="Education">Education Loan</option>
@@ -1095,7 +1205,25 @@
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Bank of Previous Loan (બેંક)*</label>
-            <input id="formPrevBank" value="" placeholder="Enter bank name" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
+            <select id="formPrevBank" onchange="handlePrevBankSelectChange(this.value)" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="NA">No Existing Loan (NA)</option>
+              <option value="State Bank of India">State Bank of India</option>
+              <option value="HDFC Bank">HDFC Bank</option>
+              <option value="ICICI Bank">ICICI Bank</option>
+              <option value="Axis Bank">Axis Bank</option>
+              <option value="Bank of Baroda">Bank of Baroda</option>
+              <option value="Punjab National Bank">Punjab National Bank</option>
+              <option value="Union Bank of India">Union Bank of India</option>
+              <option value="Canara Bank">Canara Bank</option>
+              <option value="IDBI Bank">IDBI Bank</option>
+              <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
+              <option value="Yes Bank">Yes Bank</option>
+              <option value="IDFC First Bank">IDFC First Bank</option>
+              <option value="Bank of India">Bank of India</option>
+              <option value="Central Bank of India">Central Bank of India</option>
+              <option value="Other">Other (type below)</option>
+            </select>
+            <input id="formPrevBankOther" value="" placeholder="Type bank name" class="hidden mt-1.5 w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Authorized Dealership Date*</label>
@@ -1331,8 +1459,8 @@
         </div>
       </div>
 
-      <!-- DUAL EVIDENCE FOLDER TABS: Residence vs Office -->
-      <div class="bg-surface-container-high p-1.5 rounded-xl border border-outline-variant flex items-center gap-2">
+      <!-- EVIDENCE FOLDER TABS: Residence / Office / Co-Applicant Office / Co-Applicant Residence -->
+      <div class="bg-surface-container-high p-1.5 rounded-xl border border-outline-variant flex items-center gap-2 flex-wrap">
         <button id="pwaTabResidence" type="button" onclick="switchPwaPhotoFolder('residence')" class="flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-primary-container text-white shadow-xs">
           <span class="material-symbols-outlined text-[16px]">home</span>
           <span>Residence Evidence (રહેઠાણ - 4)</span>
@@ -1344,6 +1472,10 @@
         <button id="pwaTabCoOffice" type="button" onclick="switchPwaPhotoFolder('co_office')" class="hidden flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container">
           <span class="material-symbols-outlined text-[16px]">domain</span>
           <span>Co-Applicant Office (4)</span>
+        </button>
+        <button id="pwaTabCoResidence" type="button" onclick="switchPwaPhotoFolder('co_residence')" class="hidden flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container">
+          <span class="material-symbols-outlined text-[16px]">home</span>
+          <span>Co-Applicant Residence (4)</span>
         </button>
       </div>
 
@@ -1438,6 +1570,21 @@
             <span id="slot4BtnText">Capture Person Met</span>
           </button>
         </div>
+
+        <!-- Additional Photos (optional, unbounded - not part of the mandatory 4) -->
+        <div class="p-3 rounded-lg bg-surface-container-low border border-dashed border-outline-variant space-y-2">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="min-w-0">
+              <span class="font-bold text-xs text-on-surface">Additional Photos (Optional)</span>
+              <p class="text-[10px] text-on-surface-variant mt-0.5" id="extraCount_residence">No additional photos yet</p>
+            </div>
+            <button onclick="triggerExtraPhotoCapture('residence')" class="shrink-0 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
+              <span>Add More Photos</span>
+            </button>
+          </div>
+          <div id="extraGallery_residence" class="flex flex-wrap gap-2"></div>
+        </div>
       </div>
 
       <!-- FOLDER 2: Office / Workplace Slots (4 Slots) -->
@@ -1525,6 +1672,21 @@
             <span id="slotOffice4BtnText">Capture Workplace Selfie</span>
           </button>
         </div>
+
+        <!-- Additional Photos (optional, unbounded - not part of the mandatory 4) -->
+        <div class="p-3 rounded-lg bg-surface-container-low border border-dashed border-outline-variant space-y-2">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="min-w-0">
+              <span class="font-bold text-xs text-on-surface">Additional Photos (Optional)</span>
+              <p class="text-[10px] text-on-surface-variant mt-0.5" id="extraCount_office">No additional photos yet</p>
+            </div>
+            <button onclick="triggerExtraPhotoCapture('office')" class="shrink-0 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
+              <span>Add More Photos</span>
+            </button>
+          </div>
+          <div id="extraGallery_office" class="flex flex-wrap gap-2"></div>
+        </div>
       </div>
 
       <!-- FOLDER 3: Co-Applicant Office / Workplace Slots (4 Slots, dual-applicant cases only) -->
@@ -1607,6 +1769,119 @@
             <span class="material-symbols-outlined text-[16px]">photo_camera</span>
             <span id="slotCoOffice4BtnText">Capture Workplace Selfie</span>
           </button>
+        </div>
+
+        <!-- Additional Photos (optional, unbounded - not part of the mandatory 4) -->
+        <div class="p-3 rounded-lg bg-surface-container-low border border-dashed border-outline-variant space-y-2">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="min-w-0">
+              <span class="font-bold text-xs text-on-surface">Additional Photos (Optional)</span>
+              <p class="text-[10px] text-on-surface-variant mt-0.5" id="extraCount_co_office">No additional photos yet</p>
+            </div>
+            <button onclick="triggerExtraPhotoCapture('co_office')" class="shrink-0 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
+              <span>Add More Photos</span>
+            </button>
+          </div>
+          <div id="extraGallery_co_office" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+
+      <!-- FOLDER 4: Co-Applicant Residence Slots (4 Slots, only when co-applicant lives separately) -->
+      <div id="pwaCoResidenceSlotsContainer" class="hidden space-y-3">
+        <div id="slotCardCoResidence1" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotCoResidence1Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">corporate_fare</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Co-Applicant Residence Slot 1: Building / Society Gate</span>
+                <span id="slotCoResidence1Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">સહ-અરજદાર ના ઘરની સોસાયટી / બિલ્ડીંગ મેઈન ગેટ</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Co-applicant's society entrance, main road, signboard</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(1, 'PROPERTY_EXTERIOR', 'co_residence')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotCoResidence1BtnText">Capture Gate Photo</span>
+          </button>
+        </div>
+
+        <div id="slotCardCoResidence2" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotCoResidence2Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">door_front</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Co-Applicant Residence Slot 2: House Door & Name Plate</span>
+                <span id="slotCoResidence2Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">સહ-અરજદાર નો મકાન દરવાજો અને નામપ્લેટ</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Flat number plate, door entrance, elevation</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(2, 'PROPERTY_EXTERIOR', 'co_residence')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotCoResidence2BtnText">Capture Door Photo</span>
+          </button>
+        </div>
+
+        <div id="slotCardCoResidence3" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotCoResidence3Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">electric_meter</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Co-Applicant Residence Slot 3: Living Room & Electric Meter</span>
+                <span id="slotCoResidence3Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">હોલ/રૂમ અને ઇલેક્ટ્રિક મીટર રીડિંગ</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Physical meter number matching bill & interior assets</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(3, 'ELECTRICITY_METER', 'co_residence')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotCoResidence3BtnText">Capture Meter Photo</span>
+          </button>
+        </div>
+
+        <div id="slotCardCoResidence4" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotCoResidence4Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">person_check</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Co-Applicant Residence Slot 4: Person Met / Co-Applicant at Site</span>
+                <span id="slotCoResidence4Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">રૂબરૂ મુલાકાત - સહ-અરજદાર અથવા કુટુંબના સભ્ય</p>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Person met standing in the premises / co-applicant</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(4, 'NEIGHBOR_VERIFICATION', 'co_residence')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotCoResidence4BtnText">Capture Person Met</span>
+          </button>
+        </div>
+
+        <!-- Additional Photos (optional, unbounded - not part of the mandatory 4) -->
+        <div class="p-3 rounded-lg bg-surface-container-low border border-dashed border-outline-variant space-y-2">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="min-w-0">
+              <span class="font-bold text-xs text-on-surface">Additional Photos (Optional)</span>
+              <p class="text-[10px] text-on-surface-variant mt-0.5" id="extraCount_co_residence">No additional photos yet</p>
+            </div>
+            <button onclick="triggerExtraPhotoCapture('co_residence')" class="shrink-0 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
+              <span>Add More Photos</span>
+            </button>
+          </div>
+          <div id="extraGallery_co_residence" class="flex flex-wrap gap-2"></div>
         </div>
       </div>
     </section>
@@ -1878,7 +2153,14 @@
     const uploadedResidenceSlots = { 1: false, 2: false, 3: false, 4: false };
     const uploadedOfficeSlots = { 1: false, 2: false, 3: false, 4: false };
     const uploadedCoOfficeSlots = { 1: false, 2: false, 3: false, 4: false };
+    const uploadedCoResidenceSlots = { 1: false, 2: false, 3: false, 4: false };
     const uploadedSlots = uploadedResidenceSlots; // backward compatibility
+
+    // Additional (unbounded) photos beyond the 4 mandatory named slots per section - tracked
+    // by slot number > 4 so they reuse the exact same capture/review/upload pipeline as the
+    // mandatory slots (geotagging, server watermarking, offline queueing) without being counted
+    // toward the "X of 4 complete" mandatory checklist.
+    const extraPhotoNextSlot = { residence: 4, office: 4, co_office: 4, co_residence: 4 };
 
     // Single lookup table for everything that varies per folder, so handlePhotoUpload/
     // finalizePhotoCapture/discardAndRetakePhoto/updateEvidenceProgress each branch on
@@ -1887,16 +2169,20 @@
       residence: { slotIdPrefix: "slot", storageKey: "slot", uploadFolder: "residence", defaultDocType: "PROPERTY_EXTERIOR", label: "Residence", slotsMap: uploadedResidenceSlots },
       office: { slotIdPrefix: "slotOffice", storageKey: "office_slot", uploadFolder: "work", defaultDocType: "OFFICE_FACADE", label: "Office", slotsMap: uploadedOfficeSlots },
       co_office: { slotIdPrefix: "slotCoOffice", storageKey: "co_office_slot", uploadFolder: "co_work", defaultDocType: "CO_OFFICE_FACADE", label: "Co-Applicant Office", slotsMap: uploadedCoOfficeSlots },
+      co_residence: { slotIdPrefix: "slotCoResidence", storageKey: "co_residence_slot", uploadFolder: "co_residence", defaultDocType: "PROPERTY_EXTERIOR", label: "Co-Applicant Residence", slotsMap: uploadedCoResidenceSlots },
     };
 
     // Switch between Residence, Office/Workplace, and (dual-applicant cases) Co-Applicant
-    // Office photo folders in the PWA.
-    const PWA_FOLDER_TAB_IDS = { residence: "pwaTabResidence", office: "pwaTabOffice", co_office: "pwaTabCoOffice" };
-    const PWA_FOLDER_CONTAINER_IDS = { residence: "pwaResidenceSlotsContainer", office: "pwaOfficeSlotsContainer", co_office: "pwaCoOfficeSlotsContainer" };
+    // Office / Co-Applicant Residence photo folders in the PWA. Co-Applicant Residence only
+    // applies when the CA office has flagged the co-applicant as living at a different address
+    // from the primary applicant - most dual-applicant cases share one home and never show it.
+    const PWA_FOLDER_TAB_IDS = { residence: "pwaTabResidence", office: "pwaTabOffice", co_office: "pwaTabCoOffice", co_residence: "pwaTabCoResidence" };
+    const PWA_FOLDER_CONTAINER_IDS = { residence: "pwaResidenceSlotsContainer", office: "pwaOfficeSlotsContainer", co_office: "pwaCoOfficeSlotsContainer", co_residence: "pwaCoResidenceSlotsContainer" };
     const PWA_FOLDER_INSTRUCTIONS = {
       residence: "Upload mandatory geotagged residential photographs in the designated slots below. For employed/business applicants, switch to Office Evidence to capture workplace photos.",
       office: "🏢 OFFICE / WORKPLACE EVIDENCE: Capture school/office entrance, signboard/nameplate, work area/staff desk, and field staff workplace verification selfie.",
       co_office: "🏢 CO-APPLICANT OFFICE / WORKPLACE EVIDENCE: Capture the co-applicant's own office/school entrance, signboard, work area, and field staff verification selfie.",
+      co_residence: "🏠 CO-APPLICANT RESIDENCE EVIDENCE: The co-applicant lives at a separate address - capture their society/building gate, house door & nameplate, living room & meter, and the person met at their site.",
     };
     const PWA_TAB_ACTIVE_CLASS = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-primary-container text-white shadow-xs";
     const PWA_TAB_INACTIVE_CLASS = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container";
@@ -1922,6 +2208,22 @@
       if (!tab) return;
       tab.classList.toggle("hidden", !visible);
       if (!visible && currentPwaFolder === "co_office") {
+        switchPwaPhotoFolder("residence");
+      }
+      updateAttestationProgress();
+    }
+
+    // Show/hide the "Co-Applicant Residence" photo tab and details module - only when the CA
+    // office has actually typed a separate co-applicant home address on the case record. Most
+    // dual-applicant cases share one home (spouses, etc.) and must never show an empty, confusing
+    // extra tab just because a co-applicant exists.
+    function setCoResidenceTabVisible(visible) {
+      const tab = document.getElementById("pwaTabCoResidence");
+      const module = document.getElementById("coApplicantResidenceModule");
+      if (module) module.classList.toggle("hidden", !visible);
+      if (!tab) return;
+      tab.classList.toggle("hidden", !visible);
+      if (!visible && currentPwaFolder === "co_residence") {
         switchPwaPhotoFolder("residence");
       }
       updateAttestationProgress();
@@ -2193,6 +2495,70 @@
       }
     }
 
+    // "+ Add More Photos" - captures an unlimited number of additional photos per section
+    // beyond the 4 mandatory named slots, reusing the exact same slot-capture pipeline with an
+    // auto-incrementing slot number > 4 so it's never mistaken for one of the required shots.
+    function triggerExtraPhotoCapture(folder) {
+      const info = PWA_FOLDER_INFO[folder];
+      if (!info) return;
+      extraPhotoNextSlot[folder] = (extraPhotoNextSlot[folder] || 4) + 1;
+      triggerSlotCapture(extraPhotoNextSlot[folder], info.defaultDocType, folder);
+    }
+
+    // Renders/updates one tile in a section's "Additional Photos" gallery strip. Unlike the 4
+    // mandatory slots, these don't have pre-existing DOM elements (unbounded count), so the tile
+    // is created on first use and just has its image swapped on a retake.
+    function addOrUpdateExtraPhotoThumb(folder, slotNum, previewUrl) {
+      const gallery = document.getElementById(`extraGallery_${folder}`);
+      if (!gallery) return;
+      let tile = document.getElementById(`extraThumb_${folder}_${slotNum}`);
+      if (!tile) {
+        tile = document.createElement("div");
+        tile.id = `extraThumb_${folder}_${slotNum}`;
+        tile.className = "relative w-16 h-16 rounded-lg overflow-hidden border border-outline-variant cursor-pointer shrink-0 bg-surface-container-lowest";
+        tile.onclick = () => viewSlotPhotoFullscreen(tile);
+        gallery.appendChild(tile);
+      }
+      tile.innerHTML = `<img src="${previewUrl}" class="w-full h-full object-cover"/><span class="absolute bottom-0 right-0 bg-emerald-600 text-white text-[8px] px-1 leading-tight">✓</span>`;
+      updateExtraPhotoCount(folder);
+    }
+
+    function updateExtraPhotoCount(folder) {
+      const gallery = document.getElementById(`extraGallery_${folder}`);
+      const countEl = document.getElementById(`extraCount_${folder}`);
+      if (!gallery || !countEl) return;
+      const n = gallery.children.length;
+      countEl.textContent = n === 0 ? "No additional photos yet" : `${n} additional photo${n === 1 ? "" : "s"} uploaded`;
+    }
+
+    // Server-authoritative restore of a section's "Additional Photos" gallery - mirrors the
+    // mandatory-slot restore passes in loadAssignedCase() so extras uploaded from another device,
+    // or before a cache clear, still show up after a refresh. `assignedSlotMap` is the {1..4: doc}
+    // map that loadAssignedCase() already built for the mandatory slots - anything in the
+    // section's docs that ISN'T one of those is, by definition, an additional photo.
+    function restoreExtraPhotosForFolder(folder, allDocsForFolder, assignedSlotMap) {
+      const gallery = document.getElementById(`extraGallery_${folder}`);
+      if (!gallery) return;
+      gallery.innerHTML = "";
+      // Genuine "Additional Photos" only - a doc explicitly tagged slot_number > 4. NOT "any
+      // doc that isn't the current slot map winner": a slot retaken more than once in the field
+      // leaves older superseded uploads with the SAME slot_number (1-4) sitting in
+      // allDocsForFolder - those are discarded duplicates, not additional photos, and must never
+      // reappear here just because a newer upload won that slot.
+      const extras = (allDocsForFolder || []).filter(d => {
+        const sNum = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
+        return Boolean(sNum && sNum > 4);
+      });
+      let maxSlot = 4;
+      extras.forEach((d, idx) => {
+        let sNum = d.slot_number > 4 ? d.slot_number : ((d.ocr_data && d.ocr_data.slot_number > 4) ? d.ocr_data.slot_number : null);
+        if (!sNum) sNum = 5 + idx;
+        if (sNum > maxSlot) maxSlot = sNum;
+        addOrUpdateExtraPhotoThumb(folder, sNum, d.url);
+      });
+      extraPhotoNextSlot[folder] = maxSlot;
+    }
+
     function updateEvidenceProgress() {
       const info = PWA_FOLDER_INFO[currentPwaFolder] || PWA_FOLDER_INFO.residence;
       const count = Object.values(info.slotsMap).filter(Boolean).length;
@@ -2216,6 +2582,10 @@
       const coTab = document.getElementById("pwaTabCoOffice");
       if (coTab && !coTab.classList.contains("hidden")) {
         items.push(Object.values(uploadedCoOfficeSlots).every(Boolean));
+      }
+      const coResTab = document.getElementById("pwaTabCoResidence");
+      if (coResTab && !coResTab.classList.contains("hidden")) {
+        items.push(Object.values(uploadedCoResidenceSlots).every(Boolean));
       }
       const total = items.length;
       const done = items.filter(Boolean).length;
@@ -2469,13 +2839,14 @@
       const alertText = document.getElementById("uploadAlertText");
       alertBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-200 text-primary-container text-xs flex items-center justify-between";
       alertBox.classList.remove("hidden");
-      alertText.textContent = `Processing ${info.label} Slot ${slotNum} photo...`;
+      const isExtra = slotNum > 4;
+      alertText.textContent = isExtra ? `Processing ${info.label} additional photo...` : `Processing ${info.label} Slot ${slotNum} photo...`;
       setUploadAlertIcon(true, "text-blue-600", "autorenew");
 
       const previewImgEl = document.getElementById("previewPhotoImg");
       if (previewImgEl) previewImgEl.src = finalPreviewUrl;
 
-      info.slotsMap[slotNum] = true;
+      if (!isExtra) info.slotsMap[slotNum] = true;
       try {
         const slotPayload = JSON.stringify({ src: finalPreviewUrl, timestamp: timeStr, lat: latAtCapture, lon: lonAtCapture, doc_type: docType });
         localStorage.setItem(`pwa_evidence_${caseIdAtCapture}_${info.storageKey}_${slotNum}`, slotPayload);
@@ -2483,15 +2854,19 @@
       } catch (storageErr) {
         console.warn("Storage quota limit or private browsing:", storageErr);
       }
-      const thumbEl = document.getElementById(`${info.slotIdPrefix}${slotNum}Thumb`);
-      if (thumbEl) thumbEl.innerHTML = `<img src="${finalPreviewUrl}" class="w-full h-full object-cover rounded-lg"/>`;
-      const badgeEl = document.getElementById(`${info.slotIdPrefix}${slotNum}Badge`);
-      if (badgeEl) {
-        badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
-        badgeEl.textContent = "✓ UPLOADED";
+      if (isExtra) {
+        addOrUpdateExtraPhotoThumb(folderAtCapture, slotNum, finalPreviewUrl);
+      } else {
+        const thumbEl = document.getElementById(`${info.slotIdPrefix}${slotNum}Thumb`);
+        if (thumbEl) thumbEl.innerHTML = `<img src="${finalPreviewUrl}" class="w-full h-full object-cover rounded-lg"/>`;
+        const badgeEl = document.getElementById(`${info.slotIdPrefix}${slotNum}Badge`);
+        if (badgeEl) {
+          badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+          badgeEl.textContent = "✓ UPLOADED";
+        }
+        const btnTextEl = document.getElementById(`${info.slotIdPrefix}${slotNum}BtnText`);
+        if (btnTextEl) btnTextEl.textContent = "Re-take Photo";
       }
-      const btnTextEl = document.getElementById(`${info.slotIdPrefix}${slotNum}BtnText`);
-      if (btnTextEl) btnTextEl.textContent = "Re-take Photo";
       updateEvidenceProgress();
 
           // Unlock capture right away - the slot is already saved locally (preview + localStorage)
@@ -3341,6 +3716,39 @@
       }
     }, 20000);
 
+    // Applicant has no pre-existing loan at all: selecting NA on either the Loan Type or the
+    // Bank of Previous Loan dropdown locks the whole "Previous Loan Details" row to NA so the
+    // agent isn't forced to type a fake amount/bank/date for a loan that doesn't exist.
+    function handlePrevLoanNaToggle(isNa) {
+      const typeEl = document.getElementById("formLoanType");
+      const bankEl = document.getElementById("formPrevBank");
+      const bankOtherEl = document.getElementById("formPrevBankOther");
+      const amountEl = document.getElementById("formLoanAmount");
+      const dateEl = document.getElementById("formDealershipDate");
+
+      if (typeEl) typeEl.value = isNa ? "NA" : (typeEl.value === "NA" ? "Home" : typeEl.value);
+      if (bankEl) bankEl.value = isNa ? "NA" : (bankEl.value === "NA" ? "" : bankEl.value);
+      if (bankOtherEl) bankOtherEl.classList.toggle("hidden", !(bankEl && bankEl.value === "Other"));
+
+      [amountEl, dateEl].forEach(el => {
+        if (!el) return;
+        el.disabled = isNa;
+        el.value = isNa ? "NA" : (el.value === "NA" ? "" : el.value);
+        el.classList.toggle("opacity-50", isNa);
+        el.classList.toggle("cursor-not-allowed", isNa);
+      });
+    }
+
+    // Bank dropdown's own onchange: reveals the free-text box for "Other", and keeps the NA
+    // lock in sync with whichever of the two dropdowns the agent actually touched.
+    // skipNaSync=true is used when restoring a saved case, where handlePrevLoanNaToggle is
+    // called separately right after, so this call must only handle the "Other" box reveal.
+    function handlePrevBankSelectChange(value, skipNaSync) {
+      const bankOtherEl = document.getElementById("formPrevBankOther");
+      if (bankOtherEl) bankOtherEl.classList.toggle("hidden", value !== "Other");
+      if (!skipNaSync) handlePrevLoanNaToggle(value === "NA");
+    }
+
     async function submitDueDiligenceForm() {
       if (!agentSelfieDataUrl) {
         if (!confirm("Field Staff Selfie has not been captured yet. Capturing your selfie authenticates attendance to start the survey. Do you wish to continue without selfie?")) {
@@ -3385,7 +3793,10 @@
       const officeAssessment = document.getElementById("formOfficeAssessment") ? document.getElementById("formOfficeAssessment").value.trim() : "";
       const prevLoanType = document.getElementById("formLoanType") ? document.getElementById("formLoanType").value : "";
       const prevLoanAmount = document.getElementById("formLoanAmount") ? document.getElementById("formLoanAmount").value.trim() : "";
-      const prevLoanBank = document.getElementById("formPrevBank") ? document.getElementById("formPrevBank").value.trim() : "";
+      const prevBankSelectVal = document.getElementById("formPrevBank") ? document.getElementById("formPrevBank").value : "";
+      const prevLoanBank = prevBankSelectVal === "Other"
+        ? (document.getElementById("formPrevBankOther") ? document.getElementById("formPrevBankOther").value.trim() : "")
+        : prevBankSelectVal;
       const prevLoanDate = document.getElementById("formDealershipDate") ? document.getElementById("formDealershipDate").value.trim() : "";
       const itrAckNo = document.getElementById("formItrAckNo") ? document.getElementById("formItrAckNo").value.trim() : "";
       const itrFilingDate = document.getElementById("formItrFilingDate") ? document.getElementById("formItrFilingDate").value.trim() : "";
@@ -3402,6 +3813,10 @@
       let officeDetailsCo = null;
       if (coModuleVisible) {
         officeDetailsCo = {
+          marital_status: document.getElementById("formCoMarital") ? document.getElementById("formCoMarital").value : "",
+          community: document.getElementById("formCoCommunity") ? document.getElementById("formCoCommunity").value : "",
+          qualification: document.getElementById("formCoQualification") ? document.getElementById("formCoQualification").value : "",
+          relation_to_applicant: document.getElementById("formCoRelationToApplicant") ? document.getElementById("formCoRelationToApplicant").value.trim() : "",
           occupation: document.getElementById("formCoOccupation") ? document.getElementById("formCoOccupation").value : "Job",
           designation: document.getElementById("formCoDesignation") ? document.getElementById("formCoDesignation").value : "",
           position: document.getElementById("formCoDesignation") ? document.getElementById("formCoDesignation").value : "",
@@ -3422,6 +3837,27 @@
           reference_2: (() => { const v = document.getElementById("formCoOfficeReferences") ? document.getElementById("formCoOfficeReferences").value : ""; return (v.split(",")[1] || "").trim(); })(),
           who_meet: document.getElementById("formCoOfficeWhoMeet") ? document.getElementById("formCoOfficeWhoMeet").value.trim() : "",
           reg_no: document.getElementById("formCoOfficeRegNo") ? document.getElementById("formCoOfficeRegNo").value.trim() : "",
+        };
+      }
+
+      // Co-applicant residence details - only submitted when the CA office flagged a separate
+      // co-applicant home address (Module 3C visible), same opt-in pattern as office_details_co.
+      const coResModuleVisible = (() => {
+        const el = document.getElementById("coApplicantResidenceModule");
+        return el && !el.classList.contains("hidden");
+      })();
+      let residenceDetailsCo = null;
+      if (coResModuleVisible) {
+        const coResRefsRaw1 = document.getElementById("formCoResNeighbour1") ? document.getElementById("formCoResNeighbour1").value.trim() : "";
+        const coResRefsRaw2 = document.getElementById("formCoResNeighbour2") ? document.getElementById("formCoResNeighbour2").value.trim() : "";
+        residenceDetailsCo = {
+          building_type: document.getElementById("formCoResBuildingType") ? document.getElementById("formCoResBuildingType").value : "",
+          period_of_stay: document.getElementById("formCoResPeriodOfStay") ? document.getElementById("formCoResPeriodOfStay").value.trim() : "",
+          owner_name: document.getElementById("formCoResOwnerName") ? document.getElementById("formCoResOwnerName").value.trim() : "",
+          landmark: document.getElementById("formCoResLandmark") ? document.getElementById("formCoResLandmark").value.trim() : "",
+          person_met: document.getElementById("formCoResPersonMet") ? document.getElementById("formCoResPersonMet").value.trim() : "",
+          neighbour_1: coResRefsRaw1,
+          neighbour_2: coResRefsRaw2,
         };
       }
 
@@ -3485,6 +3921,7 @@
           date: prevLoanDate
         },
         office_details_co: officeDetailsCo,
+        residence_details_co: residenceDetailsCo,
         // Raw, lossless values for restoring the form's own inputs when this case is reopened
         // (the fields above are flattened/combined for the report, which loses information -
         // e.g. building_type above merges BHK into one string, family_members is a flat
@@ -3623,8 +4060,11 @@
       if (fPhone) fPhone.value = c.phone || "";
       const fAge = document.getElementById("formAge");
       if (fAge) fAge.value = c.age || "";
+      // Same stale-carryover bug as formCoMarital below: with no fallback here, switching to a
+      // case whose Marital Status hadn't been set yet left whichever OTHER case's selection was
+      // already showing, looking like a deliberate answer for this applicant.
       const fMarital = document.getElementById("formMarital");
-      if (fMarital && c.marital) fMarital.value = c.marital;
+      if (fMarital) fMarital.value = c.marital || "Married (પરિણિત)";
       document.querySelectorAll('input[name="pwaCommRadio"]').forEach(r => { r.checked = false; });
       document.querySelectorAll(".pwa-comm-chip").forEach(l => {
         l.classList.remove("bg-blue-50", "border-blue-300", "text-primary-container", "font-bold");
@@ -3750,11 +4190,30 @@
       const fPrevLoanAmount = document.getElementById("formLoanAmount");
       if (fPrevLoanAmount) fPrevLoanAmount.value = c.prev_loan_amount || "";
 
+      // A saved bank name that isn't one of the listed banks (or isn't "NA") falls back to
+      // "Other" with the real text restored into the companion free-text box, rather than
+      // silently landing on whatever option happens to be first in the <select>.
       const fPrevLoanBank = document.getElementById("formPrevBank");
-      if (fPrevLoanBank) fPrevLoanBank.value = c.prev_loan_bank || "";
+      const fPrevLoanBankOther = document.getElementById("formPrevBankOther");
+      if (fPrevLoanBank) {
+        const savedBank = c.prev_loan_bank || "";
+        const knownOption = Array.from(fPrevLoanBank.options).some(o => o.value === savedBank);
+        if (!savedBank) {
+          fPrevLoanBank.value = "";
+        } else if (knownOption) {
+          fPrevLoanBank.value = savedBank;
+        } else {
+          fPrevLoanBank.value = "Other";
+          if (fPrevLoanBankOther) fPrevLoanBankOther.value = savedBank;
+        }
+        handlePrevBankSelectChange(fPrevLoanBank.value, /*skipNaSync=*/true);
+      }
 
       const fPrevLoanDate = document.getElementById("formDealershipDate");
       if (fPrevLoanDate) fPrevLoanDate.value = c.prev_loan_date || "";
+
+      // Reflect NA (no existing loan) lock state from whichever field actually carries it.
+      handlePrevLoanNaToggle((c.prev_loan_type === "NA") || (c.prev_loan_bank === "NA"));
 
       const fWfh = document.getElementById("formWorkFromHome");
       if (fWfh) fWfh.value = (fOcc && fOcc.value === "House Wife") ? "Yes" : "No";
@@ -3770,6 +4229,20 @@
         if (coModule) coModule.classList.remove("hidden");
         if (coNameLabel) coNameLabel.textContent = c.co_applicant_name;
         setCoApplicantTabVisible(true);
+
+        // Every other field in this block falls back to a neutral default ("" or "Job") when
+        // this case has no saved value of its own yet - this one didn't, so switching from a
+        // case where the co-applicant's Marital Status had been set to one where it hadn't left
+        // the dropdown showing the PREVIOUS case's selection, unchanged, looking like a
+        // deliberate answer for this co-applicant when nobody had actually set it yet.
+        const fCoMarital = document.getElementById("formCoMarital");
+        if (fCoMarital) fCoMarital.value = c.co_marital_status || "Married (પરિણિત)";
+        const fCoCommunity = document.getElementById("formCoCommunity");
+        if (fCoCommunity) fCoCommunity.value = c.co_community || "";
+        const fCoQual = document.getElementById("formCoQualification");
+        if (fCoQual) fCoQual.value = c.co_qualification || "";
+        const fCoRelation = document.getElementById("formCoRelationToApplicant");
+        if (fCoRelation) fCoRelation.value = c.co_relation_to_applicant || "";
 
         const fCoOcc = document.getElementById("formCoOccupation");
         if (fCoOcc) fCoOcc.value = c.co_occupation || "Job";
@@ -3811,6 +4284,33 @@
       } else {
         if (coModule) coModule.classList.add("hidden");
         setCoApplicantTabVisible(false);
+      }
+
+      // ==========================================
+      // SYNCHRONIZE MODULE 3C (Co-Applicant Residence Details) - only when the CA office has
+      // flagged a separate co-applicant home address on the case record.
+      // ==========================================
+      const coResNameLabel2 = document.getElementById("coApplicantResNameLabel");
+      if (c.co_applicant_name && c.co_applicant_address) {
+        if (coResNameLabel2) coResNameLabel2.textContent = c.co_applicant_name;
+        setCoResidenceTabVisible(true);
+
+        const fCoResBldg = document.getElementById("formCoResBuildingType");
+        if (fCoResBldg) fCoResBldg.value = c.co_res_building_type || "";
+        const fCoResStay = document.getElementById("formCoResPeriodOfStay");
+        if (fCoResStay) fCoResStay.value = c.co_res_period_of_stay || "";
+        const fCoResOwner = document.getElementById("formCoResOwnerName");
+        if (fCoResOwner) fCoResOwner.value = c.co_res_owner_name || "";
+        const fCoResLandmark = document.getElementById("formCoResLandmark");
+        if (fCoResLandmark) fCoResLandmark.value = c.co_res_landmark || "";
+        const fCoResPersonMet = document.getElementById("formCoResPersonMet");
+        if (fCoResPersonMet) fCoResPersonMet.value = c.co_res_person_met || "";
+        const fCoResN1 = document.getElementById("formCoResNeighbour1");
+        if (fCoResN1) fCoResN1.value = c.co_res_neighbour_1 || "";
+        const fCoResN2 = document.getElementById("formCoResNeighbour2");
+        if (fCoResN2) fCoResN2.value = c.co_res_neighbour_2 || "";
+      } else {
+        setCoResidenceTabVisible(false);
       }
 
       // Reset flip button states
@@ -3887,6 +4387,26 @@
           if (bCoOff) { bCoOff.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bCoOff.textContent = "PENDING"; }
           if (btnCoOff) btnCoOff.textContent = "Capture Photo";
         }
+
+        // 4. Co-Applicant Residence Slot (only when co-applicant has a separate home address)
+        uploadedCoResidenceSlots[i] = false;
+        const bCoRes = document.getElementById(`slotCoResidence${i}Badge`);
+        const btnCoRes = document.getElementById(`slotCoResidence${i}BtnText`);
+        const thumbCoRes = document.getElementById(`slotCoResidence${i}Thumb`);
+        const cachedCoRes = localStorage.getItem(`pwa_evidence_${sampleCaseId}_co_residence_slot_${i}`) ||
+                          (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_co_residence_slot_${i}`) : null);
+        if (cachedCoRes) {
+          try {
+            const parsed = JSON.parse(cachedCoRes);
+            uploadedCoResidenceSlots[i] = true;
+            if (bCoRes) { bCoRes.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bCoRes.textContent = "✓ UPLOADED"; }
+            if (btnCoRes) btnCoRes.textContent = "Re-take Photo";
+            if (thumbCoRes) thumbCoRes.innerHTML = `<img src="${parsed.src}" class="w-full h-full object-cover rounded-lg"/>`;
+          } catch(e) {}
+        } else {
+          if (bCoRes) { bCoRes.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bCoRes.textContent = "PENDING"; }
+          if (btnCoRes) btnCoRes.textContent = "Capture Photo";
+        }
       }
       updateEvidenceProgress();
 
@@ -3949,9 +4469,56 @@
     // FIELD AGENT AUTHENTICATION & LOGIN SCREEN
     // ==========================================
     // ==========================================
-    // LIVE ASSIGNED-CASE LOADING (no case picker — field staff see only
-    // whatever case is actually allocated to them by the CA office)
+    // LIVE ASSIGNED-CASE LOADING & SWITCHING. A field agent can legitimately be handling
+    // several open cases at once, so "MY TASK" is a real dropdown of every case assigned to
+    // them (GET /api/v1/cases already filters to just their own, newest-created first) - not
+    // just the one the current link happens to point to.
     // ==========================================
+    async function populatePwaCaseSelector(token, currentKey, currentCaseNo, currentApplicantName, currentBranch) {
+      const selector = document.getElementById("pwaCaseSelector");
+      if (!selector) return;
+      let myCases = null;
+      if (token && token !== "demo-pwa-token") {
+        try {
+          const res = await fetch("/api/v1/cases", { headers: { "Authorization": `Bearer ${token}` } });
+          if (res.ok) {
+            const cases = await res.json();
+            if (Array.isArray(cases) && cases.length > 0) myCases = cases;
+          }
+        } catch (e) {}
+      }
+
+      selector.innerHTML = "";
+      const list = (myCases && myCases.length > 0) ? myCases : [{
+        case_no: currentCaseNo, applicant_name: currentApplicantName, branch: currentBranch,
+      }];
+      list.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.case_no;
+        opt.textContent = `[${c.case_no}] - ${c.applicant_name}${c.branch ? " (" + c.branch + ")" : ""}`;
+        if (c.case_no === currentKey) opt.selected = true;
+        selector.appendChild(opt);
+      });
+      // Always enabled, even with just one case on it - a disabled control that visually
+      // looks like a dropdown but can never be opened is itself confusing.
+      selector.disabled = false;
+      selector.classList.remove("opacity-90", "cursor-not-allowed");
+    }
+
+    // Agent picked a different one of their own cases from the "MY TASK" dropdown.
+    async function handlePwaCaseDropdownChange(caseNo) {
+      if (!caseNo || caseNo === activeCaseKey) return;
+      const token = localStorage.getItem("pwa_token");
+      switchPwaCase(caseNo); // instant render from any locally-cached data for this case
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("case", caseNo);
+        window.history.replaceState({}, "", url);
+      } catch (e) {}
+      const resolved = await loadAssignedCaseForAgent(token, caseNo);
+      if (resolved) await loadCaseDocumentsIntoPwa(sampleCaseId);
+    }
+
     async function loadAssignedCaseForAgent(token, paramCase) {
       const caseLookup = paramCase || activeCaseKey || localStorage.getItem("pwa_active_case_key") || "UBI-HL-2026-531";
       try {
@@ -4033,7 +4600,10 @@
           const occ = parsedFormData.occupation || off.position || off.occupation || "Job";
           const firm = off.firm_name || "";
           const pos = off.position || off.designation || "";
-          const offAddr = off.address || "";
+          // Falls back to the CA office's own pre-typed office_address on the case record (new
+          // field, captured at case creation) until the agent has filled this in themselves on
+          // site - gives the agent a starting reference instead of a blank field to guess from.
+          const offAddr = off.address || target.office_address || "";
           const offFirmType = off.firm_type || "";
           const offNumWorkers = off.employees || "";
           const offNameboard = off.nameboard || "";
@@ -4053,6 +4623,7 @@
           // is set server-side (dual-applicant case); the co-applicant's workplace is captured
           // entirely separately from the primary applicant's, since they're frequently different.
           const offCo = parsedFormData.office_details_co || {};
+          const resCo = parsedFormData.residence_details_co || {};
           const itrAckNoSaved = parsedFormData.itr_acknowledgement_no || "";
           const itrFilingDateSaved = parsedFormData.itr_filing_date || "";
           const bankAccountStatusSaved = parsedFormData.bank_account_status || "";
@@ -4130,6 +4701,10 @@
             prev_loan_date: prevLoan.date || "",
             co_applicant_name: target.co_applicant_name || "",
             co_applicant_phone: target.co_applicant_phone || "",
+            co_marital_status: offCo.marital_status || "",
+            co_community: offCo.community || "",
+            co_qualification: offCo.qualification || "",
+            co_relation_to_applicant: offCo.relation_to_applicant || "",
             co_occupation: offCo.occupation || "Job",
             co_firm_name: offCo.firm_name || "",
             co_position: offCo.position || offCo.designation || "",
@@ -4147,6 +4722,14 @@
             co_office_references: [offCo.reference_1 || offCo.reference, offCo.reference_2].filter(Boolean),
             co_office_who_meet: offCo.who_meet || "",
             co_office_reg_no: offCo.reg_no || "",
+            co_applicant_address: target.co_applicant_address || "",
+            co_res_building_type: resCo.building_type || "",
+            co_res_period_of_stay: resCo.period_of_stay || "",
+            co_res_owner_name: resCo.owner_name || "",
+            co_res_landmark: resCo.landmark || "",
+            co_res_person_met: resCo.person_met || "",
+            co_res_neighbour_1: resCo.neighbour_1 || "",
+            co_res_neighbour_2: resCo.neighbour_2 || "",
             is_live_case: true,
           }, restorePatch);
 
@@ -4163,6 +4746,16 @@
             setCoApplicantTabVisible(false);
           }
 
+          // Co-Applicant Residence module/tab: only when the CA office has actually typed a
+          // separate address for the co-applicant - never shown just because a co-applicant exists.
+          const coResNameLabel = document.getElementById("coApplicantResNameLabel");
+          if (mergedCase.co_applicant_name && mergedCase.co_applicant_address) {
+            if (coResNameLabel) coResNameLabel.textContent = mergedCase.co_applicant_name;
+            setCoResidenceTabVisible(true);
+          } else {
+            setCoResidenceTabVisible(false);
+          }
+
           caseRegistryPwa[key] = mergedCase;
           caseRegistryPwa[target.id] = mergedCase;
 
@@ -4173,15 +4766,7 @@
             localStorage.setItem("pwa_active_case_id", sampleCaseId);
           } catch(e) {}
 
-          const selector = document.getElementById("pwaCaseSelector");
-          if (selector) {
-            selector.innerHTML = "";
-            const opt = document.createElement("option");
-            opt.value = key;
-            opt.textContent = `[${target.case_no}] - ${target.applicant_name}${target.branch ? " (" + target.branch + ")" : ""}`;
-            opt.selected = true;
-            selector.appendChild(opt);
-          }
+          await populatePwaCaseSelector(token, key, target.case_no, target.applicant_name, target.branch);
 
           switchPwaCase(key);
           await loadCaseDocumentsIntoPwa(target.id);
@@ -4472,6 +5057,11 @@
           return ["OFFICE_FACADE", "OFFICE_NAMEBOARD", "OFFICE_INTERIOR", "OFFICE_SELFIE", "WORK_FACADE", "WORK_OFFICE", "WORK_DESK", "WORK_APPROACH"].includes(dt) ||
                  dt.includes("OFFICE") || dt.includes("WORK");
         };
+        // Co-applicant residence docs (folder "co_residence") reuse the applicant's own generic
+        // residence doc types (PROPERTY_EXTERIOR/ELECTRICITY_METER/NEIGHBOR_VERIFICATION), so the
+        // folder tag is the only signal - without this exclusion they'd be mistaken for the
+        // applicant's own residence photos, exactly the co_work/work collision documented above.
+        const isCoResidenceDoc = (d) => d.folder === "co_residence" || (d.ocr_data && d.ocr_data.folder === "co_residence");
 
         // Exact match only here - "OFFICE_SELFIE" (Office Slot 4: Field Staff at Workplace) is
         // a normal workplace evidence photo and must still flow into officeDocs/isWorkDoc below;
@@ -4489,6 +5079,7 @@
           !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
           !isWorkDoc(d) &&
           !isCoWorkDoc(d) &&
+          !isCoResidenceDoc(d) &&
           !isKycDoc(d)
         );
 
@@ -4506,6 +5097,13 @@
           !isKycDoc(d)
         );
 
+        const coResidenceDocs = (docs || []).filter(d =>
+          d.doc_type !== "AGENT_SELFIE" &&
+          !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
+          isCoResidenceDoc(d) &&
+          !isKycDoc(d)
+        );
+
         const sortNewest = (arr) => arr.sort((a, b) => {
           const tA = new Date(a.created_at_raw || a.created_at || 0).getTime();
           const tB = new Date(b.created_at_raw || b.created_at || 0).getTime();
@@ -4515,6 +5113,7 @@
         sortNewest(residenceDocs);
         sortNewest(officeDocs);
         sortNewest(coOfficeDocs);
+        sortNewest(coResidenceDocs);
 
         // 1. Restore Residence Slots
         const serverResSlotMap = { 1: null, 2: null, 3: null, 4: null };
@@ -4530,14 +5129,20 @@
         };
 
         residenceDocs.forEach((d, idx) => {
+          const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
+          if (explicitSlot && explicitSlot > 4) return; // genuine "Additional Photo" - never a mandatory slot
           const s = getResSlot(d, idx + 1);
           if (s >= 1 && s <= 4 && !serverResSlotMap[s]) {
             serverResSlotMap[s] = d;
           }
         });
 
-        // Any unassigned residence docs fill remaining empty slots
+        // Any unassigned residence docs fill remaining empty slots - except a doc explicitly
+        // tagged slot_number > 4, which is a genuine "Additional Photo" and must never steal a
+        // mandatory slot just because that slot happens to still be empty.
         residenceDocs.forEach(d => {
+          const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
+          if (explicitSlot && explicitSlot > 4) return;
           const isAssigned = Object.values(serverResSlotMap).some(assigned => assigned && assigned.id === d.id);
           if (!isAssigned) {
             for (let s = 1; s <= 4; s++) {
@@ -4601,6 +5206,7 @@
             }
           }
         }
+        restoreExtraPhotosForFolder('residence', residenceDocs, serverResSlotMap);
 
         // 2. Restore Office / Workplace Slots
         const serverOffSlotMap = { 1: null, 2: null, 3: null, 4: null };
@@ -4616,14 +5222,19 @@
         };
 
         officeDocs.forEach((d, idx) => {
+          const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
+          if (explicitSlot && explicitSlot > 4) return; // genuine "Additional Photo" - never a mandatory slot
           const s = getOffSlot(d, idx + 1);
           if (s >= 1 && s <= 4 && !serverOffSlotMap[s]) {
             serverOffSlotMap[s] = d;
           }
         });
 
-        // Any unassigned workplace docs fill remaining empty slots
+        // Any unassigned workplace docs fill remaining empty slots - except explicit "Additional
+        // Photo" uploads (slot_number > 4), which must never steal a still-empty mandatory slot.
         officeDocs.forEach(d => {
+          const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
+          if (explicitSlot && explicitSlot > 4) return;
           const isAssigned = Object.values(serverOffSlotMap).some(assigned => assigned && assigned.id === d.id);
           if (!isAssigned) {
             for (let s = 1; s <= 4; s++) {
@@ -4682,6 +5293,7 @@
             }
           }
         }
+        restoreExtraPhotosForFolder('office', officeDocs, serverOffSlotMap);
 
         // 3. Restore Co-Applicant Office / Workplace Slots - same server-authoritative pass as
         // the applicant's own Office slots above. Without this, these slots only ever checked
@@ -4691,12 +5303,16 @@
         // dashboard (which reads straight from the server) still showed them correctly.
         const serverCoOffSlotMap = { 1: null, 2: null, 3: null, 4: null };
         coOfficeDocs.forEach((d, idx) => {
+          const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
+          if (explicitSlot && explicitSlot > 4) return; // genuine "Additional Photo" - never a mandatory slot
           const s = getOffSlot(d, idx + 1);
           if (s >= 1 && s <= 4 && !serverCoOffSlotMap[s]) {
             serverCoOffSlotMap[s] = d;
           }
         });
         coOfficeDocs.forEach(d => {
+          const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
+          if (explicitSlot && explicitSlot > 4) return;
           const isAssigned = Object.values(serverCoOffSlotMap).some(assigned => assigned && assigned.id === d.id);
           if (!isAssigned) {
             for (let s = 1; s <= 4; s++) {
@@ -4753,6 +5369,79 @@
             }
           }
         }
+        restoreExtraPhotosForFolder('co_office', coOfficeDocs, serverCoOffSlotMap);
+
+        // 4. Restore Co-Applicant Residence Slots - same server-authoritative pass, only
+        // relevant when the co-applicant has their own separate home address on the case.
+        const serverCoResSlotMap = { 1: null, 2: null, 3: null, 4: null };
+        coResidenceDocs.forEach((d, idx) => {
+          const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
+          if (explicitSlot && explicitSlot > 4) return; // genuine "Additional Photo" - never a mandatory slot
+          const s = getResSlot(d, idx + 1);
+          if (s >= 1 && s <= 4 && !serverCoResSlotMap[s]) {
+            serverCoResSlotMap[s] = d;
+          }
+        });
+        coResidenceDocs.forEach(d => {
+          const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
+          if (explicitSlot && explicitSlot > 4) return;
+          const isAssigned = Object.values(serverCoResSlotMap).some(assigned => assigned && assigned.id === d.id);
+          if (!isAssigned) {
+            for (let s = 1; s <= 4; s++) {
+              if (!serverCoResSlotMap[s]) {
+                serverCoResSlotMap[s] = d;
+                break;
+              }
+            }
+          }
+        });
+
+        for (let s = 1; s <= 4; s++) {
+          const d = serverCoResSlotMap[s];
+          const coResCacheKey1 = `pwa_evidence_${sampleCaseId}_co_residence_slot_${s}`;
+          const coResCacheKey2 = `pwa_evidence_${activeCaseKey}_co_residence_slot_${s}`;
+          if (d) {
+            uploadedCoResidenceSlots[s] = true;
+            const bCoRes = document.getElementById(`slotCoResidence${s}Badge`);
+            const btnCoRes = document.getElementById(`slotCoResidence${s}BtnText`);
+            const thumbCoRes = document.getElementById(`slotCoResidence${s}Thumb`);
+            if (bCoRes) {
+              bCoRes.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+              bCoRes.textContent = "✓ UPLOADED";
+            }
+            if (btnCoRes) btnCoRes.textContent = "Re-take Photo";
+            if (thumbCoRes) thumbCoRes.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
+            try {
+              const coResPayload = JSON.stringify({
+                src: d.url,
+                timestamp: d.created_at || "Verified on Server",
+                lat: d.latitude || 23.2154,
+                lon: d.longitude || 72.6367,
+                doc_type: d.doc_type
+              });
+              localStorage.setItem(coResCacheKey1, coResPayload);
+              localStorage.setItem(coResCacheKey2, coResPayload);
+            } catch(e) {}
+          } else {
+            let cached = null;
+            try { cached = JSON.parse(localStorage.getItem(coResCacheKey2) || localStorage.getItem(coResCacheKey1) || "null"); } catch (e) {}
+            if (cached && typeof cached.src === "string" && cached.src.startsWith("/storage/")) {
+              localStorage.removeItem(coResCacheKey1);
+              localStorage.removeItem(coResCacheKey2);
+              uploadedCoResidenceSlots[s] = false;
+              const bCoRes = document.getElementById(`slotCoResidence${s}Badge`);
+              const btnCoRes = document.getElementById(`slotCoResidence${s}BtnText`);
+              const thumbCoRes = document.getElementById(`slotCoResidence${s}Thumb`);
+              if (bCoRes) {
+                bCoRes.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
+                bCoRes.textContent = "PENDING";
+              }
+              if (btnCoRes) btnCoRes.textContent = "Capture Photo";
+              if (thumbCoRes) thumbCoRes.innerHTML = `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
+            }
+          }
+        }
+        restoreExtraPhotosForFolder('co_residence', coResidenceDocs, serverCoResSlotMap);
         updateEvidenceProgress();
 
         // Restore Agent Selfie if uploaded
@@ -4865,9 +5554,31 @@
       }
     }
 
+    // Resolves which case is the agent's real, presently-allotted one from the server (not
+    // whatever happens to be cached in this device's localStorage, which can be a stale,
+    // already-completed prior assignment). Used only when the agent opened the bare /pwa
+    // bookmark with no case-specific link - a dispatch link's own ?case= always wins outright.
+    // GET /api/v1/cases already filters to just this agent's own cases (assigned_agent_id ==
+    // current_user.id) and orders newest-created first; prefer one that's still active work
+    // over one already CERTIFIED, since that's the agent's actual current task.
+    async function resolveCurrentAgentCaseNo(token) {
+      if (!token || token === "demo-pwa-token") return null;
+      try {
+        const res = await fetch("/api/v1/cases", { headers: { "Authorization": `Bearer ${token}` } });
+        if (!res.ok) return null;
+        const cases = await res.json();
+        if (!Array.isArray(cases) || cases.length === 0) return null;
+        const active = cases.find(c => c.status && c.status !== "CERTIFIED");
+        return (active || cases[0]).case_no || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
     async function checkAgentAuth() {
       const urlParams = new URLSearchParams(window.location.search);
-      const paramCase = urlParams.get("case") || urlParams.get("case_id") || localStorage.getItem("pwa_active_case_key") || "UBI-HL-2026-531";
+      const explicitCase = urlParams.get("case") || urlParams.get("case_id");
+      let paramCase = explicitCase || localStorage.getItem("pwa_active_case_key") || "UBI-HL-2026-531";
 
       const token = localStorage.getItem("pwa_token");
       const modal = document.getElementById("agentLoginModal");
@@ -4889,6 +5600,18 @@
 
       // Step 1: Immediately render the active case and restore from localStorage (instant display, zero blank screen)
       switchPwaCase(paramCase);
+
+      // No case-specific dispatch link was opened - the agent just hit their bare /pwa
+      // bookmark, so whatever is cached in localStorage could be a stale prior assignment.
+      // Ask the server which case is actually allotted to this agent right now and prefer
+      // that over the cache before loading anything further.
+      if (!explicitCase) {
+        const currentAssigned = await resolveCurrentAgentCaseNo(token);
+        if (currentAssigned && currentAssigned !== paramCase) {
+          paramCase = currentAssigned;
+          switchPwaCase(paramCase);
+        }
+      }
 
       // Step 2: Try fetching updated case dossier from Railway server
       let caseResolved = false;

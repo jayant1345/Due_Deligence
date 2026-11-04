@@ -14,11 +14,13 @@ class CaseCreate(BaseModel):
     loan_type: str  # e.g., HOME_LOAN, LAP, COMMERCIAL
     loan_amount: Optional[float] = None
     target_address: str
+    office_address: Optional[str] = None
     target_lat: float
     target_lon: float
     assigned_agent_id: Optional[uuid.UUID] = None
     co_applicant_name: Optional[str] = None
     co_applicant_phone: Optional[str] = None
+    co_applicant_address: Optional[str] = None
 
 
 class CaseUpdate(BaseModel):
@@ -31,8 +33,10 @@ class CaseUpdate(BaseModel):
     branch: Optional[str] = None
     loan_amount: Optional[float] = None
     target_address: Optional[str] = None
+    office_address: Optional[str] = None
     co_applicant_name: Optional[str] = None
     co_applicant_phone: Optional[str] = None
+    co_applicant_address: Optional[str] = None
     target_lat: Optional[float] = None
     target_lon: Optional[float] = None
 
@@ -51,16 +55,24 @@ class CaseResponse(BaseModel):
     loan_type: str
     loan_amount: Optional[float] = None
     target_address: str
+    office_address: Optional[str] = None
     target_lat: float
     target_lon: float
     status: CaseStatus
     field_form_data: Optional[str] = None
     co_applicant_name: Optional[str] = None
     co_applicant_phone: Optional[str] = None
+    co_applicant_address: Optional[str] = None
     assigned_agent_id: Optional[uuid.UUID] = None
     created_by_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+    # Computed, not stored columns - the most recent geotagged photo's own capture location and
+    # its distance from the benchmark (target_lat/lon), attached onto the ORM object by the list
+    # endpoint. None until at least one geotagged photo has been uploaded for this case.
+    capture_lat: Optional[float] = None
+    capture_lon: Optional[float] = None
+    distance_m: Optional[float] = None
 
     class Config:
         from_attributes = True

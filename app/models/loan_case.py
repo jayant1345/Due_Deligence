@@ -64,6 +64,10 @@ class LoanCase(Base, TimestampMixin):
         Text,
         nullable=False,
     )
+    office_address: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
     target_lat: Mapped[float] = mapped_column(
         Float,
         nullable=False,
@@ -88,6 +92,13 @@ class LoanCase(Base, TimestampMixin):
     )
     co_applicant_phone: Mapped[Optional[str]] = mapped_column(
         String(50),
+        nullable=True,
+    )
+    # Left blank when the co-applicant lives at the same address as the applicant (the
+    # overwhelming majority of dual-applicant cases, e.g. spouses) - only filled in when the
+    # CA office knows upfront the co-applicant has a separate home that needs its own visit.
+    co_applicant_address: Mapped[Optional[str]] = mapped_column(
+        Text,
         nullable=True,
     )
 

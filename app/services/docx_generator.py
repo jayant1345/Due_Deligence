@@ -117,7 +117,7 @@ def generate_certified_cpv_docx(
     effective_udin = udin or "NOT YET GENERATED"
     rep_date = case_data.get("report_date") or datetime.now().strftime("%d-%m-%Y")
 
-    NOT_CAPTURED = "Not Captured"
+    NOT_CAPTURED = "NA"
 
     applicant_name = case_data.get("applicant_name") or NOT_CAPTURED
     applicant_phone = case_data.get("applicant_phone") or NOT_CAPTURED

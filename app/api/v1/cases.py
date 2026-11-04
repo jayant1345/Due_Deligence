@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 import uuid
@@ -6,7 +7,10 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from starlette.concurrency import run_in_threadpool
 from app.services.pdf_separator import (
+    PAGE_SCAN_WORKERS,
     PLACEHOLDER_APPLICANT_NAMES,
+    PdfPasswordRequired,
+    PdfWrongPassword,
     assign_relationships,
     burst_and_separate_pdf_with_llm,
     classify_and_store_single_image,
@@ -71,7 +75,37 @@ async def list_cases(
         query = query.where(LoanCase.bank_name.ilike(f"%{bank_name}%"))
 
     result = await db.execute(query)
-    return result.scalars().all()
+    cases = result.scalars().all()
+
+    # The Management view's "Visit Telemetry" column used to fall back to a hardcoded "32m
+    # (COMPLIANT)" placeholder whenever a case's benchmark-distance wasn't already computed
+    # client-side (which only ever happened for whichever ONE case the CA had last opened in
+    # Scrutiny) - every other case in the list silently showed fake, always-compliant telemetry.
+    # Attach each case's real distance here instead, from its most recent geotagged photo (the
+    # exact same distance_from_target already computed and stored at upload time), in one
+    # extra query rather than per-case, so a CA-office test upload shows its real (likely
+    # breach) distance instead of looking compliant.
+    case_ids = [c.id for c in cases]
+    if case_ids:
+        docs_result = await db.execute(
+            select(CaseDocument)
+            .where(
+                CaseDocument.case_id.in_(case_ids),
+                CaseDocument.latitude.isnot(None),
+                CaseDocument.longitude.isnot(None),
+            )
+            .order_by(CaseDocument.captured_at.desc())
+        )
+        latest_by_case: Dict[uuid.UUID, CaseDocument] = {}
+        for d in docs_result.scalars().all():
+            if d.case_id not in latest_by_case:
+                latest_by_case[d.case_id] = d
+        for c in cases:
+            d = latest_by_case.get(c.id)
+            c.capture_lat = d.latitude if d else None
+            c.capture_lon = d.longitude if d else None
+            c.distance_m = d.distance_from_target if d else None
+    return cases
 
 
 @router.post("", response_model=CaseResponse, status_code=status.HTTP_201_CREATED)
@@ -100,11 +134,13 @@ async def create_case(
         loan_type=req.loan_type.strip(),
         loan_amount=req.loan_amount,
         target_address=req.target_address.strip(),
+        office_address=(req.office_address or "").strip() or None,
         target_lat=req.target_lat,
         target_lon=req.target_lon,
         status=initial_status,
         co_applicant_name=(req.co_applicant_name or "").strip() or None,
         co_applicant_phone=(req.co_applicant_phone or "").strip() or None,
+        co_applicant_address=(req.co_applicant_address or "").strip() or None,
         assigned_agent_id=req.assigned_agent_id,
         created_by_id=current_user.id,
     )
@@ -206,10 +242,30 @@ async def get_report_readiness(
         field_form = {}
 
     docs_result = await db.execute(select(CaseDocument).where(CaseDocument.case_id == loan_case.id))
-    has_form16 = any(
-        isinstance(d.ocr_data, dict) and (d.ocr_data.get("llm_doc_type") or d.ocr_data.get("doc_type")) == "FORM_16"
-        for d in docs_result.scalars().all()
-    )
+    all_docs = docs_result.scalars().all()
+
+    # Same resolution pdf_generator.py's _ocr_first()/_build_itr_rows() use: the real scanned
+    # document type lives in ocr_data (the DB doc_type column collapses odd documents like an
+    # employee ID card down to OTHER), and a doc belongs to the co-applicant only when Gemini
+    # explicitly tagged it DIFFERENT_PERSON during AI ingestion.
+    ITR_INCOME_DOC_TYPES = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME"}
+
+    def _real_doc_type(d):
+        od = d.ocr_data if isinstance(d.ocr_data, dict) else {}
+        return od.get("llm_doc_type") or od.get("doc_type") or (
+            d.doc_type.value if hasattr(d.doc_type, "value") else str(d.doc_type)
+        )
+
+    def _is_co_doc(d):
+        od = d.ocr_data if isinstance(d.ocr_data, dict) else {}
+        return od.get("relationship_to_applicant") == "DIFFERENT_PERSON"
+
+    has_aadhaar_doc = any(_real_doc_type(d) == "AADHAAR_CARD" and not _is_co_doc(d) for d in all_docs)
+    has_pan_doc = any(_real_doc_type(d) == "PAN_CARD" and not _is_co_doc(d) for d in all_docs)
+    has_income_doc = any(_real_doc_type(d) in ITR_INCOME_DOC_TYPES and not _is_co_doc(d) for d in all_docs)
+    has_aadhaar_doc_co = any(_real_doc_type(d) == "AADHAAR_CARD" and _is_co_doc(d) for d in all_docs)
+    has_pan_doc_co = any(_real_doc_type(d) == "PAN_CARD" and _is_co_doc(d) for d in all_docs)
+    has_income_doc_co = any(_real_doc_type(d) in ITR_INCOME_DOC_TYPES and _is_co_doc(d) for d in all_docs)
 
     missing = compute_report_readiness(
         applicant_name=loan_case.applicant_name,
@@ -218,7 +274,12 @@ async def get_report_readiness(
         loan_amount=loan_case.loan_amount,
         field_form=field_form,
         co_applicant_name=loan_case.co_applicant_name,
-        has_form16=has_form16,
+        has_income_doc=has_income_doc,
+        has_income_doc_co=has_income_doc_co,
+        has_aadhaar_doc=has_aadhaar_doc,
+        has_pan_doc=has_pan_doc,
+        has_aadhaar_doc_co=has_aadhaar_doc_co,
+        has_pan_doc_co=has_pan_doc_co,
     )
     return {"case_id": str(case_id), "missing_count": len(missing), "missing_fields": missing}
 
@@ -644,12 +705,17 @@ async def list_case_documents(
             if any(w in dtype_str for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"]):
                 doc_folder = "work"
 
+        include_in_report = None
+        if d.ocr_data and isinstance(d.ocr_data, dict) and "include_in_report" in d.ocr_data:
+            include_in_report = bool(d.ocr_data.get("include_in_report"))
+
         formatted.append({
             "id": str(d.id),
             "doc_type": doc_type_val,
             "slot_number": slot_num,
             "folder": doc_folder,
             "url": clean_url,
+            "include_in_report": include_in_report,
             "latitude": d.latitude,
             "longitude": d.longitude,
             "is_geofence_valid": d.is_geofence_valid,
@@ -785,7 +851,7 @@ async def _refresh_case_relationships(db: AsyncSession, loan_case: LoanCase) -> 
     result = await db.execute(select(CaseDocument).where(CaseDocument.case_id == loan_case.id))
     docs = [d for d in result.scalars().all() if isinstance(d.ocr_data, dict) and d.ocr_data.get("source") == "pdf_ingest"]
     pages = [dict(d.ocr_data) for d in docs]
-    reference = assign_relationships(pages, loan_case.applicant_name)
+    reference = assign_relationships(pages, loan_case.applicant_name, loan_case.co_applicant_name)
     for d, page in zip(docs, pages):
         d.ocr_data = page
         if page.get("scan_status") == "FAILED":
@@ -833,6 +899,17 @@ async def _persist_ai_ingested_documents(
             ocr_data=ocr_payload,
         )
         db.add(case_doc)
+        item["_case_doc"] = case_doc
+
+    # Hand the real DB row id back to the caller (ingest-pdf/ingest-images response) so the
+    # dashboard can tell exactly which pages this call just added, apart from everything else
+    # already on record for the case - without it, every ingest response looks identical to the
+    # CA regardless of whether 1 new page or the whole case's history came back.
+    await db.flush()
+    for item in results:
+        case_doc = item.pop("_case_doc", None)
+        if case_doc is not None:
+            item["id"] = str(case_doc.id)
 
     # Fill in the loan branch / sanctioned amount from a scanned application form or sanction
     # letter, but only when the CA hasn't already entered a real value - a scan must never
@@ -858,6 +935,7 @@ async def ingest_and_separate_case_pdf(
     applicant_name: Optional[str] = Form(None),
     target_address: Optional[str] = Form(None),
     replace_existing: bool = Form(True),
+    password: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_ca_user),
 ) -> Dict[str, Any]:
@@ -910,6 +988,20 @@ async def ingest_and_separate_case_pdf(
             case_id=real_case_id,
             applicant_name=applicant_name or loan_case.applicant_name,
             target_address=target_address or loan_case.target_address,
+            password=password,
+        )
+    except PdfPasswordRequired:
+        # A distinct, structured status (not a generic 500) so the dashboard can prompt for
+        # this ONE file's password and retry it, instead of treating it as a failed scan -
+        # every other file in the same folder/batch keeps processing regardless.
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "PASSWORD_REQUIRED", "filename": os.path.basename(saved_pdf_path)},
+        )
+    except PdfWrongPassword:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "WRONG_PASSWORD", "filename": os.path.basename(saved_pdf_path)},
         )
     except Exception as e:
         raise HTTPException(
@@ -944,7 +1036,7 @@ async def ingest_and_separate_case_pdf(
         "pages_failed": [r.get("page_number") for r in results if r.get("scan_status") == "FAILED"],
         "scanned_pdf": os.path.basename(saved_pdf_path),
         "documents": results,
-        "case_summary": reconcile_case_documents(all_pages, loan_case.applicant_name),
+        "case_summary": reconcile_case_documents(all_pages, loan_case.applicant_name, loan_case.co_applicant_name),
     }
 
 
@@ -974,25 +1066,38 @@ async def ingest_and_classify_case_images(
     results: List[Dict[str, Any]] = []
     failures: List[str] = []
 
-    for f in files:
+    # Each image's Gemini classification used to run one at a time, fully sequentially - a
+    # folder with a dozen standalone KYC photos (as opposed to one combined PDF) took as long as
+    # twelve back-to-back AI calls. Classify them concurrently instead, capped at the same
+    # PAGE_SCAN_WORKERS limit the PDF-bursting pipeline already uses for consistency.
+    semaphore = asyncio.Semaphore(PAGE_SCAN_WORKERS)
+
+    async def _classify_one(f: UploadFile):
         if not f.filename:
-            continue
+            return None, None
         clean_filename = os.path.basename(f.filename.replace("\\", "/"))
         tmp_path = os.path.join(upload_dir, clean_filename)
         os.makedirs(os.path.dirname(tmp_path), exist_ok=True)
         with open(tmp_path, "wb") as buffer:
             shutil.copyfileobj(f.file, buffer)
-        try:
-            item = await run_in_threadpool(
-                classify_and_store_single_image,
-                image_path=tmp_path,
-                case_id=real_case_id,
-                applicant_name=applicant_name or loan_case.applicant_name,
-                target_address=target_address or loan_case.target_address,
-            )
+        async with semaphore:
+            try:
+                item = await run_in_threadpool(
+                    classify_and_store_single_image,
+                    image_path=tmp_path,
+                    case_id=real_case_id,
+                    applicant_name=applicant_name or loan_case.applicant_name,
+                    target_address=target_address or loan_case.target_address,
+                )
+                return item, None
+            except Exception as e:
+                return None, f"{f.filename}: {str(e)}"
+
+    for item, err in await asyncio.gather(*[_classify_one(f) for f in files]):
+        if item is not None:
             results.append(item)
-        except Exception as e:
-            failures.append(f"{f.filename}: {str(e)}")
+        if err is not None:
+            failures.append(err)
 
     if not results:
         raise HTTPException(
@@ -1039,7 +1144,7 @@ async def get_separated_case_documents(
     return {
         "case_id": str(loan_case.id),
         "documents": docs,
-        "case_summary": reconcile_case_documents(docs, loan_case.applicant_name) if docs else None,
+        "case_summary": reconcile_case_documents(docs, loan_case.applicant_name, loan_case.co_applicant_name) if docs else None,
     }
 
 

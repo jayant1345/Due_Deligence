@@ -1039,9 +1039,15 @@
                 </div>
               </div>
             </div>
-            <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between font-mono text-[10px]">
-              <span id="titlePhoto1" class="font-bold text-on-surface truncate">Main Gate (સિદ્ધિ વિનાયક)</span>
-              <span id="statusPhoto1" class="text-secondary font-bold">MATCH</span>
+            <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between gap-1 font-mono text-[10px]">
+              <span id="titlePhoto1" class="font-bold text-on-surface truncate min-w-0">Main Gate (સિદ્ધિ વિનાયક)</span>
+              <span class="flex items-center gap-1 shrink-0">
+                <span id="statusPhoto1" class="text-secondary font-bold">MATCH</span>
+                <label class="flex items-center gap-0.5 cursor-pointer" title="Include this photo in the generated report (max 4 per section)">
+                  <input type="checkbox" id="reportTogglePhoto1" checked onchange="toggleMandatorySlotReportInclusion(1, this)" class="w-3 h-3"/>
+                  <span class="text-[8px] text-on-surface-variant">Report</span>
+                </label>
+              </span>
             </div>
           </div>
 
@@ -1065,9 +1071,15 @@
                 </div>
               </div>
             </div>
-            <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between font-mono text-[10px]">
-              <span id="titlePhoto2" class="font-bold text-on-surface truncate">Bungalow 31 (લક્ષ્મી કૃપા)</span>
-              <span id="statusPhoto2" class="text-secondary font-bold">CONFIRMED</span>
+            <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between gap-1 font-mono text-[10px]">
+              <span id="titlePhoto2" class="font-bold text-on-surface truncate min-w-0">Bungalow 31 (લક્ષ્મી કૃપા)</span>
+              <span class="flex items-center gap-1 shrink-0">
+                <span id="statusPhoto2" class="text-secondary font-bold">CONFIRMED</span>
+                <label class="flex items-center gap-0.5 cursor-pointer" title="Include this photo in the generated report (max 4 per section)">
+                  <input type="checkbox" id="reportTogglePhoto2" checked onchange="toggleMandatorySlotReportInclusion(2, this)" class="w-3 h-3"/>
+                  <span class="text-[8px] text-on-surface-variant">Report</span>
+                </label>
+              </span>
             </div>
           </div>
 
@@ -1091,9 +1103,15 @@
                 </div>
               </div>
             </div>
-            <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between font-mono text-[10px]">
-              <span id="titlePhoto3" class="font-bold text-on-surface truncate">Drawing Room & Showcase</span>
-              <span id="statusPhoto3" class="text-secondary font-bold">VERIFIED</span>
+            <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between gap-1 font-mono text-[10px]">
+              <span id="titlePhoto3" class="font-bold text-on-surface truncate min-w-0">Drawing Room & Showcase</span>
+              <span class="flex items-center gap-1 shrink-0">
+                <span id="statusPhoto3" class="text-secondary font-bold">VERIFIED</span>
+                <label class="flex items-center gap-0.5 cursor-pointer" title="Include this photo in the generated report (max 4 per section)">
+                  <input type="checkbox" id="reportTogglePhoto3" checked onchange="toggleMandatorySlotReportInclusion(3, this)" class="w-3 h-3"/>
+                  <span class="text-[8px] text-on-surface-variant">Report</span>
+                </label>
+              </span>
             </div>
           </div>
 
@@ -1117,11 +1135,27 @@
                 </div>
               </div>
             </div>
-            <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between font-mono text-[10px]">
-              <span id="titlePhoto4" class="font-bold text-on-surface truncate">Pradeepsinh Vaghela (Husband)</span>
-              <span id="statusPhoto4" class="text-secondary font-bold">MATCH</span>
+            <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between gap-1 font-mono text-[10px]">
+              <span id="titlePhoto4" class="font-bold text-on-surface truncate min-w-0">Pradeepsinh Vaghela (Husband)</span>
+              <span class="flex items-center gap-1 shrink-0">
+                <span id="statusPhoto4" class="text-secondary font-bold">MATCH</span>
+                <label class="flex items-center gap-0.5 cursor-pointer" title="Include this photo in the generated report (max 4 per section)">
+                  <input type="checkbox" id="reportTogglePhoto4" checked onchange="toggleMandatorySlotReportInclusion(4, this)" class="w-3 h-3"/>
+                  <span class="text-[8px] text-on-surface-variant">Report</span>
+                </label>
+              </span>
             </div>
           </div>
+        </div>
+
+        <!-- Additional Photos uploaded from the PWA beyond the 4 mandatory slots - not shown in
+             the report unless the CA explicitly checks them (max 4 total per section). -->
+        <div id="extraPhotosSection" class="hidden bg-surface-container-low rounded-lg p-2.5 border border-dashed border-outline-variant space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-mono text-[10px] font-bold text-on-surface-variant uppercase">Additional Photos (Field-Captured, Beyond the 4 Mandatory)</span>
+            <span id="reportSelectionCounter" class="font-mono text-[10px] font-bold px-2 py-0.5 rounded border bg-blue-50 text-blue-800 border-blue-200">4/4 IN REPORT</span>
+          </div>
+          <div id="extraPhotosGrid" class="flex flex-wrap gap-2"></div>
         </div>
 
         <!-- SHA-256 Tamper Seal & Hash Ribbon -->
@@ -1136,8 +1170,11 @@
       </div>
     </div>
 
-    <!-- COLUMN 3: CA VERIFICATION, UDIN CERTIFICATION & BANK EXPORT (3 Cols / 29%) -->
-    <div class="lg:col-span-3 flex flex-col gap-4">
+    <!-- COLUMN 3: CA VERIFICATION, UDIN CERTIFICATION & BANK EXPORT (3 Cols / 29%) - sticky on
+         desktop so the Report Readiness / Generate Dossier actions stay reachable at the top of
+         the viewport while scrolling the longer columns 1/2, instead of scrolling away and
+         leaving the grid's stretched-height whitespace sitting empty below them. -->
+    <div class="lg:col-span-3 flex flex-col gap-4 lg:sticky lg:top-[150px] lg:self-start lg:max-h-[calc(100vh-170px)] lg:overflow-y-auto">
       <div class="bg-surface-container-lowest p-3.5 rounded-lg border border-outline-variant shadow-sm flex items-center justify-between">
         <div>
           <h2 class="font-headline font-bold text-sm text-on-surface flex items-center gap-1.5">
@@ -1288,6 +1325,14 @@
         <button id="btnCertify" onclick="generateCertifiedDossier()" class="w-full bg-primary-container hover:bg-primary text-white font-headline text-sm font-semibold py-3 px-4 rounded-lg shadow transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
           <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">verified</span>
           <span id="btnCertifyText">Generate Specimen Dossier (PDF & DOCX)</span>
+        </button>
+
+        <!-- Shown only once a case is CERTIFIED - an intentional, logged CA action to unlock an
+             already-certified case for a correction (edit details, add/replace a document, etc.)
+             without that happening silently as a side effect of an unrelated field-agent action. -->
+        <button id="btnReopenCase" onclick="reopenCertifiedCase()" class="hidden w-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-headline text-xs font-bold py-2.5 px-4 rounded-lg shadow-xs transition-all items-center justify-center gap-2 active:scale-[0.98]">
+          <span class="material-symbols-outlined text-[16px]">lock_open</span>
+          <span>Reopen Case for Edits</span>
         </button>
 
         <button onclick="flagDiscrepancy()" class="w-full bg-surface-container-lowest hover:bg-red-50 text-red-600 border border-outline-variant font-body text-xs font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
@@ -1730,6 +1775,10 @@
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Phone</label>
               <input id="tabNcCoApplicantPhone" type="text" placeholder="e.g. +91 98250 54321" class="w-full text-xs font-mono bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
             </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Home Address</label>
+              <textarea id="tabNcCoApplicantAddress" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="Leave blank if co-applicant lives at the same address above"></textarea>
+            </div>
           </div>
 
           <div class="grid grid-cols-2 gap-2">
@@ -1740,11 +1789,20 @@
             <div>
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Loan Facility*</label>
               <select id="tabNcLoanType" class="w-full text-xs font-semibold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
-                <option value="Home Loan (HL)" selected>Home Loan (HL)</option>
-                <option value="Loan Against Property (LAP)">Loan Against Property (LAP)</option>
-                <option value="Commercial Mortgage (CM)">Commercial Mortgage (CM)</option>
-                <option value="Business / MSME Loan">Business / MSME Loan</option>
-                <option value="Personal Loan (PL)">Personal Loan (PL)</option>
+                <option value="Vehicle Loan">Vehicle Loan</option>
+                <option value="Home Loan" selected>Home Loan</option>
+                <option value="Education Loan">Education Loan</option>
+                <option value="Personal Loan">Personal Loan</option>
+                <option value="Business Takeover">Business Takeover</option>
+                <option value="Quotation Verification">Quotation Verification</option>
+                <option value="Pension Loan">Pension Loan</option>
+                <option value="BT TOP UP">BT TOP UP</option>
+                <option value="Machinery Loan">Machinery Loan</option>
+                <option value="Builder Tie Up">Builder Tie Up</option>
+                <option value="MSME Loan">MSME Loan</option>
+                <option value="Cash Credit Loan">Cash Credit Loan</option>
+                <option value="Mudra Loan">Mudra Loan</option>
+                <option value="Others">Others</option>
               </select>
             </div>
           </div>
@@ -1767,7 +1825,14 @@
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">
               Property / Inspection Address (સ્થળનું સરનામું)
             </label>
-            <textarea id="tabNcAddress" rows="2" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="e.g. Flat 402, Gota, Ahmedabad"></textarea>
+            <textarea id="tabNcAddress" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="e.g. Flat 402, Gota, Ahmedabad"></textarea>
+          </div>
+
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">
+              Office / Workplace Address (ઓફિસ સરનામું)
+            </label>
+            <textarea id="tabNcOfficeAddress" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="e.g. Shop 12, GIDC Estate, Gota, Ahmedabad (if applicable)"></textarea>
           </div>
         </div>
       </div>
@@ -2507,6 +2572,11 @@
         : currentPhotoFolder === "co_work"
           ? (c.co_work_photos || [])
           : (c.work_photos || c.photos);
+      const extraList = currentPhotoFolder === "residence"
+        ? (c.residence_photos_extra || [])
+        : currentPhotoFolder === "co_work"
+          ? (c.co_work_photos_extra || [])
+          : (c.work_photos_extra || []);
 
       for (let i = 1; i <= 4; i++) {
         const p = photoList[i - 1];
@@ -2518,6 +2588,7 @@
         const ts = document.getElementById(`tsPhoto${i}`);
         const badge = document.getElementById(`badgePhoto${i}`);
         const status = document.getElementById(`statusPhoto${i}`);
+        const reportToggle = document.getElementById(`reportTogglePhoto${i}`);
 
         if (img) {
           img.onerror = function() {
@@ -2531,7 +2602,110 @@
         if (ts && p.timestamp) ts.textContent = p.timestamp;
         if (badge && p.badge) badge.textContent = p.badge;
         if (status && p.status) status.textContent = p.status;
+        if (reportToggle) {
+          // No real doc id (an un-replaced placeholder specimen) - nothing to toggle yet.
+          reportToggle.disabled = !p.id;
+          reportToggle.checked = p.id ? p.include_in_report !== false : true;
+          reportToggle.dataset.docId = p.id || "";
+        }
       }
+
+      renderExtraPhotosGallery(extraList);
+    }
+
+    // Additional Photos strip: unbounded extras uploaded from the PWA beyond the 4 mandatory
+    // slots. Excluded from the report by default (include_in_report starts false) - the CA
+    // opts one in here, which counts toward the same max-4-per-section report cap as the
+    // mandatory slot checkboxes above.
+    function renderExtraPhotosGallery(extraList) {
+      const section = document.getElementById("extraPhotosSection");
+      const grid = document.getElementById("extraPhotosGrid");
+      if (!section || !grid) return;
+
+      if (!extraList || extraList.length === 0) {
+        section.classList.add("hidden");
+        grid.innerHTML = "";
+        updateReportSelectionCounter();
+        return;
+      }
+
+      section.classList.remove("hidden");
+      grid.innerHTML = extraList.map(p => `
+        <div class="relative w-20 rounded-lg overflow-hidden border border-outline-variant bg-surface-container-lowest shrink-0">
+          <img src="${p.src}" loading="lazy" decoding="async" class="w-full h-16 object-cover cursor-pointer" onerror="this.onerror=null;this.src='/static/placeholders/photo_pending.svg'" onclick="window.open('${p.src}', '_blank')"/>
+          <label class="flex items-center justify-center gap-1 p-1 bg-surface-container-lowest text-[9px] font-mono cursor-pointer border-t border-outline-variant">
+            <input type="checkbox" class="extra-report-toggle w-3 h-3" data-doc-id="${p.id}" ${p.include_in_report ? "checked" : ""} onchange="toggleExtraReportInclusion('${p.id}', this)"/>
+            <span>Report</span>
+          </label>
+        </div>
+      `).join("");
+
+      updateReportSelectionCounter();
+    }
+
+    // Counts every checked "Report" box currently on screen for the active folder (4 mandatory
+    // + any extras) and reflects it as "X/4 IN REPORT" - also used to enforce the max-4 cap.
+    function countCheckedReportBoxes() {
+      let n = 0;
+      for (let i = 1; i <= 4; i++) {
+        const box = document.getElementById(`reportTogglePhoto${i}`);
+        if (box && !box.disabled && box.checked) n++;
+      }
+      document.querySelectorAll("#extraPhotosGrid .extra-report-toggle").forEach(box => {
+        if (box.checked) n++;
+      });
+      return n;
+    }
+
+    function updateReportSelectionCounter() {
+      const el = document.getElementById("reportSelectionCounter");
+      if (!el) return;
+      const n = countCheckedReportBoxes();
+      el.textContent = `${n}/4 IN REPORT`;
+      el.className = `font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${
+        n > 4 ? "bg-red-50 text-red-800 border-red-300" : "bg-blue-50 text-blue-800 border-blue-200"
+      }`;
+    }
+
+    async function postReportInclusion(docId, include, revertFn) {
+      if (!docId) return;
+      try {
+        const token = localStorage.getItem("ca_token");
+        const headers = {};
+        if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
+        const res = await fetch(`/api/v1/scrutiny/documents/${docId}/report-inclusion?include=${include}`, {
+          method: "POST",
+          headers,
+        });
+        if (!res.ok) throw new Error("Request failed");
+      } catch (err) {
+        console.warn("Report-inclusion toggle notice:", err);
+        alert("Could not save this selection - please check your connection and try again.");
+        if (revertFn) revertFn();
+      }
+      updateReportSelectionCounter();
+    }
+
+    function toggleMandatorySlotReportInclusion(slotIndex, checkboxEl) {
+      const docId = checkboxEl.dataset.docId;
+      if (!docId) { checkboxEl.checked = true; return; }
+      if (checkboxEl.checked && countCheckedReportBoxes() > 4) {
+        checkboxEl.checked = false;
+        alert("Only 4 photos can be selected for the report in this section. Please deselect one first.");
+        return;
+      }
+      const revert = () => { checkboxEl.checked = !checkboxEl.checked; updateReportSelectionCounter(); };
+      postReportInclusion(docId, checkboxEl.checked, revert);
+    }
+
+    function toggleExtraReportInclusion(docId, checkboxEl) {
+      if (checkboxEl.checked && countCheckedReportBoxes() > 4) {
+        checkboxEl.checked = false;
+        alert("Only 4 photos can be selected for the report in this section. Please deselect one first.");
+        return;
+      }
+      const revert = () => { checkboxEl.checked = !checkboxEl.checked; updateReportSelectionCounter(); };
+      postReportInclusion(docId, checkboxEl.checked, revert);
     }
 
     // Auto-polling & Live Document Retrieval from Server
@@ -3126,8 +3300,34 @@
           return tB - tA;
         });
 
+        // A doc explicitly tagged slot_number > 4 is a genuine "Additional Photo" from the PWA's
+        // unbounded extra-capture facility - it must never be absorbed into one of the 4
+        // mandatory slots just because that slot happens to still be empty.
+        const isExplicitExtra = (d) => {
+          const sn = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
+          return Boolean(sn && sn > 4);
+        };
+
+        // Genuine "Additional Photos" only - a doc explicitly tagged slot_number > 4 from the
+        // PWA's unbounded extra-capture facility. Deliberately NOT "any doc that didn't win one
+        // of the 4 mandatory slots": a slot gets retaken more than once in the field, and every
+        // older retake (same slot_number 1-4, just superseded by a newer upload) would otherwise
+        // get swept in here as if it were a separate "additional photo" - it isn't, it's a
+        // discarded duplicate and was never shown anywhere before this feature existed.
+        const buildExtrasList = (allDocs) => {
+          return allDocs
+            .filter(d => isExplicitExtra(d))
+            .map(d => ({
+              id: d.id,
+              src: d.url,
+              created_at: d.created_at || "Just now",
+              include_in_report: d.include_in_report === true || Boolean(d.ocr_data && d.ocr_data.include_in_report === true),
+            }));
+        };
+
         // Assign to slots by slot_number or doc_type
         evidenceDocs.forEach((d, idx) => {
+          if (isExplicitExtra(d)) return;
           const slot = getDocSlot(d, idx + 1);
           if (slot >= 1 && slot <= 4 && !slotMap[slot]) {
             slotMap[slot] = d;
@@ -3136,6 +3336,7 @@
 
         // Any unassigned evidence docs fill remaining empty slots
         evidenceDocs.forEach(d => {
+          if (isExplicitExtra(d)) return;
           const isAssigned = Object.values(slotMap).some(assigned => assigned && assigned.id === d.id);
           if (!isAssigned) {
             for (let s = 1; s <= 4; s++) {
@@ -3198,6 +3399,7 @@
           const d = slotMap[s];
           if (d) {
             finalPhotos.push({
+              id: d.id,
               src: d.url,
               title: titles[s],
               tag: tags[s],
@@ -3205,6 +3407,7 @@
               badge: d.is_geofence_valid ? `GPS: ${d.latitude ? d.latitude.toFixed(4) : '23.2154'}°N, ${d.longitude ? d.longitude.toFixed(4) : '72.6367'}°E (VERIFIED)` : `GPS: ${d.latitude ? d.latitude.toFixed(4) : ''}° (BREACH)`,
               status: d.is_geofence_valid ? "MATCH" : "FLAGGED",
               is_live: true,
+              include_in_report: d.include_in_report !== false,
               lat: d.latitude,
               lon: d.longitude
             });
@@ -3241,12 +3444,14 @@
         };
 
         workDocs.forEach((d, idx) => {
+          if (isExplicitExtra(d)) return;
           const slot = getWorkDocSlot(d, idx + 1);
           if (slot >= 1 && slot <= 4 && !workSlotMap[slot]) workSlotMap[slot] = d;
         });
 
         // Any unassigned workplace docs fill remaining empty slots
         workDocs.forEach(d => {
+          if (isExplicitExtra(d)) return;
           const isAssigned = Object.values(workSlotMap).some(assigned => assigned && assigned.id === d.id);
           if (!isAssigned) {
             for (let s = 1; s <= 4; s++) {
@@ -3305,6 +3510,7 @@
           const d = workSlotMap[s];
           if (d) {
             finalWorkPhotos.push({
+              id: d.id,
               src: d.url,
               title: workTitles[s],
               tag: workTags[s],
@@ -3312,6 +3518,7 @@
               badge: d.is_geofence_valid ? `GPS: ${d.latitude ? d.latitude.toFixed(4) : '23.2154'}°N, ${d.longitude ? d.longitude.toFixed(4) : '72.6367'}°E (VERIFIED)` : `GPS: ${d.latitude ? d.latitude.toFixed(4) : ''}° (BREACH)`,
               status: d.is_geofence_valid ? "MATCH" : "FLAGGED",
               is_live: true,
+              include_in_report: d.include_in_report !== false,
               lat: d.latitude,
               lon: d.longitude
             });
@@ -3337,10 +3544,12 @@
 
         const coWorkSlotMap = { 1: null, 2: null, 3: null, 4: null };
         coWorkDocs.forEach((d, idx) => {
+          if (isExplicitExtra(d)) return;
           const slot = getWorkDocSlot(d, idx + 1);
           if (slot >= 1 && slot <= 4 && !coWorkSlotMap[slot]) coWorkSlotMap[slot] = d;
         });
         coWorkDocs.forEach(d => {
+          if (isExplicitExtra(d)) return;
           const isAssigned = Object.values(coWorkSlotMap).some(assigned => assigned && assigned.id === d.id);
           if (!isAssigned) {
             for (let s = 1; s <= 4; s++) {
@@ -3392,6 +3601,7 @@
           const d = coWorkSlotMap[s];
           if (d) {
             finalCoWorkPhotos.push({
+              id: d.id,
               src: d.url,
               title: coWorkTitles[s],
               tag: coWorkTags[s],
@@ -3399,6 +3609,7 @@
               badge: d.is_geofence_valid ? `GPS: ${d.latitude ? d.latitude.toFixed(4) : '23.2154'}°N, ${d.longitude ? d.longitude.toFixed(4) : '72.6367'}°E (VERIFIED)` : `GPS: ${d.latitude ? d.latitude.toFixed(4) : ''}° (BREACH)`,
               status: d.is_geofence_valid ? "MATCH" : "FLAGGED",
               is_live: true,
+              include_in_report: d.include_in_report !== false,
               lat: d.latitude,
               lon: d.longitude
             });
@@ -3410,6 +3621,9 @@
         c.residence_photos = finalPhotos;
         c.work_photos = finalWorkPhotos;
         c.co_work_photos = finalCoWorkPhotos;
+        c.residence_photos_extra = buildExtrasList(evidenceDocs);
+        c.work_photos_extra = buildExtrasList(workDocs);
+        c.co_work_photos_extra = buildExtrasList(coWorkDocs);
         c.photos = (currentPhotoFolder === 'residence' ? finalPhotos : currentPhotoFolder === 'co_work' ? finalCoWorkPhotos : finalWorkPhotos).map(p => p.src);
 
         updateCoWorkFolderTabVisibility(c);
@@ -3555,6 +3769,28 @@
       }
     }
 
+    // The UDIN box was purely ephemeral client state - typed in, used once to generate the
+    // dossier, then forgotten the moment the CA switched to another case or refreshed the page,
+    // even though the UDIN was saved server-side on the CertifiedReport row at generation time.
+    // Revisiting an already-certified case always showed the box blank/unfilled, looking as if
+    // the case had reverted to "UDIN required" when it was genuinely done. Restore it from the
+    // most recent certified report on file for this case (GET /reports/case/{id}); clear it to
+    // blank for a case with no prior report so a previous case's UDIN never leaks into this one.
+    async function restoreUdinForCase(caseId, c) {
+      const serverId = gfServerId(c) || caseId;
+      if (!serverId) { handleUdinManualInput(""); return; }
+      try {
+        const res = await fetch(`/api/v1/reports/case/${encodeURIComponent(serverId)}`, { headers: authHeaders() });
+        if (activeCaseId !== caseId) return; // CA already switched to a different case
+        if (!res.ok) { handleUdinManualInput(""); return; }
+        const reports = await res.json();
+        const latestWithUdin = Array.isArray(reports) ? reports.find(r => r.udin) : null;
+        handleUdinManualInput(latestWithUdin ? latestWithUdin.udin : "");
+      } catch (err) {
+        if (activeCaseId === caseId) handleUdinManualInput("");
+      }
+    }
+
     async function pasteUdinFromClipboard() {
       try {
         const text = await navigator.clipboard.readText();
@@ -3584,15 +3820,23 @@
       const c = caseRegistry[caseId];
       if (!c) return;
 
+      // A genuine switch to a different case (not just re-rendering the same case after an
+      // ingest) must drop any "NEW" badges from the previous case - they'd otherwise mislabel
+      // that other case's long-standing documents as just-added.
+      if (activeCaseId && activeCaseId !== caseId) lastIngestedDocIds = new Set();
+
       activeCaseId = caseId;
 
       // 1. Update Sub-header Dossier Ribbon
       document.getElementById("dispCaseRef").textContent = c.case_no;
       document.getElementById("dispCaseStatus").textContent = c.status;
+      const reopenBtn = document.getElementById("btnReopenCase");
+      if (reopenBtn) reopenBtn.classList.toggle("hidden", c.status !== "CERTIFIED");
       document.getElementById("dispApplicantName").textContent = c.applicant_name;
       document.getElementById("dispApplicantPan").textContent = "PAN: " + val(c.pan);
       document.getElementById("dispBankBranchBadge").textContent = `${c.bank} (${c.branch})`;
       document.getElementById("dispPropertyAddress").textContent = c.address;
+      document.getElementById("dispPropertyAddress").title = c.office_address ? `Residence: ${c.address}\nOffice: ${c.office_address}` : c.address;
       document.getElementById("dispFieldAgent").textContent = c.agent;
       const visitedForBadge = c.distance_m !== null && c.distance_m !== undefined;
       document.getElementById("dispCoordinatesBadge").textContent = visitedForBadge
@@ -3603,6 +3847,7 @@
       document.querySelectorAll(".audit-check").forEach(cb => { cb.checked = false; });
       updateAuditCheckCount();
       document.getElementById("dispVisitDate").textContent = "Visited: " + c.visit_date;
+      restoreUdinForCase(caseId, c);
 
       // 2. Update Aadhaar Scrutiny Card & Flipped Document
       const aadhaarFrontUrl = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
@@ -3802,6 +4047,17 @@
     // ==========================================
     let activeSeparatedDocs = [];
     let selectedSeparatedDocIds = new Set();
+    // Document ids returned by the MOST RECENT ingest call (Select Single PDF / Select Folder /
+    // Select Multiple Files). The AI Cross-Check tray always shows the case's FULL accumulated
+    // document history (by design - re-scanning a case must never wipe earlier scans), so without
+    // this a CA testing/adding one more document on an already-scanned case sees a wall of old
+    // thumbnails and (reasonably) concludes the new file was never actually processed. Thumbnails
+    // whose id is in this set get a "NEW" badge so the just-added page is obvious at a glance.
+    let lastIngestedDocIds = new Set();
+    // PDFs hit during the current batch that turned out to be password-protected - queued
+    // rather than failed outright, so the rest of the batch keeps scanning uninterrupted and
+    // the CA is asked for each one's password separately once everything else is done.
+    let pendingPasswordPdfs = [];
 
     function updateAuditCheckCount() {
       const boxes = [...document.querySelectorAll(".audit-check")];
@@ -3839,6 +4095,8 @@
 
     async function handlePortalPdfSelected(file) {
       if (!file) return;
+      lastIngestedDocIds = new Set();
+      pendingPasswordPdfs = [];
       // "Select Single PDF" defaults to wiping any previously AI-ingested pages for this case
       // (uploadAndProcessPdfFile's own default is replaceExisting=true) — correct the FIRST time
       // a case is scanned, but silently destructive if a CA later adds one more document to a
@@ -3846,6 +4104,7 @@
       // Aadhaar, Form 16 etc. would vanish, kept only in the audit log. Only wipe when there is
       // nothing yet to lose; otherwise this one PDF is additive, same as a later file in a batch.
       await uploadAndProcessPdfFile(file, activeSeparatedDocs.length === 0);
+      await resolvePendingPasswordPdfs();
     }
 
     async function handlePortalFolderSelected(files) {
@@ -3875,6 +4134,8 @@
     }
 
     async function handleBatchPortalFilesIngest(fileList) {
+      lastIngestedDocIds = new Set();
+      pendingPasswordPdfs = [];
       const pdfs = fileList.filter(f => f.name.toLowerCase().endsWith(".pdf"));
       const images = fileList.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name));
 
@@ -3907,13 +4168,39 @@
       if (images.length > 0) {
         await ingestLooseImagesForCase(images);
       }
+
+      await resolvePendingPasswordPdfs();
+    }
+
+    // Asked separately, one at a time, ONLY after every other file in the batch has already
+    // been scanned — a password prompt mid-batch would block/confuse processing of the files
+    // that don't need one. A blank/cancelled prompt just skips that one file; it stays
+    // scannable later via the per-case "Add Documents (AI Scan)" button.
+    async function resolvePendingPasswordPdfs() {
+      const queue = pendingPasswordPdfs.slice();
+      pendingPasswordPdfs = [];
+      for (const entry of queue) {
+        const promptMsg = entry.wrongAttempt
+          ? `The password entered for "${entry.file.name}" was incorrect. Enter the correct password (or Cancel to skip this file):`
+          : `"${entry.file.name}" is password-protected. Enter its password to scan it (or Cancel to skip):`;
+        const pwd = prompt(promptMsg);
+        if (!pwd) {
+          console.warn(`Skipped password-protected PDF (no password entered): ${entry.file.name}`);
+          continue;
+        }
+        await uploadAndProcessPdfFile(entry.file, false, entry.fileIndex, entry.totalFiles, pwd);
+      }
+      // A wrong password re-queues the same file (wrongAttempt=true) via uploadAndProcessPdfFile's
+      // error handling - resolve those too, so entering the wrong password once doesn't strand
+      // the file unasked until some later, unrelated batch happens to call this again.
+      if (pendingPasswordPdfs.length > 0) await resolvePendingPasswordPdfs();
     }
 
     function runPargiPdfSeparationDemo() {
       document.getElementById("portalMultiPagePdfInput").click();
     }
 
-    async function uploadAndProcessPdfFile(file, replaceExisting = true, fileIndex = 1, totalFiles = 1) {
+    async function uploadAndProcessPdfFile(file, replaceExisting = true, fileIndex = 1, totalFiles = 1, password = null) {
       const statusBox = document.getElementById("pdfBurstStatusBox");
       const statusText = document.getElementById("pdfBurstStatusText");
       const statusPercent = document.getElementById("pdfBurstStatusPercent");
@@ -3930,6 +4217,7 @@
         formData.append("file", file, file.name);
       }
       formData.append("replace_existing", replaceExisting ? "true" : "false");
+      if (password) formData.append("password", password);
       const c = caseRegistry[activeCaseId] || {};
       // Leave blank if unknown — the backend falls back to the real case's own
       // applicant_name/target_address from the database rather than a demo default.
@@ -3961,6 +4249,7 @@
           if (progressBar) progressBar.style.width = "100%";
           if (statusText) statusText.textContent = `${filePrefix}✓ ${data.total_pages_separated} page(s) classified by Gemini LLM!`;
 
+          (data.documents || []).forEach(d => { if (d.id) lastIngestedDocIds.add(d.id); });
           mergeExtractedDocsIntoCase(activeCaseId, data.documents, data.case_summary);
           // Re-render and reload the full scanned set (all files so far) with the cross-check summary
           onCaseSelected(activeCaseId);
@@ -3979,6 +4268,14 @@
           }
         } else {
           const err = await res.json().catch(() => ({}));
+          const code = err.detail && typeof err.detail === "object" ? err.detail.code : null;
+          if (code === "PASSWORD_REQUIRED" || code === "WRONG_PASSWORD") {
+            // Don't fail the file (or block the rest of the batch) outright — queue it and
+            // ask for the password once every other document in this batch has finished.
+            pendingPasswordPdfs.push({ file, fileIndex, totalFiles, wrongAttempt: code === "WRONG_PASSWORD" });
+            if (statusText) statusText.textContent = `${filePrefix}🔒 "${file.name}" is password-protected — will ask separately after the rest of the batch.`;
+            return;
+          }
           console.warn(`PDF notice ("${file ? file.name : 'file'}"):`, err);
           if (totalFiles <= 1) {
             alert(`PDF Processing notice ("${file ? file.name : 'file'}"): ${err.detail || 'Could not process PDF'}`);
@@ -4027,7 +4324,16 @@
       if (!tray || !list) return;
       tray.classList.remove("hidden");
       const failed = activeSeparatedDocs.filter(d => d.scan_status === "FAILED").length;
-      if (countEl) countEl.textContent = `${activeSeparatedDocs.length} Pages Scanned by Gemini AI` + (failed ? ` • ${failed} NOT SCANNED` : "");
+      const newCount = lastIngestedDocIds.size;
+      // This tray always shows the case's FULL accumulated scan history, never just the
+      // latest upload - the count line must say so plainly (and call out how many are from
+      // THIS scan) or a CA re-scanning an already-tested case reasonably assumes a fresh
+      // upload "didn't work" because old pages are still sitting there mixed in with it.
+      if (countEl) {
+        countEl.textContent = (newCount && newCount < activeSeparatedDocs.length
+          ? `${activeSeparatedDocs.length} Pages on File — ${newCount} Added Just Now`
+          : `${activeSeparatedDocs.length} Pages Scanned by Gemini AI`) + (failed ? ` • ${failed} NOT SCANNED` : "");
+      }
 
       renderCaseCrossCheck(tray, list, summary);
 
@@ -4062,14 +4368,45 @@
           docSrc = docSrc.replace("/static/extracted_pages/", "/storage/separated_docs/");
         }
 
+        const isJustAdded = d.id && lastIngestedDocIds.has(d.id);
         const col = document.createElement("div");
-        col.className = "group relative rounded-lg bg-black/60 border border-white/20 p-1 flex flex-col items-center hover:border-amber-400 cursor-pointer transition-all";
+        col.className = "group relative rounded-lg bg-black/60 border p-1 flex flex-col items-center hover:border-amber-400 cursor-pointer transition-all"
+          + (isJustAdded ? " border-emerald-400 ring-2 ring-emerald-400/60" : " border-white/20");
         col.title = `${d.document_title || ""}${d.holder_name ? "\nHolder: " + d.holder_name : ""}${(d.discrepancies || []).length ? "\n⚠ " + d.discrepancies.join("\n⚠ ") : ""}`;
         col.onclick = () => openSeparatedDocViewer(idx);
+
+        if (isJustAdded) {
+          const newBadge = document.createElement("span");
+          newBadge.className = "absolute -top-1.5 -right-1.5 z-10 bg-emerald-500 text-white text-[8px] font-headline font-bold px-1.5 py-0.5 rounded-full shadow";
+          newBadge.textContent = "NEW";
+          col.appendChild(newBadge);
+        }
+
+        // image_blurred means the Aadhaar-masking safety pass couldn't confidently locate the
+        // printed number on this page (usually a low-quality handheld/WhatsApp photo) and
+        // blurred the WHOLE page rather than risk showing it unmasked. A hover tooltip alone
+        // is too easy to miss when the thumbnail just looks like a bad photo - call it out
+        // directly so the CA/agent knows to re-upload a clearer shot, not just rescan as-is.
+        if (d.image_blurred) {
+          const blurBadge = document.createElement("span");
+          blurBadge.className = "absolute -top-1.5 -left-1.5 z-10 bg-red-600 text-white text-[8px] font-headline font-bold px-1.5 py-0.5 rounded-full shadow";
+          blurBadge.textContent = "BLURRED — RETAKE";
+          col.appendChild(blurBadge);
+        }
 
         const frame = document.createElement("div");
         frame.className = "relative w-full h-16 rounded overflow-hidden bg-slate-900 mb-1 flex items-center justify-center";
         const img = document.createElement("img");
+        // A folder scan routinely brings in 20-40+ pages, and each thumbnail here is really the
+        // full-resolution scanned/watermarked image (there is no separate small thumbnail file
+        // for AI-ingested pages) just CSS-shrunk to 64px tall - the browser was still downloading
+        // and decoding every single one immediately on render, all at once, which is exactly what
+        // made the dashboard visibly lag open on a case with 40+ images. loading="lazy" defers
+        // off-screen thumbnails until the CA actually scrolls to them; decoding="async" keeps
+        // image decode off the main thread so it doesn't block scrolling/clicking while it loads.
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.setAttribute("fetchpriority", "low");
         img.src = docSrc;
         img.alt = d.document_title || "";
         img.className = "w-full h-full object-cover group-hover:scale-105 transition-transform";
@@ -4612,6 +4949,11 @@
 
       flipCard.classList.remove("is-flipped");
       modal.classList.remove("hidden");
+      // This lightbox shares the same #zoomViewport modal as the AI document viewer, but unlike
+      // that viewer it never called the function that attaches drag-to-pan/scroll-to-zoom/
+      // double-click handlers - if a site-evidence photo is the first thing opened in a session
+      // (no AI document viewer opened yet), those gestures silently did nothing.
+      initZoomPanHandlers();
     }
 
     // Handle Per-Section Manual Document Upload & Realtime Display
@@ -4693,6 +5035,41 @@
       }
     }
 
+    // Explicit, CA-initiated unlock of an already-certified case so a correction (an Edit
+    // Details change, one more scanned document, a retake) can be made before re-certifying -
+    // deliberately NOT automatic, unlike the bug where a routine field-agent upload used to
+    // silently revert a certified case's status on its own. Moves the case to PENDING_CA_REVIEW
+    // (the same "needs CA attention" state check-out already uses); generating/re-generating the
+    // dossier afterward moves it back to CERTIFIED exactly as it would the first time.
+    async function reopenCertifiedCase() {
+      const c = caseRegistry[activeCaseId];
+      if (!c) { alert("No active case selected."); return; }
+      if (c.status !== "CERTIFIED") { alert("This case isn't certified, so there's nothing to reopen."); return; }
+      if (!confirm(`Reopen "${c.case_no}" for edits?\n\nThis case is currently CERTIFIED. Reopening moves it back to Pending CA Review so you can update case details or documents. It will return to CERTIFIED once you Generate/Re-Generate the dossier again.`)) return;
+
+      try {
+        const res = await fetch(`/api/v1/cases/${activeCaseId}`, {
+          method: "PATCH",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ status: "PENDING_CA_REVIEW" })
+        });
+        if (res.ok) {
+          c.status = "PENDING_CA_REVIEW";
+          const statusEl = document.getElementById("dispCaseStatus");
+          if (statusEl) statusEl.textContent = "PENDING_CA_REVIEW";
+          const reopenBtn = document.getElementById("btnReopenCase");
+          if (reopenBtn) reopenBtn.classList.add("hidden");
+          if (typeof renderManagementPortal === "function") renderManagementPortal();
+          alert(`"${c.case_no}" has been reopened for edits. Make your corrections, then Generate/Re-Generate the dossier to re-certify it.`);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`Could not reopen this case: ${err.detail || "Server error"}`);
+        }
+      } catch (err) {
+        alert(`Network error reopening case: ${err.message}`);
+      }
+    }
+
     async function generateCertifiedDossier() {
       const btn = document.getElementById("btnCertify");
       const btnText = document.getElementById("btnCertifyText");
@@ -4723,6 +5100,19 @@
 
         if (response.ok) {
           const report = await response.json();
+          // The backend sets the case to CERTIFIED as part of a successful generation, but
+          // nothing here was telling this browser tab's own cached caseRegistry entry (or the
+          // status pill/case list already rendered from it) about that - so a report that
+          // genuinely finished still looked stuck "in process" until the next full reload.
+          const certifiedCase = caseRegistry[activeCaseId];
+          if (certifiedCase) {
+            certifiedCase.status = "CERTIFIED";
+            const statusEl = document.getElementById("dispCaseStatus");
+            if (statusEl) statusEl.textContent = "CERTIFIED";
+            const reopenBtn = document.getElementById("btnReopenCase");
+            if (reopenBtn) reopenBtn.classList.remove("hidden");
+          }
+          if (typeof renderManagementPortal === "function") renderManagementPortal();
           showPdfSuccess(report.id, report.file_hash_sha256, report.udin, report.page_count);
         } else {
           const errData = await response.json().catch(() => ({}));
@@ -5605,24 +5995,30 @@
       const bank = c.bank || "Empanelled Bank";
       const branch = c.branch || "";
       const address = c.address || "";
+      const officeAddress = c.office_address || "";
+      const coApplicantAddress = c.co_applicant_address || "";
       const user = document.getElementById("hoCredUser") ? document.getElementById("hoCredUser").textContent : "agent1";
       const pass = document.getElementById("hoCredPass") ? document.getElementById("hoCredPass").textContent : "agent1@123";
       const pwaLink = `${window.location.origin}/pwa?case=${encodeURIComponent(caseNo)}`;
       const instructions = document.getElementById("hoInstructions") ? document.getElementById("hoInstructions").value.trim() : "";
       const coLine = c.co_applicant_name ? `👥 *Co-Applicant:* ${c.co_applicant_name} (separate office verification required)\n` : "";
+      const officeLine = officeAddress ? `🏢 *Office / Workplace Address:* ${officeAddress}\n` : "";
+      const coResidenceLine = coApplicantAddress ? `🏠 *Co-Applicant Residence Address (separate from applicant):* ${coApplicantAddress}\n` : "";
+      const extraPhotoNote = [c.co_applicant_name ? "+4 co-applicant office photos" : "", coApplicantAddress ? "+4 co-applicant residence photos" : ""].filter(Boolean).join(", ");
 
       return `🏛️ *NAIMISH N. SHAH & CO. CHARTERED ACCOUNTANTS*\n*Contact Point Verification (CPV) Order*\n\n` +
         `📋 *Case No:* ${caseNo}\n` +
         `👤 *Borrower:* ${applicant}\n` +
         coLine +
         `🏦 *Bank:* ${bank} (${branch})\n` +
-        `📍 *Property Address:* ${address}\n\n` +
+        `🏠 *Residence Address:* ${address}\n` +
+        officeLine + coResidenceLine + `\n` +
         `📲 *Open Field Agent Mobile PWA Link:*\n${pwaLink}\n\n` +
         `🔑 *Agent Login Credentials:*\n` +
         `• *Username:* ${user}\n` +
         `• *Password:* ${pass}\n\n` +
         `📝 *Inspection Instructions:*\n${instructions}\n\n` +
-        `⚠️ *Notice:* Live GNSS geofencing (<150m) and timestamp watermarking are active. Please capture 4 site photos${c.co_applicant_name ? " (+4 co-applicant office photos)" : ""}, upload verification docs, and submit.`;
+        `⚠️ *Notice:* Live GNSS geofencing (<150m) and timestamp watermarking are active. Please capture 4 site photos${extraPhotoNote ? ` (${extraPhotoNote})` : ""}, upload verification docs, and submit.`;
     }
 
     function updateHandoverPreview() {
@@ -6065,8 +6461,10 @@
       if (!isDual) {
         const n = document.getElementById("tabNcCoApplicantName");
         const p = document.getElementById("tabNcCoApplicantPhone");
+        const a = document.getElementById("tabNcCoApplicantAddress");
         if (n) n.value = "";
         if (p) p.value = "";
+        if (a) a.value = "";
       }
     }
 
@@ -6078,17 +6476,21 @@
       const isDual = mode === "dual";
       const nameWrap = document.getElementById("ecCoApplicantNameWrap");
       const phoneWrap = document.getElementById("ecCoApplicantPhoneWrap");
+      const addressWrap = document.getElementById("ecCoApplicantAddressWrap");
       const btnSingle = document.getElementById("ecModeSingle");
       const btnDual = document.getElementById("ecModeDual");
       if (nameWrap) nameWrap.classList.toggle("hidden", !isDual);
       if (phoneWrap) phoneWrap.classList.toggle("hidden", !isDual);
+      if (addressWrap) addressWrap.classList.toggle("hidden", !isDual);
       if (btnSingle) btnSingle.className = `px-3 py-1 rounded-full transition-all font-bold ${!isDual ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
       if (btnDual) btnDual.className = `px-3 py-1 rounded-full transition-all font-bold ${isDual ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
       if (!isDual) {
         const n = document.getElementById("ecCoApplicantName");
         const p = document.getElementById("ecCoApplicantPhone");
+        const a = document.getElementById("ecCoApplicantAddress");
         if (n) n.value = "";
         if (p) p.value = "";
+        if (a) a.value = "";
       }
     }
 
@@ -6112,10 +6514,10 @@
       if (folderBadge) folderBadge.textContent = `Folder: ${folderName}`;
 
       const countBadge = document.getElementById("tabNcFilesCountBadge");
-      if (countBadge) countBadge.textContent = `${fileList.length} Files Selected (${tabStagedPdfs.length} PDFs)`;
+      if (countBadge) countBadge.textContent = `${fileList.length} Files Selected (${tabStagedPdfs.length} PDFs, ${tabStagedImages.length} Images)`;
 
       const summaryText = document.getElementById("tabNcStagedSummary");
-      if (summaryText) summaryText.textContent = `${tabStagedPdfs.length} PDF(s) staged — Gemini AI ready to scan & arrange!`;
+      if (summaryText) summaryText.textContent = `${tabStagedPdfs.length} PDF(s) + ${tabStagedImages.length} image(s) staged — Gemini AI ready to scan & arrange!`;
 
       const tray = document.getElementById("tabNcFilesTray");
       const list = document.getElementById("tabNcFilesList");
@@ -6143,6 +6545,7 @@
       const phone = (document.getElementById("tabNcPhone") ? document.getElementById("tabNcPhone").value.trim() : "") || "";
       const coApplicantName = document.getElementById("tabNcCoApplicantName") ? document.getElementById("tabNcCoApplicantName").value.trim() : "";
       const coApplicantPhone = document.getElementById("tabNcCoApplicantPhone") ? document.getElementById("tabNcCoApplicantPhone").value.trim() : "";
+      const coApplicantAddress = document.getElementById("tabNcCoApplicantAddress") ? document.getElementById("tabNcCoApplicantAddress").value.trim() : "";
       const loanType = document.getElementById("tabNcLoanType") ? document.getElementById("tabNcLoanType").value : "Home Loan (HL)";
       const loanAmountRaw = document.getElementById("tabNcLoanAmount") ? document.getElementById("tabNcLoanAmount").value.trim() : "";
       const loanAmount = parseInt(loanAmountRaw.replace(/[^0-9]/g, "")) || 0;
@@ -6156,6 +6559,11 @@
         if (addressEl) addressEl.focus();
         return;
       }
+      // Office address is optional at intake (not every applicant has a workplace - retired/
+      // house-wife cases, for instance) - but CA office asked to capture it upfront when known,
+      // so the field agent has it as a reference before heading out for the office visit.
+      const officeAddressEl = document.getElementById("tabNcOfficeAddress");
+      const officeAddress = officeAddressEl ? officeAddressEl.value.trim() : "";
 
       const progressBox = document.getElementById("tabNcScanProgressBox");
       const progressBar = document.getElementById("tabNcScanProgressBar");
@@ -6194,9 +6602,11 @@
             applicant_phone: phone,
             co_applicant_name: coApplicantName || undefined,
             co_applicant_phone: coApplicantPhone || undefined,
+            co_applicant_address: coApplicantAddress || undefined,
             loan_type: loanType,
             loan_amount: loanAmount,
             target_address: address,
+            office_address: officeAddress || undefined,
             target_lat: 23.1030,
             target_lon: 72.5350,
             assigned_agent_id: null
@@ -6253,11 +6663,15 @@
         branch: branch,
         applicant_name: applicantName,
         phone: phone,
+        co_applicant_name: coApplicantName,
+        co_applicant_phone: coApplicantPhone,
+        co_applicant_address: coApplicantAddress,
         month: "October 2026",
         allotted_by: "Pending Manual Handover",
         loan_type: loanType,
         loan_amount: loanAmount,
         address: address,
+        office_address: officeAddress,
         agent: "Not yet allotted",
         benchmark_lat: "23.1030",
         benchmark_lon: "72.5350",
@@ -6276,30 +6690,105 @@
       }
       activeCaseId = newCaseId;
 
-      // Step 2: Upload and Run Real Gemini AI Scan on Staged PDFs
+      // Step 2: Upload and Run Real Gemini AI Scan on Staged PDFs AND Staged Images -
+      // a bank folder commonly mixes combined PDFs with loose JPEG/PNG/WEBP photos
+      // (scanned Aadhaar/PAN pages, phone photos of a utility bill, etc.) and every one
+      // of them must reach Gemini, not just the PDFs.
       const pdfsToIngest = tabStagedPdfs.slice();
+      const imagesToIngest = tabStagedImages.slice();
+      const totalStagedFiles = pdfsToIngest.length + imagesToIngest.length;
       let kycCount = 0;
       let incomeCount = 0;
       let bankCount = 0;
       let propCount = 0;
 
-      if (pdfsToIngest.length > 0) {
+      const tallyDocCounts = (docs) => {
+        docs.forEach(d => {
+          const t = (d.doc_type || "").toUpperCase();
+          if (t.includes("PAN") || t.includes("AADHAAR") || t.includes("PASSPORT") || t.includes("VOTER")) kycCount++;
+          else if (t.includes("FORM_16") || t.includes("SALARY") || t.includes("PAYSLIP") || t.includes("ITR")) incomeCount++;
+          else if (t.includes("STATEMENT") || t.includes("BANK")) bankCount++;
+          else propCount++;
+        });
+      };
+      const refreshShelfCounters = () => {
+        const elKyc = document.getElementById("tabShelfKycCount");
+        if (elKyc) elKyc.textContent = `${kycCount} Classified`;
+        const elInc = document.getElementById("tabShelfIncomeCount");
+        if (elInc) elInc.textContent = `${incomeCount} Classified`;
+        const elBank = document.getElementById("tabShelfBankCount");
+        if (elBank) elBank.textContent = `${bankCount} Classified`;
+        const elProp = document.getElementById("tabShelfPropertyCount");
+        if (elProp) elProp.textContent = `${propCount} Classified`;
+      };
+
+      // PDFs that turn out to be password-protected are queued rather than failed outright -
+      // asked for separately, one at a time, once every other staged file has finished scanning.
+      const pendingPwdFiles = [];
+      const ingestOnePdf = async (f, replaceExisting, password) => {
+        const formData = new FormData();
+        formData.append("file", f, f.name);
+        formData.append("replace_existing", replaceExisting ? "true" : "false");
+        if (password) formData.append("password", password);
+        let token = localStorage.getItem("ca_token");
+        const uploadHeaders = {};
+        if (token && token !== "demo-ca-token") uploadHeaders["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`/api/v1/cases/${newCaseId}/ingest-pdf`, {
+          method: "POST",
+          headers: uploadHeaders,
+          body: formData
+        });
+
+        if (res.ok) {
+          const resData = await res.json();
+          const docs = resData.documents || [];
+          tallyDocCounts(docs);
+          mergeExtractedDocsIntoCase(newCaseId, docs, resData.case_summary);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          const code = err.detail && typeof err.detail === "object" ? err.detail.code : null;
+          if (code === "PASSWORD_REQUIRED" || code === "WRONG_PASSWORD") {
+            pendingPwdFiles.push({ file: f, wrongAttempt: code === "WRONG_PASSWORD" });
+          } else {
+            console.warn(`File scan notice on ${f.name}:`, err);
+          }
+        }
+      };
+
+      if (totalStagedFiles > 0) {
         for (let i = 0; i < pdfsToIngest.length; i++) {
           const f = pdfsToIngest[i];
-          const pct = Math.round(20 + ((i + 1) / pdfsToIngest.length) * 75);
+          const pct = Math.round(20 + ((i + 1) / totalStagedFiles) * 75);
           if (progressBar) progressBar.style.width = pct + "%";
           if (progressPercent) progressPercent.textContent = pct + "%";
-          if (statusDetail) statusDetail.textContent = `Gemini AI reading file ${i + 1}/${pdfsToIngest.length}: ${f.name}...`;
+          if (statusDetail) statusDetail.textContent = `Gemini AI reading file ${i + 1}/${totalStagedFiles}: ${f.name}...`;
+
+          try {
+            await ingestOnePdf(f, i === 0, null);
+          } catch (e) {
+            console.warn(`File scan notice on ${f.name}:`, e);
+          }
+
+          refreshShelfCounters();
+        }
+
+        if (imagesToIngest.length > 0) {
+          const pct = Math.round(20 + ((pdfsToIngest.length + imagesToIngest.length) / totalStagedFiles) * 75);
+          if (progressBar) progressBar.style.width = pct + "%";
+          if (progressPercent) progressPercent.textContent = pct + "%";
+          if (statusDetail) statusDetail.textContent = `Gemini AI reading ${imagesToIngest.length} image(s) (JPEG/PNG/WEBP)...`;
 
           try {
             const formData = new FormData();
-            formData.append("file", f, f.name);
-            formData.append("replace_existing", i === 0 ? "true" : "false");
+            imagesToIngest.forEach(f => formData.append("files", f, f.name));
+            formData.append("applicant_name", applicantName);
+            formData.append("target_address", address);
             let token = localStorage.getItem("ca_token");
             const uploadHeaders = {};
             if (token && token !== "demo-ca-token") uploadHeaders["Authorization"] = `Bearer ${token}`;
 
-            const res = await fetch(`/api/v1/cases/${newCaseId}/ingest-pdf`, {
+            const res = await fetch(`/api/v1/cases/${newCaseId}/ingest-images`, {
               method: "POST",
               headers: uploadHeaders,
               body: formData
@@ -6308,28 +6797,41 @@
             if (res.ok) {
               const resData = await res.json();
               const docs = resData.documents || [];
-              docs.forEach(d => {
-                const t = (d.doc_type || "").toUpperCase();
-                if (t.includes("PAN") || t.includes("AADHAAR") || t.includes("PASSPORT") || t.includes("VOTER")) kycCount++;
-                else if (t.includes("FORM_16") || t.includes("SALARY") || t.includes("PAYSLIP") || t.includes("ITR")) incomeCount++;
-                else if (t.includes("STATEMENT") || t.includes("BANK")) bankCount++;
-                else propCount++;
-              });
+              tallyDocCounts(docs);
               mergeExtractedDocsIntoCase(newCaseId, docs, resData.case_summary);
+            } else {
+              const err = await res.json().catch(() => ({}));
+              console.warn("Image AI scan notice:", err.detail || res.status);
             }
           } catch (e) {
-            console.warn(`File scan notice on ${f.name}:`, e);
+            console.warn("Image scan notice:", e);
           }
 
-          // Update mini shelves live counters
-          const elKyc = document.getElementById("tabShelfKycCount");
-          if (elKyc) elKyc.textContent = `${kycCount} Classified`;
-          const elInc = document.getElementById("tabShelfIncomeCount");
-          if (elInc) elInc.textContent = `${incomeCount} Classified`;
-          const elBank = document.getElementById("tabShelfBankCount");
-          if (elBank) elBank.textContent = `${bankCount} Classified`;
-          const elProp = document.getElementById("tabShelfPropertyCount");
-          if (elProp) elProp.textContent = `${propCount} Classified`;
+          refreshShelfCounters();
+        }
+
+        // Only now - after every staged PDF and image has already been scanned - ask for each
+        // password-protected file's password separately, one at a time.
+        let queue = pendingPwdFiles.splice(0);
+        while (queue.length > 0) {
+          for (const entry of queue) {
+            const promptMsg = entry.wrongAttempt
+              ? `The password entered for "${entry.file.name}" was incorrect. Enter the correct password (or Cancel to skip this file):`
+              : `"${entry.file.name}" is password-protected. Enter its password to scan it (or Cancel to skip):`;
+            const pwd = prompt(promptMsg);
+            if (!pwd) {
+              console.warn(`Skipped password-protected PDF (no password entered): ${entry.file.name}`);
+              continue;
+            }
+            if (statusDetail) statusDetail.textContent = `Gemini AI reading "${entry.file.name}" with the entered password...`;
+            try {
+              await ingestOnePdf(entry.file, false, pwd);
+            } catch (e) {
+              console.warn(`File scan notice on ${entry.file.name}:`, e);
+            }
+            refreshShelfCounters();
+          }
+          queue = pendingPwdFiles.splice(0);
         }
       } else {
         // Fallback default shelf values if created without uploading folder
@@ -6354,7 +6856,44 @@
         alert(`[Case Onboarding & AI Scan Complete]\nCase Reference: ${caseNo}\nBank: ${bank}\nApplicant: ${finalApplicantName}\nField Staff: Unassigned (Pending Manual Handover)\n\nThe case is now active on your Scrutiny Desk! Use the Handover button whenever you are ready to dispatch it to field staff.`);
         onCaseSelected(newCaseId);
         switchMainPortalView("scrutiny");
+        // Without this, the New Case Intake form/staged-file tray kept showing THIS case's
+        // own typed details and selected folder the next time the CA opened the tab to create
+        // a different case - looking exactly like the new case had already inherited the
+        // previous one's documents, before even touching "Select Folder".
+        resetNewCaseIntakeForm();
       }, 1000);
+    }
+
+    function resetNewCaseIntakeForm() {
+      tabStagedPdfs = [];
+      tabStagedImages = [];
+
+      const tray = document.getElementById("tabNcFilesTray");
+      if (tray) tray.classList.add("hidden");
+      const list = document.getElementById("tabNcFilesList");
+      if (list) list.innerHTML = "";
+      const folderBadge = document.getElementById("tabNcFolderNameBadge");
+      if (folderBadge) folderBadge.textContent = "";
+      const countBadge = document.getElementById("tabNcFilesCountBadge");
+      if (countBadge) countBadge.textContent = "";
+      const summaryText = document.getElementById("tabNcStagedSummary");
+      if (summaryText) summaryText.textContent = "";
+      const filesInput = document.getElementById("tabNcFilesInput");
+      if (filesInput) filesInput.value = "";
+
+      ["tabNcCaseNo", "tabNcBranch", "tabNcApplicantName", "tabNcPhone", "tabNcCoApplicantName",
+       "tabNcCoApplicantPhone", "tabNcCoApplicantAddress", "tabNcLoanAmount", "tabNcAddress", "tabNcOfficeAddress"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+      setTabNcApplicantMode("single");
+
+      ["tabShelfKycCount", "tabShelfIncomeCount", "tabShelfBankCount", "tabShelfPropertyCount"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = "Ready";
+      });
+
+      if (typeof autoGenTabCaseNo === "function") autoGenTabCaseNo();
     }
 
 
@@ -6406,6 +6945,25 @@
       const folderInput = document.getElementById('portalFolderInput');
       if (folderInput) {
         folderInput.click();
+      }
+    }
+
+    // Same AI ingestion desk as triggerAiFolderIngest(), but for a SPECIFIC existing case
+    // rather than "whatever is currently active" - used by per-case "Add Documents (AI)"
+    // buttons in the case list / Edit Case modal so a CA adding more bank docs to an
+    // already-created case can't accidentally ingest them into the wrong case.
+    function triggerAiFolderIngestForCase(caseId) {
+      if (!caseId) return;
+      activeCaseId = caseId;
+      onCaseSelected(caseId);
+      switchMainPortalView('scrutiny');
+      const aiBox = document.getElementById('aiDocumentIngestSection');
+      if (aiBox) {
+        setTimeout(() => {
+          aiBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          aiBox.classList.add('ring-4', 'ring-amber-400');
+          setTimeout(() => aiBox.classList.remove('ring-4', 'ring-amber-400'), 2500);
+        }, 150);
       }
     }
 
@@ -6595,6 +7153,7 @@
         phone: f.phone || "",
         co_applicant_name: f.co_applicant_name || "",
         co_applicant_phone: f.co_applicant_phone || "",
+        co_applicant_address: f.co_applicant_address || "",
         assigned_agent_id: f.assigned_agent_id || null,
         month: f.month || "",
         allotted_by: f.allotted_by || "",
@@ -6606,6 +7165,7 @@
         gender: f.gender || null,
         ward: null,
         address: f.address,
+        office_address: f.office_address || "",
         agent: f.agent || "Not yet allotted",
         agent_selfie: "/static/placeholders/photo_pending.svg",
         selfie_verified: false,
@@ -6613,9 +7173,9 @@
         visit_date: "Not yet visited",
         benchmark_lat: f.benchmark_lat,
         benchmark_lon: f.benchmark_lon,
-        capture_lat: "—",
-        capture_lon: "—",
-        distance_m: null,
+        capture_lat: f.capture_lat != null ? f.capture_lat : "—",
+        capture_lon: f.capture_lon != null ? f.capture_lon : "—",
+        distance_m: f.distance_m != null ? f.distance_m : null,
         agent_pin: "—",
         stay_period: null,
         ownership: null,
@@ -6673,9 +7233,12 @@
             caseRegistry[dc.id] = buildCaseEntry({
               case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
               phone: dc.applicant_phone, co_applicant_name: dc.co_applicant_name, co_applicant_phone: dc.co_applicant_phone,
+              co_applicant_address: dc.co_applicant_address,
               loan_type: dc.loan_type, loan_amount: dc.loan_amount, address: dc.target_address,
+              office_address: dc.office_address,
               benchmark_lat: dc.target_lat, benchmark_lon: dc.target_lon, status: dc.status, db_id: dc.id,
               agent: resolveAgentName(dc.assigned_agent_id), assigned_agent_id: dc.assigned_agent_id,
+              capture_lat: dc.capture_lat, capture_lon: dc.capture_lon, distance_m: dc.distance_m,
             });
           } else {
             // Built-in seed case that also exists in the database: the benchmark lives on the server.
@@ -6685,10 +7248,27 @@
               caseRegistry[dc.id].benchmark_lat = dc.target_lat;
               caseRegistry[dc.id].benchmark_lon = dc.target_lon;
             }
+            // Real visit telemetry from the server - without this, a case already cached in
+            // this tab (e.g. from an earlier periodic refresh) never picked up a newly uploaded
+            // photo's capture location/distance until a full page reload.
+            if (dc.distance_m !== undefined) caseRegistry[dc.id].distance_m = dc.distance_m;
+            if (dc.capture_lat !== undefined) caseRegistry[dc.id].capture_lat = dc.capture_lat != null ? dc.capture_lat : "—";
+            if (dc.capture_lon !== undefined) caseRegistry[dc.id].capture_lon = dc.capture_lon != null ? dc.capture_lon : "—";
             // Keep the displayed executive name in sync with the real DB assignment, not a
             // stale demo placeholder from an earlier load.
             const realAgentName = resolveAgentName(dc.assigned_agent_id);
             if (realAgentName) caseRegistry[dc.id].agent = realAgentName;
+            // The server is always the source of truth for status - without this, a case
+            // already cached in this browser tab (e.g. open while generating its report)
+            // never shows its status change (DRAFT -> ASSIGNED -> ... -> CERTIFIED) until a
+            // full page reload, even though the backend committed it correctly right away.
+            // This is exactly what made a successfully-certified case still look "in process"
+            // indefinitely, and made it seem to vanish when filtering by its old status.
+            if (dc.status) caseRegistry[dc.id].status = dc.status;
+            if (dc.office_address !== undefined) caseRegistry[dc.id].office_address = dc.office_address;
+            if (dc.co_applicant_name !== undefined) caseRegistry[dc.id].co_applicant_name = dc.co_applicant_name;
+            if (dc.co_applicant_phone !== undefined) caseRegistry[dc.id].co_applicant_phone = dc.co_applicant_phone;
+            if (dc.co_applicant_address !== undefined) caseRegistry[dc.id].co_applicant_address = dc.co_applicant_address;
           }
           if (dc.case_no) {
             caseRegistry[dc.case_no] = caseRegistry[dc.id];
@@ -6729,6 +7309,7 @@
       const phone = document.getElementById("ncApplicantPhone").value.trim();
       const coApplicantName = document.getElementById("ncCoApplicantName") ? document.getElementById("ncCoApplicantName").value.trim() : "";
       const coApplicantPhone = document.getElementById("ncCoApplicantPhone") ? document.getElementById("ncCoApplicantPhone").value.trim() : "";
+      const coApplicantAddress = document.getElementById("ncCoApplicantAddress") ? document.getElementById("ncCoApplicantAddress").value.trim() : "";
       const bank = document.getElementById("ncBankName").value;
       const branch = document.getElementById("ncBranch").value.trim();
       const loanType = document.getElementById("ncLoanType").value;
@@ -6745,6 +7326,7 @@
         ncAddressEl.focus();
         return;
       }
+      const officeAddress = document.getElementById("ncOfficeAddress") ? document.getElementById("ncOfficeAddress").value.trim() : "";
       const lat = document.getElementById("ncLat").value.trim() || "23.2156";
       const lon = document.getElementById("ncLon").value.trim() || "72.6369";
       const allottedBy = document.getElementById("ncAllottedBy").value;
@@ -6780,9 +7362,11 @@
             applicant_phone: phone,
             co_applicant_name: coApplicantName || undefined,
             co_applicant_phone: coApplicantPhone || undefined,
+            co_applicant_address: coApplicantAddress || undefined,
             loan_type: loanType,
             loan_amount: amtNumeric,
             target_address: address,
+            office_address: officeAddress || undefined,
             target_lat: parseFloat(lat),
             target_lon: parseFloat(lon),
           })
@@ -6812,6 +7396,9 @@
         branch: branch,
         applicant_name: applicantName,
         phone: phone,
+        co_applicant_name: coApplicantName,
+        co_applicant_phone: coApplicantPhone,
+        co_applicant_address: coApplicantAddress,
         month: month,
         allotted_by: allottedBy,
         loan_type: loanType,
@@ -6821,6 +7408,7 @@
         dob: dob,
         gender: gender,
         address: address,
+        office_address: officeAddress,
         agent: fieldStaff,
         benchmark_lat: lat,
         benchmark_lon: lon,
@@ -6916,7 +7504,15 @@
       // wins if it's actually newer than whatever manual upload may already be showing — this
       // function re-runs on every case load/ingestion, not just the first time, and must not
       // silently drag an older AI scan back in front of a later manual correction.
-      const aFront = firstDoc(own, d => d.doc_type === "AADHAAR_CARD" && sub(d) !== "BACK");
+      // A standalone photo (phone/WhatsApp camera shot ingested via Select Multiple Files, as
+      // opposed to a flatbed-scanned PDF page) gives Gemini no embedded PDF text layer to lean
+      // on and often has more variable lighting/angle/crop - so it occasionally classifies the
+      // page as OTHER even though it genuinely read a real Aadhaar/PAN number off it. Don't
+      // leave the dedicated card on its placeholder (forcing a manual re-upload) when the
+      // number IS already on record from this scan - fall back to whichever "OTHER" doc
+      // actually carries the extracted number.
+      const aFront = firstDoc(own, d => d.doc_type === "AADHAAR_CARD" && sub(d) !== "BACK")
+        || firstDoc(own, d => d.doc_type !== "AADHAAR_CARD" && (d.extracted_aadhaar || d.aadhaar_last4_masked));
       if (aFront && setKycImageIfNewer(c, "aadhaar_front_img", aFront.image_url, tsMs(aFront))) delete c.aadhaar_front_img_pending_ai_scan;
       c.aadhaar_back_img = firstImg(own, d => d.doc_type === "AADHAAR_CARD" && sub(d) === "BACK")
         || firstImg(own, d => d.doc_type === "AADHAAR_CARD") || c.aadhaar_back_img;
@@ -6924,7 +7520,8 @@
       // IS the PAN evidence on file - it must still show in the primary (front) PAN slot, not
       // sit hidden behind a second click while the main view looks like nothing was scanned.
       const pFront = firstDoc(own, d => d.doc_type === "PAN_CARD" && sub(d) !== "BACK")
-        || firstDoc(own, d => d.doc_type === "PAN_CARD" && sub(d) === "BACK");
+        || firstDoc(own, d => d.doc_type === "PAN_CARD" && sub(d) === "BACK")
+        || firstDoc(own, d => d.doc_type !== "PAN_CARD" && d.extracted_pan);
       if (pFront && setKycImageIfNewer(c, "pan_front_img", pFront.image_url, tsMs(pFront))) delete c.pan_front_img_pending_ai_scan;
       c.pan_back_img = firstImg(own, d => d.doc_type === "PAN_CARD" && sub(d) === "BACK") || c.pan_back_img;
       c.payslip_img = firstImg(own, d => d.doc_type === "SALARY_SLIP") || c.payslip_img;
@@ -7037,6 +7634,7 @@
           if (progressBar) progressBar.style.width = "100%";
           if (statusText) statusText.textContent = `✓ ${data.total_images_classified} image(s) classified by Gemini AI!`;
 
+          (data.documents || []).forEach(d => { if (d.id) lastIngestedDocIds.add(d.id); });
           mergeExtractedDocsIntoCase(activeCaseId, data.documents);
           onCaseSelected(activeCaseId);
 
@@ -7068,12 +7666,14 @@
       document.getElementById("ecApplicantName").value = c.applicant_name;
       if (document.getElementById("ecCoApplicantName")) document.getElementById("ecCoApplicantName").value = c.co_applicant_name || "";
       if (document.getElementById("ecCoApplicantPhone")) document.getElementById("ecCoApplicantPhone").value = c.co_applicant_phone || "";
+      if (document.getElementById("ecCoApplicantAddress")) document.getElementById("ecCoApplicantAddress").value = c.co_applicant_address || "";
       setEcApplicantMode(c.co_applicant_name ? "dual" : "single");
       if (document.getElementById("ecApplicantPhone")) document.getElementById("ecApplicantPhone").value = c.phone || "";
       if (document.getElementById("ecLoanAmount")) document.getElementById("ecLoanAmount").value = c.loan_amount || "";
       document.getElementById("ecBank").value = c.bank;
       document.getElementById("ecBranch").value = c.branch;
       document.getElementById("ecAddress").value = c.address;
+      if (document.getElementById("ecOfficeAddress")) document.getElementById("ecOfficeAddress").value = c.office_address || "";
       // PAN/Aadhaar/DOB/Gender are read off scanned KYC documents, not stored as their own
       // editable case fields on the server - shown here read-only so the CA isn't misled into
       // thinking a correction here would be saved anywhere.
@@ -7115,12 +7715,14 @@
       const applicantName = document.getElementById("ecApplicantName").value.trim();
       const coApplicantName = document.getElementById("ecCoApplicantName") ? document.getElementById("ecCoApplicantName").value.trim() : "";
       const coApplicantPhone = document.getElementById("ecCoApplicantPhone") ? document.getElementById("ecCoApplicantPhone").value.trim() : "";
+      const coApplicantAddress = document.getElementById("ecCoApplicantAddress") ? document.getElementById("ecCoApplicantAddress").value.trim() : "";
       const applicantPhone = document.getElementById("ecApplicantPhone") ? document.getElementById("ecApplicantPhone").value.trim() : "";
       const loanAmountRaw = document.getElementById("ecLoanAmount") ? document.getElementById("ecLoanAmount").value.trim() : "";
       const loanAmount = loanAmountRaw ? Number(loanAmountRaw) : null;
       const bankName = document.getElementById("ecBank").value.trim();
       const branch = document.getElementById("ecBranch").value.trim();
       const address = document.getElementById("ecAddress").value.trim();
+      const officeAddress = document.getElementById("ecOfficeAddress") ? document.getElementById("ecOfficeAddress").value.trim() : "";
       const agentId = document.getElementById("ecStaff").value || null;
       const newStatus = document.getElementById("ecStatus").value;
 
@@ -7138,10 +7740,12 @@
             applicant_phone: applicantPhone || null,
             co_applicant_name: coApplicantName || null,
             co_applicant_phone: coApplicantPhone || null,
+            co_applicant_address: coApplicantAddress || null,
             bank_name: bankName,
             branch: branch,
             loan_amount: loanAmount,
             target_address: address,
+            office_address: officeAddress || null,
             assigned_agent_id: agentId,
             status: newStatus,
           })
@@ -7163,11 +7767,13 @@
       c.applicant_name = applicantName;
       c.co_applicant_name = coApplicantName;
       c.co_applicant_phone = coApplicantPhone;
+      c.co_applicant_address = coApplicantAddress;
       c.phone = applicantPhone;
       c.loan_amount = loanAmount;
       c.bank = bankName;
       c.branch = branch;
       c.address = address;
+      c.office_address = officeAddress;
       c.assigned_agent_id = agentId;
       c.agent = agentId ? ((window.allAgents || []).find(a => a.id === agentId)?.full_name || c.agent) : "Not yet allotted";
       c.status = newStatus;
@@ -7273,7 +7879,21 @@
     // server again — nothing else in the app re-fetches the case LIST (only the open case's
     // documents poll every few seconds). This keeps that list from silently going stale for
     // however long a tab stays open.
-    setInterval(() => { loadDbCasesIntoRegistry(); }, 45000);
+    //
+    // loadDbCasesIntoRegistry() only updates the in-memory caseRegistry - it was never followed
+    // by a re-render, so the Management tab's table (case status, KPIs) kept showing whatever was
+    // on screen at the last tab switch even after a status genuinely changed on the server (e.g.
+    // an agent completed the visit, or the case was certified from another device/tab). The CA
+    // office reported this as "status shown in Management is incorrect" - it was correct data in
+    // memory, just a stale render. Only re-render when that tab is actually the one visible.
+    setInterval(() => {
+      loadDbCasesIntoRegistry().then(() => {
+        const mgmtPortal = document.getElementById("viewManagementPortal");
+        if (mgmtPortal && !mgmtPortal.classList.contains("hidden")) {
+          renderManagementPortal();
+        }
+      });
+    }, 45000);
 
     function updateGlobalCaseCounters() {
       const cases = getUniqueCasesList();
@@ -7293,7 +7913,11 @@
       // 1. Calculate KPIs
       const totalCases = cases.length;
       const allottedCases = cases.filter(c => c.status === "ASSIGNED_TO_FIELD" || c.status === "IN_PROGRESS" || c.status === "ASSIGNED").length;
-      const completedCases = cases.filter(c => c.status === "PENDING_CA_REVIEW" || c.status === "CERTIFIED").length;
+      // "Completed" means field work is done and it's past the agent's hands, whatever the CA
+      // ultimately decided - APPROVED/FLAGGED/REJECTED were missing here, so a flagged or
+      // rejected case silently vanished from both this KPI and "Allotted", undercounting the
+      // total and making it look like cases had disappeared.
+      const completedCases = cases.filter(c => ["PENDING_CA_REVIEW", "APPROVED", "CERTIFIED", "FLAGGED", "REJECTED"].includes(c.status)).length;
       const certifiedCases = cases.filter(c => c.status === "CERTIFIED").length;
 
       const kpiTotal = document.getElementById("mgmtKpiTotal");
@@ -7414,6 +8038,12 @@
         const tr = document.createElement("tr");
         tr.className = "hover:bg-surface-container-low/60 transition-colors";
 
+        // Mirrors AAL_STATUS_LABELS (the Agent Activity Log's own status map) so every real
+        // CaseStatus value gets a correctly labeled, styled badge here too - this chain used to
+        // only recognize CERTIFIED/PENDING_CA_REVIEW/ASSIGNED and silently fell back to a plain
+        // amber badge with the raw enum text for IN_PROGRESS, DRAFT, APPROVED, FLAGGED and
+        // REJECTED, which is exactly what made an agent actively mid-visit (IN_PROGRESS) look
+        // unstyled/out of place next to the properly badged statuses around it.
         let statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">${c.status}</span>`;
         if (c.status === "CERTIFIED") {
           statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">CERTIFIED (UDIN)</span>`;
@@ -7421,10 +8051,31 @@
           statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200">PENDING CA REVIEW</span>`;
         } else if (c.status === "ASSIGNED_TO_FIELD" || c.status === "ASSIGNED") {
           statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">ASSIGNED TO FIELD</span>`;
+        } else if (c.status === "IN_PROGRESS") {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200">VISIT IN PROGRESS</span>`;
+        } else if (c.status === "DRAFT") {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">NOT YET STARTED</span>`;
+        } else if (c.status === "APPROVED") {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">APPROVED</span>`;
+        } else if (c.status === "FLAGGED") {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-300">FLAGGED</span>`;
+        } else if (c.status === "REJECTED") {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-300">REJECTED</span>`;
         }
 
         const cachedSelfie = localStorage.getItem("selfie_" + c.id);
         const selfieSrc = cachedSelfie || c.agent_selfie || "/static/placeholders/photo_pending.svg";
+
+        // The real distance from the most recent geotagged photo (set by the server, see
+        // GET /api/v1/cases) - this used to silently fall back to a hardcoded "32m (COMPLIANT)"
+        // for every case that hadn't yet been opened in Scrutiny, which is exactly what made a
+        // CA-office test upload (nowhere near the applicant's actual address) show as compliant.
+        const hasRealDistance = typeof c.distance_m === "number" && !isNaN(c.distance_m);
+        const distanceHtml = hasRealDistance
+          ? `<div class="${c.distance_m <= 150 ? 'text-emerald-700' : 'text-rose-700'} font-bold">● ${Math.round(c.distance_m)}m (${c.distance_m <= 150 ? 'COMPLIANT' : 'BREACH'})</div>
+             <div class="text-[10px] text-outline">${Number(c.capture_lat).toFixed(4)}°N, ${Number(c.capture_lon).toFixed(4)}°E</div>`
+          : `<div class="text-outline font-bold">○ NOT YET CAPTURED</div>
+             <div class="text-[10px] text-outline">No geotagged photo on file yet</div>`;
 
         tr.innerHTML = `
           <td class="py-3 px-3">
@@ -7462,8 +8113,7 @@
             </div>
           </td>
           <td class="py-3 px-3 font-mono text-[11px]">
-            <div class="text-emerald-700 font-bold">● ${c.distance_m || 32}m (COMPLIANT)</div>
-            <div class="text-[10px] text-outline">${c.capture_lat || '23.2154'}°N, ${c.capture_lon || '72.6367'}°E</div>
+            ${distanceHtml}
           </td>
           <td class="py-3 px-3">
             ${statusBadge}
@@ -7476,6 +8126,13 @@
               <button onclick="activeCaseId='${c.id}'; openHandoverModal();" class="p-1 rounded bg-surface-container hover:bg-emerald-50 text-emerald-700 border border-outline-variant transition-colors" title="Dispatch Handover to WhatsApp">
                 <span class="material-symbols-outlined text-[16px]">chat</span>
               </button>
+              <button onclick="triggerAiFolderIngestForCase('${c.id}')" class="p-1 rounded bg-surface-container hover:bg-amber-50 text-amber-700 border border-outline-variant transition-colors" title="Add More Documents (AI Scan) to this case">
+                <span class="material-symbols-outlined text-[16px]">bolt</span>
+              </button>
+              ${c.status === "CERTIFIED" ? `
+              <button onclick="activeCaseId='${c.id}'; reopenCertifiedCase();" class="p-1 rounded bg-surface-container hover:bg-amber-50 text-amber-700 border border-outline-variant transition-colors" title="Reopen this certified case for edits">
+                <span class="material-symbols-outlined text-[16px]">lock_open</span>
+              </button>` : ""}
               <button onclick="openEditCaseModal('${c.id}')" class="p-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant transition-colors" title="Edit Case Details">
                 <span class="material-symbols-outlined text-[16px]">edit</span>
               </button>
@@ -7733,7 +8390,7 @@
         row.innerHTML = `
           <div class="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer" onclick="openVaultDocListZoom(${idx})">
             <div class="relative w-11 h-11 rounded-md overflow-hidden border border-outline-variant shrink-0 bg-slate-900 shadow-2xs">
-              <img src="${d.src}" alt="${d.title}" class="w-full h-full object-cover group-hover:scale-110 transition-transform"/>
+              <img src="${d.src}" alt="${d.title}" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-110 transition-transform"/>
               <span class="absolute bottom-0 inset-x-0 bg-black/75 text-white font-mono text-[7px] text-center font-bold">${d.type.toUpperCase()}</span>
             </div>
             <div class="flex-1 min-w-0">
@@ -7793,7 +8450,7 @@
               <span class="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded ${d.status === 'VERIFIED' ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' : 'bg-blue-50 text-blue-800 border border-blue-300'}">${d.status}</span>
             </div>
             <div class="relative w-full h-44 rounded-lg overflow-hidden border border-outline-variant bg-slate-900 mt-2.5 cursor-pointer shadow-inner" onclick="openVaultDocListZoom(${idx})">
-              <img src="${d.src}" alt="${d.title}" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"/>
+              <img src="${d.src}" alt="${d.title}" loading="lazy" decoding="async" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"/>
               <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-2 font-mono text-xs font-bold">
                 <span class="material-symbols-outlined text-[20px]">zoom_in</span> Click to Inspect
               </div>
@@ -8357,6 +9014,9 @@
       "office_details_co.location": ["Commercial", "Residential", "Industrial", "Mixed"],
       "office_details_co.firm_type": ["Government / Government Job", "Proprietorship", "Partnership", "Private Limited", "LLP", "Corporation", "Public Limited", "Trust / Society", "Other"],
       "office_details_co.premises_ownership": ["Owned", "Rented", "NA"],
+      "office_details_co.marital_status": ["Married (પરિણિત)", "Unmarried (અપરિણિત)"],
+      "office_details_co.community": ["Hindu", "Muslim", "Christian"],
+      "office_details_co.qualification": ["Graduate", "Post Graduate", "12th Pass", "10th Pass", "8th Pass"],
       "bank_account_status_co": ["Active / Regular", "Active / Irregular", "Dormant", "Not Verified"],
     };
 
@@ -8388,16 +9048,20 @@
       const loading = document.getElementById("rrLoadingState");
       const allGood = document.getElementById("rrAllGoodState");
       const dashSection = document.getElementById("rrDashboardSection");
+      const docSection = document.getElementById("rrDocumentSection");
       const ffSection = document.getElementById("rrFieldFormSection");
       const dashList = document.getElementById("rrDashboardList");
+      const docList = document.getElementById("rrDocumentList");
       const ffList = document.getElementById("rrFieldFormList");
       const subtitle = document.getElementById("rrSubtitle");
       if (!loading || !activeCaseId) return;
       loading.style.display = "flex";
       allGood.classList.add("hidden");
       dashSection.classList.add("hidden");
+      docSection.classList.add("hidden");
       ffSection.classList.add("hidden");
       dashList.innerHTML = "";
+      docList.innerHTML = "";
       ffList.innerHTML = "";
       try {
         const res = await fetch(`/api/v1/cases/${activeCaseId}/report-readiness`, { headers: authHeaders() });
@@ -8413,6 +9077,7 @@
         }
 
         const dashItems = data.missing_fields.filter(f => f.source === "dashboard");
+        const docItems = data.missing_fields.filter(f => f.source === "document");
         const ffItems = data.missing_fields.filter(f => f.source === "field_form");
 
         if (dashItems.length) {
@@ -8424,6 +9089,18 @@
                 <span class="text-amber-700 block text-[10px] font-mono">${f.how}</span>
               </div>
               <button onclick="closeReportReadiness(); openEditCaseModal('${activeCaseId}');" class="px-2.5 py-1 bg-white border border-amber-300 text-amber-900 rounded font-bold text-[10px] hover:bg-amber-100 shrink-0">Fix in Edit Case</button>
+            </div>`).join("");
+        }
+
+        if (docItems.length) {
+          docSection.classList.remove("hidden");
+          docList.innerHTML = docItems.map(f => `
+            <div class="flex items-center justify-between p-2 rounded-lg bg-blue-50 border border-blue-200 text-xs">
+              <div>
+                <span class="font-bold text-blue-900">${f.label}</span>
+                <span class="text-blue-700 block text-[10px] font-mono">${f.how}</span>
+              </div>
+              <button onclick="closeReportReadiness(); triggerAiFolderIngestForCase('${activeCaseId}');" class="px-2.5 py-1 bg-white border border-blue-300 text-blue-900 rounded font-bold text-[10px] hover:bg-blue-100 shrink-0">Scan Document</button>
             </div>`).join("");
         }
 
@@ -9161,6 +9838,10 @@
           <p class="font-mono text-[10px] font-bold text-outline uppercase">Fix on this Dashboard (Edit Case)</p>
           <div id="rrDashboardList" class="space-y-1.5"></div>
         </div>
+        <div id="rrDocumentSection" class="hidden space-y-2">
+          <p class="font-mono text-[10px] font-bold text-outline uppercase">Needs a Document AI-Scanned</p>
+          <div id="rrDocumentList" class="space-y-1.5"></div>
+        </div>
         <div id="rrFieldFormSection" class="hidden space-y-2">
           <p class="font-mono text-[10px] font-bold text-outline uppercase">Field Visit Questionnaire — fill here if the CA office already has the answer, otherwise ask the field agent</p>
           <div id="rrFieldFormList" class="space-y-1.5"></div>
@@ -9295,6 +9976,10 @@
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Phone <span class="font-normal normal-case text-outline">(optional)</span></label>
               <input id="ncCoApplicantPhone" type="text" placeholder="e.g. +91 94283 51921" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
             </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Home Address <span class="font-normal normal-case text-outline">(leave blank if same as applicant)</span></label>
+              <textarea id="ncCoApplicantAddress" rows="2" autocomplete="off" placeholder="Only fill in if the co-applicant lives at a different address" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
+            </div>
 
             <div>
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Empanelled Bank Name (બેંક)*</label>
@@ -9317,11 +10002,20 @@
             <div>
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Loan Facility & Type*</label>
               <select id="ncLoanType" required class="w-full text-xs font-medium bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
-                <option value="Home Loan (HL)">Home Loan (HL)</option>
-                <option value="Loan Against Property (LAP)">Loan Against Property (LAP)</option>
-                <option value="Commercial Mortgage (CM)">Commercial Mortgage (CM)</option>
-                <option value="Business / MSME Loan">Business / MSME Loan</option>
-                <option value="Personal Loan (PL)">Personal Loan (PL)</option>
+                <option value="Vehicle Loan">Vehicle Loan</option>
+                <option value="Home Loan">Home Loan</option>
+                <option value="Education Loan">Education Loan</option>
+                <option value="Personal Loan">Personal Loan</option>
+                <option value="Business Takeover">Business Takeover</option>
+                <option value="Quotation Verification">Quotation Verification</option>
+                <option value="Pension Loan">Pension Loan</option>
+                <option value="BT TOP UP">BT TOP UP</option>
+                <option value="Machinery Loan">Machinery Loan</option>
+                <option value="Builder Tie Up">Builder Tie Up</option>
+                <option value="MSME Loan">MSME Loan</option>
+                <option value="Cash Credit Loan">Cash Credit Loan</option>
+                <option value="Mudra Loan">Mudra Loan</option>
+                <option value="Others">Others</option>
               </select>
             </div>
 
@@ -9342,7 +10036,12 @@
 
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Target Inspection Property Address (સંપત્તિ સરનામું)*</label>
-            <textarea id="ncAddress" rows="2" required placeholder="e.g. Plot 42, Gayatri Nagar, Sector 8, Gandhinagar - 382007" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
+            <textarea id="ncAddress" rows="2" required autocomplete="off" placeholder="e.g. Plot 42, Gayatri Nagar, Sector 8, Gandhinagar - 382007" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
+          </div>
+
+          <div>
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Office / Workplace Address (ઓફિસ સરનામું)</label>
+            <textarea id="ncOfficeAddress" rows="2" autocomplete="off" placeholder="e.g. Shop 12, GIDC Estate, Gota, Ahmedabad (if applicable)" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
           </div>
 
           <div class="grid grid-cols-2 gap-3 font-mono text-[11px]">
@@ -9446,6 +10145,10 @@
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Phone <span class="font-normal normal-case text-outline">(optional)</span></label>
             <input id="ecCoApplicantPhone" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
+          <div id="ecCoApplicantAddressWrap">
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Home Address <span class="font-normal normal-case text-outline">(leave blank if same as applicant)</span></label>
+            <textarea id="ecCoApplicantAddress" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
+          </div>
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Contact Number</label>
             <input id="ecApplicantPhone" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
@@ -9485,7 +10188,12 @@
 
         <div>
           <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Target Address</label>
-          <textarea id="ecAddress" rows="2" required class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
+          <textarea id="ecAddress" rows="2" required autocomplete="off" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
+        </div>
+
+        <div>
+          <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Office / Workplace Address</label>
+          <textarea id="ecOfficeAddress" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -9506,14 +10214,20 @@
           </div>
         </div>
 
-        <div class="pt-2 flex items-center justify-end gap-2 border-t border-outline-variant">
-          <button type="button" onclick="closeEditCaseModal()" class="px-3.5 py-2 rounded-lg bg-surface-container border border-outline-variant text-on-surface font-headline font-bold text-xs">
-            Cancel
+        <div class="pt-2 flex items-center justify-between gap-2 border-t border-outline-variant">
+          <button type="button" onclick="const ecId = document.getElementById('ecCaseId').value; closeEditCaseModal(); triggerAiFolderIngestForCase(ecId);" class="px-3.5 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 font-headline font-bold text-xs flex items-center gap-1" title="Switch to Scrutiny Desk for this case and add more documents via AI Scan">
+            <span class="material-symbols-outlined text-[16px]">bolt</span>
+            <span>Add Documents (AI Scan)</span>
           </button>
-          <button type="submit" class="px-4 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline font-bold text-xs flex items-center gap-1 shadow-sm">
-            <span class="material-symbols-outlined text-[16px]">save</span>
-            <span>Save Modifications</span>
-          </button>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="closeEditCaseModal()" class="px-3.5 py-2 rounded-lg bg-surface-container border border-outline-variant text-on-surface font-headline font-bold text-xs">
+              Cancel
+            </button>
+            <button type="submit" class="px-4 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline font-bold text-xs flex items-center gap-1 shadow-sm">
+              <span class="material-symbols-outlined text-[16px]">save</span>
+              <span>Save Modifications</span>
+            </button>
+          </div>
         </div>
       </form>
     </div>
