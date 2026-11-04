@@ -1116,6 +1116,96 @@ async def ingest_and_separate_case_pdf(
     }
 
 
+@router.post("/{case_id}/pan-verification")
+async def upload_pan_verification_report(
+    case_id: str,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_ca_user),
+) -> Dict[str, Any]:
+    """
+    Upload the NSDL / Income Tax e-filing "Know Your PAN" verification report - a distinct
+    document from the physical PAN card scan (PAN_CARD), so the dashboard's PAN card flip
+    view can show both, and the certified report can print both in the PAN verification
+    annexure. Deliberately a small, isolated endpoint rather than reusing the shared
+    zero-lag field-upload endpoint, so this one-off CA-desk action can never affect the
+    high-traffic PWA photo-capture upload path.
+    """
+    loan_case = await resolve_loan_case(db, case_id)
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty.")
+    filename = file.filename or "pan_verification.pdf"
+    is_pdf = filename.lower().endswith(".pdf")
+
+    upload_dir = os.path.join("storage_uploads", f"case_{loan_case.id.hex}")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    if is_pdf:
+        # The report builder can only place raster images, not raw PDF pages - render just the
+        # first page (the verification result itself) to a JPG, same 300 DPI quality already
+        # used for every other scanned document in this app.
+        import fitz
+        tmp_pdf_path = os.path.join(upload_dir, f"pan_verification_src_{uuid.uuid4().hex[:8]}.pdf")
+        with open(tmp_pdf_path, "wb") as f:
+            f.write(file_bytes)
+        try:
+            doc = fitz.open(tmp_pdf_path)
+            if doc.page_count == 0:
+                doc.close()
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The uploaded PDF has no pages.")
+            pix = doc.load_page(0).get_pixmap(dpi=300)
+            img_name = f"pan_verification_{uuid.uuid4().hex[:8]}.jpg"
+            img_path = os.path.join(upload_dir, img_name)
+            pix.save(img_path, jpg_quality=95)
+            doc.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Could not read the uploaded PDF: {str(e)}",
+            )
+        storage_url = f"/storage/case_{loan_case.id.hex}/{img_name}"
+    else:
+        img_name = f"pan_verification_{uuid.uuid4().hex[:8]}_{os.path.basename(filename)}"
+        disk_path = os.path.join(upload_dir, img_name)
+        with open(disk_path, "wb") as f:
+            f.write(file_bytes)
+        storage_url = f"/storage/case_{loan_case.id.hex}/{img_name}"
+
+    doc_row = CaseDocument(
+        case_id=loan_case.id,
+        doc_type=DocumentType.PAN_VERIFICATION_REPORT,
+        storage_url=storage_url,
+        watermarked_url=storage_url,
+        captured_at=datetime.now(timezone.utc),
+        verification_status=VerificationStatus.VERIFIED,
+        ocr_data={"source": "ca_manual_upload", "original_filename": filename},
+    )
+    db.add(doc_row)
+
+    audit = AuditLog(
+        case_id=loan_case.id,
+        user_id=current_user.id,
+        action="PAN_VERIFICATION_REPORT_UPLOADED",
+        extra_metadata={"filename": filename},
+    )
+    db.add(audit)
+    await db.commit()
+    await db.refresh(doc_row)
+
+    return {
+        "status": "SUCCESS",
+        "document_id": str(doc_row.id),
+        "storage_url": storage_url,
+        "web_url": storage_url,
+    }
+
+
 @router.post("/{case_id}/ingest-images")
 async def ingest_and_classify_case_images(
     case_id: str,

@@ -41,6 +41,10 @@ class DocumentType(str, enum.Enum):
     UTILITY_BILL = "UTILITY_BILL"
     SALARY_SLIP = "SALARY_SLIP"
     PROPERTY_TITLE_DEED = "PROPERTY_TITLE_DEED"
+    # Distinct from PAN_CARD itself (the physical card scan) - this is the NSDL / Income Tax
+    # e-filing "Know Your PAN" verification report the CA office downloads separately to
+    # corroborate the card, so both need their own slot instead of one overwriting the other.
+    PAN_VERIFICATION_REPORT = "PAN_VERIFICATION_REPORT"
     # Self-employed / business applicants have no Form 16 - their income proof is an ITR-V
     # acknowledgement (filing receipt) and/or the CA's own computation-of-income sheet, which
     # a salaried applicant never has either.

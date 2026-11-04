@@ -607,6 +607,11 @@
                 <span>Replace Scan</span>
                 <input type="file" accept="image/*,application/pdf" class="hidden" onchange="directReplaceDocCard('pan', this.files[0])"/>
               </label>
+              <label onclick="event.stopPropagation();" class="cursor-pointer px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1 shadow-2xs transition-colors" title="Upload the NSDL / e-filing PAN verification report (PDF or image) - shown on the back of this card and printed in the certified report">
+                <span class="material-symbols-outlined text-[13px] text-purple-700">verified</span>
+                <span>Upload NSDL</span>
+                <input type="file" accept="image/*,application/pdf" class="hidden" onchange="uploadPanVerificationDoc(this.files[0])"/>
+              </label>
               <button onclick="event.stopPropagation(); flipDocCard('pan')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition-all" title="Flip between physical card & online NSDL verification">
                 <span class="material-symbols-outlined text-[13px]">sync</span>
                 <span id="panFlipBtnText">Flip Card</span>
@@ -3263,6 +3268,7 @@
       const fallbacks = [
         ["AADHAAR_CARD", "aadhaar_front_img", "dispAadhaarFrontImg"],
         ["PAN_CARD", "pan_front_img", "dispPanFrontImg"],
+        ["PAN_VERIFICATION_REPORT", "pan_back_img", "dispPanBackImg"],
         ["UTILITY_BILL", "utility_front_img", "dispUtilityFrontImg"],
       ];
       fallbacks.forEach(([docType, field, elId]) => {
@@ -8850,6 +8856,41 @@
         shortType: (d.type || 'DOCUMENT').toUpperCase()
       }));
       openFullDocumentViewer(items, startIndex);
+    }
+
+    // Uploads the NSDL / e-filing PAN verification report as its own distinct document (never
+    // overwrites the physical PAN card scan on the front face) - shown on the back of the PAN
+    // flip card and included in the certified report's PAN verification annexure alongside the
+    // card itself. PDFs are rendered server-side to a JPG (the report can only place raster
+    // images), so the preview and the report both always show something real once this returns.
+    async function uploadPanVerificationDoc(file) {
+      if (!file) return;
+      if (!activeCaseId) { alert("No active case selected — select a case before uploading."); return; }
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch(`/api/v1/cases/${activeCaseId}/pan-verification`, {
+          method: "POST",
+          headers: authHeaders(),
+          body: formData,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(`NSDL verification upload failed — this document was NOT saved: ${err.detail || "Server error"}.`);
+          return;
+        }
+        const data = await res.json();
+        const c = caseRegistry[activeCaseId];
+        if (c) c.pan_back_img = data.web_url;
+        const img = document.getElementById("dispPanBackImg");
+        if (img) img.src = data.web_url + `?t=${Date.now()}`;
+        // Flip to the back so the CA immediately sees what was just uploaded, not a silent save.
+        setDocSide("pan", "back");
+        alert(`[✓] NSDL / PAN verification report saved: ${file.name}`);
+      } catch (err) {
+        alert(`Network error — this document was NOT saved: ${err.message}. Please check your connection and try again.`);
+      }
     }
 
     function directReplaceDocCard(section, file) {

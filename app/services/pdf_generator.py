@@ -1077,6 +1077,32 @@ def generate_certified_cpv_report(
     else:
         story.append(Paragraph(f"PAN Card Verification: {NOT_CAPTURED} (no PAN card or NSDL/e-filing verification scanned for {applicant_name})", body_style))
 
+    # NSDL / e-filing "Know Your PAN" verification report - a distinct document from the
+    # physical PAN card scan above (DocumentType.PAN_VERIFICATION_REPORT, uploaded separately
+    # by the CA office), printed on its own page only when one was actually uploaded - no
+    # placeholder/missing line here, unlike the mandatory PAN card above, since this document
+    # is a supplementary corroboration, not itself a required KYC item.
+    pan_verification_img_path = None
+    if sorted_docs:
+        for d in sorted_docs:
+            if d.get("doc_type") == "PAN_VERIFICATION_REPORT":
+                cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+                if cand:
+                    pan_verification_img_path = cand
+                    break
+
+    if pan_verification_img_path and is_valid_image(pan_verification_img_path):
+        story.append(PageBreak())
+        add_firm_header("7A")
+        story.append(Paragraph("Annexure ‘E’ (Part 1, continued) — NSDL / e-Filing PAN Verification Report:", anx_title_style))
+        story.append(Spacer(1, 6))
+        try:
+            story.append(Image(pan_verification_img_path, width=6.2 * inch, height=8.0 * inch))
+            story.append(Spacer(1, 4))
+            story.append(Paragraph(f"<font size='7' color='#64748B'><b>NSDL / Income Tax e-Filing Portal — PAN Verification Report for {applicant_name}</b></font>", ParagraphStyle("PanVerCap", alignment=1)))
+        except Exception:
+            pass
+
     # ================= PAGE 8: RESIDENCE VISIT PHOTOGRAPHS =================
     story.append(PageBreak())
     add_firm_header(8)
