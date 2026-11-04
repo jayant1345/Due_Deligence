@@ -5317,7 +5317,11 @@
         applicant_4_address: f.applicant_4_address || "",
         applicant_5_address: f.applicant_5_address || "",
         assigned_agent_id: f.assigned_agent_id || null,
-        month: f.month || "",
+        // Falls back to deriving "Month YYYY" from created_at when no explicit month was given -
+        // buildMgmtEntriesFromApi() (Management Portal) never passed a month at all, so every
+        // real case's c.month was silently "" and the Month filter dropdown matched nothing,
+        // no matter which month was selected.
+        month: f.month || (f.created_at ? new Date(f.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : ""),
         allotted_by: f.allotted_by || "",
         loan_facility: `${f.loan_type || "Loan"}${amt ? " ₹" + (amt / 100000).toFixed(2) + " Lacs" : ""}`,
         loan_amount_val: amt,
@@ -6147,6 +6151,7 @@
     function buildMgmtEntriesFromApi(apiCases) {
       return (apiCases || []).map(dc => buildCaseEntry({
         case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
+        created_at: dc.created_at,
         phone: dc.applicant_phone, co_applicant_name: dc.co_applicant_name, co_applicant_phone: dc.co_applicant_phone,
         co_applicant_address: dc.co_applicant_address, co_applicant_office_address: dc.co_applicant_office_address,
         applicant_3_name: dc.applicant_3_name, applicant_3_phone: dc.applicant_3_phone,
@@ -6168,6 +6173,7 @@
         const res = await fetch("/api/v1/cases?exclude_status=CERTIFIED", { headers: authHeaders() });
         if (!res.ok) return;
         mgmtActiveCases = buildMgmtEntriesFromApi(await res.json());
+        rebuildMonthFilterOptions();
       } catch (e) {
         console.warn("Could not load active cases for Management Portal:", e);
       }
@@ -6179,9 +6185,46 @@
         const res = await fetch("/api/v1/cases?status=CERTIFIED", { headers: authHeaders() });
         if (!res.ok) return;
         mgmtCompletedCases = buildMgmtEntriesFromApi(await res.json());
+        rebuildMonthFilterOptions();
       } catch (e) {
         console.warn("Could not load completed cases for Management Portal:", e);
       }
+    }
+
+    // The "Month" filter was a hardcoded 4-month list (October/September/August/July 2026) -
+    // same bug class as Branches/Bank/Field Staff fixed earlier: it goes stale every month, and
+    // worse, every real case's own c.month was silently "" (buildMgmtEntriesFromApi never passed
+    // a month at all) so selecting ANY month here matched zero cases no matter what. Rebuilt from
+    // the real c.month values (now reliably derived from created_at) across both case lists.
+    function rebuildMonthFilterOptions() {
+      const sel = document.getElementById("mgmtFilterMonth");
+      if (!sel) return;
+      const prevValue = sel.value || "ALL";
+
+      const seen = new Set();
+      const months = [];
+      [...(mgmtActiveCases || []), ...(mgmtCompletedCases || [])].forEach(c => {
+        const m = (c && c.month || "").trim();
+        if (m && !seen.has(m)) {
+          seen.add(m);
+          months.push(m);
+        }
+      });
+      // Newest month first - a CA scanning this list almost always wants the current month.
+      months.sort((a, b) => new Date(`1 ${b}`) - new Date(`1 ${a}`));
+
+      sel.innerHTML = "";
+      const allOpt = document.createElement("option");
+      allOpt.value = "ALL";
+      allOpt.textContent = "All Months (બધા મહિના)";
+      sel.appendChild(allOpt);
+      months.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        sel.appendChild(opt);
+      });
+      sel.value = months.includes(prevValue) || prevValue === "ALL" ? prevValue : "ALL";
     }
 
     async function loadManagementStats() {
