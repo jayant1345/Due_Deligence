@@ -427,7 +427,10 @@
         <div id="pdfBurstStatusBox" class="hidden p-2 rounded-lg bg-black/40 border border-white/20 font-mono text-[10px] space-y-1">
           <div class="flex items-center justify-between text-amber-200 font-bold">
             <span id="pdfBurstStatusText">Processing pages with Gemini LLM...</span>
-            <span id="pdfBurstStatusPercent">0%</span>
+            <span class="flex items-center gap-2">
+              <span id="pdfBurstElapsedText" class="text-amber-300/80 font-normal">0s elapsed</span>
+              <span id="pdfBurstStatusPercent">0%</span>
+            </span>
           </div>
           <div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
             <div id="pdfBurstProgressBar" class="bg-amber-400 h-full w-0 transition-all duration-300"></div>
@@ -1975,7 +1978,10 @@
               <span class="material-symbols-outlined text-[18px] text-emerald-600 animate-spin">sync</span>
               <span>Gemini AI is reading and classifying pages...</span>
             </span>
-            <span id="tabNcScanPercent" class="font-mono font-bold text-emerald-700">0%</span>
+            <span class="flex items-center gap-2">
+              <span id="tabNcScanElapsedText" class="font-mono text-outline">0s elapsed</span>
+              <span id="tabNcScanPercent" class="font-mono font-bold text-emerald-700">0%</span>
+            </span>
           </div>
           <div class="w-full bg-surface-container-high rounded-full h-2.5 overflow-hidden">
             <div id="tabNcScanProgressBar" class="bg-gradient-to-r from-emerald-500 to-teal-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
@@ -4182,8 +4188,10 @@
       // case that was already scanned in an earlier session: every previously-extracted PAN,
       // Aadhaar, Form 16 etc. would vanish, kept only in the audit log. Only wipe when there is
       // nothing yet to lose; otherwise this one PDF is additive, same as a later file in a batch.
+      startElapsedTimer("pdfBurstElapsedText");
       await uploadAndProcessPdfFile(file, activeSeparatedDocs.length === 0);
       await resolvePendingPasswordPdfs();
+      stopElapsedTimer("pdfBurstElapsedText");
     }
 
     async function handlePortalFolderSelected(files) {
@@ -4212,6 +4220,28 @@
       await handleBatchPortalFilesIngest(Array.from(files));
     }
 
+    // Shared elapsed-time counter for any scan progress bar - the CA office asked to see how
+    // long a batch has actually been running, not just the coarse 15/25/65/100% milestones,
+    // since Gemini can take anywhere from a few seconds to a couple minutes per batch depending
+    // on page count. One interval per span id, keyed so two progress bars can run independently.
+    const _elapsedTimers = {};
+    function startElapsedTimer(spanId) {
+      stopElapsedTimer(spanId);
+      const startedAt = Date.now();
+      const span = document.getElementById(spanId);
+      if (span) span.textContent = "0s elapsed";
+      _elapsedTimers[spanId] = setInterval(() => {
+        const el = document.getElementById(spanId);
+        if (el) el.textContent = `${Math.floor((Date.now() - startedAt) / 1000)}s elapsed`;
+      }, 1000);
+    }
+    function stopElapsedTimer(spanId) {
+      if (_elapsedTimers[spanId]) {
+        clearInterval(_elapsedTimers[spanId]);
+        delete _elapsedTimers[spanId];
+      }
+    }
+
     async function handleBatchPortalFilesIngest(fileList) {
       lastIngestedDocIds = new Set();
       pendingPasswordPdfs = [];
@@ -4232,6 +4262,7 @@
       if (statusText) statusText.textContent = `Found ${pdfs.length} PDF(s) and ${images.length} Image(s). Processing with Gemini AI...`;
       if (statusPercent) statusPercent.textContent = "15%";
       if (progressBar) progressBar.style.width = "15%";
+      startElapsedTimer("pdfBurstElapsedText");
 
       // The first PDF of a batch clears stale prior scan results so a case starts from a clean
       // slate — but only when there IS no prior scan to lose. If this case was already AI-ingested
@@ -4249,6 +4280,7 @@
       }
 
       await resolvePendingPasswordPdfs();
+      stopElapsedTimer("pdfBurstElapsedText");
     }
 
     // Asked separately, one at a time, ONLY after every other file in the batch has already
@@ -6694,6 +6726,7 @@
       const launchBtn = document.getElementById("btnLaunchNewCaseAi");
 
       if (progressBox) progressBox.classList.remove("hidden");
+      startElapsedTimer("tabNcScanElapsedText");
       if (launchBtn) {
         launchBtn.disabled = true;
         launchBtn.classList.add("opacity-60", "cursor-not-allowed");
@@ -6775,6 +6808,7 @@
           launchBtn.classList.remove("opacity-60", "cursor-not-allowed");
         }
         if (progressBox) progressBox.classList.add("hidden");
+        stopElapsedTimer("tabNcScanElapsedText");
         return;
       }
 
@@ -6785,6 +6819,7 @@
           launchBtn.classList.remove("opacity-60", "cursor-not-allowed");
         }
         if (progressBox) progressBox.classList.add("hidden");
+        stopElapsedTimer("tabNcScanElapsedText");
         return;
       }
 
@@ -6975,6 +7010,7 @@
 
       if (progressBar) progressBar.style.width = "100%";
       if (statusDetail) statusDetail.textContent = `✓ Ingestion complete! Case ${caseNo} is created with all documents arranged. Status: PENDING (Manual Handover).`;
+      stopElapsedTimer("tabNcScanElapsedText");
 
       setTimeout(() => {
         if (launchBtn) {
