@@ -4929,8 +4929,13 @@
       let count = 0;
       let firstMatch = null;
 
+      // Branch is free text (ncBranch), so "Gota" and "gota" are the same real branch typed
+      // differently by different staff - matching case-insensitively (and ignoring stray
+      // leading/trailing spaces) keeps them together in one filtered list instead of the
+      // lowercase-typed cases silently vanishing from the dropdown's chosen casing.
+      const normBranchName = (branchName || "").trim().toLowerCase();
       for (const [id, c] of Object.entries(caseRegistry)) {
-        if (branchName === "ALL" || c.branch === branchName) {
+        if (branchName === "ALL" || (c.branch || "").trim().toLowerCase() === normBranchName) {
           const opt = document.createElement("option");
           opt.value = id;
           opt.textContent = `[${c.case_no}] - ${c.applicant_name}${c.created_at ? " (" + fmtCaseOptDate(c.created_at) + ")" : ""} | ${c.bank} (${c.branch})`;
