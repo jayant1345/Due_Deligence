@@ -16,6 +16,7 @@ from app.services.pdf_separator import (
     classify_and_store_single_image,
     map_llm_doc_type_to_document_type,
     reconcile_case_documents,
+    tag_applicant_slots,
 )
 from sqlalchemy import asc, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -874,6 +875,13 @@ async def _refresh_case_relationships(db: AsyncSession, loan_case: LoanCase) -> 
     docs = [d for d in result.scalars().all() if isinstance(d.ocr_data, dict) and d.ocr_data.get("source") == "pdf_ingest"]
     pages = [dict(d.ocr_data) for d in docs]
     reference = assign_relationships(pages, loan_case.applicant_name, loan_case.co_applicant_name)
+    tag_applicant_slots(pages, {
+        1: loan_case.applicant_name,
+        2: loan_case.co_applicant_name,
+        3: loan_case.applicant_3_name,
+        4: loan_case.applicant_4_name,
+        5: loan_case.applicant_5_name,
+    })
     for d, page in zip(docs, pages):
         d.ocr_data = page
         if page.get("scan_status") == "FAILED":

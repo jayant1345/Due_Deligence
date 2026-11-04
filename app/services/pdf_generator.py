@@ -127,6 +127,21 @@ def generate_certified_cpv_report(
                 return od["address"]
         return None
 
+    # Applicants 3-5: scoped strictly to matched_applicant_slot (set by pdf_separator.py's
+    # tag_applicant_slots, independent of the applicant/co-applicant SELF/DIFFERENT_PERSON
+    # binary above) - a document is only used here when it was unambiguously matched to THAT
+    # slot's configured name, so one applicant's PAN/Aadhaar/DOB can never print under another
+    # applicant's section, the same guarantee _belongs_to() gives applicant vs co-applicant.
+    def _ocr_first_for_slot(field_name: str, slot_no: int, doc_types: Optional[set] = None):
+        for d in document_items:
+            od = d.get("ocr_data") or {}
+            if od.get("matched_applicant_slot") != slot_no:
+                continue
+            real_doc_type = od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")
+            if od.get(field_name) and (doc_types is None or real_doc_type in doc_types):
+                return od[field_name]
+        return None
+
     real_pan = _ocr_first("extracted_pan", {"PAN_CARD"}) or _ocr_first("extracted_pan")
     real_aadhaar = _ocr_first("extracted_aadhaar", {"AADHAAR_CARD"})
     real_dob = _ocr_first("date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"})
@@ -1559,8 +1574,39 @@ def generate_certified_cpv_report(
 
         for slot_no, slot_name, slot_phone in extra_slots:
             home_group = home_group_for_slot(slot_no, home_sharing)
-            story.append(Paragraph(f"<b>Applicant {slot_no}:</b> {slot_name} &nbsp;&nbsp; <b>Contact:</b> {slot_phone}", table_cell_bold))
+            story.append(Paragraph(f"<b>Applicant {slot_no}:</b> {slot_name}", table_cell_bold))
             story.append(Spacer(1, 3))
+
+            # KYC particulars - strictly scoped to THIS slot's own matched documents
+            # (_ocr_first_for_slot), so they can never be mixed up with another applicant's.
+            slot_pan = _ocr_first_for_slot("extracted_pan", slot_no, {"PAN_CARD"}) or NOT_CAPTURED
+            slot_aadhaar = _ocr_first_for_slot("extracted_aadhaar", slot_no, {"AADHAAR_CARD"}) or NOT_CAPTURED
+            slot_dob = _ocr_first_for_slot("date_of_birth", slot_no, {"AADHAAR_CARD", "PAN_CARD"})
+            slot_gender = _ocr_first_for_slot("gender", slot_no, {"AADHAAR_CARD"})
+            slot_dob_age_gender = " / ".join(filter(None, [slot_dob, slot_gender])) or NOT_CAPTURED
+            # Marital Status has no document OCR source (not printed on Aadhaar/PAN) and no
+            # field-visit form exists yet for applicants 3-5 - printed as NOT_CAPTURED rather
+            # than silently omitted, same convention the rest of the report uses for any gap.
+            slot_marital = NOT_CAPTURED
+            kyc_grid = [
+                [Paragraph("<b>Contact Number</b>", table_cell_bold), Paragraph(slot_phone or NOT_CAPTURED, table_cell_style),
+                 Paragraph("<b>DOB / Gender</b>", table_cell_bold), Paragraph(slot_dob_age_gender, table_cell_style)],
+                [Paragraph("<b>PAN No.</b>", table_cell_bold), Paragraph(slot_pan, table_cell_style),
+                 Paragraph("<b>Aadhar No.</b>", table_cell_bold), Paragraph(slot_aadhaar, table_cell_style)],
+                [Paragraph("<b>Marital Status</b>", table_cell_bold), Paragraph(slot_marital, table_cell_style),
+                 Paragraph("", table_cell_style), Paragraph("", table_cell_style)],
+            ]
+            t_kyc = Table(kyc_grid, colWidths=[1.4 * inch, 2.35 * inch, 1.4 * inch, 2.35 * inch])
+            t_kyc.setStyle(TableStyle([
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8FAFC")),
+                ("BACKGROUND", (2, 0), (2, -1), colors.HexColor("#F8FAFC")),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]))
+            story.append(t_kyc)
+            story.append(Spacer(1, 4))
 
             if home_group != slot_no:
                 story.append(Paragraph(

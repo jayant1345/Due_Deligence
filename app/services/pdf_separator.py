@@ -855,6 +855,41 @@ def assign_relationships(items: List[Dict[str, Any]], applicant_name: str = "", 
     return reference
 
 
+def tag_applicant_slots(items: List[Dict[str, Any]], applicant_names: Dict[int, str]) -> None:
+    """
+    Additive, independent of SELF/DIFFERENT_PERSON: tags each item in place with
+    matched_applicant_slot (1-5) - whichever configured applicant (slots 1-5) the document's
+    holder_name best matches, or None if it matches none clearly or matches more than one
+    without a clear winner.
+
+    This is what lets a 3rd/4th/5th applicant's own PAN/Aadhaar/DOB/marital-status print in
+    their own section of the report instead of being silently left blank or, worse, mixed up
+    with another applicant's - the exact bug class already fixed for the 2-applicant case,
+    now generalized. Purely additive: never touches relationship_to_applicant, discrepancies,
+    or anything else assign_relationships() already set, so it can never regress that logic.
+    """
+    clean_names = {slot: (name or "").strip() for slot, name in applicant_names.items() if (name or "").strip()}
+    for it in items:
+        it["matched_applicant_slot"] = None
+        holder = it.get("holder_name")
+        if not holder or it.get("scan_status") == "FAILED":
+            continue
+        scores = []
+        for slot, name in clean_names.items():
+            score = _name_score(holder, name)
+            if score is not None and score >= 85:
+                scores.append((slot, score))
+        if len(scores) == 1:
+            it["matched_applicant_slot"] = scores[0][0]
+        elif len(scores) > 1:
+            # Ambiguous match against two configured names - only resolve it when one score
+            # is clearly ahead; otherwise leave unset rather than guess and risk mixing two
+            # applicants' KYC data together.
+            scores.sort(key=lambda kv: kv[1], reverse=True)
+            if scores[0][1] - scores[1][1] >= 10:
+                it["matched_applicant_slot"] = scores[0][0]
+
+
 def reconcile_case_documents(items: List[Dict[str, Any]], applicant_name: str = "", co_applicant_name: str = "") -> Dict[str, Any]:
     """
     Cross-check identity fields across every scanned page of a case. A PAN or DOB that
