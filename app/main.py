@@ -84,6 +84,12 @@ async def lifespan(app: FastAPI):
         else:
             # Guarantee password is admin@123
             admin_user.hashed_password = hash_password("admin@123")
+            # Guarantee the displayed name matches this firm's real senior partner - an older
+            # seed/demo record ("CA Rohan Parekh, FCA") had been sitting in the live database
+            # and kept showing up in the portal's logged-in badge and report signatures even
+            # after the seed default above was corrected, since this branch only ever ran for
+            # a brand-new user, never to fix an already-existing one.
+            admin_user.full_name = "CA Pranav N. Shah (Sr. Partner)"
 
         # 2. Field Agent: Only seed initial agent1 if NO active field agent exists at all
         agent_cnt_res = await session.execute(
