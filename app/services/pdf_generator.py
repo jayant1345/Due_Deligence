@@ -1571,6 +1571,10 @@ def generate_certified_cpv_report(
                 story.append(Spacer(1, 10))
                 continue
 
+            slot_address = case_data.get(f"applicant_{slot_no}_address") or target_address
+            story.append(Paragraph(f"<b>Residence Address:</b> {slot_address}", body_style))
+            story.append(Spacer(1, 4))
+
             slot_docs = [d for d in sorted_docs if _is_home_slot_doc(d, slot_no)]
             slot_map = {1: None, 2: None, 3: None, 4: None}
             for d in slot_docs:

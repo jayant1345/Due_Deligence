@@ -115,6 +115,12 @@ class LoanCase(Base, TimestampMixin):
     # means applicant 2 shares applicant 1's home - one shared visit/photo set covers both.
     # Reuses the JSON-as-text pattern field_form_data already uses; no new table.
     applicant_home_sharing: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Only relevant when that slot is NOT sharing another applicant's home (see
+    # applicant_home_sharing) - the separate address the field agent needs to visit for that
+    # applicant's own home verification. Left blank when sharing.
+    applicant_3_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    applicant_4_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    applicant_5_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Foreign Keys
     assigned_agent_id: Mapped[Optional[uuid.UUID]] = mapped_column(

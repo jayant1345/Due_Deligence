@@ -1802,6 +1802,10 @@
                 <option value="2">Applicant 2's home</option>
               </select>
             </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 3 Home Address <span class="font-normal normal-case text-outline">(only if NOT sharing another applicant's home above)</span></label>
+              <textarea id="tabNcSlot3Address" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="Leave blank if sharing another applicant's home"></textarea>
+            </div>
             <div class="col-span-2 text-[10px] font-mono text-slate-600 bg-surface-container-low border border-outline-variant rounded-lg p-1.5">Applicant 3: Home visit only (no office visit)</div>
           </div>
 
@@ -1822,6 +1826,10 @@
                 <option value="2">Applicant 2's home</option>
                 <option value="3">Applicant 3's home</option>
               </select>
+            </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 4 Home Address <span class="font-normal normal-case text-outline">(only if NOT sharing another applicant's home above)</span></label>
+              <textarea id="tabNcSlot4Address" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="Leave blank if sharing another applicant's home"></textarea>
             </div>
             <div class="col-span-2 text-[10px] font-mono text-slate-600 bg-surface-container-low border border-outline-variant rounded-lg p-1.5">Applicant 4: Home visit only (no office visit)</div>
           </div>
@@ -1844,6 +1852,10 @@
                 <option value="3">Applicant 3's home</option>
                 <option value="4">Applicant 4's home</option>
               </select>
+            </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 5 Home Address <span class="font-normal normal-case text-outline">(only if NOT sharing another applicant's home above)</span></label>
+              <textarea id="tabNcSlot5Address" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="Leave blank if sharing another applicant's home"></textarea>
             </div>
             <div class="col-span-2 text-[10px] font-mono text-slate-600 bg-surface-container-low border border-outline-variant rounded-lg p-1.5">Applicant 5: Home visit only (no office visit)</div>
           </div>
@@ -6537,9 +6549,11 @@
           const n = document.getElementById(`tabNcSlot${slot}Name`);
           const p = document.getElementById(`tabNcSlot${slot}Phone`);
           const s = document.getElementById(`tabNcSlot${slot}Shares`);
+          const a = document.getElementById(`tabNcSlot${slot}Address`);
           if (n) n.value = "";
           if (p) p.value = "";
           if (s) s.value = "";
+          if (a) a.value = "";
         }
       });
     }
@@ -6583,9 +6597,11 @@
           const n = document.getElementById(`ecSlot${slot}Name`);
           const p = document.getElementById(`ecSlot${slot}Phone`);
           const s = document.getElementById(`ecSlot${slot}Shares`);
+          const a = document.getElementById(`ecSlot${slot}Address`);
           if (n) n.value = "";
           if (p) p.value = "";
           if (s) s.value = "";
+          if (a) a.value = "";
         }
       });
     }
@@ -6648,6 +6664,9 @@
       const slot4Phone = document.getElementById("tabNcSlot4Phone") ? document.getElementById("tabNcSlot4Phone").value.trim() : "";
       const slot5Name = document.getElementById("tabNcSlot5Name") ? document.getElementById("tabNcSlot5Name").value.trim() : "";
       const slot5Phone = document.getElementById("tabNcSlot5Phone") ? document.getElementById("tabNcSlot5Phone").value.trim() : "";
+      const slot3Address = document.getElementById("tabNcSlot3Address") ? document.getElementById("tabNcSlot3Address").value.trim() : "";
+      const slot4Address = document.getElementById("tabNcSlot4Address") ? document.getElementById("tabNcSlot4Address").value.trim() : "";
+      const slot5Address = document.getElementById("tabNcSlot5Address") ? document.getElementById("tabNcSlot5Address").value.trim() : "";
       const homeSharing = collectHomeSharingMap("tabNc");
       const loanType = document.getElementById("tabNcLoanType") ? document.getElementById("tabNcLoanType").value : "Home Loan (HL)";
       const loanAmountRaw = document.getElementById("tabNcLoanAmount") ? document.getElementById("tabNcLoanAmount").value.trim() : "";
@@ -6713,6 +6732,9 @@
             applicant_5_name: slot5Name || undefined,
             applicant_5_phone: slot5Phone || undefined,
             applicant_home_sharing: homeSharing,
+            applicant_3_address: slot3Address || undefined,
+            applicant_4_address: slot4Address || undefined,
+            applicant_5_address: slot5Address || undefined,
             loan_type: loanType,
             loan_amount: loanAmount,
             target_address: address,
@@ -6993,9 +7015,9 @@
 
       ["tabNcCaseNo", "tabNcBranch", "tabNcApplicantName", "tabNcPhone", "tabNcCoApplicantName",
        "tabNcCoApplicantPhone", "tabNcCoApplicantAddress", "tabNcLoanAmount", "tabNcAddress", "tabNcOfficeAddress",
-       "tabNcSlot3Name", "tabNcSlot3Phone", "tabNcSlot3Shares",
-       "tabNcSlot4Name", "tabNcSlot4Phone", "tabNcSlot4Shares",
-       "tabNcSlot5Name", "tabNcSlot5Phone", "tabNcSlot5Shares"].forEach(id => {
+       "tabNcSlot3Name", "tabNcSlot3Phone", "tabNcSlot3Shares", "tabNcSlot3Address",
+       "tabNcSlot4Name", "tabNcSlot4Phone", "tabNcSlot4Shares", "tabNcSlot4Address",
+       "tabNcSlot5Name", "tabNcSlot5Phone", "tabNcSlot5Shares", "tabNcSlot5Address"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = "";
       });
@@ -7274,6 +7296,9 @@
         applicant_5_name: f.applicant_5_name || "",
         applicant_5_phone: f.applicant_5_phone || "",
         applicant_home_sharing: f.applicant_home_sharing || "",
+        applicant_3_address: f.applicant_3_address || "",
+        applicant_4_address: f.applicant_4_address || "",
+        applicant_5_address: f.applicant_5_address || "",
         assigned_agent_id: f.assigned_agent_id || null,
         month: f.month || "",
         allotted_by: f.allotted_by || "",
@@ -7358,6 +7383,7 @@
               applicant_4_name: dc.applicant_4_name, applicant_4_phone: dc.applicant_4_phone,
               applicant_5_name: dc.applicant_5_name, applicant_5_phone: dc.applicant_5_phone,
               applicant_home_sharing: dc.applicant_home_sharing,
+              applicant_3_address: dc.applicant_3_address, applicant_4_address: dc.applicant_4_address, applicant_5_address: dc.applicant_5_address,
               loan_type: dc.loan_type, loan_amount: dc.loan_amount, address: dc.target_address,
               office_address: dc.office_address,
               benchmark_lat: dc.target_lat, benchmark_lon: dc.target_lon, status: dc.status, db_id: dc.id,
@@ -7400,6 +7426,9 @@
             if (dc.applicant_5_name !== undefined) caseRegistry[dc.id].applicant_5_name = dc.applicant_5_name;
             if (dc.applicant_5_phone !== undefined) caseRegistry[dc.id].applicant_5_phone = dc.applicant_5_phone;
             if (dc.applicant_home_sharing !== undefined) caseRegistry[dc.id].applicant_home_sharing = dc.applicant_home_sharing;
+            if (dc.applicant_3_address !== undefined) caseRegistry[dc.id].applicant_3_address = dc.applicant_3_address;
+            if (dc.applicant_4_address !== undefined) caseRegistry[dc.id].applicant_4_address = dc.applicant_4_address;
+            if (dc.applicant_5_address !== undefined) caseRegistry[dc.id].applicant_5_address = dc.applicant_5_address;
           }
           if (dc.case_no) {
             caseRegistry[dc.case_no] = caseRegistry[dc.id];
@@ -7804,6 +7833,9 @@
       if (document.getElementById("ecSlot4Phone")) document.getElementById("ecSlot4Phone").value = c.applicant_4_phone || "";
       if (document.getElementById("ecSlot5Name")) document.getElementById("ecSlot5Name").value = c.applicant_5_name || "";
       if (document.getElementById("ecSlot5Phone")) document.getElementById("ecSlot5Phone").value = c.applicant_5_phone || "";
+      if (document.getElementById("ecSlot3Address")) document.getElementById("ecSlot3Address").value = c.applicant_3_address || "";
+      if (document.getElementById("ecSlot4Address")) document.getElementById("ecSlot4Address").value = c.applicant_4_address || "";
+      if (document.getElementById("ecSlot5Address")) document.getElementById("ecSlot5Address").value = c.applicant_5_address || "";
       let ecSharingMap = {};
       try { ecSharingMap = JSON.parse(c.applicant_home_sharing || "{}") || {}; } catch (e) { ecSharingMap = {}; }
       [3, 4, 5].forEach(slot => {
@@ -7870,6 +7902,9 @@
       const slot4Phone = document.getElementById("ecSlot4Phone") ? document.getElementById("ecSlot4Phone").value.trim() : "";
       const slot5Name = document.getElementById("ecSlot5Name") ? document.getElementById("ecSlot5Name").value.trim() : "";
       const slot5Phone = document.getElementById("ecSlot5Phone") ? document.getElementById("ecSlot5Phone").value.trim() : "";
+      const slot3Address = document.getElementById("ecSlot3Address") ? document.getElementById("ecSlot3Address").value.trim() : "";
+      const slot4Address = document.getElementById("ecSlot4Address") ? document.getElementById("ecSlot4Address").value.trim() : "";
+      const slot5Address = document.getElementById("ecSlot5Address") ? document.getElementById("ecSlot5Address").value.trim() : "";
       const ecHomeSharing = collectHomeSharingMap("ec");
       const applicantPhone = document.getElementById("ecApplicantPhone") ? document.getElementById("ecApplicantPhone").value.trim() : "";
       const loanAmountRaw = document.getElementById("ecLoanAmount") ? document.getElementById("ecLoanAmount").value.trim() : "";
@@ -7903,6 +7938,9 @@
             applicant_5_name: slot5Name || null,
             applicant_5_phone: slot5Phone || null,
             applicant_home_sharing: ecHomeSharing || null,
+            applicant_3_address: slot3Address || null,
+            applicant_4_address: slot4Address || null,
+            applicant_5_address: slot5Address || null,
             bank_name: bankName,
             branch: branch,
             loan_amount: loanAmount,
@@ -10331,6 +10369,10 @@
                 <option value="2">Applicant 2's home</option>
               </select>
             </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 3 Home Address <span class="font-normal normal-case text-outline">(only if not sharing)</span></label>
+              <textarea id="ecSlot3Address" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body" placeholder="Leave blank if sharing another applicant's home"></textarea>
+            </div>
           </div>
           <div id="ecSlot4Wrap" class="hidden col-span-2 grid grid-cols-2 gap-3">
             <div>
@@ -10349,6 +10391,10 @@
                 <option value="2">Applicant 2's home</option>
                 <option value="3">Applicant 3's home</option>
               </select>
+            </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 4 Home Address <span class="font-normal normal-case text-outline">(only if not sharing)</span></label>
+              <textarea id="ecSlot4Address" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body" placeholder="Leave blank if sharing another applicant's home"></textarea>
             </div>
           </div>
           <div id="ecSlot5Wrap" class="hidden col-span-2 grid grid-cols-2 gap-3">
@@ -10369,6 +10415,10 @@
                 <option value="3">Applicant 3's home</option>
                 <option value="4">Applicant 4's home</option>
               </select>
+            </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 5 Home Address <span class="font-normal normal-case text-outline">(only if not sharing)</span></label>
+              <textarea id="ecSlot5Address" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body" placeholder="Leave blank if sharing another applicant's home"></textarea>
             </div>
           </div>
           <div>

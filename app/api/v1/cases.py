@@ -148,6 +148,9 @@ async def create_case(
         applicant_5_name=(req.applicant_5_name or "").strip() or None,
         applicant_5_phone=(req.applicant_5_phone or "").strip() or None,
         applicant_home_sharing=(req.applicant_home_sharing or "").strip() or None,
+        applicant_3_address=(req.applicant_3_address or "").strip() or None,
+        applicant_4_address=(req.applicant_4_address or "").strip() or None,
+        applicant_5_address=(req.applicant_5_address or "").strip() or None,
         assigned_agent_id=req.assigned_agent_id,
         created_by_id=current_user.id,
     )

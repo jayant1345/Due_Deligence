@@ -254,6 +254,9 @@ async def async_generate_report_pdf(
         "applicant_5_name": loan_case.applicant_5_name,
         "applicant_5_phone": loan_case.applicant_5_phone,
         "applicant_home_sharing": loan_case.applicant_home_sharing,
+        "applicant_3_address": loan_case.applicant_3_address,
+        "applicant_4_address": loan_case.applicant_4_address,
+        "applicant_5_address": loan_case.applicant_5_address,
     }
 
     if loan_case.field_form_data:
