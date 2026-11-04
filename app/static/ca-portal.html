@@ -1780,6 +1780,46 @@
             <textarea id="tabNcOfficeAddress" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="e.g. Shop 12, GIDC Estate, Gota, Ahmedabad (if applicable)"></textarea>
           </div>
 
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Phone / WhatsApp*</label>
+              <input id="tabNcPhone" type="text" placeholder="e.g. +91 98250 12345" class="w-full text-xs font-mono bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Loan Facility*</label>
+              <select id="tabNcLoanType" class="w-full text-xs font-semibold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
+                <option value="Vehicle Loan">Vehicle Loan</option>
+                <option value="Home Loan" selected>Home Loan</option>
+                <option value="Education Loan">Education Loan</option>
+                <option value="Personal Loan">Personal Loan</option>
+                <option value="Business Takeover">Business Takeover</option>
+                <option value="Quotation Verification">Quotation Verification</option>
+                <option value="Pension Loan">Pension Loan</option>
+                <option value="BT TOP UP">BT TOP UP</option>
+                <option value="Machinery Loan">Machinery Loan</option>
+                <option value="Builder Tie Up">Builder Tie Up</option>
+                <option value="MSME Loan">MSME Loan</option>
+                <option value="Cash Credit Loan">Cash Credit Loan</option>
+                <option value="Mudra Loan">Mudra Loan</option>
+                <option value="Others">Others</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Sanction / Loan Amount</label>
+              <input id="tabNcLoanAmount" type="text" placeholder="e.g. 20,00,000" class="w-full text-xs font-mono font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Field Staff Allotment (હસ્તાંતરણ)</label>
+              <div class="p-2 rounded-lg bg-surface-container-low border border-outline-variant text-[11px] font-mono text-outline flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-amber-600 text-[16px]">pending_actions</span>
+                <span class="text-on-surface font-semibold">Unassigned • Manual Handover from Scrutiny Desk</span>
+              </div>
+            </div>
+          </div>
+
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Case Type</label>
             <div class="flex items-center gap-0.5 bg-surface-container-high p-0.5 rounded-full border border-outline-variant font-mono text-[10px] w-fit">
@@ -1882,46 +1922,6 @@
               <textarea id="tabNcSlot5Address" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="Leave blank if sharing another applicant's home"></textarea>
             </div>
             <div class="col-span-2 text-[10px] font-mono text-slate-600 bg-surface-container-low border border-outline-variant rounded-lg p-1.5">Applicant 5: Home visit only (no office visit)</div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Phone / WhatsApp*</label>
-              <input id="tabNcPhone" type="text" placeholder="e.g. +91 98250 12345" class="w-full text-xs font-mono bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
-            </div>
-            <div>
-              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Loan Facility*</label>
-              <select id="tabNcLoanType" class="w-full text-xs font-semibold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
-                <option value="Vehicle Loan">Vehicle Loan</option>
-                <option value="Home Loan" selected>Home Loan</option>
-                <option value="Education Loan">Education Loan</option>
-                <option value="Personal Loan">Personal Loan</option>
-                <option value="Business Takeover">Business Takeover</option>
-                <option value="Quotation Verification">Quotation Verification</option>
-                <option value="Pension Loan">Pension Loan</option>
-                <option value="BT TOP UP">BT TOP UP</option>
-                <option value="Machinery Loan">Machinery Loan</option>
-                <option value="Builder Tie Up">Builder Tie Up</option>
-                <option value="MSME Loan">MSME Loan</option>
-                <option value="Cash Credit Loan">Cash Credit Loan</option>
-                <option value="Mudra Loan">Mudra Loan</option>
-                <option value="Others">Others</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Sanction / Loan Amount</label>
-              <input id="tabNcLoanAmount" type="text" placeholder="e.g. 20,00,000" class="w-full text-xs font-mono font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
-            </div>
-            <div>
-              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Field Staff Allotment (હસ્તાંતરણ)</label>
-              <div class="p-2 rounded-lg bg-surface-container-low border border-outline-variant text-[11px] font-mono text-outline flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-amber-600 text-[16px]">pending_actions</span>
-                <span class="text-on-surface font-semibold">Unassigned • Manual Handover from Scrutiny Desk</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
