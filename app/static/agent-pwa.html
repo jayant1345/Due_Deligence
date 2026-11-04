@@ -772,6 +772,13 @@
               <option value="Retired">Retired / Pensioner</option>
             </select>
           </div>
+        </div>
+
+        <!-- Hidden entirely when Occupation = House Wife (toggled by handleOccupationChange) -
+             a home maker has no workplace, so asking for a firm name, office address, premises
+             ownership etc. was confusing noise that didn't apply to her. -->
+        <div id="officeFieldsWrap">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Position / Nature of Business (હોદ્દો / ધંધો શેનો કરે છે)*</label>
             <input id="formDesignation" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Teacher, Manager — or for Business: Furniture Retailer, Kirana Store"/>
@@ -897,6 +904,7 @@
           <label class="font-mono text-[10px] text-outline block mb-1">Overall Assessment / Remarks (optional - e.g. a business proof caveat)</label>
           <input id="formOfficeAssessment" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="Leave blank for the default POSITIVE assessment, or note e.g. 'Branch should obtain Business Proof like GST, Udyam, Gumasta etc.'"/>
         </div>
+        </div>
 
         <!-- DYNAMIC NOTIFICATION: EMPLOYED VS HOUSEWIFE -->
         <div id="officeVerificationNotice" class="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2">
@@ -973,6 +981,12 @@
               <option value="Retired">Retired / Pensioner</option>
             </select>
           </div>
+        </div>
+
+        <!-- Hidden entirely when Occupation = House Wife (toggled by handleCoOccupationChange) -
+             same reasoning as the primary applicant's officeFieldsWrap above. -->
+        <div id="coOfficeFieldsWrap">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Designation / Role*</label>
             <input id="formCoDesignation" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Teacher, Clerk, Manager"/>
@@ -1102,6 +1116,7 @@
               <option value="Not Verified">Not Verified</option>
             </select>
           </div>
+        </div>
         </div>
 
         <div id="coApplicantOfficeNotice" class="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2">
@@ -2564,14 +2579,17 @@
       const firmInput = document.getElementById("formFirmName");
       const roleInput = document.getElementById("formDesignation");
       const wfhInput = document.getElementById("formWorkFromHome");
+      const fieldsWrap = document.getElementById("officeFieldsWrap");
 
       if (occ === "House Wife") {
         if (noticeWork) noticeWork.classList.add("hidden");
         if (noticeHw) noticeHw.classList.remove("hidden");
+        if (fieldsWrap) fieldsWrap.classList.add("hidden");
         if (wfhInput) wfhInput.value = "Yes";
       } else {
         if (noticeWork) noticeWork.classList.remove("hidden");
         if (noticeHw) noticeHw.classList.add("hidden");
+        if (fieldsWrap) fieldsWrap.classList.remove("hidden");
         if (dispOcc) dispOcc.textContent = occ === "Job" ? (roleInput ? roleInput.value : "Teacher / Job") : "Business / Self-Employed";
         if (dispFirm) dispFirm.textContent = (firmInput && firmInput.value) || "Employer / School";
         if (wfhInput) wfhInput.value = "No";
@@ -2584,14 +2602,17 @@
       const noticeWork = document.getElementById("coApplicantOfficeNotice");
       const noticeHw = document.getElementById("coApplicantHousewifeNotice");
       const wfhInput = document.getElementById("formCoWorkFromHome");
+      const fieldsWrap = document.getElementById("coOfficeFieldsWrap");
 
       if (occ === "House Wife") {
         if (noticeWork) noticeWork.classList.add("hidden");
         if (noticeHw) noticeHw.classList.remove("hidden");
+        if (fieldsWrap) fieldsWrap.classList.add("hidden");
         if (wfhInput) wfhInput.value = "Yes";
       } else {
         if (noticeWork) noticeWork.classList.remove("hidden");
         if (noticeHw) noticeHw.classList.add("hidden");
+        if (fieldsWrap) fieldsWrap.classList.remove("hidden");
         if (wfhInput) wfhInput.value = "No";
       }
     }
