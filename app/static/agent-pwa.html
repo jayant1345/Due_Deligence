@@ -33,41 +33,18 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
   <script src="/static/geofence-map.js?v=3"></script>
 
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-  <script>
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            primary: "#00288e",
-            "primary-container": "#1e40af",
-            "on-primary": "#ffffff",
-            secondary: "#006c4a",
-            "secondary-container": "#82f5c1",
-            tertiary: "#532a00",
-            "tertiary-container": "#743d00",
-            background: "#f8f9ff",
-            surface: "#f8f9ff",
-            "surface-container-lowest": "#ffffff",
-            "surface-container-low": "#eff4ff",
-            "surface-container": "#e5eeff",
-            "surface-container-high": "#dce9ff",
-            "on-surface": "#0b1c30",
-            "on-surface-variant": "#444653",
-            outline: "#757684",
-            "outline-variant": "#c4c5d5",
-          },
-          fontFamily: {
-            headline: ["Space Grotesk", "sans-serif"],
-            body: ["Hanken Grotesk", "sans-serif"],
-            mono: ["JetBrains Mono", "monospace"],
-          }
-        }
-      }
-    }
-  </script>
+  <!-- Tailwind CSS - pre-built locally (Tailwind CLI 3.4.17, matching the exact version the
+       Play CDN itself resolves to, plus @tailwindcss/forms@0.5.10 and
+       @tailwindcss/container-queries@0.1.1, same plugins the old CDN query string loaded) from
+       ca-portal.html + agent-pwa.html + their extracted ca-portal.js/agent-pwa.js, instead of
+       shipping the full runtime JIT compiler to the browser on every page load. Rebuild with
+       `npx tailwindcss -i input.css -o app/static/tailwind-built.css --minify` (config mirrors
+       the theme.extend block the old CDN script used) whenever a new Tailwind class is added to
+       any of those four files - a static build only knows about classes present at build time.
+       To revert instantly, uncomment the two lines below and remove this <link>. -->
+  <link rel="stylesheet" href="/static/tailwind-built.css?v=1"/>
+  <!-- <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script> -->
+  <!-- <script>tailwind.config = { darkMode: "class", theme: { extend: { colors: { primary: "#00288e", "primary-container": "#1e40af", "on-primary": "#ffffff", secondary: "#006c4a", "secondary-container": "#82f5c1", tertiary: "#532a00", "tertiary-container": "#743d00", background: "#f8f9ff", surface: "#f8f9ff", "surface-container-lowest": "#ffffff", "surface-container-low": "#eff4ff", "surface-container": "#e5eeff", "surface-container-high": "#dce9ff", "on-surface": "#0b1c30", "on-surface-variant": "#444653", outline: "#757684", "outline-variant": "#c4c5d5" }, fontFamily: { headline: ["Space Grotesk", "sans-serif"], body: ["Hanken Grotesk", "sans-serif"], mono: ["JetBrains Mono", "monospace"] } } } }</script> -->
   <style>
     /* No part of this app ever needs horizontal page panning - if any element (a long
        applicant name, a wide select, a dynamically-rendered row) ever becomes a pixel wider

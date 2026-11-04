@@ -5,6 +5,9 @@ venv/
 env/
 ENV/
 
+# Node (dev-only Tailwind CSS build - never runs at runtime, see package.json)
+node_modules/
+
 # Python Cache & Bytecode
 __pycache__/
 *.py[cod]

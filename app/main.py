@@ -315,6 +315,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Versioned static JS bundles (?v=N query string, bumped by hand whenever the file actually
+# changes - see ca-portal.js/agent-pwa.js/geofence-map.js references) are safe to cache
+# aggressively: a stale cached copy can only ever be served under its OLD version number, never
+# silently served as if it were a newer deploy. The HTML files themselves are deliberately left
+# off this list, so a deploy is always picked up on next load with no version bump needed there.
+CACHEABLE_STATIC_FILES = {"/static/ca-portal.js", "/static/agent-pwa.js", "/static/geofence-map.js", "/static/tailwind-built.css"}
+
+
+@app.middleware("http")
+async def add_static_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path in CACHEABLE_STATIC_FILES and "v" in request.query_params:
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
 # Mount API Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
