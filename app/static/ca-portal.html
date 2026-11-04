@@ -4891,6 +4891,20 @@
     // Shared by the "Branches" filter dropdown and the New/Edit Case branch-name suggestion
     // list below - one real list of branch names, deduped case-insensitively, so "Gota" and
     // "gota" typed on different cases collapse into a single suggestion instead of both.
+    // How many applicant slots (1-5) are actually filled on this case - mirrors the backend's
+    // applicant_slots_for_case() rule: slot 1 (applicant_name) is always present, slots 2-5 are
+    // sequential (co_applicant_name, then applicant_3/4/5_name) with no gaps, same as the New
+    // Case Intake form's "2/3/4/5 Applicants" stepper enforces.
+    function getApplicantCountForCase(c) {
+      if (!c) return 1;
+      let count = 1;
+      if (c.co_applicant_name && c.co_applicant_name.trim()) count = 2;
+      if (c.applicant_3_name && c.applicant_3_name.trim()) count = 3;
+      if (c.applicant_4_name && c.applicant_4_name.trim()) count = 4;
+      if (c.applicant_5_name && c.applicant_5_name.trim()) count = 5;
+      return count;
+    }
+
     function getDistinctCaseBranches() {
       const seen = new Set();
       const branches = [];
@@ -8642,6 +8656,8 @@
 
         const cachedSelfie = localStorage.getItem("selfie_" + c.id);
         const selfieSrc = cachedSelfie || c.agent_selfie || "/static/placeholders/photo_pending.svg";
+        const applicantCount = getApplicantCountForCase(c);
+        const applicantCountBadge = `<span class="inline-block mt-1 px-1.5 py-0.5 rounded-full font-mono text-[9px] font-bold ${applicantCount > 1 ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-surface-container text-on-surface-variant border border-outline-variant'}">${applicantCount} Applicant${applicantCount > 1 ? 's' : ''}</span>`;
 
         // The real distance from the most recent geotagged photo (set by the server, see
         // GET /api/v1/cases) - this used to silently fall back to a hardcoded "32m (COMPLIANT)"
@@ -8662,6 +8678,7 @@
           <td class="py-3 px-3">
             <div class="font-bold text-on-surface">${c.applicant_name}</div>
             <div class="font-mono text-[10px] text-outline">${c.phone || '+91 81601 66900'}</div>
+            ${applicantCountBadge}
           </td>
           <td class="py-3 px-3">
             <div class="font-bold text-on-surface">${c.bank}</div>
