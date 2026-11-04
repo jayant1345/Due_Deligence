@@ -102,6 +102,20 @@ class LoanCase(Base, TimestampMixin):
         nullable=True,
     )
 
+    # Applicants 3-5: fixed extra slots (used or left blank), not a dynamic list - mirrors
+    # co_applicant_name/co_applicant_phone exactly. Per bank rule, slots 1-2 require a home AND
+    # office visit; slots 3-5 require only a home visit (see app.services.applicant_slots).
+    applicant_3_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    applicant_3_phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    applicant_4_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    applicant_4_phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    applicant_5_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    applicant_5_phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    # JSON string map of {"<slot>": "<earlier slot it shares a home with>"}, e.g. {"2":"1"}
+    # means applicant 2 shares applicant 1's home - one shared visit/photo set covers both.
+    # Reuses the JSON-as-text pattern field_form_data already uses; no new table.
+    applicant_home_sharing: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Foreign Keys
     assigned_agent_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),

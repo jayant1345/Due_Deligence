@@ -1477,6 +1477,18 @@
           <span class="material-symbols-outlined text-[16px]">home</span>
           <span>Co-Applicant Residence (4)</span>
         </button>
+        <button id="pwaTabHome3" type="button" onclick="switchPwaPhotoFolder('home_3')" class="hidden flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container">
+          <span class="material-symbols-outlined text-[16px]">home</span>
+          <span id="pwaTabHome3Label">Applicant 3 Residence (4)</span>
+        </button>
+        <button id="pwaTabHome4" type="button" onclick="switchPwaPhotoFolder('home_4')" class="hidden flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container">
+          <span class="material-symbols-outlined text-[16px]">home</span>
+          <span id="pwaTabHome4Label">Applicant 4 Residence (4)</span>
+        </button>
+        <button id="pwaTabHome5" type="button" onclick="switchPwaPhotoFolder('home_5')" class="hidden flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container">
+          <span class="material-symbols-outlined text-[16px]">home</span>
+          <span id="pwaTabHome5Label">Applicant 5 Residence (4)</span>
+        </button>
       </div>
 
       <!-- Instruction banner -->
@@ -1884,6 +1896,279 @@
           <div id="extraGallery_co_residence" class="flex flex-wrap gap-2"></div>
         </div>
       </div>
+      <div id="pwaHome3SlotsContainer" class="hidden space-y-3">
+        <div id="slotCardHome31" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotHome31Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">corporate_fare</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Applicant 3 Residence Slot 1: Building / Society Gate</span>
+                <span id="slotHome31Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Society entrance, main road, signboard</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(1, 'PROPERTY_EXTERIOR', 'home_3')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotHome31BtnText">Capture Gate Photo</span>
+          </button>
+        </div>
+
+        <div id="slotCardHome32" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotHome32Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">door_front</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Applicant 3 Residence Slot 2: House Door & Name Plate</span>
+                <span id="slotHome32Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Flat number plate, door entrance, elevation</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(2, 'PROPERTY_EXTERIOR', 'home_3')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotHome32BtnText">Capture Door Photo</span>
+          </button>
+        </div>
+
+        <div id="slotCardHome33" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotHome33Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">electric_meter</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Applicant 3 Residence Slot 3: Living Room & Electric Meter</span>
+                <span id="slotHome33Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Physical meter number matching bill & interior assets</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(3, 'ELECTRICITY_METER', 'home_3')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotHome33BtnText">Capture Meter Photo</span>
+          </button>
+        </div>
+
+        <div id="slotCardHome34" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotHome34Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">person_check</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Applicant 3 Residence Slot 4: Person Met at Site</span>
+                <span id="slotHome34Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Person met standing in the premises / applicant</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(4, 'NEIGHBOR_VERIFICATION', 'home_3')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotHome34BtnText">Capture Person Met</span>
+          </button>
+        </div>
+
+        <div class="p-3 rounded-lg bg-surface-container-low border border-dashed border-outline-variant space-y-2">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="min-w-0">
+              <span class="font-bold text-xs text-on-surface">Additional Photos (Optional)</span>
+              <p class="text-[10px] text-on-surface-variant mt-0.5" id="extraCount_home_3">No additional photos yet</p>
+            </div>
+            <button onclick="triggerExtraPhotoCapture('home_3')" class="shrink-0 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
+              <span>Add More Photos</span>
+            </button>
+          </div>
+          <div id="extraGallery_home_3" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+      <div id="pwaHome4SlotsContainer" class="hidden space-y-3">
+        <div id="slotCardHome41" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotHome41Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">corporate_fare</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Applicant 4 Residence Slot 1: Building / Society Gate</span>
+                <span id="slotHome41Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Society entrance, main road, signboard</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(1, 'PROPERTY_EXTERIOR', 'home_4')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotHome41BtnText">Capture Gate Photo</span>
+          </button>
+        </div>
+
+        <div id="slotCardHome42" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotHome42Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">door_front</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Applicant 4 Residence Slot 2: House Door & Name Plate</span>
+                <span id="slotHome42Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Flat number plate, door entrance, elevation</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(2, 'PROPERTY_EXTERIOR', 'home_4')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotHome42BtnText">Capture Door Photo</span>
+          </button>
+        </div>
+
+        <div id="slotCardHome43" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotHome43Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">electric_meter</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Applicant 4 Residence Slot 3: Living Room & Electric Meter</span>
+                <span id="slotHome43Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Physical meter number matching bill & interior assets</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(3, 'ELECTRICITY_METER', 'home_4')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotHome43BtnText">Capture Meter Photo</span>
+          </button>
+        </div>
+
+        <div id="slotCardHome44" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotHome44Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">person_check</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Applicant 4 Residence Slot 4: Person Met at Site</span>
+                <span id="slotHome44Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Person met standing in the premises / applicant</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(4, 'NEIGHBOR_VERIFICATION', 'home_4')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotHome44BtnText">Capture Person Met</span>
+          </button>
+        </div>
+
+        <div class="p-3 rounded-lg bg-surface-container-low border border-dashed border-outline-variant space-y-2">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="min-w-0">
+              <span class="font-bold text-xs text-on-surface">Additional Photos (Optional)</span>
+              <p class="text-[10px] text-on-surface-variant mt-0.5" id="extraCount_home_4">No additional photos yet</p>
+            </div>
+            <button onclick="triggerExtraPhotoCapture('home_4')" class="shrink-0 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
+              <span>Add More Photos</span>
+            </button>
+          </div>
+          <div id="extraGallery_home_4" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+      <div id="pwaHome5SlotsContainer" class="hidden space-y-3">
+        <div id="slotCardHome51" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotHome51Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">corporate_fare</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Applicant 5 Residence Slot 1: Building / Society Gate</span>
+                <span id="slotHome51Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Society entrance, main road, signboard</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(1, 'PROPERTY_EXTERIOR', 'home_5')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotHome51BtnText">Capture Gate Photo</span>
+          </button>
+        </div>
+
+        <div id="slotCardHome52" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotHome52Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">door_front</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Applicant 5 Residence Slot 2: House Door & Name Plate</span>
+                <span id="slotHome52Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Flat number plate, door entrance, elevation</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(2, 'PROPERTY_EXTERIOR', 'home_5')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotHome52BtnText">Capture Door Photo</span>
+          </button>
+        </div>
+
+        <div id="slotCardHome53" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotHome53Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">electric_meter</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Applicant 5 Residence Slot 3: Living Room & Electric Meter</span>
+                <span id="slotHome53Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Physical meter number matching bill & interior assets</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(3, 'ELECTRICITY_METER', 'home_5')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotHome53BtnText">Capture Meter Photo</span>
+          </button>
+        </div>
+
+        <div id="slotCardHome54" class="p-3 rounded-lg bg-surface-container-low border border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+          <div class="flex items-start gap-3 w-full sm:w-auto">
+            <div id="slotHome54Thumb" class="w-14 h-14 rounded-lg bg-surface-container-lowest border border-dashed border-outline-variant flex items-center justify-center text-outline shrink-0 overflow-hidden cursor-pointer" onclick="viewSlotPhotoFullscreen(this)">
+              <span class="material-symbols-outlined text-[22px]">person_check</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-on-surface">Applicant 5 Residence Slot 4: Person Met at Site</span>
+                <span id="slotHome54Badge" class="font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold">PENDING</span>
+              </div>
+              <p class="font-mono text-[10px] text-outline mt-0.5">Target: Person met standing in the premises / applicant</p>
+            </div>
+          </div>
+          <button onclick="triggerSlotCapture(4, 'NEIGHBOR_VERIFICATION', 'home_5')" class="w-full sm:w-auto shrink-0 px-3 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span id="slotHome54BtnText">Capture Person Met</span>
+          </button>
+        </div>
+
+        <div class="p-3 rounded-lg bg-surface-container-low border border-dashed border-outline-variant space-y-2">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="min-w-0">
+              <span class="font-bold text-xs text-on-surface">Additional Photos (Optional)</span>
+              <p class="text-[10px] text-on-surface-variant mt-0.5" id="extraCount_home_5">No additional photos yet</p>
+            </div>
+            <button onclick="triggerExtraPhotoCapture('home_5')" class="shrink-0 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
+              <span>Add More Photos</span>
+            </button>
+          </div>
+          <div id="extraGallery_home_5" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
     </section>
 
 
@@ -2154,35 +2439,46 @@
     const uploadedOfficeSlots = { 1: false, 2: false, 3: false, 4: false };
     const uploadedCoOfficeSlots = { 1: false, 2: false, 3: false, 4: false };
     const uploadedCoResidenceSlots = { 1: false, 2: false, 3: false, 4: false };
+    const uploadedHome3Slots = { 1: false, 2: false, 3: false, 4: false };
+    const uploadedHome4Slots = { 1: false, 2: false, 3: false, 4: false };
+    const uploadedHome5Slots = { 1: false, 2: false, 3: false, 4: false };
     const uploadedSlots = uploadedResidenceSlots; // backward compatibility
 
     // Additional (unbounded) photos beyond the 4 mandatory named slots per section - tracked
     // by slot number > 4 so they reuse the exact same capture/review/upload pipeline as the
     // mandatory slots (geotagging, server watermarking, offline queueing) without being counted
     // toward the "X of 4 complete" mandatory checklist.
-    const extraPhotoNextSlot = { residence: 4, office: 4, co_office: 4, co_residence: 4 };
+    const extraPhotoNextSlot = { residence: 4, office: 4, co_office: 4, co_residence: 4, home_3: 4, home_4: 4, home_5: 4 };
 
     // Single lookup table for everything that varies per folder, so handlePhotoUpload/
     // finalizePhotoCapture/discardAndRetakePhoto/updateEvidenceProgress each branch on
     // this instead of re-deriving folder-specific IDs/keys/params in several places.
+    // home_3/4/5 are applicants 3-5's home-visit-only slots (per bank rule, no office visit for
+    // these) - same 4-slot structure as co_residence, just one static folder per extra slot.
     const PWA_FOLDER_INFO = {
       residence: { slotIdPrefix: "slot", storageKey: "slot", uploadFolder: "residence", defaultDocType: "PROPERTY_EXTERIOR", label: "Residence", slotsMap: uploadedResidenceSlots },
       office: { slotIdPrefix: "slotOffice", storageKey: "office_slot", uploadFolder: "work", defaultDocType: "OFFICE_FACADE", label: "Office", slotsMap: uploadedOfficeSlots },
       co_office: { slotIdPrefix: "slotCoOffice", storageKey: "co_office_slot", uploadFolder: "co_work", defaultDocType: "CO_OFFICE_FACADE", label: "Co-Applicant Office", slotsMap: uploadedCoOfficeSlots },
       co_residence: { slotIdPrefix: "slotCoResidence", storageKey: "co_residence_slot", uploadFolder: "co_residence", defaultDocType: "PROPERTY_EXTERIOR", label: "Co-Applicant Residence", slotsMap: uploadedCoResidenceSlots },
+      home_3: { slotIdPrefix: "slotHome3", storageKey: "home_3_slot", uploadFolder: "home_3", defaultDocType: "PROPERTY_EXTERIOR", label: "Applicant 3 Residence", slotsMap: uploadedHome3Slots },
+      home_4: { slotIdPrefix: "slotHome4", storageKey: "home_4_slot", uploadFolder: "home_4", defaultDocType: "PROPERTY_EXTERIOR", label: "Applicant 4 Residence", slotsMap: uploadedHome4Slots },
+      home_5: { slotIdPrefix: "slotHome5", storageKey: "home_5_slot", uploadFolder: "home_5", defaultDocType: "PROPERTY_EXTERIOR", label: "Applicant 5 Residence", slotsMap: uploadedHome5Slots },
     };
 
     // Switch between Residence, Office/Workplace, and (dual-applicant cases) Co-Applicant
     // Office / Co-Applicant Residence photo folders in the PWA. Co-Applicant Residence only
     // applies when the CA office has flagged the co-applicant as living at a different address
     // from the primary applicant - most dual-applicant cases share one home and never show it.
-    const PWA_FOLDER_TAB_IDS = { residence: "pwaTabResidence", office: "pwaTabOffice", co_office: "pwaTabCoOffice", co_residence: "pwaTabCoResidence" };
-    const PWA_FOLDER_CONTAINER_IDS = { residence: "pwaResidenceSlotsContainer", office: "pwaOfficeSlotsContainer", co_office: "pwaCoOfficeSlotsContainer", co_residence: "pwaCoResidenceSlotsContainer" };
+    const PWA_FOLDER_TAB_IDS = { residence: "pwaTabResidence", office: "pwaTabOffice", co_office: "pwaTabCoOffice", co_residence: "pwaTabCoResidence", home_3: "pwaTabHome3", home_4: "pwaTabHome4", home_5: "pwaTabHome5" };
+    const PWA_FOLDER_CONTAINER_IDS = { residence: "pwaResidenceSlotsContainer", office: "pwaOfficeSlotsContainer", co_office: "pwaCoOfficeSlotsContainer", co_residence: "pwaCoResidenceSlotsContainer", home_3: "pwaHome3SlotsContainer", home_4: "pwaHome4SlotsContainer", home_5: "pwaHome5SlotsContainer" };
     const PWA_FOLDER_INSTRUCTIONS = {
       residence: "Upload mandatory geotagged residential photographs in the designated slots below. For employed/business applicants, switch to Office Evidence to capture workplace photos.",
       office: "🏢 OFFICE / WORKPLACE EVIDENCE: Capture school/office entrance, signboard/nameplate, work area/staff desk, and field staff workplace verification selfie.",
       co_office: "🏢 CO-APPLICANT OFFICE / WORKPLACE EVIDENCE: Capture the co-applicant's own office/school entrance, signboard, work area, and field staff verification selfie.",
       co_residence: "🏠 CO-APPLICANT RESIDENCE EVIDENCE: The co-applicant lives at a separate address - capture their society/building gate, house door & nameplate, living room & meter, and the person met at their site.",
+      home_3: "🏠 APPLICANT 3 RESIDENCE EVIDENCE: Home visit only (no office visit required) - capture society/building gate, house door & nameplate, living room & meter, and the person met at site.",
+      home_4: "🏠 APPLICANT 4 RESIDENCE EVIDENCE: Home visit only (no office visit required) - capture society/building gate, house door & nameplate, living room & meter, and the person met at site.",
+      home_5: "🏠 APPLICANT 5 RESIDENCE EVIDENCE: Home visit only (no office visit required) - capture society/building gate, house door & nameplate, living room & meter, and the person met at site.",
     };
     const PWA_TAB_ACTIVE_CLASS = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-primary-container text-white shadow-xs";
     const PWA_TAB_INACTIVE_CLASS = "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container";
@@ -2224,6 +2520,23 @@
       if (!tab) return;
       tab.classList.toggle("hidden", !visible);
       if (!visible && currentPwaFolder === "co_residence") {
+        switchPwaPhotoFolder("residence");
+      }
+      updateAttestationProgress();
+    }
+
+    // Show/hide an "Applicant N Residence" tab (N = 3, 4, or 5) - only shown when the case
+    // actually has that applicant slot filled in AND that applicant isn't sharing another
+    // applicant's home visit (applicant_home_sharing) - a shared-home slot has nothing of its
+    // own to capture, so showing its tab would just be an empty, confusing duplicate.
+    function setHomeSlotTabVisible(slotNum, visible, label) {
+      const folder = `home_${slotNum}`;
+      const tab = document.getElementById(`pwaTabHome${slotNum}`);
+      if (!tab) return;
+      tab.classList.toggle("hidden", !visible);
+      const labelEl = document.getElementById(`pwaTabHome${slotNum}Label`);
+      if (labelEl && label) labelEl.textContent = `${label} (4)`;
+      if (!visible && currentPwaFolder === folder) {
         switchPwaPhotoFolder("residence");
       }
       updateAttestationProgress();
@@ -2587,6 +2900,13 @@
       if (coResTab && !coResTab.classList.contains("hidden")) {
         items.push(Object.values(uploadedCoResidenceSlots).every(Boolean));
       }
+      const homeSlotMaps = { 3: uploadedHome3Slots, 4: uploadedHome4Slots, 5: uploadedHome5Slots };
+      [3, 4, 5].forEach(slotNum => {
+        const homeTab = document.getElementById(`pwaTabHome${slotNum}`);
+        if (homeTab && !homeTab.classList.contains("hidden")) {
+          items.push(Object.values(homeSlotMaps[slotNum]).every(Boolean));
+        }
+      });
       const total = items.length;
       const done = items.filter(Boolean).length;
       const isReady = done === total;
@@ -4313,6 +4633,18 @@
         setCoResidenceTabVisible(false);
       }
 
+      // Applicant 3-5 Residence tabs (home visit only, per bank rule) - same visibility rule as
+      // on initial case load: shown only when that slot is filled in and isn't sharing another
+      // applicant's home visit.
+      let switchHomeSharingMap = {};
+      try { switchHomeSharingMap = JSON.parse(c.applicant_home_sharing || "{}") || {}; } catch (e) { switchHomeSharingMap = {}; }
+      [3, 4, 5].forEach(slotNum => {
+        const slotName = c[`applicant_${slotNum}_name`];
+        const sharesWith = switchHomeSharingMap[String(slotNum)];
+        const hasOwnHomeVisit = !!slotName && !sharesWith;
+        setHomeSlotTabVisible(slotNum, hasOwnHomeVisit, slotName ? `Applicant ${slotNum} (${slotName}) Residence` : null);
+      });
+
       // Reset flip button states
       isAadhaarFlippedInline = false;
       isPanFlippedInline = false;
@@ -4660,6 +4992,13 @@
           const mergedCase = Object.assign({}, caseRegistryPwa[key] || {}, {
             id: target.id,
             case_no: target.case_no,
+            applicant_3_name: target.applicant_3_name || "",
+            applicant_3_phone: target.applicant_3_phone || "",
+            applicant_4_name: target.applicant_4_name || "",
+            applicant_4_phone: target.applicant_4_phone || "",
+            applicant_5_name: target.applicant_5_name || "",
+            applicant_5_phone: target.applicant_5_phone || "",
+            applicant_home_sharing: target.applicant_home_sharing || "",
             applicant: target.applicant_name,
             phone: target.applicant_phone,
             amount: `₹${amtLakhs} Lakhs`,
@@ -4755,6 +5094,19 @@
           } else {
             setCoResidenceTabVisible(false);
           }
+
+          // Applicant 3-5 Residence tabs: per bank rule these are home-visit-only (no office),
+          // and shown only for a slot the CA office actually filled in AND that isn't sharing
+          // another applicant's home visit (applicant_home_sharing) - a shared slot has nothing
+          // of its own to capture, so its tab stays hidden.
+          let homeSharingMap = {};
+          try { homeSharingMap = JSON.parse(mergedCase.applicant_home_sharing || "{}") || {}; } catch (e) { homeSharingMap = {}; }
+          [3, 4, 5].forEach(slotNum => {
+            const slotName = mergedCase[`applicant_${slotNum}_name`];
+            const sharesWith = homeSharingMap[String(slotNum)];
+            const hasOwnHomeVisit = !!slotName && !sharesWith;
+            setHomeSlotTabVisible(slotNum, hasOwnHomeVisit, slotName ? `Applicant ${slotNum} (${slotName}) Residence` : null);
+          });
 
           caseRegistryPwa[key] = mergedCase;
           caseRegistryPwa[target.id] = mergedCase;
@@ -5062,6 +5414,7 @@
         // folder tag is the only signal - without this exclusion they'd be mistaken for the
         // applicant's own residence photos, exactly the co_work/work collision documented above.
         const isCoResidenceDoc = (d) => d.folder === "co_residence" || (d.ocr_data && d.ocr_data.folder === "co_residence");
+        const isHomeSlotDoc = (d, slotNum) => d.folder === `home_${slotNum}` || (d.ocr_data && d.ocr_data.folder === `home_${slotNum}`);
 
         // Exact match only here - "OFFICE_SELFIE" (Office Slot 4: Field Staff at Workplace) is
         // a normal workplace evidence photo and must still flow into officeDocs/isWorkDoc below;
@@ -5080,8 +5433,18 @@
           !isWorkDoc(d) &&
           !isCoWorkDoc(d) &&
           !isCoResidenceDoc(d) &&
+          !isHomeSlotDoc(d, 3) && !isHomeSlotDoc(d, 4) && !isHomeSlotDoc(d, 5) &&
           !isKycDoc(d)
         );
+        const homeSlotDocs = { 3: [], 4: [], 5: [] };
+        [3, 4, 5].forEach(slotNum => {
+          homeSlotDocs[slotNum] = (docs || []).filter(d =>
+            d.doc_type !== "AGENT_SELFIE" &&
+            !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
+            isHomeSlotDoc(d, slotNum) &&
+            !isKycDoc(d)
+          );
+        });
 
         const officeDocs = (docs || []).filter(d =>
           d.doc_type !== "AGENT_SELFIE" &&
@@ -5114,6 +5477,7 @@
         sortNewest(officeDocs);
         sortNewest(coOfficeDocs);
         sortNewest(coResidenceDocs);
+        [3, 4, 5].forEach(slotNum => sortNewest(homeSlotDocs[slotNum]));
 
         // 1. Restore Residence Slots
         const serverResSlotMap = { 1: null, 2: null, 3: null, 4: null };
@@ -5442,6 +5806,83 @@
           }
         }
         restoreExtraPhotosForFolder('co_residence', coResidenceDocs, serverCoResSlotMap);
+
+        // 5. Restore Applicant 3/4/5 Residence Slots - same server-authoritative pass as
+        // Co-Applicant Residence above, one static folder per extra applicant slot.
+        [3, 4, 5].forEach(slotNum => {
+          const slotDocs = homeSlotDocs[slotNum];
+          const serverHomeSlotMap = { 1: null, 2: null, 3: null, 4: null };
+          slotDocs.forEach((d, idx) => {
+            const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
+            if (explicitSlot && explicitSlot > 4) return;
+            const s = getResSlot(d, idx + 1);
+            if (s >= 1 && s <= 4 && !serverHomeSlotMap[s]) {
+              serverHomeSlotMap[s] = d;
+            }
+          });
+          slotDocs.forEach(d => {
+            const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
+            if (explicitSlot && explicitSlot > 4) return;
+            const isAssigned = Object.values(serverHomeSlotMap).some(assigned => assigned && assigned.id === d.id);
+            if (!isAssigned) {
+              for (let s = 1; s <= 4; s++) {
+                if (!serverHomeSlotMap[s]) {
+                  serverHomeSlotMap[s] = d;
+                  break;
+                }
+              }
+            }
+          });
+
+          const homeSlotsMapRef = { 3: uploadedHome3Slots, 4: uploadedHome4Slots, 5: uploadedHome5Slots }[slotNum];
+          for (let s = 1; s <= 4; s++) {
+            const d = serverHomeSlotMap[s];
+            const homeCacheKey1 = `pwa_evidence_${sampleCaseId}_home_${slotNum}_slot_${s}`;
+            const homeCacheKey2 = `pwa_evidence_${activeCaseKey}_home_${slotNum}_slot_${s}`;
+            if (d) {
+              homeSlotsMapRef[s] = true;
+              const bHome = document.getElementById(`slotHome${slotNum}${s}Badge`);
+              const btnHome = document.getElementById(`slotHome${slotNum}${s}BtnText`);
+              const thumbHome = document.getElementById(`slotHome${slotNum}${s}Thumb`);
+              if (bHome) {
+                bHome.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+                bHome.textContent = "✓ UPLOADED";
+              }
+              if (btnHome) btnHome.textContent = "Re-take Photo";
+              if (thumbHome) thumbHome.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
+              try {
+                const homePayload = JSON.stringify({
+                  src: d.url,
+                  timestamp: d.created_at || "Verified on Server",
+                  lat: d.latitude || 23.2154,
+                  lon: d.longitude || 72.6367,
+                  doc_type: d.doc_type
+                });
+                localStorage.setItem(homeCacheKey1, homePayload);
+                localStorage.setItem(homeCacheKey2, homePayload);
+              } catch(e) {}
+            } else {
+              let cached = null;
+              try { cached = JSON.parse(localStorage.getItem(homeCacheKey2) || localStorage.getItem(homeCacheKey1) || "null"); } catch (e) {}
+              if (cached && typeof cached.src === "string" && cached.src.startsWith("/storage/")) {
+                localStorage.removeItem(homeCacheKey1);
+                localStorage.removeItem(homeCacheKey2);
+                homeSlotsMapRef[s] = false;
+                const bHome = document.getElementById(`slotHome${slotNum}${s}Badge`);
+                const btnHome = document.getElementById(`slotHome${slotNum}${s}BtnText`);
+                const thumbHome = document.getElementById(`slotHome${slotNum}${s}Thumb`);
+                if (bHome) {
+                  bHome.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
+                  bHome.textContent = "PENDING";
+                }
+                if (btnHome) btnHome.textContent = "Capture Photo";
+                if (thumbHome) thumbHome.innerHTML = `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
+              }
+            }
+          }
+          restoreExtraPhotosForFolder(`home_${slotNum}`, slotDocs, serverHomeSlotMap);
+        });
+
         updateEvidenceProgress();
 
         // Restore Agent Selfie if uploaded

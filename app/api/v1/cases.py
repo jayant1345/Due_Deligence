@@ -141,6 +141,13 @@ async def create_case(
         co_applicant_name=(req.co_applicant_name or "").strip() or None,
         co_applicant_phone=(req.co_applicant_phone or "").strip() or None,
         co_applicant_address=(req.co_applicant_address or "").strip() or None,
+        applicant_3_name=(req.applicant_3_name or "").strip() or None,
+        applicant_3_phone=(req.applicant_3_phone or "").strip() or None,
+        applicant_4_name=(req.applicant_4_name or "").strip() or None,
+        applicant_4_phone=(req.applicant_4_phone or "").strip() or None,
+        applicant_5_name=(req.applicant_5_name or "").strip() or None,
+        applicant_5_phone=(req.applicant_5_phone or "").strip() or None,
+        applicant_home_sharing=(req.applicant_home_sharing or "").strip() or None,
         assigned_agent_id=req.assigned_agent_id,
         created_by_id=current_user.id,
     )
@@ -267,6 +274,16 @@ async def get_report_readiness(
     has_pan_doc_co = any(_real_doc_type(d) == "PAN_CARD" and _is_co_doc(d) for d in all_docs)
     has_income_doc_co = any(_real_doc_type(d) in ITR_INCOME_DOC_TYPES and _is_co_doc(d) for d in all_docs)
 
+    from app.services.applicant_slots import applicant_slots_for_case
+
+    extra_applicants = [s for s in applicant_slots_for_case(loan_case) if s["slot"] >= 3]
+    has_home_photo = {}
+    for s in extra_applicants:
+        slot_no = s["slot"]
+        has_home_photo[slot_no] = any(
+            ((d.ocr_data or {}).get("folder") == f"home_{slot_no}") for d in all_docs
+        )
+
     missing = compute_report_readiness(
         applicant_name=loan_case.applicant_name,
         applicant_phone=loan_case.applicant_phone,
@@ -280,6 +297,8 @@ async def get_report_readiness(
         has_pan_doc=has_pan_doc,
         has_aadhaar_doc_co=has_aadhaar_doc_co,
         has_pan_doc_co=has_pan_doc_co,
+        extra_applicants=extra_applicants,
+        has_home_photo=has_home_photo,
     )
     return {"case_id": str(case_id), "missing_count": len(missing), "missing_fields": missing}
 

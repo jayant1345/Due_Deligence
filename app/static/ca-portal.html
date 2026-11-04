@@ -1759,8 +1759,11 @@
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Case Type</label>
             <div class="flex items-center gap-0.5 bg-surface-container-high p-0.5 rounded-full border border-outline-variant font-mono text-[10px] w-fit">
-              <button type="button" id="tabNcModeSingle" onclick="setTabNcApplicantMode('single')" class="px-3 py-1 rounded-full transition-all font-bold bg-primary-container text-white">Single Applicant</button>
-              <button type="button" id="tabNcModeDual" onclick="setTabNcApplicantMode('dual')" class="px-3 py-1 rounded-full transition-all font-medium text-on-surface-variant">Dual Applicant</button>
+              <button type="button" id="tabNcMode1" onclick="setTabNcApplicantMode(1)" class="px-3 py-1 rounded-full transition-all font-bold bg-primary-container text-white">1 Applicant</button>
+              <button type="button" id="tabNcMode2" onclick="setTabNcApplicantMode(2)" class="px-3 py-1 rounded-full transition-all font-medium text-on-surface-variant">2 Applicants</button>
+              <button type="button" id="tabNcMode3" onclick="setTabNcApplicantMode(3)" class="px-3 py-1 rounded-full transition-all font-medium text-on-surface-variant">3 Applicants</button>
+              <button type="button" id="tabNcMode4" onclick="setTabNcApplicantMode(4)" class="px-3 py-1 rounded-full transition-all font-medium text-on-surface-variant">4 Applicants</button>
+              <button type="button" id="tabNcMode5" onclick="setTabNcApplicantMode(5)" class="px-3 py-1 rounded-full transition-all font-medium text-on-surface-variant">5 Applicants</button>
             </div>
           </div>
 
@@ -1779,6 +1782,70 @@
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Home Address</label>
               <textarea id="tabNcCoApplicantAddress" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="Leave blank if co-applicant lives at the same address above"></textarea>
             </div>
+            <div class="col-span-2 text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-1.5">Applicant 1 &amp; 2: Home + Office visit required</div>
+          </div>
+
+          <div id="tabNcSlot3Fields" class="hidden grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 3 Full Name</label>
+              <input id="tabNcSlot3Name" type="text" placeholder="e.g. Rameshbhai's Father" class="w-full text-xs font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 3 Phone</label>
+              <input id="tabNcSlot3Phone" type="text" class="w-full text-xs font-mono bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+            </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 3 — Shares Home With</label>
+              <select id="tabNcSlot3Shares" class="w-full text-xs font-semibold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
+                <option value="">Own separate home (needs its own visit)</option>
+                <option value="1">Applicant 1's home</option>
+                <option value="2">Applicant 2's home</option>
+              </select>
+            </div>
+            <div class="col-span-2 text-[10px] font-mono text-slate-600 bg-surface-container-low border border-outline-variant rounded-lg p-1.5">Applicant 3: Home visit only (no office visit)</div>
+          </div>
+
+          <div id="tabNcSlot4Fields" class="hidden grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 4 Full Name</label>
+              <input id="tabNcSlot4Name" type="text" class="w-full text-xs font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 4 Phone</label>
+              <input id="tabNcSlot4Phone" type="text" class="w-full text-xs font-mono bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+            </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 4 — Shares Home With</label>
+              <select id="tabNcSlot4Shares" class="w-full text-xs font-semibold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
+                <option value="">Own separate home (needs its own visit)</option>
+                <option value="1">Applicant 1's home</option>
+                <option value="2">Applicant 2's home</option>
+                <option value="3">Applicant 3's home</option>
+              </select>
+            </div>
+            <div class="col-span-2 text-[10px] font-mono text-slate-600 bg-surface-container-low border border-outline-variant rounded-lg p-1.5">Applicant 4: Home visit only (no office visit)</div>
+          </div>
+
+          <div id="tabNcSlot5Fields" class="hidden grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 5 Full Name</label>
+              <input id="tabNcSlot5Name" type="text" class="w-full text-xs font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 5 Phone</label>
+              <input id="tabNcSlot5Phone" type="text" class="w-full text-xs font-mono bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+            </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 5 — Shares Home With</label>
+              <select id="tabNcSlot5Shares" class="w-full text-xs font-semibold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
+                <option value="">Own separate home (needs its own visit)</option>
+                <option value="1">Applicant 1's home</option>
+                <option value="2">Applicant 2's home</option>
+                <option value="3">Applicant 3's home</option>
+                <option value="4">Applicant 4's home</option>
+              </select>
+            </div>
+            <div class="col-span-2 text-[10px] font-mono text-slate-600 bg-surface-container-low border border-outline-variant rounded-lg p-1.5">Applicant 5: Home visit only (no office visit)</div>
           </div>
 
           <div class="grid grid-cols-2 gap-2">
@@ -6443,55 +6510,84 @@
       }
       const pbox = document.getElementById("tabNcScanProgressBox");
       if (pbox) pbox.classList.add("hidden");
-      setTabNcApplicantMode("single");
+      setTabNcApplicantMode(1);
     }
 
-    // Single/Dual Applicant slider for New Case Intake - explicitly bifurcates the case instead
-    // of silently inferring "dual" from whether the CA happened to type a co-applicant name.
-    // Switching back to Single clears whatever was typed, so a case never ends up with a
-    // co-applicant name left over from an accidental toggle.
-    function setTabNcApplicantMode(mode) {
-      const isDual = mode === "dual";
-      const fields = document.getElementById("tabNcCoApplicantFields");
-      const btnSingle = document.getElementById("tabNcModeSingle");
-      const btnDual = document.getElementById("tabNcModeDual");
-      if (fields) fields.classList.toggle("hidden", !isDual);
-      if (btnSingle) btnSingle.className = `px-3 py-1 rounded-full transition-all font-bold ${!isDual ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
-      if (btnDual) btnDual.className = `px-3 py-1 rounded-full transition-all font-bold ${isDual ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
-      if (!isDual) {
-        const n = document.getElementById("tabNcCoApplicantName");
-        const p = document.getElementById("tabNcCoApplicantPhone");
-        const a = document.getElementById("tabNcCoApplicantAddress");
-        if (n) n.value = "";
-        if (p) p.value = "";
-        if (a) a.value = "";
+    // 1-5 Applicant stepper for New Case Intake - explicitly bifurcates the case instead of
+    // silently inferring applicant count from whichever name fields happen to be filled in.
+    // Switching down clears whatever was typed in the slots that disappear, so a case never
+    // ends up with a leftover applicant name/phone from an accidental toggle.
+    function setTabNcApplicantMode(count) {
+      for (let i = 1; i <= 5; i++) {
+        const btn = document.getElementById(`tabNcMode${i}`);
+        if (btn) btn.className = `px-3 py-1 rounded-full transition-all font-bold ${i === count ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
       }
+      const fields2 = document.getElementById("tabNcCoApplicantFields");
+      if (fields2) fields2.classList.toggle("hidden", count < 2);
+      if (count < 2) {
+        ["tabNcCoApplicantName", "tabNcCoApplicantPhone", "tabNcCoApplicantAddress"].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = "";
+        });
+      }
+      [3, 4, 5].forEach(slot => {
+        const wrap = document.getElementById(`tabNcSlot${slot}Fields`);
+        if (wrap) wrap.classList.toggle("hidden", count < slot);
+        if (count < slot) {
+          const n = document.getElementById(`tabNcSlot${slot}Name`);
+          const p = document.getElementById(`tabNcSlot${slot}Phone`);
+          const s = document.getElementById(`tabNcSlot${slot}Shares`);
+          if (n) n.value = "";
+          if (p) p.value = "";
+          if (s) s.value = "";
+        }
+      });
     }
 
-    // Same slider for an already-created case in Edit Case - switching to Dual reveals the
-    // co-applicant fields so the CA can add one retroactively; switching back to Single hides
-    // and clears them, which on Save removes the co-applicant from the case (reverting any
-    // dual-applicant report/photo-folder behavior that was keyed off co_applicant_name).
-    function setEcApplicantMode(mode) {
-      const isDual = mode === "dual";
+    // Reads the "Shares Home With" dropdowns for slots 3-5 into the applicant_home_sharing
+    // JSON map the backend expects, e.g. {"4":"1"} meaning applicant 4 shares applicant 1's home.
+    function collectHomeSharingMap(prefix) {
+      const map = {};
+      [3, 4, 5].forEach(slot => {
+        const el = document.getElementById(`${prefix}Slot${slot}Shares`);
+        if (el && el.value) map[String(slot)] = el.value;
+      });
+      return Object.keys(map).length ? JSON.stringify(map) : undefined;
+    }
+
+    // Same stepper for an already-created case in Edit Case - raising the count reveals the
+    // next applicant's fields so the CA can add one retroactively; lowering it hides and clears
+    // the slots above the new count, which on Save removes those applicants from the case.
+    function setEcApplicantMode(count) {
+      for (let i = 1; i <= 5; i++) {
+        const btn = document.getElementById(`ecMode${i}`);
+        if (btn) btn.className = `px-3 py-1 rounded-full transition-all font-bold ${i === count ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
+      }
+      const isDual = count >= 2;
       const nameWrap = document.getElementById("ecCoApplicantNameWrap");
       const phoneWrap = document.getElementById("ecCoApplicantPhoneWrap");
       const addressWrap = document.getElementById("ecCoApplicantAddressWrap");
-      const btnSingle = document.getElementById("ecModeSingle");
-      const btnDual = document.getElementById("ecModeDual");
       if (nameWrap) nameWrap.classList.toggle("hidden", !isDual);
       if (phoneWrap) phoneWrap.classList.toggle("hidden", !isDual);
       if (addressWrap) addressWrap.classList.toggle("hidden", !isDual);
-      if (btnSingle) btnSingle.className = `px-3 py-1 rounded-full transition-all font-bold ${!isDual ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
-      if (btnDual) btnDual.className = `px-3 py-1 rounded-full transition-all font-bold ${isDual ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
       if (!isDual) {
-        const n = document.getElementById("ecCoApplicantName");
-        const p = document.getElementById("ecCoApplicantPhone");
-        const a = document.getElementById("ecCoApplicantAddress");
-        if (n) n.value = "";
-        if (p) p.value = "";
-        if (a) a.value = "";
+        ["ecCoApplicantName", "ecCoApplicantPhone", "ecCoApplicantAddress"].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = "";
+        });
       }
+      [3, 4, 5].forEach(slot => {
+        const wrap = document.getElementById(`ecSlot${slot}Wrap`);
+        if (wrap) wrap.classList.toggle("hidden", count < slot);
+        if (count < slot) {
+          const n = document.getElementById(`ecSlot${slot}Name`);
+          const p = document.getElementById(`ecSlot${slot}Phone`);
+          const s = document.getElementById(`ecSlot${slot}Shares`);
+          if (n) n.value = "";
+          if (p) p.value = "";
+          if (s) s.value = "";
+        }
+      });
     }
 
     function handleTabNcFolderSelected(files) {
@@ -6546,6 +6642,13 @@
       const coApplicantName = document.getElementById("tabNcCoApplicantName") ? document.getElementById("tabNcCoApplicantName").value.trim() : "";
       const coApplicantPhone = document.getElementById("tabNcCoApplicantPhone") ? document.getElementById("tabNcCoApplicantPhone").value.trim() : "";
       const coApplicantAddress = document.getElementById("tabNcCoApplicantAddress") ? document.getElementById("tabNcCoApplicantAddress").value.trim() : "";
+      const slot3Name = document.getElementById("tabNcSlot3Name") ? document.getElementById("tabNcSlot3Name").value.trim() : "";
+      const slot3Phone = document.getElementById("tabNcSlot3Phone") ? document.getElementById("tabNcSlot3Phone").value.trim() : "";
+      const slot4Name = document.getElementById("tabNcSlot4Name") ? document.getElementById("tabNcSlot4Name").value.trim() : "";
+      const slot4Phone = document.getElementById("tabNcSlot4Phone") ? document.getElementById("tabNcSlot4Phone").value.trim() : "";
+      const slot5Name = document.getElementById("tabNcSlot5Name") ? document.getElementById("tabNcSlot5Name").value.trim() : "";
+      const slot5Phone = document.getElementById("tabNcSlot5Phone") ? document.getElementById("tabNcSlot5Phone").value.trim() : "";
+      const homeSharing = collectHomeSharingMap("tabNc");
       const loanType = document.getElementById("tabNcLoanType") ? document.getElementById("tabNcLoanType").value : "Home Loan (HL)";
       const loanAmountRaw = document.getElementById("tabNcLoanAmount") ? document.getElementById("tabNcLoanAmount").value.trim() : "";
       const loanAmount = parseInt(loanAmountRaw.replace(/[^0-9]/g, "")) || 0;
@@ -6603,6 +6706,13 @@
             co_applicant_name: coApplicantName || undefined,
             co_applicant_phone: coApplicantPhone || undefined,
             co_applicant_address: coApplicantAddress || undefined,
+            applicant_3_name: slot3Name || undefined,
+            applicant_3_phone: slot3Phone || undefined,
+            applicant_4_name: slot4Name || undefined,
+            applicant_4_phone: slot4Phone || undefined,
+            applicant_5_name: slot5Name || undefined,
+            applicant_5_phone: slot5Phone || undefined,
+            applicant_home_sharing: homeSharing,
             loan_type: loanType,
             loan_amount: loanAmount,
             target_address: address,
@@ -6882,11 +6992,14 @@
       if (filesInput) filesInput.value = "";
 
       ["tabNcCaseNo", "tabNcBranch", "tabNcApplicantName", "tabNcPhone", "tabNcCoApplicantName",
-       "tabNcCoApplicantPhone", "tabNcCoApplicantAddress", "tabNcLoanAmount", "tabNcAddress", "tabNcOfficeAddress"].forEach(id => {
+       "tabNcCoApplicantPhone", "tabNcCoApplicantAddress", "tabNcLoanAmount", "tabNcAddress", "tabNcOfficeAddress",
+       "tabNcSlot3Name", "tabNcSlot3Phone", "tabNcSlot3Shares",
+       "tabNcSlot4Name", "tabNcSlot4Phone", "tabNcSlot4Shares",
+       "tabNcSlot5Name", "tabNcSlot5Phone", "tabNcSlot5Shares"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = "";
       });
-      setTabNcApplicantMode("single");
+      setTabNcApplicantMode(1);
 
       ["tabShelfKycCount", "tabShelfIncomeCount", "tabShelfBankCount", "tabShelfPropertyCount"].forEach(id => {
         const el = document.getElementById(id);
@@ -7154,6 +7267,13 @@
         co_applicant_name: f.co_applicant_name || "",
         co_applicant_phone: f.co_applicant_phone || "",
         co_applicant_address: f.co_applicant_address || "",
+        applicant_3_name: f.applicant_3_name || "",
+        applicant_3_phone: f.applicant_3_phone || "",
+        applicant_4_name: f.applicant_4_name || "",
+        applicant_4_phone: f.applicant_4_phone || "",
+        applicant_5_name: f.applicant_5_name || "",
+        applicant_5_phone: f.applicant_5_phone || "",
+        applicant_home_sharing: f.applicant_home_sharing || "",
         assigned_agent_id: f.assigned_agent_id || null,
         month: f.month || "",
         allotted_by: f.allotted_by || "",
@@ -7234,6 +7354,10 @@
               case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
               phone: dc.applicant_phone, co_applicant_name: dc.co_applicant_name, co_applicant_phone: dc.co_applicant_phone,
               co_applicant_address: dc.co_applicant_address,
+              applicant_3_name: dc.applicant_3_name, applicant_3_phone: dc.applicant_3_phone,
+              applicant_4_name: dc.applicant_4_name, applicant_4_phone: dc.applicant_4_phone,
+              applicant_5_name: dc.applicant_5_name, applicant_5_phone: dc.applicant_5_phone,
+              applicant_home_sharing: dc.applicant_home_sharing,
               loan_type: dc.loan_type, loan_amount: dc.loan_amount, address: dc.target_address,
               office_address: dc.office_address,
               benchmark_lat: dc.target_lat, benchmark_lon: dc.target_lon, status: dc.status, db_id: dc.id,
@@ -7269,6 +7393,13 @@
             if (dc.co_applicant_name !== undefined) caseRegistry[dc.id].co_applicant_name = dc.co_applicant_name;
             if (dc.co_applicant_phone !== undefined) caseRegistry[dc.id].co_applicant_phone = dc.co_applicant_phone;
             if (dc.co_applicant_address !== undefined) caseRegistry[dc.id].co_applicant_address = dc.co_applicant_address;
+            if (dc.applicant_3_name !== undefined) caseRegistry[dc.id].applicant_3_name = dc.applicant_3_name;
+            if (dc.applicant_3_phone !== undefined) caseRegistry[dc.id].applicant_3_phone = dc.applicant_3_phone;
+            if (dc.applicant_4_name !== undefined) caseRegistry[dc.id].applicant_4_name = dc.applicant_4_name;
+            if (dc.applicant_4_phone !== undefined) caseRegistry[dc.id].applicant_4_phone = dc.applicant_4_phone;
+            if (dc.applicant_5_name !== undefined) caseRegistry[dc.id].applicant_5_name = dc.applicant_5_name;
+            if (dc.applicant_5_phone !== undefined) caseRegistry[dc.id].applicant_5_phone = dc.applicant_5_phone;
+            if (dc.applicant_home_sharing !== undefined) caseRegistry[dc.id].applicant_home_sharing = dc.applicant_home_sharing;
           }
           if (dc.case_no) {
             caseRegistry[dc.case_no] = caseRegistry[dc.id];
@@ -7667,7 +7798,24 @@
       if (document.getElementById("ecCoApplicantName")) document.getElementById("ecCoApplicantName").value = c.co_applicant_name || "";
       if (document.getElementById("ecCoApplicantPhone")) document.getElementById("ecCoApplicantPhone").value = c.co_applicant_phone || "";
       if (document.getElementById("ecCoApplicantAddress")) document.getElementById("ecCoApplicantAddress").value = c.co_applicant_address || "";
-      setEcApplicantMode(c.co_applicant_name ? "dual" : "single");
+      if (document.getElementById("ecSlot3Name")) document.getElementById("ecSlot3Name").value = c.applicant_3_name || "";
+      if (document.getElementById("ecSlot3Phone")) document.getElementById("ecSlot3Phone").value = c.applicant_3_phone || "";
+      if (document.getElementById("ecSlot4Name")) document.getElementById("ecSlot4Name").value = c.applicant_4_name || "";
+      if (document.getElementById("ecSlot4Phone")) document.getElementById("ecSlot4Phone").value = c.applicant_4_phone || "";
+      if (document.getElementById("ecSlot5Name")) document.getElementById("ecSlot5Name").value = c.applicant_5_name || "";
+      if (document.getElementById("ecSlot5Phone")) document.getElementById("ecSlot5Phone").value = c.applicant_5_phone || "";
+      let ecSharingMap = {};
+      try { ecSharingMap = JSON.parse(c.applicant_home_sharing || "{}") || {}; } catch (e) { ecSharingMap = {}; }
+      [3, 4, 5].forEach(slot => {
+        const el = document.getElementById(`ecSlot${slot}Shares`);
+        if (el) el.value = ecSharingMap[String(slot)] || "";
+      });
+      let ecApplicantCount = 1;
+      if (c.applicant_5_name) ecApplicantCount = 5;
+      else if (c.applicant_4_name) ecApplicantCount = 4;
+      else if (c.applicant_3_name) ecApplicantCount = 3;
+      else if (c.co_applicant_name) ecApplicantCount = 2;
+      setEcApplicantMode(ecApplicantCount);
       if (document.getElementById("ecApplicantPhone")) document.getElementById("ecApplicantPhone").value = c.phone || "";
       if (document.getElementById("ecLoanAmount")) document.getElementById("ecLoanAmount").value = c.loan_amount || "";
       document.getElementById("ecBank").value = c.bank;
@@ -7716,6 +7864,13 @@
       const coApplicantName = document.getElementById("ecCoApplicantName") ? document.getElementById("ecCoApplicantName").value.trim() : "";
       const coApplicantPhone = document.getElementById("ecCoApplicantPhone") ? document.getElementById("ecCoApplicantPhone").value.trim() : "";
       const coApplicantAddress = document.getElementById("ecCoApplicantAddress") ? document.getElementById("ecCoApplicantAddress").value.trim() : "";
+      const slot3Name = document.getElementById("ecSlot3Name") ? document.getElementById("ecSlot3Name").value.trim() : "";
+      const slot3Phone = document.getElementById("ecSlot3Phone") ? document.getElementById("ecSlot3Phone").value.trim() : "";
+      const slot4Name = document.getElementById("ecSlot4Name") ? document.getElementById("ecSlot4Name").value.trim() : "";
+      const slot4Phone = document.getElementById("ecSlot4Phone") ? document.getElementById("ecSlot4Phone").value.trim() : "";
+      const slot5Name = document.getElementById("ecSlot5Name") ? document.getElementById("ecSlot5Name").value.trim() : "";
+      const slot5Phone = document.getElementById("ecSlot5Phone") ? document.getElementById("ecSlot5Phone").value.trim() : "";
+      const ecHomeSharing = collectHomeSharingMap("ec");
       const applicantPhone = document.getElementById("ecApplicantPhone") ? document.getElementById("ecApplicantPhone").value.trim() : "";
       const loanAmountRaw = document.getElementById("ecLoanAmount") ? document.getElementById("ecLoanAmount").value.trim() : "";
       const loanAmount = loanAmountRaw ? Number(loanAmountRaw) : null;
@@ -7741,6 +7896,13 @@
             co_applicant_name: coApplicantName || null,
             co_applicant_phone: coApplicantPhone || null,
             co_applicant_address: coApplicantAddress || null,
+            applicant_3_name: slot3Name || null,
+            applicant_3_phone: slot3Phone || null,
+            applicant_4_name: slot4Name || null,
+            applicant_4_phone: slot4Phone || null,
+            applicant_5_name: slot5Name || null,
+            applicant_5_phone: slot5Phone || null,
+            applicant_home_sharing: ecHomeSharing || null,
             bank_name: bankName,
             branch: branch,
             loan_amount: loanAmount,
@@ -10133,8 +10295,11 @@
           <div class="col-span-2">
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Case Type</label>
             <div class="flex items-center gap-0.5 bg-surface-container-high p-0.5 rounded-full border border-outline-variant font-mono text-[10px] w-fit">
-              <button type="button" id="ecModeSingle" onclick="setEcApplicantMode('single')" class="px-3 py-1 rounded-full transition-all font-bold">Single Applicant</button>
-              <button type="button" id="ecModeDual" onclick="setEcApplicantMode('dual')" class="px-3 py-1 rounded-full transition-all font-medium">Dual Applicant</button>
+              <button type="button" id="ecMode1" onclick="setEcApplicantMode(1)" class="px-3 py-1 rounded-full transition-all font-bold">1 Applicant</button>
+              <button type="button" id="ecMode2" onclick="setEcApplicantMode(2)" class="px-3 py-1 rounded-full transition-all font-medium">2 Applicants</button>
+              <button type="button" id="ecMode3" onclick="setEcApplicantMode(3)" class="px-3 py-1 rounded-full transition-all font-medium">3 Applicants</button>
+              <button type="button" id="ecMode4" onclick="setEcApplicantMode(4)" class="px-3 py-1 rounded-full transition-all font-medium">4 Applicants</button>
+              <button type="button" id="ecMode5" onclick="setEcApplicantMode(5)" class="px-3 py-1 rounded-full transition-all font-medium">5 Applicants</button>
             </div>
           </div>
           <div id="ecCoApplicantNameWrap">
@@ -10145,9 +10310,66 @@
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Phone <span class="font-normal normal-case text-outline">(optional)</span></label>
             <input id="ecCoApplicantPhone" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
-          <div id="ecCoApplicantAddressWrap">
+          <div id="ecCoApplicantAddressWrap" class="col-span-2">
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Home Address <span class="font-normal normal-case text-outline">(leave blank if same as applicant)</span></label>
             <textarea id="ecCoApplicantAddress" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
+          </div>
+          <div id="ecSlot3Wrap" class="hidden col-span-2 grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 3 Name</label>
+              <input id="ecSlot3Name" type="text" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 3 Phone</label>
+              <input id="ecSlot3Phone" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 3 — Shares Home With <span class="font-normal normal-case text-outline">(home visit only, no office)</span></label>
+              <select id="ecSlot3Shares" class="w-full text-xs font-semibold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="">Own separate home</option>
+                <option value="1">Applicant 1's home</option>
+                <option value="2">Applicant 2's home</option>
+              </select>
+            </div>
+          </div>
+          <div id="ecSlot4Wrap" class="hidden col-span-2 grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 4 Name</label>
+              <input id="ecSlot4Name" type="text" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 4 Phone</label>
+              <input id="ecSlot4Phone" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 4 — Shares Home With <span class="font-normal normal-case text-outline">(home visit only, no office)</span></label>
+              <select id="ecSlot4Shares" class="w-full text-xs font-semibold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="">Own separate home</option>
+                <option value="1">Applicant 1's home</option>
+                <option value="2">Applicant 2's home</option>
+                <option value="3">Applicant 3's home</option>
+              </select>
+            </div>
+          </div>
+          <div id="ecSlot5Wrap" class="hidden col-span-2 grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 5 Name</label>
+              <input id="ecSlot5Name" type="text" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 5 Phone</label>
+              <input id="ecSlot5Phone" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant 5 — Shares Home With <span class="font-normal normal-case text-outline">(home visit only, no office)</span></label>
+              <select id="ecSlot5Shares" class="w-full text-xs font-semibold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+                <option value="">Own separate home</option>
+                <option value="1">Applicant 1's home</option>
+                <option value="2">Applicant 2's home</option>
+                <option value="3">Applicant 3's home</option>
+                <option value="4">Applicant 4's home</option>
+              </select>
+            </div>
           </div>
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Contact Number</label>

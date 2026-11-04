@@ -23,6 +23,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 from app.core.config import settings
+from app.services.applicant_slots import home_group_for_slot, parse_home_sharing
 
 
 def is_valid_image(path: Optional[str]) -> bool:
@@ -381,7 +382,6 @@ def generate_certified_cpv_report(
     # Dynamic Summary Details from field_form & case
     met_raw = field_form.get("person_met") or ""
     if met_raw:
-        import re
         clean_met = re.sub(r"\s*-\s*\d+", "", str(met_raw)).strip()
         if ")" not in clean_met and ")" in str(met_raw):
             clean_met += ")"
@@ -652,7 +652,6 @@ def generate_certified_cpv_report(
             return "As Above (Matches with Verified Address)"
         return f"{aadhaar_addr} (Differs from the Verified Address above - applicant's Aadhaar-registered address)"
 
-    import re
     aadhaar_addr_val = _aadhaar_address_label(real_aadhaar_address, target_address)
 
     prem_grid = [
@@ -1521,6 +1520,101 @@ def generate_certified_cpv_report(
             ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ]))
         story.append(t_co_res_photos)
+
+    # ================= ADDITIONAL APPLICANTS (SLOTS 3-5) =================
+    # Per bank rule, applicants 3-5 require only a home visit (no office) - printed as a
+    # compact additive section so it never disturbs the single/dual-applicant layout above.
+    # A slot sharing another applicant's home (applicant_home_sharing) cross-references that
+    # applicant's own residence gallery instead of duplicating the same photos.
+    extra_slots = []
+    for _slot in (3, 4, 5):
+        _name = case_data.get(f"applicant_{_slot}_name")
+        if _name:
+            extra_slots.append((_slot, _name, case_data.get(f"applicant_{_slot}_phone") or NOT_CAPTURED))
+
+    if extra_slots:
+        home_sharing = parse_home_sharing(case_data.get("applicant_home_sharing"))
+        story.append(PageBreak())
+        add_firm_header("10")
+        story.append(Paragraph("Annexure 'F' — Additional Applicants (Home Visit Only):", anx_title_style))
+        story.append(Spacer(1, 4))
+
+        def _is_home_slot_doc(doc, slot_no):
+            folder = doc.get("folder") or (doc.get("ocr_data") or {}).get("folder")
+            return folder == f"home_{slot_no}"
+
+        extra_type_to_slot = {
+            "PROPERTY_EXTERIOR": 1,
+            "PROPERTY_INTERIOR": 2,
+            "ELECTRICITY_METER": 3,
+            "SOCIETY_BOARD": 3,
+            "NEIGHBOR_VERIFICATION": 4,
+        }
+        extra_caps_template = [
+            "Building / Society Gate",
+            "House Door & Name Plate",
+            "Living Room & Electric Meter",
+            "Person Met at Site",
+        ]
+
+        for slot_no, slot_name, slot_phone in extra_slots:
+            home_group = home_group_for_slot(slot_no, home_sharing)
+            story.append(Paragraph(f"<b>Applicant {slot_no}:</b> {slot_name} &nbsp;&nbsp; <b>Contact:</b> {slot_phone}", table_cell_bold))
+            story.append(Spacer(1, 3))
+
+            if home_group != slot_no:
+                story.append(Paragraph(
+                    f"Resides with Applicant {home_group} - residence verified jointly; see that applicant's "
+                    f"residence photographs elsewhere in this report.",
+                    body_style
+                ))
+                story.append(Spacer(1, 10))
+                continue
+
+            slot_docs = [d for d in sorted_docs if _is_home_slot_doc(d, slot_no)]
+            slot_map = {1: None, 2: None, 3: None, 4: None}
+            for d in slot_docs:
+                s_num = d.get("slot_number") or (d.get("ocr_data") or {}).get("slot_number")
+                if s_num:
+                    try:
+                        s_int = int(s_num)
+                        if 1 <= s_int <= 4 and slot_map[s_int] is None:
+                            p_path = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+                            if p_path and os.path.exists(p_path):
+                                slot_map[s_int] = p_path
+                    except (ValueError, TypeError):
+                        pass
+            for d in slot_docs:
+                target_slot = extra_type_to_slot.get(d.get("doc_type"))
+                if target_slot and slot_map[target_slot] is None:
+                    p_path = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
+                    if p_path and os.path.exists(p_path):
+                        slot_map[target_slot] = p_path
+
+            photos = [slot_map[s] for s in [1, 2, 3, 4]]
+            caps = [f"{i+1}. Applicant {slot_no} — {c}" for i, c in enumerate(extra_caps_template)]
+
+            def _make_extra_cell(idx):
+                if idx < len(photos) and is_valid_image(photos[idx]):
+                    try:
+                        return [Image(photos[idx], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{caps[idx]}</b>", ParagraphStyle(f"ExtraCap{slot_no}_{idx}", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))]
+                    except Exception:
+                        pass
+                return [Paragraph(caps[idx] if idx < len(caps) else f"Residence Photo {idx+1}", table_cell_style)]
+
+            extra_grid = [
+                [_make_extra_cell(0), _make_extra_cell(1)],
+                [_make_extra_cell(2), _make_extra_cell(3)],
+            ]
+            t_extra_photos = Table(extra_grid, colWidths=[3.75 * inch, 3.75 * inch])
+            t_extra_photos.setStyle(TableStyle([
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            story.append(t_extra_photos)
+            story.append(Spacer(1, 10))
 
     # ================= PAGE 9: FINAL CERTIFICATE =================
     story.append(PageBreak())

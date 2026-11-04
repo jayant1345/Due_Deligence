@@ -21,6 +21,13 @@ class CaseCreate(BaseModel):
     co_applicant_name: Optional[str] = None
     co_applicant_phone: Optional[str] = None
     co_applicant_address: Optional[str] = None
+    applicant_3_name: Optional[str] = None
+    applicant_3_phone: Optional[str] = None
+    applicant_4_name: Optional[str] = None
+    applicant_4_phone: Optional[str] = None
+    applicant_5_name: Optional[str] = None
+    applicant_5_phone: Optional[str] = None
+    applicant_home_sharing: Optional[str] = None
 
 
 class CaseUpdate(BaseModel):
@@ -37,6 +44,13 @@ class CaseUpdate(BaseModel):
     co_applicant_name: Optional[str] = None
     co_applicant_phone: Optional[str] = None
     co_applicant_address: Optional[str] = None
+    applicant_3_name: Optional[str] = None
+    applicant_3_phone: Optional[str] = None
+    applicant_4_name: Optional[str] = None
+    applicant_4_phone: Optional[str] = None
+    applicant_5_name: Optional[str] = None
+    applicant_5_phone: Optional[str] = None
+    applicant_home_sharing: Optional[str] = None
     target_lat: Optional[float] = None
     target_lon: Optional[float] = None
 
@@ -63,6 +77,13 @@ class CaseResponse(BaseModel):
     co_applicant_name: Optional[str] = None
     co_applicant_phone: Optional[str] = None
     co_applicant_address: Optional[str] = None
+    applicant_3_name: Optional[str] = None
+    applicant_3_phone: Optional[str] = None
+    applicant_4_name: Optional[str] = None
+    applicant_4_phone: Optional[str] = None
+    applicant_5_name: Optional[str] = None
+    applicant_5_phone: Optional[str] = None
+    applicant_home_sharing: Optional[str] = None
     assigned_agent_id: Optional[uuid.UUID] = None
     created_by_id: uuid.UUID
     created_at: datetime

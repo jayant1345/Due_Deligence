@@ -39,6 +39,8 @@ def compute_report_readiness(
     has_pan_doc: bool = False,
     has_aadhaar_doc_co: bool = False,
     has_pan_doc_co: bool = False,
+    extra_applicants: Optional[List[Dict[str, Any]]] = None,
+    has_home_photo: Optional[Dict[int, bool]] = None,
 ) -> List[Dict[str, str]]:
     field_form = field_form or {}
     missing: List[Dict[str, str]] = []
@@ -204,5 +206,19 @@ def compute_report_readiness(
         if _missing(field_form.get("bank_account_status_co")):
             missing.append(_entry("bank_account_status_co", "Co-Applicant Bank Account Status", "field_form",
                                    "Field Visit Form -> Co-Applicant Office Details"))
+
+    # --- Applicants 3-5 (home visit only, no office/KYC required by the report) ---
+    has_home_photo = has_home_photo or {}
+    for extra in (extra_applicants or []):
+        slot = extra.get("slot")
+        name = extra.get("name")
+        if not slot or not name:
+            continue
+        home_group = extra.get("home_group", slot)
+        if home_group != slot:
+            continue  # Shares another applicant's home visit - nothing extra to capture
+        if not has_home_photo.get(slot):
+            missing.append(_entry(f"home_photo_{slot}", f"Applicant {slot} ({name}) Residence Photographs",
+                                   "document", f"Field Agent PWA -> Applicant {slot} Residence tab"))
 
     return missing

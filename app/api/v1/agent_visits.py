@@ -322,6 +322,10 @@ async def zero_lag_upload_document(
             # workplace - without this, their residence photos were watermarked with the
             # applicant's own address even when the two live apart.
             is_co_residence = (norm_folder == "co_residence")
+            # Applicants 3-5 (home-visit-only slots, folders "home_3"/"home_4"/"home_5") - no
+            # separate address is captured per slot today, so this falls back to the main
+            # property address, same as the primary applicant's own residence folder.
+            home_slot_match = norm_folder in ("home_3", "home_4", "home_5")
             if is_work:
                 visit_type = "CO-APPLICANT WORKPLACE / OFFICE" if is_co_work else "WORKPLACE / OFFICE"
                 # No fabricated specific address when the office_details haven't been filled in
@@ -333,6 +337,11 @@ async def zero_lag_upload_document(
                 visit_type = "CO-APPLICANT RESIDENCE / HOME"
                 active_address = loan_case.co_applicant_address or loan_case.target_address
                 applicant_label = loan_case.co_applicant_name or loan_case.applicant_name
+            elif home_slot_match:
+                slot_num = norm_folder.split("_")[1]
+                visit_type = f"APPLICANT {slot_num} RESIDENCE / HOME"
+                active_address = loan_case.target_address
+                applicant_label = getattr(loan_case, f"applicant_{slot_num}_name", None) or loan_case.applicant_name
             else:
                 visit_type = "RESIDENCE / HOME"
                 active_address = loan_case.target_address
