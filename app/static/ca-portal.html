@@ -4807,7 +4807,7 @@
         if (bankName === "ALL" || c.bank === bankName) {
           const opt = document.createElement("option");
           opt.value = id;
-          opt.textContent = `[${c.case_no}] - ${c.applicant_name} | ${c.bank} (${c.branch})`;
+          opt.textContent = `[${c.case_no}] - ${c.applicant_name}${c.created_at ? " (" + fmtCaseOptDate(c.created_at) + ")" : ""} | ${c.bank} (${c.branch})`;
           caseSelect.appendChild(opt);
           if (!firstMatch) firstMatch = id;
           count++;
@@ -4834,7 +4834,7 @@
         if (branchName === "ALL" || c.branch === branchName) {
           const opt = document.createElement("option");
           opt.value = id;
-          opt.textContent = `[${c.case_no}] - ${c.applicant_name} | ${c.bank} (${c.branch})`;
+          opt.textContent = `[${c.case_no}] - ${c.applicant_name}${c.created_at ? " (" + fmtCaseOptDate(c.created_at) + ")" : ""} | ${c.bank} (${c.branch})`;
           caseSelect.appendChild(opt);
           if (!firstMatch) firstMatch = id;
           count++;
@@ -4864,6 +4864,7 @@
         bank: bankName || "Axis Bank",
         branch: branchName || "Ahmedabad Main",
         applicant_name: applicantName,
+        created_at: new Date().toISOString(),
         pan: "ABCDE" + Math.floor(1000 + Math.random() * 9000) + "F",
         aadhaar_masked: "XXXX - XXXX - " + Math.floor(1000 + Math.random() * 9000),
         dob: "12/04/1988",
@@ -4894,7 +4895,7 @@
       const caseSelect = document.getElementById("caseSelectorSelect");
       const opt = document.createElement("option");
       opt.value = newId;
-      opt.textContent = `[${caseNo}] - ${applicantName} | ${bankName} (${branchName})`;
+      opt.textContent = `[${caseNo}] - ${applicantName} (${fmtCaseOptDate(caseRegistry[newId].created_at)}) | ${bankName} (${branchName})`;
       caseSelect.appendChild(opt);
       caseSelect.value = newId;
 
@@ -6844,6 +6845,7 @@
         bank: bank,
         branch: branch,
         applicant_name: applicantName,
+        created_at: new Date().toISOString(),
         phone: phone,
         co_applicant_name: coApplicantName,
         co_applicant_phone: coApplicantPhone,
@@ -6867,7 +6869,7 @@
       if (selector) {
         const opt = document.createElement("option");
         opt.value = newCaseId;
-        opt.textContent = `[${caseNo}] - ${applicantName} | ${bank} (${branch})`;
+        opt.textContent = `[${caseNo}] - ${applicantName} (${fmtCaseOptDate(caseRegistry[newCaseId].created_at)}) | ${bank} (${branch})`;
         selector.insertBefore(opt, selector.firstChild);
         selector.value = newCaseId;
       }
@@ -7327,6 +7329,18 @@
       if (input) input.click();
     }
 
+    // Short date-only formatter for the case-selector dropdown entries, e.g. "04-Nov-2026" -
+    // deliberately no time component, unlike fmtAalDate, since the dropdown just needs the
+    // creation date at a glance.
+    function fmtCaseOptDate(iso) {
+      if (!iso) return "";
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "";
+        return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+      } catch (e) { return ""; }
+    }
+
     function buildCaseEntry(f) {
       const slots = (titles) => titles.map(([title, tag]) => ({
         src: "/static/placeholders/photo_pending.svg", title, tag, timestamp: "—", badge: "AWAITING FIELD VISIT", status: "PENDING",
@@ -7337,6 +7351,7 @@
         bank: f.bank,
         branch: f.branch || "",
         applicant_name: f.applicant_name,
+        created_at: f.created_at || null,
         phone: f.phone || "",
         co_applicant_name: f.co_applicant_name || "",
         co_applicant_phone: f.co_applicant_phone || "",
@@ -7430,6 +7445,7 @@
           if (!caseRegistry[dc.id]) {
             caseRegistry[dc.id] = buildCaseEntry({
               case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
+              created_at: dc.created_at,
               phone: dc.applicant_phone, co_applicant_name: dc.co_applicant_name, co_applicant_phone: dc.co_applicant_phone,
               co_applicant_address: dc.co_applicant_address, co_applicant_office_address: dc.co_applicant_office_address,
               applicant_3_name: dc.applicant_3_name, applicant_3_phone: dc.applicant_3_phone,
@@ -7468,6 +7484,7 @@
             // This is exactly what made a successfully-certified case still look "in process"
             // indefinitely, and made it seem to vanish when filtering by its old status.
             if (dc.status) caseRegistry[dc.id].status = dc.status;
+            if (dc.created_at !== undefined) caseRegistry[dc.id].created_at = dc.created_at;
             if (dc.office_address !== undefined) caseRegistry[dc.id].office_address = dc.office_address;
             if (dc.co_applicant_name !== undefined) caseRegistry[dc.id].co_applicant_name = dc.co_applicant_name;
             if (dc.co_applicant_phone !== undefined) caseRegistry[dc.id].co_applicant_phone = dc.co_applicant_phone;
@@ -7490,7 +7507,7 @@
           if (sel && !knownCaseNos.has((dc.case_no || "").toUpperCase())) {
             const opt = document.createElement("option");
             opt.value = dc.id;
-            opt.textContent = `[${dc.case_no}] - ${dc.applicant_name} | ${dc.bank_name}${dc.branch ? " (" + dc.branch + ")" : ""}`;
+            opt.textContent = `[${dc.case_no}] - ${dc.applicant_name}${dc.created_at ? " (" + fmtCaseOptDate(dc.created_at) + ")" : ""} | ${dc.bank_name}${dc.branch ? " (" + dc.branch + ")" : ""}`;
             sel.insertBefore(opt, sel.firstChild);
             knownCaseNos.add((dc.case_no || "").toUpperCase());
           }
@@ -7609,6 +7626,7 @@
         bank: bank,
         branch: branch,
         applicant_name: applicantName,
+        created_at: createdCase.created_at,
         phone: phone,
         co_applicant_name: coApplicantName,
         co_applicant_phone: coApplicantPhone,
@@ -7632,7 +7650,7 @@
       if (selector) {
         const opt = document.createElement("option");
         opt.value = newCaseId;
-        opt.textContent = `[${caseNo}] - ${applicantName} | ${bank} (${branch})`;
+        opt.textContent = `[${caseNo}] - ${applicantName}${createdCase.created_at ? " (" + fmtCaseOptDate(createdCase.created_at) + ")" : ""} | ${bank} (${branch})`;
         selector.insertBefore(opt, selector.firstChild);
         selector.value = newCaseId;
       }
@@ -7792,7 +7810,7 @@
         c.ai_corrected_applicant_name = idName;
         c.applicant_name_persisted = idName;
         const opt = document.querySelector(`#caseSelectorSelect option[value="${CSS.escape(caseId)}"]`);
-        if (opt) opt.textContent = `[${c.case_no}] - ${idName} | ${c.bank}${c.branch ? " (" + c.branch + ")" : ""}`;
+        if (opt) opt.textContent = `[${c.case_no}] - ${idName}${c.created_at ? " (" + fmtCaseOptDate(c.created_at) + ")" : ""} | ${c.bank}${c.branch ? " (" + c.branch + ")" : ""}`;
         // This correction must reach the database, not just this browser's local caseRegistry -
         // the field agent's PWA (a separate device/session) always fetches the case fresh from
         // the server, never from this cache. Without this, the dashboard shows the AI-identified
@@ -8041,7 +8059,7 @@
       if (selector) {
         for (let opt of selector.options) {
           if (opt.value === cId) {
-            opt.textContent = `[${c.case_no}] - ${c.applicant_name} | ${c.bank} (${c.branch})`;
+            opt.textContent = `[${c.case_no}] - ${c.applicant_name}${c.created_at ? " (" + fmtCaseOptDate(c.created_at) + ")" : ""} | ${c.bank} (${c.branch})`;
             break;
           }
         }
