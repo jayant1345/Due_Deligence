@@ -1753,14 +1753,14 @@
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Branch Name (શાખા)*</label>
-              <input id="tabNcBranch" type="text" placeholder="e.g. Gota Branch, Ahmedabad" class="w-full text-xs font-semibold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+              <input id="tabNcBranch" type="text" placeholder="e.g. Gota Branch, Ahmedabad" list="existingBranchesList" oninput="autoGenTabCaseNo()" class="w-full text-xs font-semibold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
             </div>
             <div>
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1 flex items-center justify-between">
                 <span>Case Reference No.*</span>
-                <button type="button" onclick="autoGenTabCaseNo()" class="text-emerald-700 hover:text-emerald-900 font-bold">🎲 Auto</button>
+                <button type="button" onclick="autoGenTabCaseNo(true)" class="text-emerald-700 hover:text-emerald-900 font-bold">🎲 Auto</button>
               </label>
-              <input id="tabNcCaseNo" type="text" placeholder="e.g. BOB-HL-2026-101" class="w-full text-xs font-mono font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
+              <input id="tabNcCaseNo" type="text" placeholder="e.g. BOB-HL-2026-101" oninput="tabNcCaseNoManuallyEdited = true" class="w-full text-xs font-mono font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500"/>
             </div>
           </div>
 
@@ -1792,7 +1792,7 @@
             </div>
             <div>
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Loan Facility*</label>
-              <select id="tabNcLoanType" class="w-full text-xs font-semibold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
+              <select id="tabNcLoanType" onchange="autoGenTabCaseNo()" class="w-full text-xs font-semibold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
                 <option value="Vehicle Loan">Vehicle Loan</option>
                 <option value="Home Loan" selected>Home Loan</option>
                 <option value="Education Loan">Education Loan</option>
@@ -6663,25 +6663,77 @@
       return "BOB";
     }
 
-    function autoGenTabCaseNo() {
-      const bank = document.getElementById("tabNcBankName") ? document.getElementById("tabNcBankName").value : "";
-      const prefix = tabNcBankPrefix(bank);
-      const rand = Math.floor(100 + Math.random() * 900);
-      const caseNoInput = document.getElementById("tabNcCaseNo");
-      if (caseNoInput) caseNoInput.value = `${prefix}-HL-2026-${rand}`;
+    const TAB_NC_LOAN_TYPE_CODES = {
+      "Vehicle Loan": "VL",
+      "Home Loan": "HL",
+      "Education Loan": "EL",
+      "Personal Loan": "PL",
+      "Business Takeover": "BT",
+      "Quotation Verification": "QV",
+      "Pension Loan": "PEN",
+      "BT TOP UP": "BTTU",
+      "Machinery Loan": "MC",
+      "Builder Tie Up": "BTIE",
+      "MSME Loan": "MSME",
+      "Cash Credit Loan": "CC",
+      "Mudra Loan": "MUD",
+      "Others": "OTH",
+    };
+    function tabNcLoanTypeCode(loanType) {
+      return TAB_NC_LOAN_TYPE_CODES[loanType] || "OTH";
     }
 
-    // Keep an already-generated case no.'s bank prefix in sync when the CA switches banks
-    // after the number was first auto-filled, instead of leaving a stale prefix (e.g. a case
-    // number that still reads "BOB-..." after the bank dropdown was changed to Union Bank).
-    function syncTabNcCaseNoPrefix() {
+    // Finds the next ascending serial for this exact Bank + Branch + Loan Type combination by
+    // scanning every real case already loaded (case-insensitive branch match, same convention
+    // the Branches filter uses) and taking the highest existing trailing number + 1 - not a
+    // random guess, which could collide, skip numbers, or restart from 1 on an already-used
+    // combination (exactly what was reported: numbers "not in sequence").
+    function nextTabNcSerial(bankPrefix, loanCode, branch) {
+      const normBranch = (branch || "").trim().toLowerCase();
+      let maxSerial = 0;
+      Object.values(caseRegistry).forEach(c => {
+        if (!c || !c.case_no) return;
+        if ((c.branch || "").trim().toLowerCase() !== normBranch) return;
+        const parts = c.case_no.split("-");
+        if (parts.length < 4) return;
+        if (parts[0].toUpperCase() !== bankPrefix.toUpperCase()) return;
+        if (parts[1].toUpperCase() !== loanCode.toUpperCase()) return;
+        const n = parseInt(parts[parts.length - 1], 10);
+        if (Number.isFinite(n) && n > maxSerial) maxSerial = n;
+      });
+      return maxSerial + 1;
+    }
+
+    // True once the CA has typed into the case number field directly - after that, switching
+    // Bank/Branch/Loan Type must stop silently overwriting what they typed. Reset whenever the
+    // tab is freshly opened or the 🎲 Auto button is tapped (an explicit opt back into auto-fill).
+    let tabNcCaseNoManuallyEdited = false;
+
+    // force=true (the 🎲 Auto button) always regenerates. Bank/Branch/Loan Type change handlers
+    // call this with no argument, so once the CA has started typing their own case number it's
+    // respected instead of being silently replaced on every keystroke in Branch.
+    function autoGenTabCaseNo(force) {
       const caseNoInput = document.getElementById("tabNcCaseNo");
-      if (!caseNoInput || !caseNoInput.value) return;
-      const parts = caseNoInput.value.split("-");
-      if (parts.length < 2 || !TAB_NC_BANK_PREFIXES.includes(parts[0].toUpperCase())) return;
+      if (!caseNoInput) return;
+      if (tabNcCaseNoManuallyEdited && !force) return;
+
       const bank = document.getElementById("tabNcBankName") ? document.getElementById("tabNcBankName").value : "";
-      parts[0] = tabNcBankPrefix(bank);
-      caseNoInput.value = parts.join("-");
+      const prefix = tabNcBankPrefix(bank);
+      const branch = document.getElementById("tabNcBranch") ? document.getElementById("tabNcBranch").value : "";
+      const loanType = document.getElementById("tabNcLoanType") ? document.getElementById("tabNcLoanType").value : "Home Loan";
+      const loanCode = tabNcLoanTypeCode(loanType);
+      const year = new Date().getFullYear();
+      const serial = nextTabNcSerial(prefix, loanCode, branch);
+
+      if (force) tabNcCaseNoManuallyEdited = false;
+      caseNoInput.value = `${prefix}-${loanCode}-${year}-${serial}`;
+    }
+
+    // Kept as the Bank dropdown's onchange target (existing markup) - now just re-runs the full
+    // ascending-serial generation for the new Bank + current Branch + Loan Type, instead of only
+    // swapping the prefix text and leaving a serial number computed for the old bank in place.
+    function syncTabNcCaseNoPrefix() {
+      autoGenTabCaseNo();
     }
 
     function initNewCaseTabFields() {
@@ -7208,6 +7260,7 @@
         if (el) el.textContent = "Ready";
       });
 
+      tabNcCaseNoManuallyEdited = false;
       if (typeof autoGenTabCaseNo === "function") autoGenTabCaseNo();
     }
 
