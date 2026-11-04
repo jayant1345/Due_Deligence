@@ -788,6 +788,7 @@
             <select id="formWorkFromHome" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
               <option value="No" selected>No - Physical Workplace Visit (ઓફીસ / શાળા સ્થળ તપાસ)</option>
               <option value="Yes">Yes - Works From Home</option>
+              <option value="NA">NA - House Wife / Home Maker (ગૃહિણી)</option>
             </select>
           </div>
         </div>
@@ -996,6 +997,7 @@
             <select id="formCoWorkFromHome" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
               <option value="No" selected>No - Physical Workplace Visit</option>
               <option value="Yes">Yes - Works From Home</option>
+              <option value="NA">NA - House Wife / Home Maker (ગૃહિણી)</option>
             </select>
           </div>
         </div>
@@ -2565,7 +2567,7 @@
         if (noticeWork) noticeWork.classList.add("hidden");
         if (noticeHw) noticeHw.classList.remove("hidden");
         if (fieldsWrap) fieldsWrap.classList.add("hidden");
-        if (wfhInput) wfhInput.value = "Yes";
+        if (wfhInput) wfhInput.value = "NA";
       } else {
         if (noticeWork) noticeWork.classList.remove("hidden");
         if (noticeHw) noticeHw.classList.add("hidden");
@@ -2588,7 +2590,7 @@
         if (noticeWork) noticeWork.classList.add("hidden");
         if (noticeHw) noticeHw.classList.remove("hidden");
         if (fieldsWrap) fieldsWrap.classList.add("hidden");
-        if (wfhInput) wfhInput.value = "Yes";
+        if (wfhInput) wfhInput.value = "NA";
       } else {
         if (noticeWork) noticeWork.classList.remove("hidden");
         if (noticeHw) noticeHw.classList.add("hidden");
@@ -4562,7 +4564,7 @@
       handlePrevLoanNaToggle((c.prev_loan_type === "NA") || (c.prev_loan_bank === "NA"));
 
       const fWfh = document.getElementById("formWorkFromHome");
-      if (fWfh) fWfh.value = (fOcc && fOcc.value === "House Wife") ? "Yes" : "No";
+      if (fWfh) fWfh.value = (fOcc && fOcc.value === "House Wife") ? "NA" : "No";
 
       handleOccupationChange(fOcc ? fOcc.value : "Job");
 
@@ -4625,7 +4627,7 @@
         const fCoOffRegNo = document.getElementById("formCoOfficeRegNo");
         if (fCoOffRegNo) fCoOffRegNo.value = c.co_office_reg_no || "";
         const fCoWfh = document.getElementById("formCoWorkFromHome");
-        if (fCoWfh) fCoWfh.value = (fCoOcc && fCoOcc.value === "House Wife") ? "Yes" : "No";
+        if (fCoWfh) fCoWfh.value = (fCoOcc && fCoOcc.value === "House Wife") ? "NA" : "No";
         handleCoOccupationChange(fCoOcc ? fCoOcc.value : "Job");
       } else {
         if (coModule) coModule.classList.add("hidden");
