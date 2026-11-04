@@ -1071,8 +1071,24 @@ async def ingest_and_separate_case_pdf(
 
     # Replace any previously ingested pages for this case (idempotent re-ingestion), unless
     # this call is part of a multi-file batch where earlier files must be kept.
-    await _persist_ai_ingested_documents(db, loan_case, results, replace_existing=replace_existing)
-    await db.flush()
+    try:
+        await _persist_ai_ingested_documents(db, loan_case, results, replace_existing=replace_existing)
+        await db.flush()
+    except Exception as e:
+        # Gemini finished scanning fine (no exception above) but saving the results to the
+        # database failed - without this, the error bypassed our own exception handling
+        # entirely (it's raised after the try/except around the Gemini scan, not inside it),
+        # so FastAPI's default handler returned a bare 500 with no JSON "detail" at all, and
+        # the dashboard's error alert fell back to a generic, unhelpful "Could not process
+        # PDF" with no indication anything had actually been scanned correctly. A real
+        # example that hit exactly this: a stale DB column width rejected one page's
+        # classification, failing the whole batch's save. Roll back so this session isn't
+        # left in a broken transaction state for the rest of the request.
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Scanned {len(results)} page(s) successfully but failed to save them: {str(e)}",
+        )
     await _refresh_case_relationships(db, loan_case)
 
     audit = AuditLog(

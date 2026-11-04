@@ -53,6 +53,18 @@ async def lifespan(app: FastAPI):
             await conn.execute(text(
                 f"ALTER TABLE loan_cases ADD COLUMN IF NOT EXISTS applicant_{_slot}_address TEXT"
             ))
+        # case_documents.doc_type is a native_enum=False Enum column, so SQLAlchemy sized it as
+        # a plain VARCHAR to the longest DocumentType value AT THE TIME the column was first
+        # created - it does not grow automatically when new, longer enum members (e.g.
+        # PROFIT_LOSS_BALANCE_SHEET, 25 chars) are added later in app/models/document.py. A
+        # stale VARCHAR(21) column (sized for the then-longest NEIGHBOR_VERIFICATION) started
+        # rejecting every PDF ingest batch that classified any page as PROFIT_LOSS_BALANCE_SHEET
+        # or COMPUTATION_OF_INCOME with an unhandled DBAPIError (seen live: "value too long for
+        # type character varying(21)"), failing the ENTIRE batch insert, not just that one page.
+        # Widened with headroom so future DocumentType additions don't repeat this.
+        await conn.execute(text(
+            "ALTER TABLE case_documents ALTER COLUMN doc_type TYPE VARCHAR(60)"
+        ))
 
     # Seed default simple users (admin / admin@123 and agent1 / agent1@123)
     async with AsyncSessionLocal() as session:
