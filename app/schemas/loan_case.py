@@ -21,6 +21,7 @@ class CaseCreate(BaseModel):
     co_applicant_name: Optional[str] = None
     co_applicant_phone: Optional[str] = None
     co_applicant_address: Optional[str] = None
+    co_applicant_office_address: Optional[str] = None
     applicant_3_name: Optional[str] = None
     applicant_3_phone: Optional[str] = None
     applicant_4_name: Optional[str] = None
@@ -47,6 +48,7 @@ class CaseUpdate(BaseModel):
     co_applicant_name: Optional[str] = None
     co_applicant_phone: Optional[str] = None
     co_applicant_address: Optional[str] = None
+    co_applicant_office_address: Optional[str] = None
     applicant_3_name: Optional[str] = None
     applicant_3_phone: Optional[str] = None
     applicant_4_name: Optional[str] = None
@@ -83,6 +85,7 @@ class CaseResponse(BaseModel):
     co_applicant_name: Optional[str] = None
     co_applicant_phone: Optional[str] = None
     co_applicant_address: Optional[str] = None
+    co_applicant_office_address: Optional[str] = None
     applicant_3_name: Optional[str] = None
     applicant_3_phone: Optional[str] = None
     applicant_4_name: Optional[str] = None

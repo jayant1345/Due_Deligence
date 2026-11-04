@@ -5047,7 +5047,10 @@
             co_occupation: offCo.occupation || "Job",
             co_firm_name: offCo.firm_name || "",
             co_position: offCo.position || offCo.designation || "",
-            co_office_address: offCo.address || "",
+            // Falls back to the CA office's own pre-typed co_applicant_office_address on the
+            // case record (captured at case creation, same reasoning as offAddr above) until
+            // the agent has filled this in themselves on site.
+            co_office_address: offCo.address || target.co_applicant_office_address || "",
             co_firm_type: offCo.firm_type || "",
             co_employees: offCo.employees || "",
             co_nameboard: offCo.nameboard || "",

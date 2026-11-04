@@ -1846,6 +1846,10 @@
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Home Address</label>
               <textarea id="tabNcCoApplicantAddress" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="Leave blank if co-applicant lives at the same address above"></textarea>
             </div>
+            <div class="col-span-2">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Office / Workplace Address <span class="font-normal normal-case text-outline">(if Applicant 2 is working)</span></label>
+              <textarea id="tabNcCoApplicantOfficeAddress" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500" placeholder="e.g. Shop 12, GIDC Estate, Gota, Ahmedabad (if applicable)"></textarea>
+            </div>
             <div class="col-span-2 text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-1.5">Applicant 1 &amp; 2: Home + Office visit required</div>
           </div>
 
@@ -6576,7 +6580,7 @@
       const fields2 = document.getElementById("tabNcCoApplicantFields");
       if (fields2) fields2.classList.toggle("hidden", count < 2);
       if (count < 2) {
-        ["tabNcCoApplicantName", "tabNcCoApplicantPhone", "tabNcCoApplicantAddress"].forEach(id => {
+        ["tabNcCoApplicantName", "tabNcCoApplicantPhone", "tabNcCoApplicantAddress", "tabNcCoApplicantOfficeAddress"].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = "";
         });
@@ -6620,11 +6624,13 @@
       const nameWrap = document.getElementById("ecCoApplicantNameWrap");
       const phoneWrap = document.getElementById("ecCoApplicantPhoneWrap");
       const addressWrap = document.getElementById("ecCoApplicantAddressWrap");
+      const officeAddressWrap = document.getElementById("ecCoApplicantOfficeAddressWrap");
       if (nameWrap) nameWrap.classList.toggle("hidden", !isDual);
       if (phoneWrap) phoneWrap.classList.toggle("hidden", !isDual);
       if (addressWrap) addressWrap.classList.toggle("hidden", !isDual);
+      if (officeAddressWrap) officeAddressWrap.classList.toggle("hidden", !isDual);
       if (!isDual) {
-        ["ecCoApplicantName", "ecCoApplicantPhone", "ecCoApplicantAddress"].forEach(id => {
+        ["ecCoApplicantName", "ecCoApplicantPhone", "ecCoApplicantAddress", "ecCoApplicantOfficeAddress"].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = "";
         });
@@ -6697,6 +6703,7 @@
       const coApplicantName = document.getElementById("tabNcCoApplicantName") ? document.getElementById("tabNcCoApplicantName").value.trim() : "";
       const coApplicantPhone = document.getElementById("tabNcCoApplicantPhone") ? document.getElementById("tabNcCoApplicantPhone").value.trim() : "";
       const coApplicantAddress = document.getElementById("tabNcCoApplicantAddress") ? document.getElementById("tabNcCoApplicantAddress").value.trim() : "";
+      const coApplicantOfficeAddress = document.getElementById("tabNcCoApplicantOfficeAddress") ? document.getElementById("tabNcCoApplicantOfficeAddress").value.trim() : "";
       const slot3Name = document.getElementById("tabNcSlot3Name") ? document.getElementById("tabNcSlot3Name").value.trim() : "";
       const slot3Phone = document.getElementById("tabNcSlot3Phone") ? document.getElementById("tabNcSlot3Phone").value.trim() : "";
       const slot4Name = document.getElementById("tabNcSlot4Name") ? document.getElementById("tabNcSlot4Name").value.trim() : "";
@@ -6765,6 +6772,7 @@
             co_applicant_name: coApplicantName || undefined,
             co_applicant_phone: coApplicantPhone || undefined,
             co_applicant_address: coApplicantAddress || undefined,
+            co_applicant_office_address: coApplicantOfficeAddress || undefined,
             applicant_3_name: slot3Name || undefined,
             applicant_3_phone: slot3Phone || undefined,
             applicant_4_name: slot4Name || undefined,
@@ -6840,6 +6848,7 @@
         co_applicant_name: coApplicantName,
         co_applicant_phone: coApplicantPhone,
         co_applicant_address: coApplicantAddress,
+        co_applicant_office_address: coApplicantOfficeAddress,
         month: "October 2026",
         allotted_by: "Pending Manual Handover",
         loan_type: loanType,
@@ -7057,7 +7066,7 @@
       if (filesInput) filesInput.value = "";
 
       ["tabNcCaseNo", "tabNcBranch", "tabNcApplicantName", "tabNcPhone", "tabNcCoApplicantName",
-       "tabNcCoApplicantPhone", "tabNcCoApplicantAddress", "tabNcLoanAmount", "tabNcAddress", "tabNcOfficeAddress",
+       "tabNcCoApplicantPhone", "tabNcCoApplicantAddress", "tabNcCoApplicantOfficeAddress", "tabNcLoanAmount", "tabNcAddress", "tabNcOfficeAddress",
        "tabNcSlot3Name", "tabNcSlot3Phone", "tabNcSlot3Shares", "tabNcSlot3Address",
        "tabNcSlot4Name", "tabNcSlot4Phone", "tabNcSlot4Shares", "tabNcSlot4Address",
        "tabNcSlot5Name", "tabNcSlot5Phone", "tabNcSlot5Shares", "tabNcSlot5Address"].forEach(id => {
@@ -7332,6 +7341,7 @@
         co_applicant_name: f.co_applicant_name || "",
         co_applicant_phone: f.co_applicant_phone || "",
         co_applicant_address: f.co_applicant_address || "",
+        co_applicant_office_address: f.co_applicant_office_address || "",
         applicant_3_name: f.applicant_3_name || "",
         applicant_3_phone: f.applicant_3_phone || "",
         applicant_4_name: f.applicant_4_name || "",
@@ -7421,7 +7431,7 @@
             caseRegistry[dc.id] = buildCaseEntry({
               case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
               phone: dc.applicant_phone, co_applicant_name: dc.co_applicant_name, co_applicant_phone: dc.co_applicant_phone,
-              co_applicant_address: dc.co_applicant_address,
+              co_applicant_address: dc.co_applicant_address, co_applicant_office_address: dc.co_applicant_office_address,
               applicant_3_name: dc.applicant_3_name, applicant_3_phone: dc.applicant_3_phone,
               applicant_4_name: dc.applicant_4_name, applicant_4_phone: dc.applicant_4_phone,
               applicant_5_name: dc.applicant_5_name, applicant_5_phone: dc.applicant_5_phone,
@@ -7462,6 +7472,7 @@
             if (dc.co_applicant_name !== undefined) caseRegistry[dc.id].co_applicant_name = dc.co_applicant_name;
             if (dc.co_applicant_phone !== undefined) caseRegistry[dc.id].co_applicant_phone = dc.co_applicant_phone;
             if (dc.co_applicant_address !== undefined) caseRegistry[dc.id].co_applicant_address = dc.co_applicant_address;
+            if (dc.co_applicant_office_address !== undefined) caseRegistry[dc.id].co_applicant_office_address = dc.co_applicant_office_address;
             if (dc.applicant_3_name !== undefined) caseRegistry[dc.id].applicant_3_name = dc.applicant_3_name;
             if (dc.applicant_3_phone !== undefined) caseRegistry[dc.id].applicant_3_phone = dc.applicant_3_phone;
             if (dc.applicant_4_name !== undefined) caseRegistry[dc.id].applicant_4_name = dc.applicant_4_name;
@@ -7870,6 +7881,7 @@
       if (document.getElementById("ecCoApplicantName")) document.getElementById("ecCoApplicantName").value = c.co_applicant_name || "";
       if (document.getElementById("ecCoApplicantPhone")) document.getElementById("ecCoApplicantPhone").value = c.co_applicant_phone || "";
       if (document.getElementById("ecCoApplicantAddress")) document.getElementById("ecCoApplicantAddress").value = c.co_applicant_address || "";
+      if (document.getElementById("ecCoApplicantOfficeAddress")) document.getElementById("ecCoApplicantOfficeAddress").value = c.co_applicant_office_address || "";
       if (document.getElementById("ecSlot3Name")) document.getElementById("ecSlot3Name").value = c.applicant_3_name || "";
       if (document.getElementById("ecSlot3Phone")) document.getElementById("ecSlot3Phone").value = c.applicant_3_phone || "";
       if (document.getElementById("ecSlot4Name")) document.getElementById("ecSlot4Name").value = c.applicant_4_name || "";
@@ -7939,6 +7951,7 @@
       const coApplicantName = document.getElementById("ecCoApplicantName") ? document.getElementById("ecCoApplicantName").value.trim() : "";
       const coApplicantPhone = document.getElementById("ecCoApplicantPhone") ? document.getElementById("ecCoApplicantPhone").value.trim() : "";
       const coApplicantAddress = document.getElementById("ecCoApplicantAddress") ? document.getElementById("ecCoApplicantAddress").value.trim() : "";
+      const coApplicantOfficeAddress = document.getElementById("ecCoApplicantOfficeAddress") ? document.getElementById("ecCoApplicantOfficeAddress").value.trim() : "";
       const slot3Name = document.getElementById("ecSlot3Name") ? document.getElementById("ecSlot3Name").value.trim() : "";
       const slot3Phone = document.getElementById("ecSlot3Phone") ? document.getElementById("ecSlot3Phone").value.trim() : "";
       const slot4Name = document.getElementById("ecSlot4Name") ? document.getElementById("ecSlot4Name").value.trim() : "";
@@ -7974,6 +7987,7 @@
             co_applicant_name: coApplicantName || null,
             co_applicant_phone: coApplicantPhone || null,
             co_applicant_address: coApplicantAddress || null,
+            co_applicant_office_address: coApplicantOfficeAddress || null,
             applicant_3_name: slot3Name || null,
             applicant_3_phone: slot3Phone || null,
             applicant_4_name: slot4Name || null,
@@ -8163,7 +8177,7 @@
       return (apiCases || []).map(dc => buildCaseEntry({
         case_no: dc.case_no, bank: dc.bank_name, branch: dc.branch, applicant_name: dc.applicant_name,
         phone: dc.applicant_phone, co_applicant_name: dc.co_applicant_name, co_applicant_phone: dc.co_applicant_phone,
-        co_applicant_address: dc.co_applicant_address,
+        co_applicant_address: dc.co_applicant_address, co_applicant_office_address: dc.co_applicant_office_address,
         applicant_3_name: dc.applicant_3_name, applicant_3_phone: dc.applicant_3_phone,
         applicant_4_name: dc.applicant_4_name, applicant_4_phone: dc.applicant_4_phone,
         applicant_5_name: dc.applicant_5_name, applicant_5_phone: dc.applicant_5_phone,
@@ -10477,6 +10491,10 @@
           <div id="ecCoApplicantAddressWrap" class="col-span-2">
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Home Address <span class="font-normal normal-case text-outline">(leave blank if same as applicant)</span></label>
             <textarea id="ecCoApplicantAddress" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
+          </div>
+          <div id="ecCoApplicantOfficeAddressWrap" class="col-span-2">
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Office / Workplace Address <span class="font-normal normal-case text-outline">(if Applicant 2 is working)</span></label>
+            <textarea id="ecCoApplicantOfficeAddress" rows="2" autocomplete="off" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container font-body"></textarea>
           </div>
           <div id="ecSlot3Wrap" class="hidden col-span-2 grid grid-cols-2 gap-3">
             <div>

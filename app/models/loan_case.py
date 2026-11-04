@@ -101,6 +101,13 @@ class LoanCase(Base, TimestampMixin):
         Text,
         nullable=True,
     )
+    # Mirrors office_address but for the co-applicant - only relevant when they're employed/
+    # self-employed (not a housewife), so the field agent has a reference before heading to
+    # the co-applicant's own office/workplace visit, same reasoning as office_address.
+    co_applicant_office_address: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
 
     # Applicants 3-5: fixed extra slots (used or left blank), not a dynamic list - mirrors
     # co_applicant_name/co_applicant_phone exactly. Per bank rule, slots 1-2 require a home AND

@@ -36,6 +36,9 @@ async def lifespan(app: FastAPI):
         await conn.execute(text(
             "ALTER TABLE loan_cases ADD COLUMN IF NOT EXISTS co_applicant_address TEXT"
         ))
+        await conn.execute(text(
+            "ALTER TABLE loan_cases ADD COLUMN IF NOT EXISTS co_applicant_office_address TEXT"
+        ))
         for _slot in (3, 4, 5):
             await conn.execute(text(
                 f"ALTER TABLE loan_cases ADD COLUMN IF NOT EXISTS applicant_{_slot}_name VARCHAR(255)"

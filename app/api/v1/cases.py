@@ -149,6 +149,7 @@ async def create_case(
         co_applicant_name=(req.co_applicant_name or "").strip() or None,
         co_applicant_phone=(req.co_applicant_phone or "").strip() or None,
         co_applicant_address=(req.co_applicant_address or "").strip() or None,
+        co_applicant_office_address=(req.co_applicant_office_address or "").strip() or None,
         applicant_3_name=(req.applicant_3_name or "").strip() or None,
         applicant_3_phone=(req.applicant_3_phone or "").strip() or None,
         applicant_4_name=(req.applicant_4_name or "").strip() or None,
