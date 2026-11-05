@@ -2,9 +2,8 @@ import hashlib
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
-from app.core.timezone import format_ist
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -1249,32 +1248,6 @@ def generate_certified_cpv_report(
     slot_photos = _apply_report_selection(residence_sorted_docs, slot_photos)
     res_photos = [slot_photos[1], slot_photos[2], slot_photos[3], slot_photos[4]]
 
-    # Resolve Field Staff Attendance Selfie
-    selfie_img_path = None
-    selfie_meta_info = {
-        "agent_name": case_data.get("agent_name") or "Not Yet Allotted",
-        "coordinates": "23.1030° N, 72.5955° E",
-        "timestamp": format_ist(datetime.now(timezone.utc)),
-    }
-    for d in sorted_docs:
-        if d.get("doc_type") == "AGENT_SELFIE":
-            cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
-            if cand and os.path.exists(cand):
-                selfie_img_path = cand
-                if d.get("latitude") and d.get("longitude"):
-                    selfie_meta_info["coordinates"] = f"{float(d['latitude']):.4f}° N, {float(d['longitude']):.4f}° E"
-                if d.get("captured_at"):
-                    selfie_meta_info["timestamp"] = str(d["captured_at"])
-                break
-
-    if not selfie_img_path and field_photos_dir and os.path.exists(field_photos_dir):
-        for f in os.listdir(field_photos_dir):
-            if "selfie" in f.lower() and f.lower().endswith((".jpg", ".jpeg", ".png")):
-                cand = os.path.join(field_photos_dir, f)
-                if os.path.exists(cand):
-                    selfie_img_path = cand
-                    break
-
     v_caps = [
         "1. Property Exterior & Main Gate",
         "2. Living Room / Hall / Interior Assets",
@@ -1282,16 +1255,15 @@ def generate_certified_cpv_report(
         "4. Street & Locality Infrastructure",
     ]
 
-    has_selfie = bool(selfie_img_path and is_valid_image(selfie_img_path))
-    p_height = 2.15 * inch if has_selfie else 2.45 * inch
+    p_height = 2.45 * inch
 
+    # Captions below each photo, and the Field Staff Geo-Attendance selfie card that used to
+    # print here, are both removed per explicit CA office instruction - only the photos
+    # themselves are printed now.
     def _make_cell(idx):
         if idx < len(res_photos) and is_valid_image(res_photos[idx]):
             try:
-                return [
-                    Image(res_photos[idx], width=3.3 * inch, height=p_height),
-                    Paragraph(f"<b>{v_caps[idx] if idx < len(v_caps) else f'Photo {idx+1}'}</b>", ParagraphStyle(f"Cap{idx}", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))
-                ]
+                return [Image(res_photos[idx], width=3.3 * inch, height=p_height)]
             except Exception:
                 pass
         return [Paragraph(v_caps[idx] if idx < len(v_caps) else f"Photo {idx+1}", table_cell_style)]
@@ -1309,30 +1281,8 @@ def generate_certified_cpv_report(
     ]))
     story.append(t_photos)
 
-    # If selfie exists, add Field Staff Geo-Attendance & Verification Card on Page 8
-    if has_selfie:
-        story.append(Spacer(1, 3))
-        selfie_meta_flowables = [
-            Paragraph("<b>FIELD STAFF GEO-ATTENDANCE & IDENTITY VERIFICATION</b>", ParagraphStyle("SelfieTitle", fontName="Helvetica-Bold", fontSize=7.5, leading=10, textColor=colors.HexColor("#1E40AF"))),
-            Spacer(1, 2),
-            Paragraph(f"<b>Verifying Field Officer:</b> {selfie_meta_info['agent_name']}", ParagraphStyle("SelfieText1", fontName="Helvetica", fontSize=7, leading=9.5, textColor=colors.HexColor("#334155"))),
-            Paragraph(f"<b>Geo-Coordinates:</b> {selfie_meta_info['coordinates']} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Proximity:</b> Validated on-site", ParagraphStyle("SelfieText2", fontName="Helvetica", fontSize=7, leading=9.5, textColor=colors.HexColor("#334155"))),
-            Paragraph(f"<b>Capture Timestamp:</b> {selfie_meta_info['timestamp']}", ParagraphStyle("SelfieText3", fontName="Helvetica", fontSize=7, leading=9.5, textColor=colors.HexColor("#334155"))),
-            Paragraph("<b>Audit Status:</b> <font color='#059669'><b>[✓] VERIFIED ON-SITE (Tamper-Proof Watermark Embedded)</b></font>", ParagraphStyle("SelfieText4", fontName="Helvetica-Bold", fontSize=7, leading=9.5, textColor=colors.HexColor("#059669"))),
-        ]
-        selfie_table = Table([
-            [Image(selfie_img_path, width=2.3 * inch, height=1.45 * inch), selfie_meta_flowables]
-        ], colWidths=[2.5 * inch, 5.0 * inch])
-        selfie_table.setStyle(TableStyle([
-            ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#10B981")),
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F0FDF4")),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-            ("LEFTPADDING", (0, 0), (-1, -1), 5),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-        ]))
-        story.append(selfie_table)
+    # The Field Staff Geo-Attendance & Identity Verification selfie card that used to print
+    # here is removed per explicit CA office instruction.
 
     # ================= PAGE 9: OFFICE PREMISES VISIT PHOTOGRAPHS (WHEN WORKING) =================
     if is_working:
@@ -1408,7 +1358,7 @@ def generate_certified_cpv_report(
         def _make_off_cell(idx):
             if idx < len(off_photos) and is_valid_image(off_photos[idx]):
                 try:
-                    return [Image(off_photos[idx], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{off_caps[idx] if idx < len(off_caps) else f'Office Photo {idx+1}'}</b>", ParagraphStyle(f"OffCap{idx}", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))]
+                    return [Image(off_photos[idx], width=3.3 * inch, height=2.45 * inch)]
                 except Exception:
                     pass
             return [Paragraph(off_caps[idx] if idx < len(off_caps) else f"Office Photo {idx+1}", table_cell_style)]
@@ -1475,7 +1425,7 @@ def generate_certified_cpv_report(
         def _make_co_off_cell(idx):
             if idx < len(co_off_photos) and is_valid_image(co_off_photos[idx]):
                 try:
-                    return [Image(co_off_photos[idx], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{co_off_caps[idx]}</b>", ParagraphStyle(f"CoOffCap{idx}", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))]
+                    return [Image(co_off_photos[idx], width=3.3 * inch, height=2.45 * inch)]
                 except Exception:
                     pass
             return [Paragraph(co_off_caps[idx] if idx < len(co_off_caps) else f"Office Photo {idx+1}", table_cell_style)]
@@ -1544,7 +1494,7 @@ def generate_certified_cpv_report(
         def _make_co_res_cell(idx):
             if idx < len(co_res_photos) and is_valid_image(co_res_photos[idx]):
                 try:
-                    return [Image(co_res_photos[idx], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{co_res_caps[idx]}</b>", ParagraphStyle(f"CoResCap{idx}", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))]
+                    return [Image(co_res_photos[idx], width=3.3 * inch, height=2.45 * inch)]
                 except Exception:
                     pass
             return [Paragraph(co_res_caps[idx] if idx < len(co_res_caps) else f"Residence Photo {idx+1}", table_cell_style)]
@@ -1673,7 +1623,7 @@ def generate_certified_cpv_report(
             def _make_extra_cell(idx):
                 if idx < len(photos) and is_valid_image(photos[idx]):
                     try:
-                        return [Image(photos[idx], width=3.3 * inch, height=2.45 * inch), Paragraph(f"<b>{caps[idx]}</b>", ParagraphStyle(f"ExtraCap{slot_no}_{idx}", alignment=1, fontSize=7, textColor=colors.HexColor("#334155")))]
+                        return [Image(photos[idx], width=3.3 * inch, height=2.45 * inch)]
                     except Exception:
                         pass
                 return [Paragraph(caps[idx] if idx < len(caps) else f"Residence Photo {idx+1}", table_cell_style)]
