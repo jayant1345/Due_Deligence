@@ -1712,6 +1712,12 @@
 
       activeCaseId = caseId;
 
+      // Default the Report Date field to today for whichever case is now active - this is a
+      // per-generation override, not a stored case attribute, so it must never carry a date the
+      // CA picked for a previous case into a different one.
+      const reportDateInput = document.getElementById("reportDateInput");
+      if (reportDateInput) reportDateInput.value = new Date().toISOString().slice(0, 10);
+
       // 1. Update Sub-header Dossier Ribbon
       document.getElementById("dispCaseRef").textContent = c.case_no;
       document.getElementById("dispCaseStatus").textContent = c.status;
@@ -3106,6 +3112,8 @@
       const btnText = document.getElementById("btnCertifyText");
       const remarks = document.getElementById("caRemarksInput").value;
       const udin = document.getElementById("udinInput").value;
+      const reportDateInput = document.getElementById("reportDateInput");
+      const reportDate = reportDateInput && reportDateInput.value ? reportDateInput.value : null;
 
       btn.disabled = true;
       btnText.innerHTML = `<span class="material-symbols-outlined animate-spin text-[16px]">autorenew</span> Compiling ReportLab PDF...`;
@@ -3121,6 +3129,7 @@
             case_id: activeCaseId,
             udin: udin,
             ca_remarks: remarks,
+            report_date: reportDate,
             checklist_identity_verified: true,
             checklist_property_exists: true,
             checklist_geofence_compliant: true,

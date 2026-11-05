@@ -1210,6 +1210,18 @@
         <textarea id="caRemarksInput" class="w-full text-xs font-body rounded-lg border border-outline-variant p-2.5 text-on-surface bg-surface-container-low focus:bg-white focus:border-primary-container focus:outline-none transition-all leading-relaxed" rows="4">Field inspection completed within permissible geofence limits. Physical occupancy verified via Society Secretary and exterior meter MUM-70291 alignment. Utility billing corroborates continuous residence. Document OCR yields >98% fuzzy alignment with master application dossier. Recommended for credit underwriting clearance.</textarea>
       </div>
 
+      <!-- Report Date Override - CA office requested the ability to set the certified report's
+           date explicitly (e.g. to match the actual site visit date) instead of it always being
+           whichever day the dossier happens to be generated on. -->
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant p-3.5 shadow-sm space-y-1.5">
+        <label for="reportDateInput" class="text-xs font-bold text-on-surface flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-primary-container text-[16px]">event</span>
+          Report Date
+        </label>
+        <input id="reportDateInput" type="date" class="w-full text-xs font-mono rounded-lg border border-outline-variant p-2 text-on-surface bg-surface-container-low focus:bg-white focus:border-primary-container focus:outline-none transition-all"/>
+        <p class="text-[10px] text-on-surface-variant">Defaults to today. Set this to date the certified report to the actual site visit / submission date.</p>
+      </div>
+
       <!-- ICAI UDIN Certification - Manual Entry Card by CA Staff -->
       <div class="bg-surface-container-lowest p-3.5 rounded-lg border-2 border-primary-container/30 shadow-sm space-y-3">
         <!-- Header with Live Status & ICAI Verification Badge -->
@@ -2251,7 +2263,7 @@
     </div>
   </div>
 
-  <script src="/static/ca-portal.js?v=8"></script>
+  <script src="/static/ca-portal.js?v=9"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">

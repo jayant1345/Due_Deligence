@@ -106,6 +106,7 @@ async def generate_report(
         ca_remarks=req.ca_remarks,
         user_id_str=user_id_str,
         udin=req.udin,
+        report_date=req.report_date,
     )
 
     if result.get("status") != "success":

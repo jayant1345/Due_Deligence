@@ -8,6 +8,10 @@ class ReportGenerateRequest(BaseModel):
     case_id: uuid.UUID
     udin: Optional[str] = None
     ca_remarks: str
+    # CA office-settable report date (YYYY-MM-DD, as an HTML date input sends it) - defaults to
+    # today when left blank. Lets the CA certify a report dated to match the actual site visit /
+    # bank submission date instead of whichever day the dossier happens to be generated on.
+    report_date: Optional[str] = None
     checklist_identity_verified: bool = True
     checklist_property_exists: bool = True
     checklist_geofence_compliant: bool = True

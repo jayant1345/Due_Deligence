@@ -187,6 +187,7 @@ async def async_generate_report_pdf(
     ca_remarks: Optional[str] = None,
     user_id_str: Optional[str] = None,
     udin: Optional[str] = None,
+    report_date: Optional[str] = None,
 ) -> Dict[str, Any]:
     case_uuid = uuid.UUID(case_id_str)
     user_uuid = uuid.UUID(user_id_str) if user_id_str else uuid.uuid4()
@@ -259,6 +260,18 @@ async def async_generate_report_pdf(
         "applicant_5_address": loan_case.applicant_5_address,
     }
 
+    # CA office-settable report date, per their explicit request, so the certified report can be
+    # dated to match the actual site visit / bank submission date rather than always the day the
+    # dossier happens to be compiled on. The CA Portal sends an HTML date input value
+    # (YYYY-MM-DD); parsed here into both representations the two report pipelines expect.
+    report_date_obj = None
+    if report_date:
+        try:
+            report_date_obj = datetime.strptime(report_date, "%Y-%m-%d").date()
+            case_dict["report_date"] = report_date_obj.strftime("%d-%m-%Y")
+        except ValueError:
+            pass
+
     if loan_case.field_form_data:
         try:
             import json
@@ -311,6 +324,7 @@ async def async_generate_report_pdf(
             session, loan_case, pages,
             udin=report_meta["udin"],
             overall_status=loan_case.status.value if loan_case.status else "POSITIVE",
+            report_date=report_date_obj,
         )
         build_cpv_report(cpv_data, output_docx)
         template_used = True
