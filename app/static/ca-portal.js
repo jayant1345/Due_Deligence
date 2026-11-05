@@ -6570,6 +6570,16 @@
           }
 
           purgeDeletedCasesFromRegistry();
+
+          // renderManagementPortal() only re-fetches the Active list from the server - the
+          // Completed list is cached in memory and was never refreshed, so a deleted CERTIFIED
+          // case kept showing in the Management Portal's Completed tab even though it was gone
+          // from the database. Strip it out of both in-memory lists directly so it disappears
+          // immediately regardless of which tab is currently open.
+          const stillMatches = (c) => c && (c.db_id === caseId || c.case_no === caseNo);
+          mgmtActiveCases = (mgmtActiveCases || []).filter(c => !stillMatches(c));
+          if (mgmtCompletedCases) mgmtCompletedCases = mgmtCompletedCases.filter(c => !stillMatches(c));
+
           // Immediately update all counters and table without requiring page refresh
           updateGlobalCaseCounters();
           renderManagementPortal();
