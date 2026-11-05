@@ -403,6 +403,19 @@ async def assemble_cpv_report_data(
         agent = (await db.execute(select(User).where(User.id == loan_case.assigned_agent_id))).scalar_one_or_none()
 
     refs = [(form.get("neighbour_1"), "Neighbour"), (form.get("neighbour_2"), "Neighbour")]
+    # The PWA's Owner Name field is a single string in the form "(Name) Relation" (e.g.
+    # "(Ranjanba Vaghela) Mother in law") - there's no separate relation input. pdf_generator.py
+    # already parses this out into owner_name/owner_relation; this used to just hardcode
+    # owner_relation to None and pass the raw "(Name) Relation" string through as owner_name
+    # unparsed, printing "Relation with Applicant: NA" even when the relation was right there.
+    owner_raw = form.get("owner_name") or ""
+    _owner_match = re.match(r"^\s*\(([^)]+)\)\s*(.*)$", owner_raw)
+    if _owner_match:
+        res_owner_name = _owner_match.group(1).strip() or None
+        res_owner_relation = _owner_match.group(2).strip() or None
+    else:
+        res_owner_name = owner_raw.strip() or None
+        res_owner_relation = None
     residence = {
         "verified_address": target_address if visited else None,
         "aadhaar_address": (summary.get("applicant") or {}).get("residential_address"),
@@ -412,8 +425,8 @@ async def assemble_cpv_report_data(
         "floor": None,
         "stay_period": form.get("period_of_stay") or None,
         "ownership": form.get("ownership") or None,
-        "owner_name": form.get("owner_name") or None,
-        "owner_relation": None,
+        "owner_name": res_owner_name,
+        "owner_relation": res_owner_relation,
         "nameboard": form.get("nameboard_visible") or None,
         "assets": form.get("assets_observed") or None,
         "met": {"name": form.get("person_met") or None},
