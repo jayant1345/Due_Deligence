@@ -496,7 +496,7 @@ def generate_certified_cpv_report(
     if is_working:
         work_bullet = f"""
     <b>Working Details:</b><br/><br/>
-     The applicant, <b>{applicant_name}</b>, is employed with/ has a business named <b>{firm_name}</b>, located at, <b>{office_addr}</b>. A physical verification was conducted on {rep_date}.<br/><br/>
+     The applicant, <b>{applicant_name}</b>, is employed with/ has a business named <b>{firm_name or NOT_CAPTURED}</b>, located at, <b>{office_addr or NOT_CAPTURED}</b>. A physical verification was conducted on {rep_date}.<br/><br/>
      During the verification, the applicant's employment details/ business details was confirmed, the applicant is working as a <b>{position}</b>. The applicant has been associated with the organization for <b>{experience}</b>.<br/><br/>
      Based on the verification conducted, the employment details of the applicant are genuine.<br/><br/>
         """
@@ -514,7 +514,7 @@ def generate_certified_cpv_report(
         if is_co_working:
             co_work_bullet = (
                 "<b>Co-Applicant Working Details:</b><br/><br/>"
-                f"  The co-applicant, <b>{co_applicant_name}</b>, is employed with/ has a business named <b>{co_firm_name}</b>, located at, <b>{co_office_addr}</b>. A physical verification was conducted on {rep_date}.<br/><br/>"
+                f"  The co-applicant, <b>{co_applicant_name}</b>, is employed with/ has a business named <b>{co_firm_name or NOT_CAPTURED}</b>, located at, <b>{co_office_addr or NOT_CAPTURED}</b>. A physical verification was conducted on {rep_date}.<br/><br/>"
                 f"  During the verification, the co-applicant is working as a <b>{co_position}</b>.<br/><br/>"
                 f"  Based on the verification conducted, the employment details of the co-applicant are genuine.<br/><br/>"
             )
