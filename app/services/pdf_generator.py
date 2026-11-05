@@ -659,7 +659,7 @@ def generate_certified_cpv_report(
         # Never assert a match that was never actually checked - a CA-certified report must
         # state the true relationship between the two addresses, not a copy-pasted claim.
         if not aadhaar_addr:
-            return NOT_CAPTURED + " (Aadhaar card not scanned for this case)"
+            return NOT_CAPTURED
         if not verified_addr or verified_addr == NOT_CAPTURED:
             return aadhaar_addr
         norm = lambda s: set(re.sub(r"[^a-z0-9 ]", " ", s.lower()).split())
