@@ -376,6 +376,12 @@ STRICT RULES
     for/sanctioned, exactly as printed. Never the applicant's own savings/salary account branch
     or balance from a bank statement - those belong in bank_name/account_number/ifsc_code
     instead and must never be confused with these two fields.
+11. rotation_needed: a document photographed sideways or upside-down (common for a card/book
+    photographed on a flat surface) must still be read correctly for every field above - rotate
+    the page mentally before extracting. Separately report how many degrees CLOCKWISE the saved
+    image itself must be rotated for a human viewer to see it upright, using the printed text's
+    reading direction, the photo/portrait's upright orientation, and the QR code's normal
+    position as your guide.
 
 Return ONLY a JSON object with exactly these keys:
 {{
@@ -421,7 +427,8 @@ Return ONLY a JSON object with exactly these keys:
   "bill_amount": "string or null",
   "is_tampered_or_suspicious": false,
   "observations": ["factual red flags a CA should note, e.g. bounced cheques, name mismatch"],
-  "forensic_summary": "1-2 factual sentences"
+  "forensic_summary": "1-2 factual sentences",
+  "rotation_needed": "0 | 90 | 180 | 270 - degrees to rotate the image CLOCKWISE so printed text, the photo, and the QR code all read upright. 0 if the page already reads normally top-to-bottom."
 }}"""
 
 
@@ -560,6 +567,7 @@ def _normalize_extraction(raw: Dict[str, Any], applicant_name: str, target_addre
         "is_tampered_or_suspicious": bool(raw.get("is_tampered_or_suspicious")),
         "discrepancies": discrepancies + [str(o) for o in observations if _clean(o)],
         "forensic_summary": r.get("forensic_summary") or "",
+        "rotation_needed": r.get("rotation_needed"),
     }
     return result
 
@@ -1096,6 +1104,31 @@ def _reattribute_form16_signatory_pages(results: List[Dict[str, Any]]) -> None:
                 break
 
 
+def _apply_rotation_if_needed(rotation_needed: Any, *image_paths: str) -> None:
+    """
+    Physically rotate a page's saved image file(s) when Gemini reported it was photographed
+    sideways/upside-down (rotation_needed in the extraction schema) - so the CA portal viewer
+    and the printed report show the page upright, not just the data extracted correctly.
+    """
+    try:
+        deg = int(str(rotation_needed).strip())
+    except (TypeError, ValueError):
+        return
+    deg = deg % 360
+    if deg not in (90, 180, 270):
+        return
+    for path in image_paths:
+        if not path or not os.path.exists(path):
+            continue
+        try:
+            with Image.open(path) as img:
+                # PIL's rotate() turns counter-clockwise; Gemini reports the clockwise
+                # correction, so apply the negative to match.
+                img.rotate(-deg, expand=True).convert("RGB").save(path, quality=95)
+        except Exception as e:
+            logger.warning("Could not auto-rotate %s by %d degrees: %s", path, deg, e)
+
+
 def burst_and_separate_pdf_with_llm(
     pdf_path: str,
     case_id: str,
@@ -1145,6 +1178,7 @@ def burst_and_separate_pdf_with_llm(
             applicant_name=applicant_name,
             target_address=target_address,
         )
+        _apply_rotation_if_needed(analysis.get("rotation_needed"), storage_img_path, static_img_path)
         return _finalize_page_item(analysis, page_idx, total_pages, web_url, [storage_img_path, static_img_path])
 
     # Rasterizing a page (PyMuPDF render + 2 JPEG writes) is a fraction of the time a Gemini
