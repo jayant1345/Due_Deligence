@@ -229,7 +229,13 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
             "employees": office_form.get("employees") or None,
             "nameboard": office_form.get("nameboard") or None,
             "infrastructure": office_form.get("infrastructure") or None,
-            "experience": _years_since(doj, on),
+            # pdf_generator.py reads this straight off the field-visit form's own free-text
+            # "experience"/"period_of_stay" answer (there's no separate date-of-joining field
+            # captured for a self-employed/business applicant) - computing it from doj here
+            # instead meant it was almost always None for exactly the applicants who reach this
+            # section (is_working with no salaried employment), printing a blank "...for ." in
+            # the Working Details narrative even though the PDF shows the real answer.
+            "experience": _years_since(doj, on) or office_form.get("experience") or office_form.get("period_of_stay") or None,
             "established_since": office_form.get("established_since") or None,
             "location": office_form.get("location") or None,
             "assets": office_form.get("assets") or None,
