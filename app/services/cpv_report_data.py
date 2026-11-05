@@ -31,6 +31,35 @@ OFFICE_PHOTO_TYPES = {
 CO_APPLICANT_DOC_TYPES = {"FORM_16", "PAN_CARD", "AADHAAR_CARD", "SALARY_SLIP", "BANK_STATEMENT", "EMPLOYEE_ID_CARD"}
 
 
+def _resolve_slot_photos(docs: List[CaseDocument], max_slots: int = 4) -> List[CaseDocument]:
+    """
+    One photo per mandatory slot (1-4), newest upload wins if a slot was retaken - mirrors the
+    PDF generator's own slot resolution (_apply_report_selection) so the DOCX report shows the
+    same, deduplicated 4-photo set instead of every retake/extra photo ever uploaded for this
+    folder. A doc with no slot_number at all (older case, tagged before this field existed)
+    fills any slots still empty, up to max_slots total - never silently prints every match.
+    """
+    slot_map: Dict[int, CaseDocument] = {}
+    unslotted: List[CaseDocument] = []
+    for d in sorted(docs, key=lambda x: x.created_at):
+        od = d.ocr_data if isinstance(d.ocr_data, dict) else {}
+        sn = od.get("slot_number")
+        try:
+            sn = int(sn) if sn else None
+        except (TypeError, ValueError):
+            sn = None
+        if sn and 1 <= sn <= max_slots:
+            slot_map[sn] = d  # later upload for the same slot overwrites the earlier one
+        else:
+            unslotted.append(d)
+    ordered = [slot_map[s] for s in range(1, max_slots + 1) if s in slot_map]
+    for d in unslotted:
+        if len(ordered) >= max_slots:
+            break
+        ordered.append(d)
+    return ordered
+
+
 def _inr(amount: Optional[str]) -> Optional[str]:
     """'438828' -> '4,38,828' (Indian digit grouping)."""
     if not amount:
@@ -210,6 +239,11 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
                 if r
             ],
             "who_meet": office_form.get("who_meet") or None,
+            # cpv_report_builder.py's _fill_office() reads a nested met.name/contact/relation
+            # (same shape as residence's "met"), not the flat "who_meet" string above - without
+            # this, the real who-we-met answer (already showing correctly in the PDF, which reads
+            # office.get("who_meet") directly) printed as NA in the DOCX even when captured.
+            "met": {"name": office_form.get("who_meet") or None},
             "assessment": office_form.get("assessment") or None,
             # The ID card carries the official employee code; payslips often print box numbers.
             # Falls back to the field visit form's manually-typed Reg No. / UDYAM / GST number
@@ -455,7 +489,7 @@ async def assemble_cpv_report_data(
         .order_by(CaseDocument.created_at)
     )).scalars().all()
     residence_photos = []
-    for d in site_docs:
+    for d in _resolve_slot_photos(site_docs):
         resolved = _resolve_local_image_path(d.watermarked_url or d.storage_url)
         if resolved and resolved not in residence_photos:
             residence_photos.append(resolved)
@@ -484,7 +518,7 @@ async def assemble_cpv_report_data(
         .order_by(CaseDocument.created_at)
     )).scalars().all()
     office_photos = []
-    for d in office_site_docs:
+    for d in _resolve_slot_photos(office_site_docs):
         resolved = _resolve_local_image_path(d.watermarked_url or d.storage_url)
         if resolved and resolved not in office_photos:
             office_photos.append(resolved)

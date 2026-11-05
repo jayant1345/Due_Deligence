@@ -524,6 +524,20 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
         _fill_bank(T[9], applicant.get("bank") or {})
     _fill_family(family_t, data.get("family") or [])
     _fill_residence(prem_t, det_t, data.get("residence") or {})
+
+    # Annexure D's "Name: Mr" heading (the account holder's name, above the bank details table)
+    # is a bare static paragraph outside any table - none of the _fill_* calls above touch it,
+    # so it printed literally as "Name: Mr" with the real name missing. Fill the occurrences in
+    # document order: applicant's first, co-applicant's second (when present).
+    bank_holders = [applicant.get("display_name")] + ([co.get("display_name")] if co else [])
+    holder_idx = 0
+    for p in _all_paragraphs(doc):
+        if holder_idx >= len(bank_holders):
+            break
+        if p.text.strip() == "Name: Mr":
+            _set_par_text(p, f"Name: Mr. {bank_holders[holder_idx] or 'NA'}")
+            holder_idx += 1
+
     _replace_token(doc, "[[ITR_NAME_1]]", applicant.get("display_name"))
     _replace_token(doc, "[[BANK_NAME_1]]", applicant.get("display_name"))
     if co:
@@ -561,12 +575,13 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
         if p.text.strip() == "UDIN:":
             _set_par_text(p, p.text + f" {data.get('udin') or 'NOT YET GENERATED'}")
             break
-    # "Date: 00/00/2026" appears twice - the CA's own certificate date (first) and the bank
-    # branch head's confirmation date (second, filled in by the bank, not by us). Only the first.
+    # "Date: 00/00/2026" appears twice (CA's own certificate date, and the branch head
+    # confirmation date below it) - the PDF generator (the reference for "same data as PDF")
+    # prints the same report date in both spots rather than leaving the second for the bank to
+    # fill in later, so match that here too.
     for p in _all_paragraphs(doc):
         if p.text.strip().startswith("Date:") and "00/00/2026" in p.text:
             _set_par_text(p, f"Date: {data.get('certificate_date') or 'NA'}")
-            break
     sig = data.get("signature_path")
     if sig and os.path.exists(sig):
         for p in _all_paragraphs(doc):
