@@ -509,8 +509,12 @@ async def assemble_cpv_report_data(
         if os.path.exists(p8):
             pan_photos.append(p8)
 
-    sig_path = os.getenv("CA_SIGNATURE_IMAGE_PATH") or os.path.join("app", "static", "specimen_assets", "ca_pranav_signature.png")
-    if not os.path.exists(sig_path):
+    # The signature block is left blank on purpose so the CA signs the printed report by hand -
+    # auto-pasting a scanned signature image into every generated report was a demo/specimen
+    # leftover, not something that should go out on a real bank-facing certified document.
+    # CA_SIGNATURE_IMAGE_PATH remains available as an explicit opt-in if ever needed again.
+    sig_path = os.getenv("CA_SIGNATURE_IMAGE_PATH") or None
+    if sig_path and not os.path.exists(sig_path):
         sig_path = None
 
     loan_type = loan_case.loan_type
