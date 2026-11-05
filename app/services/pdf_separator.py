@@ -352,8 +352,12 @@ STRICT RULES
    signatory's name.
 4. PAN: the holder's 10-character PAN only (format AAAAA9999A). On a Form 16 the EMPLOYEE's PAN —
    never the "PAN of the Deductor", never the TAN (format AAAA99999A, e.g. AHMT04764E).
-5. Aadhaar (UIDAI Rule): return ONLY the last 4 digits, as "XXXX-XXXX-1234". Never output the
-   full 12-digit number or the 16-digit VID anywhere in your response.
+5. Aadhaar: return the FULL 12-digit Aadhaar number exactly as printed on the document, digits
+   only (no spaces/dashes) - per explicit CA office instruction, masking is disabled and the
+   full number must be read and reported, not just the last 4 digits. If the source document
+   itself only ever shows a masked number (e.g. a UIDAI "Masked Aadhaar" download printing
+   "XXXX XXXX 1234"), report exactly those literal X's followed by the 4 real digits - never
+   substitute X's for digits that are genuinely visible and legible on the page.
 6. date_of_birth is the holder's birth date (DD/MM/YYYY). It is NOT the Aadhaar issue date,
    "Details as on" date, enrolment date, bill date or statement date.
    father_or_spouse_name only if printed with that meaning (e.g. the second name on a PAN card,

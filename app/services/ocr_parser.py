@@ -60,7 +60,7 @@ def scan_with_gemini_openrouter(
     """
     Scan and analyze documents using OpenRouter with cost-effective, high-accuracy
     Google Gemini (e.g., google/gemini-2.0-flash-001).
-    Performs forensic OCR, UIDAI 8-digit Aadhaar masking, and fuzzy matching.
+    Performs forensic OCR (full, unmasked Aadhaar number per CA office instruction) and fuzzy matching.
     """
     if not settings.OPENROUTER_API_KEY:
         return None
