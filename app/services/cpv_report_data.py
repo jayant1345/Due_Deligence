@@ -24,6 +24,10 @@ SITE_PHOTO_TYPES = {
     DocumentType.PROPERTY_EXTERIOR, DocumentType.PROPERTY_INTERIOR, DocumentType.ELECTRICITY_METER,
     DocumentType.SOCIETY_BOARD, DocumentType.NEIGHBOR_VERIFICATION,
 }
+OFFICE_PHOTO_TYPES = {
+    DocumentType.OFFICE_FACADE, DocumentType.OFFICE_NAMEBOARD, DocumentType.OFFICE_INTERIOR,
+    DocumentType.OFFICE_SELFIE, DocumentType.WORK_OFFICE,
+}
 CO_APPLICANT_DOC_TYPES = {"FORM_16", "PAN_CARD", "AADHAAR_CARD", "SALARY_SLIP", "BANK_STATEMENT", "EMPLOYEE_ID_CARD"}
 
 
@@ -467,12 +471,23 @@ async def assemble_cpv_report_data(
             if f.startswith("page_9_img_") and f.endswith((".jpeg", ".jpg", ".png")) and os.path.getsize(os.path.join(case_extracted_photos, f)) > 10000
         ]
 
+    # Was only ever looking for a literal "page_10_img_*" file in one specific case's old
+    # PDF-burst output folder - a leftover from one original demo case's own file layout, not a
+    # real lookup for THIS case's actual office evidence. Every real case's office photos are
+    # CaseDocument rows (OFFICE_FACADE/OFFICE_NAMEBOARD/OFFICE_INTERIOR/OFFICE_SELFIE/WORK_OFFICE,
+    # same as the field PWA's Office Evidence folder uploads), exactly like residence_photos
+    # above already queries for the residence equivalent - this silently printed zero office
+    # photos in the DOCX for every single real case, even when they were right there in the DB
+    # and the PDF report (a separate code path) showed them correctly.
+    office_site_docs = (await db.execute(
+        select(CaseDocument).where(CaseDocument.case_id == loan_case.id, CaseDocument.doc_type.in_(OFFICE_PHOTO_TYPES))
+        .order_by(CaseDocument.created_at)
+    )).scalars().all()
     office_photos = []
-    if os.path.exists(case_extracted_photos):
-        office_photos = [
-            os.path.join(case_extracted_photos, f) for f in sorted(os.listdir(case_extracted_photos))
-            if f.startswith("page_10_img_") and f.endswith((".jpeg", ".jpg", ".png")) and os.path.getsize(os.path.join(case_extracted_photos, f)) > 10000
-        ]
+    for d in office_site_docs:
+        resolved = _resolve_local_image_path(d.watermarked_url or d.storage_url)
+        if resolved and resolved not in office_photos:
+            office_photos.append(resolved)
 
     pan_photos = []
     for p in applicant["_pan_pages"] + ((co or {}).get("_pan_pages") or []):

@@ -74,6 +74,17 @@ def _set_cell(cell, value: Any) -> None:
         _set_par_text(p, "")
 
 
+def _set_cell_or_na(cell, value: Any) -> None:
+    """Like _set_cell, but for a single required field that should always show something - a
+    genuinely uncaptured value prints "NA" (matching the PDF generator's NOT_CAPTURED
+    convention) instead of being left visually blank, which read as the report having been
+    left unfinished rather than as a deliberate "not captured" statement. Never used for a
+    repeat-per-item slot (family members, ITR rows, reference pairs) where an unused slot is
+    correctly left blank rather than padded with "NA".
+    """
+    _set_cell(cell, _v(value) or "NA")
+
+
 def _ucells(table, row: int) -> list:
     """Unique (un-merged) cells of a row, left to right."""
     out, prev = [], None
@@ -87,6 +98,10 @@ def _ucells(table, row: int) -> list:
 
 def _set(table, row: int, col: int, value: Any) -> None:
     _set_cell(_ucells(table, row)[col], value)
+
+
+def _set_or_na(table, row: int, col: int, value: Any) -> None:
+    _set_cell_or_na(_ucells(table, row)[col], value)
 
 
 def _all_paragraphs(doc):
@@ -222,18 +237,18 @@ def _fill_photo_section(doc, title: str, photos: List[str], next_titles: List[st
 # ---------------------------------------------------------------------------
 
 def _fill_identity(table, person: Dict[str, Any]) -> None:
-    _set(table, 0, 1, person.get("display_name"))
-    _set(table, 1, 1, person.get("contact"))
+    _set_or_na(table, 0, 1, person.get("display_name"))
+    _set_or_na(table, 1, 1, person.get("contact"))
     row2 = _ucells(table, 2)
-    _set_cell(row2[1], person.get("dob"))
-    _set_cell(row2[3], person.get("age"))
-    _set_cell(row2[5], person.get("gender"))
-    _set(table, 3, 1, person.get("marital_status"))
-    _set(table, 4, 1, person.get("community"))
-    _set_cell(_ucells(table, 5)[-1], person.get("pan"))
-    _set_cell(_ucells(table, 6)[-1], person.get("aadhaar"))
-    _set(table, 7, 1, person.get("qualification"))
-    _set(table, 8, 1, person.get("occupation"))
+    _set_cell_or_na(row2[1], person.get("dob"))
+    _set_cell_or_na(row2[3], person.get("age"))
+    _set_cell_or_na(row2[5], person.get("gender"))
+    _set_or_na(table, 3, 1, person.get("marital_status"))
+    _set_or_na(table, 4, 1, person.get("community"))
+    _set_cell_or_na(_ucells(table, 5)[-1], person.get("pan"))
+    _set_cell_or_na(_ucells(table, 6)[-1], person.get("aadhaar"))
+    _set_or_na(table, 7, 1, person.get("qualification"))
+    _set_or_na(table, 8, 1, person.get("occupation"))
 
 
 def _fill_family(table, family: List[Dict[str, Any]]) -> None:
@@ -247,9 +262,11 @@ def _fill_family(table, family: List[Dict[str, Any]]) -> None:
 
 
 def _fill_residence(t_premises, t_details, res: Dict[str, Any]) -> None:
-    _set(t_premises, 0, 1, res.get("verified_address"))
-    _set(t_premises, 1, 1, res.get("aadhaar_address"))
-    _set(t_premises, 2, 1, res.get("landmark"))
+    _set_or_na(t_premises, 0, 1, res.get("verified_address"))
+    _set_or_na(t_premises, 1, 1, res.get("aadhaar_address"))
+    _set_or_na(t_premises, 2, 1, res.get("landmark"))
+    # References are an optional repeat-per-item pair, not a single required field - an unused
+    # slot (fewer than 2 named) is correctly left blank rather than padded with "NA".
     refs = res.get("references") or []
     for i, r in enumerate((4, 5)):
         name, rel = (refs[i] if i < len(refs) else ("", ""))
@@ -257,58 +274,59 @@ def _fill_residence(t_premises, t_details, res: Dict[str, Any]) -> None:
         _set_cell(cells[-2], name)
         _set_cell(cells[-1], rel)
     row6 = _ucells(t_premises, 6)
-    _set_cell(row6[1], res.get("building_type"))
-    _set_cell(row6[3], res.get("floor"))
-    _set_cell(_ucells(t_premises, 7)[-1], res.get("stay_period"))
-    _set(t_premises, 8, 1, res.get("ownership"))
-    _set(t_premises, 9, 1, res.get("owner_name"))
-    _set(t_premises, 10, 1, res.get("owner_relation"))
+    _set_cell_or_na(row6[1], res.get("building_type"))
+    _set_cell_or_na(row6[3], res.get("floor"))
+    _set_cell_or_na(_ucells(t_premises, 7)[-1], res.get("stay_period"))
+    _set_or_na(t_premises, 8, 1, res.get("ownership"))
+    _set_or_na(t_premises, 9, 1, res.get("owner_name"))
+    _set_or_na(t_premises, 10, 1, res.get("owner_relation"))
 
     for r, key in enumerate(("nameboard", "nature", "appearance", "locality", "surroundings",
                              "assets", "evidence", "assessment")):
-        _set_cell(_ucells(t_details, r)[-1], res.get(key))
+        _set_cell_or_na(_ucells(t_details, r)[-1], res.get(key))
     met = res.get("met") or {}
-    _set_cell(_ucells(t_details, 8)[-1], met.get("name"))
-    _set_cell(_ucells(t_details, 9)[-1], met.get("contact"))
-    _set_cell(_ucells(t_details, 10)[-1], met.get("relation"))
+    _set_cell_or_na(_ucells(t_details, 8)[-1], met.get("name"))
+    _set_cell_or_na(_ucells(t_details, 9)[-1], met.get("contact"))
+    _set_cell_or_na(_ucells(t_details, 10)[-1], met.get("relation"))
 
 
 def _fill_office(table, person: Dict[str, Any]) -> None:
     o = person.get("office") or {}
-    _set(table, 0, 1, person.get("display_name"))
-    _set(table, 1, 1, o.get("firm_name"))
-    _set(table, 2, 1, o.get("address"))
-    _set(table, 3, 1, o.get("landmark"))
-    _set(table, 4, 1, o.get("firm_type"))
-    _set(table, 5, 1, o.get("premises_ownership"))
+    _set_or_na(table, 0, 1, person.get("display_name"))
+    _set_or_na(table, 1, 1, o.get("firm_name"))
+    _set_or_na(table, 2, 1, o.get("address"))
+    _set_or_na(table, 3, 1, o.get("landmark"))
+    _set_or_na(table, 4, 1, o.get("firm_type"))
+    _set_or_na(table, 5, 1, o.get("premises_ownership"))
     row6 = _ucells(table, 6)
-    _set_cell(row6[1], o.get("premises_owner"))
-    _set_cell(row6[3], o.get("owner_relation"))
+    _set_cell_or_na(row6[1], o.get("premises_owner"))
+    _set_cell_or_na(row6[3], o.get("owner_relation"))
     row7 = _ucells(table, 7)
-    _set_cell(row7[1], o.get("area"))
-    _set_cell(row7[3], o.get("period_of_stay"))
+    _set_cell_or_na(row7[1], o.get("area"))
+    _set_cell_or_na(row7[3], o.get("period_of_stay"))
     row8 = _ucells(table, 8)
-    _set_cell(row8[1], o.get("established_since"))
-    _set_cell(row8[3], o.get("experience"))
+    _set_cell_or_na(row8[1], o.get("established_since"))
+    _set_cell_or_na(row8[3], o.get("experience"))
     row9 = _ucells(table, 9)
-    _set_cell(row9[1], o.get("location"))
-    _set_cell(row9[3], o.get("employees"))
-    _set(table, 10, 1, o.get("nameboard"))
-    _set(table, 11, 1, o.get("infrastructure"))
-    _set(table, 12, 1, o.get("reg_or_emp_no"))
-    _set(table, 13, 1, o.get("position"))
-    _set(table, 14, 1, o.get("assets"))
+    _set_cell_or_na(row9[1], o.get("location"))
+    _set_cell_or_na(row9[3], o.get("employees"))
+    _set_or_na(table, 10, 1, o.get("nameboard"))
+    _set_or_na(table, 11, 1, o.get("infrastructure"))
+    _set_or_na(table, 12, 1, o.get("reg_or_emp_no"))
+    _set_or_na(table, 13, 1, o.get("position"))
+    _set_or_na(table, 14, 1, o.get("assets"))
+    # References are an optional repeat-per-item pair - an unused slot is correctly left blank.
     refs = o.get("references") or []
     for i, r in enumerate((16, 17)):
         name, rel = (refs[i] if i < len(refs) else ("", ""))
         cells = _ucells(table, r)
         _set_cell(cells[-2], name)
         _set_cell(cells[-1], rel)
-    _set(table, 18, 1, o.get("assessment"))
+    _set_or_na(table, 18, 1, o.get("assessment"))
     met = o.get("met") or {}
-    _set_cell(_ucells(table, 19)[-1], met.get("name"))
-    _set_cell(_ucells(table, 20)[-1], met.get("contact"))
-    _set_cell(_ucells(table, 21)[-1], met.get("relation"))
+    _set_cell_or_na(_ucells(table, 19)[-1], met.get("name"))
+    _set_cell_or_na(_ucells(table, 20)[-1], met.get("contact"))
+    _set_cell_or_na(_ucells(table, 21)[-1], met.get("relation"))
 
 
 def _fill_itr(table, rows: List[Dict[str, Any]]) -> None:
@@ -324,7 +342,7 @@ def _fill_itr(table, rows: List[Dict[str, Any]]) -> None:
 
 def _fill_bank(table, bank: Dict[str, Any]) -> None:
     for r, key in enumerate(("bank_name", "account_number", "branch", "account_status", "account_type")):
-        _set_cell(_ucells(table, r)[-1], bank.get(key))
+        _set_cell_or_na(_ucells(table, r)[-1], bank.get(key))
 
 
 def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
@@ -455,18 +473,25 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
     T = doc.tables
 
     # Cover page
-    _replace_token(doc, "[[LOAN_TYPE]]", data.get("loan_type"))
-    _set(T[0], 0, 1, data.get("bank_branch"))
-    _set(T[0], 1, 1, data.get("report_date"))
-    _set_cell(_ucells(T[0], 2)[-1], applicant.get("display_name"))
+    # The template's "Type of Loan: " line has no [[LOAN_TYPE]] token at all (just the bare
+    # label) - _replace_token() here used to silently find no match and do nothing, leaving
+    # this permanently blank regardless of the case's actual loan_type. Match the label text
+    # itself instead, same as the narrative paragraphs below do for their own labels.
+    for p in _all_paragraphs(doc):
+        if p.text.strip().rstrip(":").strip() == "Type of Loan":
+            _set_par_text(p, f"Type of Loan: {data.get('loan_type') or 'NA'}")
+            break
+    _set_or_na(T[0], 0, 1, data.get("bank_branch"))
+    _set_or_na(T[0], 1, 1, data.get("report_date"))
+    _set_cell_or_na(_ucells(T[0], 2)[-1], applicant.get("display_name"))
     row = 3
     if co:
-        _set_cell(_ucells(T[0], 3)[-1], co.get("display_name"))
+        _set_cell_or_na(_ucells(T[0], 3)[-1], co.get("display_name"))
         row = 4
     verifiers = (data.get("verifier_names") or []) + ["", ""]
     _set_cell(_ucells(T[0], row)[-1], verifiers[0])
     _set_cell(_ucells(T[0], row + 1)[-1], verifiers[1])
-    _set_cell(_ucells(T[0], row + 2)[-1], data.get("file_allotted_by"))
+    _set_cell_or_na(_ucells(T[0], row + 2)[-1], data.get("file_allotted_by"))
     _set_numpages_field(_ucells(T[1], 6)[-1])
     _set_cell(_ucells(T[2], 1)[-1], data.get("overall_status"))
 
@@ -529,19 +554,25 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
         if p is not None:
             _start_new_page(p)
 
-    # Final certificate
-    _replace_token(doc, "[[UDIN]]", data.get("udin"))
-    _replace_token(doc, "[[CERT_DATE]]", data.get("certificate_date"))
-    _replace_token(doc, "[[CERT_PLACE]]", data.get("place") or "Ahmedabad")
+    # Final certificate - the template has no [[UDIN]]/[[CERT_DATE]] tokens at all (just the
+    # bare "UDIN:" label and a static placeholder "Date: 00/00/2026"), so those _replace_token
+    # calls above used to silently match nothing. Match the actual label text instead.
+    for p in _all_paragraphs(doc):
+        if p.text.strip() == "UDIN:":
+            _set_par_text(p, p.text + f" {data.get('udin') or 'NOT YET GENERATED'}")
+            break
+    # "Date: 00/00/2026" appears twice - the CA's own certificate date (first) and the bank
+    # branch head's confirmation date (second, filled in by the bank, not by us). Only the first.
+    for p in _all_paragraphs(doc):
+        if p.text.strip().startswith("Date:") and "00/00/2026" in p.text:
+            _set_par_text(p, f"Date: {data.get('certificate_date') or 'NA'}")
+            break
     sig = data.get("signature_path")
     if sig and os.path.exists(sig):
         for p in _all_paragraphs(doc):
-            if "[[SIGNATURE]]" in p.text:
-                _set_par_text(p, p.text.replace("[[SIGNATURE]]", ""))
+            if p.text.strip() == "Signature":
                 p.add_run().add_picture(sig, width=Inches(1.6))
                 break
-    else:
-        _replace_token(doc, "[[SIGNATURE]]", "")
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     doc.save(output_path)

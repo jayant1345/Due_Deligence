@@ -322,10 +322,19 @@ async def async_generate_report_pdf(
     template_used = False
     try:
         pages = await _ai_ingested_pages(session, loan_case)
+        # The case's STATUS (DRAFT/ASSIGNED/.../CERTIFIED) is its workflow stage, not the
+        # verification outcome - a report generated right as/after a case gets marked CERTIFIED
+        # always has status "CERTIFIED" at this point, so passing that straight through as
+        # overall_status printed the case's own lifecycle stage as if it were the CA's finding
+        # ("Overall Observation Status: CERTIFIED" instead of POSITIVE). Only FLAGGED/REJECTED
+        # genuinely indicate an adverse finding worth reflecting here; every other status means
+        # no adverse finding was recorded, so the report's own default (POSITIVE) applies.
+        adverse_statuses = {"FLAGGED", "REJECTED"}
+        case_status_val = loan_case.status.value if loan_case.status else None
         cpv_data = await assemble_cpv_report_data(
             session, loan_case, pages,
             udin=report_meta["udin"],
-            overall_status=loan_case.status.value if loan_case.status else "POSITIVE",
+            overall_status="NEGATIVE" if case_status_val in adverse_statuses else "POSITIVE",
             report_date=report_date_obj,
         )
         build_cpv_report(cpv_data, output_docx)

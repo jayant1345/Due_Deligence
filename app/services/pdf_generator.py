@@ -983,7 +983,11 @@ def generate_certified_cpv_report(
         [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(verified_bank_name_branch, table_cell_style)],
         [Paragraph("<b>A/C Holder Name</b>", table_cell_bold), Paragraph(applicant_name, table_cell_style)],
         [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(field_form.get("bank_account_status") or NOT_CAPTURED, table_cell_style)],
-        [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(loan_type, table_cell_style)],
+        # "Type of Facility" here means the applicant's own BANKING facility (savings/current/OD
+        # account type), not the loan type - that's already stated on the cover page and in the
+        # loan summary. Gemini's bank-statement extraction has no field for this at all today, so
+        # it must always say NA rather than printing the unrelated loan type as a stand-in.
+        [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
     ]
     t_bank = Table(bank_grid, colWidths=[2.5 * inch, 5.0 * inch])
     t_bank.setStyle(TableStyle([
@@ -1005,7 +1009,7 @@ def generate_certified_cpv_report(
             [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(verified_bank_name_branch_co, table_cell_style)],
             [Paragraph("<b>A/C Holder Name</b>", table_cell_bold), Paragraph(co_applicant_name, table_cell_style)],
             [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(field_form.get("bank_account_status_co") or NOT_CAPTURED, table_cell_style)],
-            [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(loan_type, table_cell_style)],
+            [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
         ]
         t_bank_co = Table(bank_grid_co, colWidths=[2.5 * inch, 5.0 * inch])
         t_bank_co.setStyle(TableStyle([
