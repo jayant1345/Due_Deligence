@@ -953,10 +953,34 @@ def generate_certified_cpv_report(
         story.append(t_itr_co)
         story.append(Spacer(1, 12))
 
+    # Annexure D verifies the APPLICANT'S OWN bank account (income/financial-standing evidence),
+    # not which bank is granting the loan - those are very often different banks, and "Type of
+    # Facility" below already states the loan itself. Per explicit CA office instruction: use the
+    # bank name/branch actually printed on a scanned bank statement when one exists; otherwise
+    # this row must say NA like the rest of the section, never silently fall back to the loan's
+    # own bank_name/branch as a stand-in for a verification that was never actually done.
+    def _verified_bank_name_branch(co_applicant: bool = False) -> str:
+        name = _ocr_first("bank_name", {"BANK_STATEMENT"}, co_applicant=co_applicant)
+        ifsc = _ocr_first("ifsc_code", {"BANK_STATEMENT"}, co_applicant=co_applicant)
+        branch_addr = None
+        for d in document_items:
+            od = d.get("ocr_data") or {}
+            real_doc_type = od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")
+            if not _belongs_to(od.get("relationship_to_applicant"), co_applicant):
+                continue
+            if real_doc_type == "BANK_STATEMENT" and od.get("address_type") == "BRANCH" and od.get("address"):
+                branch_addr = od["address"]
+                break
+        branch_val = branch_addr or (f"IFSC {ifsc}" if ifsc else None)
+        parts = [p for p in (name, branch_val) if p]
+        return ", ".join(parts) if parts else NOT_CAPTURED
+
+    verified_bank_name_branch = _verified_bank_name_branch(co_applicant=False)
+
     story.append(Paragraph("__________Annexure ‘D’__________<br/>Bank Verification", anx_title_style))
     story.append(Spacer(1, 3))
     bank_grid = [
-        [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(f"{bank_name}, {branch}", table_cell_style)],
+        [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(verified_bank_name_branch, table_cell_style)],
         [Paragraph("<b>A/C Holder Name</b>", table_cell_bold), Paragraph(applicant_name, table_cell_style)],
         [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(field_form.get("bank_account_status") or NOT_CAPTURED, table_cell_style)],
         [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(loan_type, table_cell_style)],
@@ -973,10 +997,12 @@ def generate_certified_cpv_report(
 
     if co_applicant_name:
         story.append(Spacer(1, 8))
-        # Same lending bank/branch as the applicant's row above (it's one joint loan account,
-        # not two separate personal banks) - only Account Status is genuinely per-person data.
+        # The co-applicant's OWN bank statement, when one was scanned for them specifically -
+        # never assumed to be the same bank as the applicant's row above just because it's one
+        # joint loan; two people on a loan very often bank separately.
+        verified_bank_name_branch_co = _verified_bank_name_branch(co_applicant=True)
         bank_grid_co = [
-            [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(f"{bank_name}, {branch}", table_cell_style)],
+            [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(verified_bank_name_branch_co, table_cell_style)],
             [Paragraph("<b>A/C Holder Name</b>", table_cell_bold), Paragraph(co_applicant_name, table_cell_style)],
             [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(field_form.get("bank_account_status_co") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(loan_type, table_cell_style)],
