@@ -293,11 +293,22 @@ async def assemble_cpv_report_data(
     # verified address in a bank-facing report.
     target_address = loan_case.target_address if loan_case.target_address != "Pending AI Extraction" else None
 
+    # The PWA submits "occupation" at both the top level of the form AND nested inside
+    # office_details - but older/incomplete submissions only ever had the top-level one (no
+    # office_details object at all, e.g. a case where the agent never opened the Office Details
+    # module). Without this fallback, _person() read occupation from office_details alone, so
+    # those cases always resolved to occupation=None, which cpv_report_builder.py's is_working
+    # check then misread as "Housewife / Homemaker" - printing that false claim, and leaving the
+    # entire Office Verification Annexure blank, for applicants with a perfectly real stated
+    # occupation such as "Business".
+    applicant_office_form = dict(form.get("office_details") or {})
+    applicant_office_form.setdefault("occupation", form.get("occupation"))
+
     own = [p for p in pages if p.get("relationship_to_applicant") == "SELF"]
     applicant = _person(own, pages, on, contact=loan_case.applicant_phone or form.get("contact_number") or None,
                         marital=form.get("marital_status") or None,
                         community=form.get("community") or None, qualification=form.get("qualification") or None,
-                        office_form=form.get("office_details"),
+                        office_form=applicant_office_form,
                         itr_ack_no=form.get("itr_acknowledgement_no") or None, itr_filing_date=form.get("itr_filing_date") or None)
     applicant["bank"] = _bank(pages, (summary.get("applicant") or {}).get("bank_account"), form.get("bank_account_status") or None)
     if not applicant["name"]:

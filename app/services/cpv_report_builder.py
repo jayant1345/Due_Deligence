@@ -358,13 +358,25 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
     office = applicant.get("office") or {}
     firm_name = office.get("firm_name") or ""
     office_addr = office.get("address") or ""
-    position = office.get("position") or "Teacher / Job"
-    experience = office.get("experience") or office.get("period_of_stay") or "10 years"
-    if not str(experience).lower().endswith("years") and not str(experience).lower().endswith("yrs"):
+    # These used to fall back to specimen sample text ("Teacher / Job", "10 years") instead of
+    # blank whenever Office Details wasn't filled in - harmless while is_working could only be
+    # True alongside a real firm_name, but once is_working is decided from occupation alone (see
+    # above), a working applicant with Office Details not yet captured would otherwise get a
+    # fabricated position/experience printed into a certified bank document as if verified.
+    position = office.get("position") or ""
+    experience = office.get("experience") or office.get("period_of_stay") or ""
+    if experience and not str(experience).lower().endswith("years") and not str(experience).lower().endswith("yrs"):
         experience = f"{experience} years"
     
+    # Whether the applicant is "working" (prints the office/business narrative + Annexure B)
+    # must be decided from the stated occupation itself, not from whether a firm name happened
+    # to be captured - gating on firm_name meant any case where the agent simply hadn't filled
+    # in Office Details yet (firm_name blank) was reported as "Housewife / Homemaker, Workplace
+    # physical verification is not applicable" even when the real occupation was e.g. "Business",
+    # falsely certifying an unverified, fabricated employment status on a bank-facing document.
     occupation_str = (applicant.get("occupation") or "").lower()
-    is_working = bool(firm_name and firm_name != "NA" and "housewife" not in occupation_str)
+    NOT_WORKING_OCCUPATIONS = ("housewife", "house wife", "home maker", "homemaker", "retired")
+    is_working = not any(kw in occupation_str for kw in NOT_WORKING_OCCUPATIONS) if occupation_str else bool(firm_name and firm_name != "NA")
 
     itr_list = applicant.get("itr") or []
     if itr_list:
@@ -396,13 +408,20 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
         elif "The property is a" in t and "classified as" in t:
             _set_par_text(p, f"The property is a {bldg_type} and is classified as {ownership}. The surrounding area is residential in nature, and the locality was observed to be developed with adequate infrastructure.")
         elif "employed with/ has a business named" in t or "is employed with" in t:
-            if is_working:
+            if is_working and firm_name:
                 _set_par_text(p, f"The applicant, {a_name}, is employed with/ has a business named {firm_name}, located at, {office_addr}. A physical verification was conducted on {rep_date}.")
+            elif is_working:
+                # Occupation is known and not a non-working status, but Office Details was never
+                # filled in on-site - say so honestly instead of either fabricating a firm name
+                # or falsely claiming the applicant is a Housewife/Homemaker.
+                _set_par_text(p, f"The applicant, {a_name}, is stated to be engaged in {occupation_str or 'employment/business'}; office/business premises verification was not available at the time of this report.")
             else:
                 _set_par_text(p, f"The applicant, {a_name}, is a Housewife / Homemaker. Workplace physical verification is not applicable.")
         elif "employment details/ business details was confirmed" in t:
-            if is_working:
+            if is_working and position:
                 _set_par_text(p, f"During the verification, the applicant's employment details/ business details was confirmed, the applicant is working as a {position}. The applicant has been associated with the organization for {experience}.")
+            elif is_working:
+                _set_par_text(p, "The applicant's employment/business details could not be independently confirmed, as office/business premises verification was not available at the time of this report.")
             else:
                 _set_par_text(p, "During the verification, it was confirmed that the applicant is not engaged in external commercial employment.")
         elif "employment details of the applicant are genuine" in t:
