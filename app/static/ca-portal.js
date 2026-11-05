@@ -1173,11 +1173,15 @@
           }
         });
 
-        // Check local PWA evidence cache if slot is not yet provided by server
+        // Check local PWA evidence cache if slot is not yet provided by server - by unique
+        // server id (caseId/db_id) ONLY, never c.case_no. case_no is a reusable reference
+        // number (a new case can get auto-assigned the same number as an earlier deleted one -
+        // confirmed live with "UBI-VL-2026-1"), so a case_no-keyed fallback here showed one
+        // case's locally-cached PWA photos/selfie as if they belonged to a different, unrelated
+        // later case that just happened to reuse the same case number.
         for (let s = 1; s <= 4; s++) {
           if (!slotMap[s]) {
             const cachedPwa = localStorage.getItem(`pwa_evidence_${caseId}_slot_${s}`) ||
-                              (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_slot_${s}`) : null) ||
                               (c.db_id ? localStorage.getItem(`pwa_evidence_${c.db_id}_slot_${s}`) : null);
             if (cachedPwa) {
               try {
@@ -1292,7 +1296,6 @@
         for (let s = 1; s <= 4; s++) {
           if (!workSlotMap[s]) {
             const cachedPwa = localStorage.getItem(`pwa_evidence_${caseId}_office_slot_${s}`) ||
-                              (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_office_slot_${s}`) : null) ||
                               (c.db_id ? localStorage.getItem(`pwa_evidence_${c.db_id}_office_slot_${s}`) : null);
             if (cachedPwa) {
               try {
@@ -1385,7 +1388,6 @@
         for (let s = 1; s <= 4; s++) {
           if (!coWorkSlotMap[s]) {
             const cachedPwa = localStorage.getItem(`pwa_evidence_${caseId}_co_office_slot_${s}`) ||
-                              (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_co_office_slot_${s}`) : null) ||
                               (c.db_id ? localStorage.getItem(`pwa_evidence_${c.db_id}_co_office_slot_${s}`) : null);
             if (cachedPwa) {
               try {
@@ -1849,13 +1851,10 @@
 
       // 7. Update Field Staff Attendance Selfie Verification UI
       const cachedSelfie = localStorage.getItem("selfie_" + caseId) || 
-                            (c.case_no ? localStorage.getItem("selfie_" + c.case_no) : null) ||
                             (c.db_id ? localStorage.getItem("selfie_" + c.db_id) : null);
       const cachedTime = localStorage.getItem("selfie_timestamp_" + caseId) ||
-                          (c.case_no ? localStorage.getItem("selfie_timestamp_" + c.case_no) : null) ||
                           (c.db_id ? localStorage.getItem("selfie_timestamp_" + c.db_id) : null);
       const cachedAgent = localStorage.getItem("selfie_agent_" + caseId) ||
-                          (c.case_no ? localStorage.getItem("selfie_agent_" + c.case_no) : null) ||
                           (c.db_id ? localStorage.getItem("selfie_agent_" + c.db_id) : null);
       const selfieUrl = cachedSelfie || c.agent_selfie || "/static/placeholders/photo_pending.svg";
       
@@ -5082,13 +5081,10 @@
     function openSelfieModal() {
       const c = caseRegistry[activeCaseId] || {};
       const cachedSelfie = localStorage.getItem("selfie_" + activeCaseId) ||
-                            (c.case_no ? localStorage.getItem("selfie_" + c.case_no) : null) ||
                             (c.db_id ? localStorage.getItem("selfie_" + c.db_id) : null);
       const cachedTime = localStorage.getItem("selfie_timestamp_" + activeCaseId) ||
-                          (c.case_no ? localStorage.getItem("selfie_timestamp_" + c.case_no) : null) ||
                           (c.db_id ? localStorage.getItem("selfie_timestamp_" + c.db_id) : null);
       const cachedAgent = localStorage.getItem("selfie_agent_" + activeCaseId) ||
-                          (c.case_no ? localStorage.getItem("selfie_agent_" + c.case_no) : null) ||
                           (c.db_id ? localStorage.getItem("selfie_agent_" + c.db_id) : null);
       const url = cachedSelfie || c.agent_selfie || "/static/placeholders/photo_pending.svg";
       
