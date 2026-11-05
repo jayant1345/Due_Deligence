@@ -697,17 +697,26 @@ def generate_certified_cpv_report(
     story.append(Paragraph("Annexure ‘A’ (Continued) — Residence Verification Details", anx_title_style))
     story.append(Spacer(1, 4))
 
+    # This whole block used to hardcode "Owned" / "Yes (Verified at entrance)" / "Fully
+    # Residential" / "Good" / "Developed Residential Locality" / a generic assets list / "Yes
+    # (Enclosed with verification dossier)" literally - identical fabricated text printed for
+    # EVERY case regardless of what was actually observed on site, including "Residence is:
+    # Owned" ignoring the real captured ownership value entirely. Name board Visibility, Nature
+    # of Building, General Appearance, Locality & Surroundings, and Evidence supporting proof
+    # have no corresponding field in the PWA field-visit form at all (nothing to honestly show
+    # but NOT_CAPTURED); Assets Visible and Residence is/Ownership DO have real captured data
+    # and must use it instead of a fabricated standard answer.
     p4_grid = [
         [Paragraph("<b>Period of stay in present premises</b>", table_cell_bold), Paragraph(res_stay, table_cell_style)],
-        [Paragraph("<b>Residence is</b>", table_cell_bold), Paragraph("Owned", table_cell_style)],
+        [Paragraph("<b>Residence is</b>", table_cell_bold), Paragraph(ownership, table_cell_style)],
         [Paragraph("<b>Owner Name</b>", table_cell_bold), Paragraph(res_owner, table_cell_style)],
         [Paragraph("<b>Relation with Applicant</b>", table_cell_bold), Paragraph(res_rel, table_cell_style)],
-        [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph("Yes (Verified at entrance)", table_cell_style)],
-        [Paragraph("<b>Nature of Building</b>", table_cell_bold), Paragraph("Fully Residential", table_cell_style)],
-        [Paragraph("<b>General Appearance of Property</b>", table_cell_bold), Paragraph("Good", table_cell_style)],
-        [Paragraph("<b>Locality & Surroundings</b>", table_cell_bold), Paragraph("Developed Residential Locality", table_cell_style)],
-        [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph("A.C., Fan, T.V., Sofa, Fridge, Two-Wheeler, etc.", table_cell_style)],
-        [Paragraph("<b>Evidence supporting proof obtained</b>", table_cell_bold), Paragraph("Yes (Enclosed with verification dossier)", table_cell_style)],
+        [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph((field_form.get("nameboard_visible") if isinstance(field_form, dict) else None) or NOT_CAPTURED, table_cell_style)],
+        [Paragraph("<b>Nature of Building</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+        [Paragraph("<b>General Appearance of Property</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+        [Paragraph("<b>Locality & Surroundings</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+        [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph((field_form.get("assets_observed") if isinstance(field_form, dict) else None) or NOT_CAPTURED, table_cell_style)],
+        [Paragraph("<b>Evidence supporting proof obtained</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
         [Paragraph("<b>Overall Assessment</b>", table_cell_bold), Paragraph("<font color='#059669'><b>POSITIVE</b></font>", table_cell_style)],
         [Paragraph("<b>Person Met at Site</b>", table_cell_bold), Paragraph(res_met, table_cell_style)],
     ]
