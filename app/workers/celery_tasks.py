@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import uuid
 from datetime import datetime, timezone
@@ -16,8 +17,9 @@ from app.services.geofence import validate_geofence
 from app.services.image_watermark import generate_thumbnail, get_exif_data, stamp_hard_watermark
 from app.services.ocr_parser import parse_document_ocr
 from app.services.pdf_generator import generate_certified_cpv_report
-from app.services.docx_generator import generate_certified_cpv_docx
 from app.workers.celery_app import celery_app
+
+logger = logging.getLogger(__name__)
 
 
 def run_async(coro):
@@ -329,15 +331,15 @@ async def async_generate_report_pdf(
         build_cpv_report(cpv_data, output_docx)
         template_used = True
     except Exception:
-        generate_certified_cpv_docx(
-            output_docx_path=output_docx,
-            case_data=case_dict,
-            visit_data=visit_dict,
-            document_items=doc_items,
-            ca_remarks=ca_remarks,
-            udin=report_meta["udin"],
-            partner_name=ca_user.full_name if ca_user else None,
-        )
+        # generate_certified_cpv_docx() used to run here as a fallback, but it fills most of
+        # its fields - PAN, Aadhaar, DOB, gender, marital status, community, occupation, even
+        # the "person met at residence" name - with fixed specimen values from one old demo
+        # case, regardless of whose case this actually is. Silently handing a CA a "certified"
+        # DOCX full of another person's fabricated KYC details is far worse than having no DOCX
+        # for this one case - the ReportLab PDF (generated above, unaffected by this failure)
+        # remains the authoritative certified document either way. Log and leave output_docx
+        # unwritten; the download endpoint already handles a missing docx_url gracefully.
+        logger.exception("Word-template DOCX generation failed for case %s - no fabricated fallback docx was produced", case_id_str)
 
     if template_used and os.name == "nt":
         try:

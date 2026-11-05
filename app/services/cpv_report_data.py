@@ -439,36 +439,6 @@ async def assemble_cpv_report_data(
         tail = f" PAN {person['pan']} appears on the Form No. 16 provided." if person.get("pan") else ""
         return f"KYC documents of the {label}, {person['display_name'] or person['name']}, are not included in the documents provided.{tail}"
 
-    # Handle authentic defaults for Bhavnaben case if missing from field form
-    if "bhavna" in (loan_case.applicant_name or "").lower():
-        applicant.setdefault("occupation", "Job")
-        if not applicant.get("community"): applicant["community"] = "Hindu"
-        if not applicant.get("qualification"): applicant["qualification"] = "Graduate"
-        if not applicant.get("marital_status"): applicant["marital_status"] = "Married"
-        if not applicant.get("office") or not applicant["office"].get("firm_name"):
-            applicant["office"] = {
-                "firm_name": "M/s. District Panchayat Education Committee",
-                "address": "District Panchayat Education Committee, Dholka, Gujarat-382260",
-                "landmark": "Dholka, Gujarat",
-                "firm_type": "Government Job",
-                "premises_ownership": "NA",
-                "premises_owner": "NA",
-                "owner_relation": "NA",
-                "area": "Commercial",
-                "period_of_stay": "15-03-2007",
-                "established_since": "15-03-2007",
-                "experience": "19 Years",
-                "location": "Commercial",
-                "employees": "Multiple Staff",
-                "nameboard": "Yes",
-                "infrastructure": "Good",
-                "reg_or_emp_no": "DPEC-771",
-                "position": "Teacher / Job",
-                "assets": "Office Furniture, Computers, Records",
-                "assessment": "Positive",
-                "met": {"name": "Office Principal / Incharge", "contact": "02714-222345", "relation": "Employer"}
-            }
-
     kyc = [_kyc("applicant", applicant)] + ([_kyc("co-applicant", co)] if co else [])
 
     site_docs = (await db.execute(
@@ -529,12 +499,16 @@ async def assemble_cpv_report_data(
         "applicant": applicant,
         "co_applicant": co,
         "verifier_names": [n for n in (verifier_names or [agent.full_name if agent else None]) if n],
-        "file_allotted_by": file_allotted_by or "Dashrath Sir",
+        # Never invent a real person's name as a stand-in for data that wasn't actually
+        # provided/captured - file_allotted_by used to default to a specimen name ("Dashrath
+        # Sir") whenever the caller didn't supply one (which the main "Generate Certified
+        # Dossier" flow never did), and the family table used to default to a fabricated
+        # "Bhavna Ben" / "Balvant Bhai" household for ANY applicant whose name merely contained
+        # the substring "bhavna" - printing names and relationships on a bank-certified document
+        # that were never actually verified on-site.
+        "file_allotted_by": file_allotted_by,
         "overall_status": overall_status or "POSITIVE",
-        "family": family if family else [
-            {"name": "Bhavna Ben", "relation": "Self", "age": "43", "earning": "Yes"},
-            {"name": "Balvant Bhai", "relation": "Husband", "age": "50", "earning": "Yes"}
-        ] if "bhavna" in (loan_case.applicant_name or "").lower() else [],
+        "family": family,
         "residence": residence,
         "narrative": {"res": res, "work": work, "itr": itr_lines, "kyc": kyc},
         "photos": {"pan": pan_photos, "residence": residence_photos, "office": office_photos},
