@@ -3932,6 +3932,23 @@
           if (document.getElementById("caUserRoleTag") && data.role) {
             document.getElementById("caUserRoleTag").textContent = `${data.role.toLowerCase()} • Logged In`;
           }
+          // loadDbCasesIntoRegistry() on page load runs BEFORE this login completes, so it hits
+          // every real case's /api/v1/cases call with no (or an expired) token, gets 401, and
+          // silently bails out leaving only the 5 hardcoded demo cases in caseRegistry. Nothing
+          // ever re-ran that load after a successful login - so a CA who logs in through this
+          // modal (not a page refresh) was stuck with caseRegistry missing every real case: no
+          // residence/office photos, blank Edit Case fields, etc. for any case opened without
+          // first doing a full page reload. Re-run the same load+select+sync sequence that
+          // DOMContentLoaded does, now that a valid token actually exists.
+          await loadDbCasesIntoRegistry();
+          if (typeof purgeDeletedCasesFromRegistry === "function") purgeDeletedCasesFromRegistry();
+          const sel = document.getElementById("caseSelectorSelect");
+          const savedCase = localStorage.getItem("activeCaseId");
+          const initCase = (savedCase && caseRegistry[savedCase]) ? savedCase : ((sel && sel.value) ? sel.value : Object.keys(caseRegistry)[0]);
+          if (sel && initCase) sel.value = initCase;
+          if (initCase) onCaseSelected(initCase);
+          startLiveDocumentSync();
+          renderManagementPortal();
         } else {
           const err = await res.json().catch(() => ({}));
           alertEl.textContent = err.detail || "Invalid login credentials. Please use admin / admin@123";
