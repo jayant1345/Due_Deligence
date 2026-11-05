@@ -529,6 +529,11 @@ def _normalize_extraction(raw: Dict[str, Any], applicant_name: str, target_addre
         "annual_gross_salary": _to_amount(r.get("annual_gross_salary")),
         "annual_taxable_income": _to_amount(r.get("annual_taxable_income")),
         "annual_tax_payable": _to_amount(r.get("annual_tax_payable")),
+        # Was asked for in the prompt but never actually copied out of the LLM's response here,
+        # so it was silently dropped before ever reaching the DB - every ITR_ACKNOWLEDGEMENT
+        # page showed "acknowledgement number not scanned" in the report regardless of whether
+        # Gemini had successfully read it off the document.
+        "itr_acknowledgement_number": r.get("itr_acknowledgement_number"),
         "bank_name": r.get("bank_name"),
         "account_number": r.get("account_number"),
         "ifsc_code": _validate_ifsc(r.get("ifsc_code")),
