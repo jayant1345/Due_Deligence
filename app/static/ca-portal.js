@@ -5989,6 +5989,39 @@
       const newStatus = document.getElementById("ecStatus").value;
 
       const serverId = gfServerId(c) || cId;
+      const payload = {
+        applicant_name: applicantName,
+        applicant_phone: applicantPhone || null,
+        co_applicant_name: coApplicantName || null,
+        co_applicant_phone: coApplicantPhone || null,
+        co_applicant_address: coApplicantAddress || null,
+        co_applicant_office_address: coApplicantOfficeAddress || null,
+        applicant_3_name: slot3Name || null,
+        applicant_3_phone: slot3Phone || null,
+        applicant_4_name: slot4Name || null,
+        applicant_4_phone: slot4Phone || null,
+        applicant_5_name: slot5Name || null,
+        applicant_5_phone: slot5Phone || null,
+        applicant_home_sharing: ecHomeSharing || null,
+        applicant_3_address: slot3Address || null,
+        applicant_4_address: slot4Address || null,
+        applicant_5_address: slot5Address || null,
+        bank_name: bankName,
+        branch: branch,
+        loan_amount: loanAmount,
+        target_address: address,
+        office_address: officeAddress || null,
+        assigned_agent_id: agentId,
+      };
+      // Only ever send a status the backend actually recognizes - the dropdown used to list
+      // just 4 of the 8 real CaseStatus values, so editing a DRAFT (or APPROVED/FLAGGED/
+      // REJECTED) case left the select with nothing selected (value ""), and sending that
+      // empty string made the whole PATCH request fail Pydantic validation - every other field
+      // being edited got silently rejected along with it. Now the full status list is in the
+      // dropdown, but this guard stays as a second line of defense: better to leave status
+      // untouched than to block saving the rest of the form over a bad status value.
+      const VALID_STATUSES = new Set(["DRAFT", "ASSIGNED", "IN_PROGRESS", "PENDING_CA_REVIEW", "APPROVED", "FLAGGED", "CERTIFIED", "REJECTED"]);
+      if (VALID_STATUSES.has(newStatus)) payload.status = newStatus;
       const saveBtn = document.querySelector('#editCaseForm button[type="submit"]') || document.querySelector('#editCaseForm [onclick*="handleSaveCaseEdit"]');
       const originalBtnHtml = saveBtn ? saveBtn.innerHTML : null;
       if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving..."; }
@@ -5997,31 +6030,7 @@
         const res = await fetch(`/api/v1/cases/${encodeURIComponent(serverId)}`, {
           method: "PATCH",
           headers: authHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({
-            applicant_name: applicantName,
-            applicant_phone: applicantPhone || null,
-            co_applicant_name: coApplicantName || null,
-            co_applicant_phone: coApplicantPhone || null,
-            co_applicant_address: coApplicantAddress || null,
-            co_applicant_office_address: coApplicantOfficeAddress || null,
-            applicant_3_name: slot3Name || null,
-            applicant_3_phone: slot3Phone || null,
-            applicant_4_name: slot4Name || null,
-            applicant_4_phone: slot4Phone || null,
-            applicant_5_name: slot5Name || null,
-            applicant_5_phone: slot5Phone || null,
-            applicant_home_sharing: ecHomeSharing || null,
-            applicant_3_address: slot3Address || null,
-            applicant_4_address: slot4Address || null,
-            applicant_5_address: slot5Address || null,
-            bank_name: bankName,
-            branch: branch,
-            loan_amount: loanAmount,
-            target_address: address,
-            office_address: officeAddress || null,
-            assigned_agent_id: agentId,
-            status: newStatus,
-          })
+          body: JSON.stringify(payload)
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));

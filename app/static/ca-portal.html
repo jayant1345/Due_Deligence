@@ -2263,7 +2263,7 @@
     </div>
   </div>
 
-  <script src="/static/ca-portal.js?v=9"></script>
+  <script src="/static/ca-portal.js?v=10"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
@@ -3316,10 +3316,14 @@
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Status</label>
             <select id="ecStatus" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
-              <option value="PENDING_CA_REVIEW">PENDING_CA_REVIEW</option>
+              <option value="DRAFT">DRAFT</option>
               <option value="ASSIGNED">ASSIGNED</option>
               <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="PENDING_CA_REVIEW">PENDING_CA_REVIEW</option>
+              <option value="APPROVED">APPROVED</option>
+              <option value="FLAGGED">FLAGGED</option>
               <option value="CERTIFIED">CERTIFIED</option>
+              <option value="REJECTED">REJECTED</option>
             </select>
           </div>
         </div>
