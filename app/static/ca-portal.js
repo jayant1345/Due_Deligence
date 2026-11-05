@@ -6420,7 +6420,7 @@
           statusBadge = `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-300">REJECTED</span>`;
         }
 
-        const cachedSelfie = localStorage.getItem("selfie_" + c.id);
+        const cachedSelfie = localStorage.getItem("selfie_" + c.db_id);
         const selfieSrc = cachedSelfie || c.agent_selfie || "/static/placeholders/photo_pending.svg";
         const applicantCount = getApplicantCountForCase(c);
         const applicantCountBadge = `<span class="inline-block mt-1 px-1.5 py-0.5 rounded-full font-mono text-[9px] font-bold ${applicantCount > 1 ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-surface-container text-on-surface-variant border border-outline-variant'}">${applicantCount} Applicant${applicantCount > 1 ? 's' : ''}</span>`;
@@ -6459,7 +6459,7 @@
           </td>
           <td class="py-3 px-3">
             <div class="flex items-center gap-2">
-              <div class="relative w-8 h-8 rounded-full overflow-hidden border border-emerald-500 bg-slate-200 shrink-0 cursor-pointer shadow-2xs hover:scale-110 transition-transform" onclick="activeCaseId='${c.id}'; openSelfieModal();" title="Click to view Attendance Selfie">
+              <div class="relative w-8 h-8 rounded-full overflow-hidden border border-emerald-500 bg-slate-200 shrink-0 cursor-pointer shadow-2xs hover:scale-110 transition-transform" onclick="activeCaseId='${c.db_id}'; openSelfieModal();" title="Click to view Attendance Selfie">
                 <img src="${selfieSrc}" alt="Selfie" class="w-full h-full object-cover"/>
                 <span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white"></span>
               </div>
@@ -6480,23 +6480,23 @@
           </td>
           <td class="py-3 px-3 text-right">
             <div class="flex items-center justify-end gap-1 font-mono text-[11px]">
-              <button onclick="activeCaseId='${c.id}'; onCaseSelected('${c.id}'); switchMainPortalView('scrutiny');" class="px-2 py-1 bg-primary-container text-white rounded font-bold hover:bg-primary transition-colors" title="Open case in CA Scrutiny Desk">
+              <button onclick="activeCaseId='${c.db_id}'; onCaseSelected('${c.db_id}'); switchMainPortalView('scrutiny');" class="px-2 py-1 bg-primary-container text-white rounded font-bold hover:bg-primary transition-colors" title="Open case in CA Scrutiny Desk">
                 Scrutiny
               </button>
-              <button onclick="activeCaseId='${c.id}'; openHandoverModal();" class="p-1 rounded bg-surface-container hover:bg-emerald-50 text-emerald-700 border border-outline-variant transition-colors" title="Dispatch Handover to WhatsApp">
+              <button onclick="activeCaseId='${c.db_id}'; openHandoverModal();" class="p-1 rounded bg-surface-container hover:bg-emerald-50 text-emerald-700 border border-outline-variant transition-colors" title="Dispatch Handover to WhatsApp">
                 <span class="material-symbols-outlined text-[16px]">chat</span>
               </button>
-              <button onclick="triggerAiFolderIngestForCase('${c.id}')" class="p-1 rounded bg-surface-container hover:bg-amber-50 text-amber-700 border border-outline-variant transition-colors" title="Add More Documents (AI Scan) to this case">
+              <button onclick="triggerAiFolderIngestForCase('${c.db_id}')" class="p-1 rounded bg-surface-container hover:bg-amber-50 text-amber-700 border border-outline-variant transition-colors" title="Add More Documents (AI Scan) to this case">
                 <span class="material-symbols-outlined text-[16px]">bolt</span>
               </button>
               ${c.status === "CERTIFIED" ? `
-              <button onclick="activeCaseId='${c.id}'; reopenCertifiedCase();" class="p-1 rounded bg-surface-container hover:bg-amber-50 text-amber-700 border border-outline-variant transition-colors" title="Reopen this certified case for edits">
+              <button onclick="activeCaseId='${c.db_id}'; reopenCertifiedCase();" class="p-1 rounded bg-surface-container hover:bg-amber-50 text-amber-700 border border-outline-variant transition-colors" title="Reopen this certified case for edits">
                 <span class="material-symbols-outlined text-[16px]">lock_open</span>
               </button>` : ""}
-              <button onclick="openEditCaseModal('${c.id}')" class="p-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant transition-colors" title="Edit Case Details">
+              <button onclick="openEditCaseModal('${c.db_id}')" class="p-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant transition-colors" title="Edit Case Details">
                 <span class="material-symbols-outlined text-[16px]">edit</span>
               </button>
-              <button onclick="handleDeleteCasePrompt('${c.id}', '${c.case_no}')" class="p-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors" title="Delete Case and all documents">
+              <button onclick="handleDeleteCasePrompt('${c.db_id}', '${c.case_no}')" class="p-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors" title="Delete Case and all documents">
                 <span class="material-symbols-outlined text-[16px]">delete</span>
               </button>
             </div>
