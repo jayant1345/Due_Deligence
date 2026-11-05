@@ -315,13 +315,18 @@ async def assemble_cpv_report_data(
         applicant["name"] = _title(applicant_name)
         applicant["display_name"] = applicant["name"]
 
-    # Co-applicant. Two independent signals, either is enough on its own:
-    # 1. The CA explicitly recorded a co-applicant name on the case (dual-applicant case),
-    #    in which case the co-applicant section always appears even before any of their
-    #    documents have been scanned or their office verified.
-    # 2. Another person's KYC / income documents are in the scanned bundle (a bill holder
-    #    alone is not a co-applicant) - the existing document-based detection.
-    # The CA can still force this off via include_co_applicant=False.
+    # Co-applicant. The CA's own explicit designation on the case record (set via the New Case
+    # Intake / Edit Case applicant-count stepper) is the ONLY thing that may turn this on - never
+    # AI document classification alone. "Other person" documents in the scanned bundle (co_pages
+    # below) are real and useful for filling in a CONFIRMED co-applicant's details, but using
+    # their mere presence to invent a co-applicant section was a confirmed false positive in
+    # production: a single-applicant case (co_applicant_name never set) printed "The co-applicant,
+    # Vikramkumar Himmatlal Shah, has submitted the KYC documents" because one of the applicant's
+    # OWN business documents was garbled by OCR into a near-identical variant of his own name
+    # ("Himmatmal Jain" vs "Himmatlal Shah") and misclassified as a different person. That kind of
+    # signal belongs in the cross-check "other persons" warning shown to the CA for review, not
+    # asserted as fact in a certified report. The CA can still force this off via
+    # include_co_applicant=False even when co_applicant_name is set.
     co = None
     others = [p for p in pages if p.get("relationship_to_applicant") == "DIFFERENT_PERSON"]
     groups: List[Tuple[str, List[Dict[str, Any]]]] = []
@@ -336,7 +341,7 @@ async def assemble_cpv_report_data(
     if candidates:
         best = max(candidates, key=lambda g: len(g[1]))
         co_pages = best[1]
-    if include_co_applicant is not False and (co_pages or loan_case.co_applicant_name):
+    if include_co_applicant is not False and loan_case.co_applicant_name:
         co = _person(co_pages, pages, on, contact=loan_case.co_applicant_phone,
                     office_form=form.get("office_details_co"), fallback_name=loan_case.co_applicant_name)
         co["bank"] = _bank(co_pages, None, form.get("bank_account_status_co") or None)
