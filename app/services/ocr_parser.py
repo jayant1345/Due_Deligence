@@ -45,15 +45,10 @@ ELECTRICITY_METER_REGEX = re.compile(r"\b(?:MTR|METER|CA|CONS|CONSUMER)[^\d]{0,5
 
 
 def mask_aadhaar_text(text: str) -> str:
-    """
-    UIDAI Compliance: Mask the first 8 digits of any 12-digit Aadhaar number.
-    e.g. '1234 5678 9012' -> 'XXXX-XXXX-9012'
-    """
-    def _mask_repl(match):
-        last_4 = match.group(3)
-        return f"XXXX-XXXX-{last_4}"
-
-    return AADHAAR_REGEX.sub(_mask_repl, text)
+    """No-op passthrough - Aadhaar numbers are kept in full per explicit CA office instruction.
+    Kept as a function (rather than removing the call site) so this stays a single, obvious
+    place to re-enable masking later if policy ever changes back."""
+    return text
 
 
 def scan_with_gemini_openrouter(
@@ -89,22 +84,19 @@ MASTER APPLICANT DATA TO VERIFY:
 - Target Property Address: "{master_target_address}"
 - Expected Category: "{doc_type}"
 
-UIDAI COMPLIANCE MANDATE:
-- If this is an Aadhaar card, the first 8 digits MUST BE MASKED: format 'XXXX-XXXX-1234'. NEVER return full 12 digits!
-
 INSTRUCTIONS:
 1. Identify the document type (e.g. AADHAAR_CARD, PAN_CARD, UTILITY_BILL, SALARY_SLIP, PROPERTY_EXTERIOR, PROPERTY_INTERIOR, ELECTRICITY_METER, OTHER).
 2. Extract the name on the document and calculate a match score (0-100) against the master applicant name.
 3. Extract the address (if present) and calculate a match score (0-100) against the master target address.
-4. Extract unique identifiers (Masked Aadhaar, PAN Number, Meter Number, Consumer Number).
+4. Extract unique identifiers (full Aadhaar number, PAN Number, Meter Number, Consumer Number).
 5. Note any signs of photo tampering, font mismatch, or discrepancies.
 
 Return ONLY a valid JSON object with the following keys:
 {{
   "detected_doc_type": "string",
   "extracted_name": "string or null",
-  "extracted_aadhaar": "XXXX-XXXX-1234 or null",
-  "is_uidai_masked": true,
+  "extracted_aadhaar": "full 12-digit Aadhaar number exactly as printed, digits only, or null",
+  "is_uidai_masked": false,
   "extracted_pan": "string or null",
   "extracted_meter_no": "string or null",
   "extracted_address": "string or null",
@@ -206,7 +198,7 @@ def parse_document_ocr(
     extracted_aadhaar = None
     aadhaar_match = AADHAAR_REGEX.search(raw_text)
     if aadhaar_match:
-        extracted_aadhaar = f"XXXX-XXXX-{aadhaar_match.group(3)}"
+        extracted_aadhaar = f"{aadhaar_match.group(1)} {aadhaar_match.group(2)} {aadhaar_match.group(3)}"
 
     extracted_pan = None
     pan_match = PAN_REGEX.search(raw_text)
@@ -242,7 +234,7 @@ def parse_document_ocr(
         "raw_text_length": len(raw_text),
         "masked_text": masked_text[:2000],
         "extracted_aadhaar": extracted_aadhaar,
-        "is_uidai_masked": bool(extracted_aadhaar),
+        "is_uidai_masked": False,
         "extracted_pan": extracted_pan,
         "extracted_meter_no": extracted_meter_no,
         "fuzzy_match_scores": {
@@ -251,5 +243,5 @@ def parse_document_ocr(
         },
         "is_discrepancy": is_discrepancy,
         "discrepancy_reasons": discrepancy_reasons,
-        "summary": "Document processed via local OCR fallback engine with UIDAI Aadhaar masking.",
+        "summary": "Document processed via local OCR fallback engine.",
     }

@@ -463,9 +463,9 @@
               <button id="btnAadhaarSideBack" onclick="event.stopPropagation(); setDocSide('aadhaar', 'back')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container text-on-surface-variant hover:text-on-surface">Back Side</button>
             </div>
             <div class="flex items-center gap-1.5">
-              <button id="aadhaarMaskToggleBtn" onclick="event.stopPropagation(); toggleAadhaarMasking()" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-secondary border border-emerald-200 flex items-center gap-1 hover:bg-emerald-100 transition-colors" title="Toggle UIDAI Rule 4 Masking">
-                <span class="material-symbols-outlined text-[12px]">verified_user</span>
-                <span id="aadhaarMaskLabel">Rule 4 Masked</span>
+              <button id="aadhaarMaskToggleBtn" onclick="event.stopPropagation(); toggleAadhaarMasking()" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1 hover:bg-amber-100 transition-colors" title="Full Aadhaar number shown per CA office instruction">
+                <span class="material-symbols-outlined text-[12px]">visibility</span>
+                <span id="aadhaarMaskLabel">Full Number</span>
               </button>
               <label onclick="event.stopPropagation();" class="cursor-pointer px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-high hover:bg-surface-container text-on-surface border border-outline-variant flex items-center gap-1 shadow-2xs transition-colors" title="Select and replace with authentic original scanned file">
                 <span class="material-symbols-outlined text-[13px] text-primary-container">file_upload</span>
@@ -531,8 +531,8 @@
               <span id="dispDobMatch" class="font-mono text-[11px] font-bold text-secondary">Exact Match (30/05/1997)</span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-on-surface-variant">UIDAI Rule 4 Compliance:</span>
-              <span id="dispMaskingStatus" class="font-mono text-[10px] text-secondary font-semibold">Compliant (8 Digits Masked)</span>
+              <span class="text-on-surface-variant">Aadhaar Masking:</span>
+              <span id="dispMaskingStatus" class="font-mono text-[10px] text-amber-700 font-semibold">Disabled (CA office instruction)</span>
             </div>
           </div>
         </div>
@@ -2251,7 +2251,7 @@
     </div>
   </div>
 
-  <script src="/static/ca-portal.js?v=7"></script>
+  <script src="/static/ca-portal.js?v=8"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">

@@ -148,13 +148,17 @@ def _validate_ifsc(value: Any) -> Optional[str]:
 
 
 def _validate_aadhaar(value: Any) -> Tuple[Optional[str], Optional[str]]:
+    # Full number kept and displayed in full per explicit CA office instruction - no masking.
     v = _clean(value)
     if not v:
         return None, None
     digits = re.sub(r"\D", "", str(v))
-    if len(digits) >= 4 and (len(digits) == 4 or len(digits) == 12):
-        return f"XXXX-XXXX-{digits[-4:]}", None
-    return None, f"Rejected unreadable Aadhaar value '{_mask_text(str(v))}'."
+    if len(digits) == 12:
+        return f"{digits[0:4]} {digits[4:8]} {digits[8:12]}", None
+    if len(digits) == 4:
+        # Legacy pages scanned before this change only ever had the last 4 digits on file.
+        return f"XXXX-XXXX-{digits}", None
+    return None, f"Rejected unreadable Aadhaar value '{str(v)}'."
 
 
 def _normalize_date(value: Any) -> Optional[str]:
@@ -379,7 +383,7 @@ Return ONLY a JSON object with exactly these keys:
   "date_of_birth": "DD/MM/YYYY or null",
   "gender": "MALE | FEMALE | OTHER | null",
   "pan_number": "string or null",
-  "aadhaar_last4_masked": "XXXX-XXXX-1234 or null",
+  "aadhaar_number": "full 12-digit Aadhaar number exactly as printed, digits only, or null",
   "address": "string or null",
   "address_type": "RESIDENTIAL | WORKPLACE | BRANCH | null",
   "mobile_number": "string or null",
@@ -460,7 +464,7 @@ def _normalize_extraction(raw: Dict[str, Any], applicant_name: str, target_addre
     if pan_err:
         discrepancies.append(pan_err)
 
-    aadhaar, aadhaar_err = _validate_aadhaar(r.get("aadhaar_last4_masked"))
+    aadhaar, aadhaar_err = _validate_aadhaar(r.get("aadhaar_number"))
     if aadhaar_err:
         discrepancies.append(aadhaar_err)
 
@@ -736,18 +740,9 @@ def _finalize_page_item(
     relative_web_url: str,
     image_paths: List[str],
 ) -> Dict[str, Any]:
+    # Per explicit CA office instruction, Aadhaar numbers are no longer masked anywhere - the
+    # scanned page image is kept as-is (redact_aadhaar_in_image is no longer called here).
     redaction: Dict[str, Any] = {}
-    if analysis.get("doc_type") == "AADHAAR_CARD":
-        last4 = (analysis.get("extracted_aadhaar") or "")[-4:] or None
-        for path in image_paths:
-            redaction = redact_aadhaar_in_image(path, last4 if last4 and last4.isdigit() else None)
-        if redaction.get("image_blurred"):
-            analysis.setdefault("discrepancies", []).append(
-                "Image quality too low to safely mask the Aadhaar number (UIDAI) — the whole "
-                "page has been blurred as a precaution instead of risking an unmasked number. "
-                "The extracted data above is unaffected, but please re-upload a clearer photo "
-                "of this Aadhaar card (flat, well-lit, in focus) so the image itself is usable."
-            )
     item = _build_item_from_llm_analysis(analysis, page_idx, total_pages, relative_web_url, image_paths[0],
                                          redaction.get("aadhaar_masked", 0) + redaction.get("vid_masked", 0))
     item["image_blurred"] = bool(redaction.get("image_blurred"))

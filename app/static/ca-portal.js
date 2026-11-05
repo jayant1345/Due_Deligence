@@ -3277,18 +3277,19 @@
       }
     }
 
-    // UIDAI: the system only ever holds the masked copy (first 8 digits blacked out at scan
-    // time), so there is no unmasked view to switch to. The toggle just re-affirms that.
+    // Per explicit CA office instruction, Aadhaar numbers are extracted and shown in full -
+    // the system no longer stores or displays a masked copy, so there is nothing left to
+    // toggle. This just re-affirms the full number is already being shown.
     function toggleAadhaarMasking() {
-      docState.aadhaar.isMasked = true;
+      docState.aadhaar.isMasked = false;
       const c = caseRegistry[activeCaseId] || {};
       const img = document.getElementById("dispAadhaarFrontImg");
       const label = document.getElementById("aadhaarMaskLabel");
       const status = document.getElementById("dispMaskingStatus");
       const pill = document.getElementById("dispAadhaarMaskedPill");
       img.src = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
-      label.textContent = "Rule 4 Masked";
-      status.textContent = "Unmasked view not available — only the last 4 digits are retained (UIDAI)";
+      label.textContent = "Full Number";
+      status.textContent = "Disabled (CA office instruction) — full number shown";
       if (pill) pill.textContent = c.aadhaar_masked || "Pending AI scan";
     }
 
