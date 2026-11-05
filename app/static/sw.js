@@ -1,6 +1,6 @@
 // Service Worker for VALUEX CA CPV Field Agent PWA
 // Bump on every release that changes the PWA page so old cached copies are purged.
-const CACHE_NAME = "valuex-cpv-v8";
+const CACHE_NAME = "valuex-cpv-v9";
 const STATIC_ASSETS = [
   "/pwa",
   "/manifest.json",
@@ -61,12 +61,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // App pages and case-scanned images/photos: Network First, cache only as the offline fallback —
-  // a stale page or stale document image must never be shown to a field agent as current.
+  // App pages, this app's own JS (agent-pwa.js, geofence-map.js), and case-scanned
+  // images/photos: Network First, cache only as the offline fallback — a stale page, stale
+  // app logic, or stale document image must never be shown to a field agent as current. This
+  // used to fall through to the "Stale While Revalidate" bucket below, which serves whatever
+  // was cached from a PREVIOUS visit immediately and only refreshes the cache in the
+  // background for the NEXT load - meaning every bug fix shipped to agent-pwa.js silently
+  // took one extra PWA visit to actually reach a field agent's phone, even after the server
+  // had the fix live.
   if (
     event.request.mode === "navigate" ||
     url.pathname.startsWith("/static/extracted_pages/") ||
-    url.pathname.startsWith("/storage/")
+    url.pathname.startsWith("/storage/") ||
+    url.pathname === "/static/agent-pwa.js" ||
+    url.pathname === "/static/geofence-map.js"
   ) {
     event.respondWith(
       fetch(event.request)
