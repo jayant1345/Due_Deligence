@@ -1678,6 +1678,24 @@
       }
     }
 
+    // Same "was ephemeral, now restored from the server" fix as restoreUdinForCase, for the
+    // Report Date field - once a CA sets a specific date and generates a report, reopening the
+    // case later must show that same date again, not silently reset to today every time.
+    async function restoreReportDateForCase(caseId, c) {
+      const reportDateInput = document.getElementById("reportDateInput");
+      if (!reportDateInput) return;
+      const serverId = gfServerId(c) || caseId;
+      if (!serverId) return;
+      try {
+        const res = await fetch(`/api/v1/reports/case/${encodeURIComponent(serverId)}`, { headers: authHeaders() });
+        if (activeCaseId !== caseId) return; // CA already switched to a different case
+        if (!res.ok) return;
+        const reports = await res.json();
+        const latestWithDate = Array.isArray(reports) ? reports.find(r => r.report_date) : null;
+        if (latestWithDate) reportDateInput.value = latestWithDate.report_date;
+      } catch (err) {}
+    }
+
     async function pasteUdinFromClipboard() {
       try {
         const text = await navigator.clipboard.readText();
@@ -1714,11 +1732,13 @@
 
       activeCaseId = caseId;
 
-      // Default the Report Date field to today for whichever case is now active - this is a
-      // per-generation override, not a stored case attribute, so it must never carry a date the
-      // CA picked for a previous case into a different one.
+      // Default the Report Date field to today immediately (so it never shows a stale date
+      // left over from a previous case while the real value loads) - restoreReportDateForCase()
+      // below then overwrites it with whatever date was actually used the last time THIS case's
+      // report was generated, same pattern as restoreUdinForCase just below it.
       const reportDateInput = document.getElementById("reportDateInput");
       if (reportDateInput) reportDateInput.value = new Date().toISOString().slice(0, 10);
+      restoreReportDateForCase(caseId, c);
 
       // 1. Update Sub-header Dossier Ribbon
       document.getElementById("dispCaseRef").textContent = c.case_no;

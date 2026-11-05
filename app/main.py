@@ -65,6 +65,9 @@ async def lifespan(app: FastAPI):
         await conn.execute(text(
             "ALTER TABLE case_documents ALTER COLUMN doc_type TYPE VARCHAR(60)"
         ))
+        await conn.execute(text(
+            "ALTER TABLE certified_reports ADD COLUMN IF NOT EXISTS report_date VARCHAR(20)"
+        ))
 
     # Seed default simple users (admin / admin@123 and agent1 / agent1@123)
     async with AsyncSessionLocal() as session:

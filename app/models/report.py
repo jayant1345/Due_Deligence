@@ -39,6 +39,13 @@ class CertifiedReport(Base):
         String(50),
         nullable=True,
     )
+    # The CA-chosen "Report Date" (YYYY-MM-DD) used to generate this specific certified
+    # report - distinct from generated_at below, which is when this DB row was actually
+    # created and can differ from the date printed on the report itself.
+    report_date: Mapped[Optional[str]] = mapped_column(
+        String(20),
+        nullable=True,
+    )
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

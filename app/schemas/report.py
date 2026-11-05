@@ -35,6 +35,7 @@ class ReportResponse(BaseModel):
     docx_url: Optional[str] = None
     file_hash_sha256: str
     udin: Optional[str] = None
+    report_date: Optional[str] = None
     generated_at: datetime
     generated_by_id: uuid.UUID
     page_count: Optional[int] = None

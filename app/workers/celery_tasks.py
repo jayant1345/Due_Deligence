@@ -402,6 +402,11 @@ async def async_generate_report_pdf(
         file_hash_sha256=report_meta["sha256"],
         udin=report_meta["udin"],
         generated_by_id=user_uuid,
+        # Persisted the same way udin already is, so re-opening this case later restores the
+        # CA's chosen Report Date instead of the input silently resetting to today every time
+        # (the date itself was already used to generate the report correctly - only the UI
+        # memory of what was chosen was missing).
+        report_date=report_date_obj.strftime("%Y-%m-%d") if report_date_obj else None,
     )
     session.add(certified_report)
 
