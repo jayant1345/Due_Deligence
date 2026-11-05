@@ -5433,7 +5433,12 @@
         const deletedSet = typeof getDeletedCasesSet === "function" ? getDeletedCasesSet() : new Set();
         const knownCaseNos = new Set(Object.values(caseRegistry).map(c => (c.case_no || "").toUpperCase()));
         cases.forEach(dc => {
-          if (deletedSet.has(String(dc.id).toUpperCase()) || (dc.case_no && deletedSet.has(String(dc.case_no).toUpperCase()))) {
+          // Only ever match on the case's own unique server id (a UUID, never reused) - case_no
+          // is a human-typed/auto-generated reference number that CAN be reused by a later,
+          // completely unrelated case (confirmed live: deleting "UBI-VL-2026-1" permanently hid
+          // every future case auto-numbered "UBI-VL-2026-1" too, even though it existed fine on
+          // the server with its own real documents already uploaded).
+          if (deletedSet.has(String(dc.id).toUpperCase())) {
             return; // Skip cases explicitly deleted by CA user
           }
           if (!caseRegistry[dc.id]) {
@@ -6112,9 +6117,15 @@
     function purgeDeletedCasesFromRegistry() {
       const deletedSet = getDeletedCasesSet();
       if (deletedSet.size === 0) return;
+      // Match ONLY on a case's own unique server id (c.id / c.db_id - UUIDs, never reused) -
+      // never case_no, and never a substring match against the dropdown's display text. Both of
+      // those used to also strip out any FUTURE, unrelated case that happened to get
+      // auto-numbered with the same case_no as a previously-deleted one (confirmed live:
+      // deleting "UBI-VL-2026-1" made every later case auto-numbered "UBI-VL-2026-1" vanish from
+      // the Scrutiny case list too, even though it existed fine on the server).
       Object.keys(caseRegistry).forEach(k => {
         const c = caseRegistry[k];
-        if (deletedSet.has(String(k).toUpperCase()) || (c && (deletedSet.has(String(c.case_no || '').toUpperCase()) || deletedSet.has(String(c.id || '').toUpperCase()) || deletedSet.has(String(c.db_id || '').toUpperCase())))) {
+        if (c && (deletedSet.has(String(c.id || '').toUpperCase()) || deletedSet.has(String(c.db_id || '').toUpperCase()))) {
           delete caseRegistry[k];
         }
       });
@@ -6122,8 +6133,7 @@
       if (sel) {
         for (let i = sel.options.length - 1; i >= 0; i--) {
           const val = sel.options[i].value;
-          const txt = sel.options[i].textContent;
-          if (deletedSet.has(String(val).toUpperCase()) || Array.from(deletedSet).some(d => txt.toUpperCase().includes(d))) {
+          if (deletedSet.has(String(val).toUpperCase())) {
             sel.remove(i);
           }
         }
@@ -6597,17 +6607,20 @@
         }
 
         if (isSuccess) {
-          // Record into persistent localStorage so it never re-appears after reload
+          // Record into persistent localStorage so it never re-appears after reload - by unique
+          // server id ONLY, never case_no. case_no is a reusable reference number (the "New Case
+          // Intake" auto-numbering picks the next free "UBI-VL-2026-N" by count, which reissues a
+          // deleted case's old number) - blocklisting it here permanently hid every FUTURE,
+          // completely unrelated case that happened to get the same auto-generated number,
+          // confirmed live with case "UBI-VL-2026-1".
           try {
             const raw = localStorage.getItem("deleted_cases");
             const deletedList = raw ? JSON.parse(raw) : [];
             if (caseId && !deletedList.includes(caseId)) deletedList.push(caseId);
-            if (caseNo && !deletedList.includes(caseNo)) deletedList.push(caseNo);
             const entry = caseRegistry[caseId];
             if (entry) {
               if (entry.id && !deletedList.includes(entry.id)) deletedList.push(entry.id);
               if (entry.db_id && !deletedList.includes(entry.db_id)) deletedList.push(entry.db_id);
-              if (entry.case_no && !deletedList.includes(entry.case_no)) deletedList.push(entry.case_no);
             }
             localStorage.setItem("deleted_cases", JSON.stringify(deletedList));
           } catch(e) {}
