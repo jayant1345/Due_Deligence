@@ -2950,32 +2950,41 @@
     }
 
     // Photo Lightbox Zoom Modal
+    // Shares the same #docZoomModal / Prev-Next / thumbnail-strip as the AI document viewer
+    // (openSeparatedDocViewer). That viewer owns the shared viewerDocList/viewerCurrentIndex
+    // globals the Prev/Next buttons and thumbnail strip read from - this function used to set
+    // only the big front/back image directly and never touched those globals, so if the CA had
+    // opened the AI-scanned document viewer at any point this session, Next/Prev and the
+    // thumbnail strip kept browsing THAT stale list (Aadhaar, PAN, ITR, every scanned page)
+    // instead of the 4 residence/work evidence photos actually being viewed - an Aadhaar or PAN
+    // card could appear while looking at "Residence Photo Full View". Now builds its own items
+    // list scoped to just the active folder's photos, same as the AI viewer does for its list.
     function openPhotoLightbox(index) {
-      const img = document.getElementById(`imgPhoto${index}`);
-      const title = document.getElementById(`titlePhoto${index}`);
-      if (!img) return;
+      const c = caseRegistry[activeCaseId];
+      const photoList = c
+        ? (currentPhotoFolder === "residence" ? (c.residence_photos || c.photos)
+          : currentPhotoFolder === "co_work" ? (c.co_work_photos || [])
+          : (c.work_photos || c.photos))
+        : [];
+      if (!photoList || photoList.length === 0) return;
 
-      const modal = document.getElementById("docZoomModal");
-      const modalTitle = document.getElementById("zoomModalTitle");
-      const frontImg = document.getElementById("zoomFrontImg");
-      const backImg = document.getElementById("zoomBackImg");
-      const frontLabel = document.getElementById("zoomFrontLabel");
-      const backLabel = document.getElementById("zoomBackLabel");
-      const flipCard = document.getElementById("zoomFlipCard");
+      const folderLabel = currentPhotoFolder === "co_work" ? "CO-APPLICANT OFFICE" : currentPhotoFolder.toUpperCase();
+      const items = photoList.map((p, i) => ({
+        id: p.id || `${currentPhotoFolder}_${i + 1}`,
+        index: i,
+        pageNumber: i + 1,
+        title: p.title || `Photo ${i + 1}`,
+        sub: `${folderLabel} FOLDER • ${p.tag || ''}`.trim(),
+        src: (typeof p === "string") ? p : p.src,
+        status: p.status || 'VERIFIED',
+        shortType: folderLabel,
+        docType: folderLabel,
+        badgeColor: "bg-emerald-950 text-emerald-300 border-emerald-600",
+        holderName: '',
+        discrepancies: []
+      }));
 
-      modalTitle.innerHTML = `<span class="material-symbols-outlined text-primary-container text-[20px]">photo_camera</span> ${title ? title.textContent : 'Site Photo ' + index} • High-Resolution View`;
-      frontImg.src = img.src;
-      backImg.src = img.src;
-      frontLabel.textContent = `${title ? title.textContent : 'Photo ' + index} • ${currentPhotoFolder.toUpperCase()} FOLDER (23.2154° N, 72.6367° E)`;
-      backLabel.textContent = `GPS EXIF: Optimal • Station Lock 18m 45s • Geotag Authentic`;
-
-      flipCard.classList.remove("is-flipped");
-      modal.classList.remove("hidden");
-      // This lightbox shares the same #zoomViewport modal as the AI document viewer, but unlike
-      // that viewer it never called the function that attaches drag-to-pan/scroll-to-zoom/
-      // double-click handlers - if a site-evidence photo is the first thing opened in a session
-      // (no AI document viewer opened yet), those gestures silently did nothing.
-      initZoomPanHandlers();
+      openFullDocumentViewer(items, index - 1);
     }
 
     // Handle Per-Section Manual Document Upload & Realtime Display
