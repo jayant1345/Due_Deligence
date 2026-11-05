@@ -1617,6 +1617,10 @@
     }
 
     // Realtime Manual UDIN Validation & Synchronization by CA Staff
+    // ICAI issues UDINs at 17 OR 18 characters depending on the generation batch - this used to
+    // hard-require exactly 18, so a genuine, correctly-generated 17-character UDIN from the ICAI
+    // portal was shown as "1 DIGITS MISSING" even though nothing was actually missing.
+    const UDIN_VALID_LENGTHS = [17, 18];
     function handleUdinManualInput(val) {
       val = (val || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18);
       const input = document.getElementById("udinInput");
@@ -1629,18 +1633,19 @@
       const pdfUdinBadge = document.getElementById("pdfUdinBadge");
 
       if (counter) {
-        counter.textContent = `${val.length} / 18 Digits`;
+        counter.textContent = `${val.length} / 17-18 Digits`;
       }
 
-      const isValid = (val.length === 18);
+      const isValid = UDIN_VALID_LENGTHS.includes(val.length);
 
       if (badge) {
         if (isValid) {
           badge.className = "font-mono text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold flex items-center gap-1";
-          badge.innerHTML = `<span class="material-symbols-outlined text-[13px]">check_circle</span> 18 CHARS — VERIFY ON ICAI`;
+          badge.innerHTML = `<span class="material-symbols-outlined text-[13px]">check_circle</span> ${val.length} CHARS — VERIFY ON ICAI`;
         } else {
           badge.className = "font-mono text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-300 font-bold flex items-center gap-1";
-          badge.innerHTML = `<span class="material-symbols-outlined text-[13px]">warning</span> ${18 - val.length} DIGITS MISSING`;
+          const remaining = Math.max(17 - val.length, 0);
+          badge.innerHTML = `<span class="material-symbols-outlined text-[13px]">warning</span> ${remaining > 0 ? remaining + " DIGITS MISSING" : "CHECK LENGTH (17-18 EXPECTED)"}`;
         }
       }
 
@@ -1678,7 +1683,7 @@
           handleUdinManualInput(text.trim());
         }
       } catch (err) {
-        const manual = prompt("Paste your 18-digit ICAI UDIN number here:");
+        const manual = prompt("Paste your 17 or 18 character ICAI UDIN number here:");
         if (manual) handleUdinManualInput(manual.trim());
       }
     }
