@@ -423,7 +423,13 @@ def generate_certified_cpv_report(
     experience = experience or NOT_CAPTURED
 
     occupation_val = field_form.get("occupation") or NOT_CAPTURED
-    is_working = bool(firm_name and firm_name != "NA" and "housewife" not in str(occupation_val).lower())
+    # Must match the Annexure B is_working check below exactly (same occupation field, not
+    # firm_name) - an applicant whose occupation is e.g. "Business" but who has no office_details
+    # captured yet (office fields genuinely not filled in by the field agent) was printing "is a
+    # Housewife / Homemaker" here while Annexure B, two pages later, correctly showed an Office
+    # Verification section for the same applicant - a contradiction within the same certified
+    # report caused by this earlier is_working check keying off firm_name instead of occupation.
+    is_working = field_form.get("occupation") not in ("Housewife", "House Wife", None)
 
     # Co-applicant's own office, submitted separately in the PWA questionnaire since the
     # co-applicant's workplace is frequently a different premises from the applicant's.
@@ -502,7 +508,7 @@ def generate_certified_cpv_report(
      Based on the verification conducted, the applicant's profile details are genuine.<br/><br/>
         """
 
-    is_co_working = bool(co_applicant_name) and bool(co_firm_name and "housewife" not in str(co_occupation_val).lower())
+    is_co_working = bool(co_applicant_name) and office_co.get("occupation") not in ("Housewife", "House Wife", None)
     co_work_bullet = ""
     if co_applicant_name:
         if is_co_working:

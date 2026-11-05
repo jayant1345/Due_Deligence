@@ -6050,6 +6050,7 @@
       c.co_applicant_name = coApplicantName;
       c.co_applicant_phone = coApplicantPhone;
       c.co_applicant_address = coApplicantAddress;
+      c.co_applicant_office_address = coApplicantOfficeAddress;
       c.phone = applicantPhone;
       c.loan_amount = loanAmount;
       c.bank = bankName;
@@ -6059,6 +6060,22 @@
       c.assigned_agent_id = agentId;
       c.agent = agentId ? ((window.allAgents || []).find(a => a.id === agentId)?.full_name || c.agent) : "Not yet allotted";
       c.status = newStatus;
+      // These (Applicant 3-5 and home-sharing) were already being sent to and saved by the
+      // server above - leaving them out of this local cache sync was a separate bug from the
+      // PATCH itself: the server had the CA's edit, but the screen kept showing the OLD values
+      // until a full page reload, because onCaseSelected() just below re-renders from THIS local
+      // object, not a fresh server fetch. That looks identical to "my edit didn't save" even
+      // though it did.
+      c.applicant_3_name = slot3Name;
+      c.applicant_3_phone = slot3Phone;
+      c.applicant_3_address = slot3Address;
+      c.applicant_4_name = slot4Name;
+      c.applicant_4_phone = slot4Phone;
+      c.applicant_4_address = slot4Address;
+      c.applicant_5_name = slot5Name;
+      c.applicant_5_phone = slot5Phone;
+      c.applicant_5_address = slot5Address;
+      c.applicant_home_sharing = ecHomeSharing || null;
 
       closeEditCaseModal();
 

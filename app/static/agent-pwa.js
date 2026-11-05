@@ -236,6 +236,61 @@
       home_5: { slotIdPrefix: "slotHome5", storageKey: "home_5_slot", uploadFolder: "home_5", defaultDocType: "PROPERTY_EXTERIOR", label: "Applicant 5 Residence", slotsMap: uploadedHome5Slots },
     };
 
+    // Snapshot every mandatory slot's pristine, no-photo-yet markup (thumb icon, "PENDING"
+    // badge, capture button text) once, right after the page's own HTML has rendered them -
+    // restoring to this on every case switch is what actually clears a PREVIOUS case's photo
+    // thumbnails, instead of leaving them visible while the newly-switched-to case's own
+    // documents are still loading over the network (or never load at all, e.g. on a flaky
+    // field connection).
+    const PWA_SLOT_DEFAULTS = {};
+    Object.keys(PWA_FOLDER_INFO).forEach(folder => {
+      const info = PWA_FOLDER_INFO[folder];
+      for (let n = 1; n <= 4; n++) {
+        const thumbEl = document.getElementById(`${info.slotIdPrefix}${n}Thumb`);
+        const badgeEl = document.getElementById(`${info.slotIdPrefix}${n}Badge`);
+        const btnTextEl = document.getElementById(`${info.slotIdPrefix}${n}BtnText`);
+        if (thumbEl || badgeEl || btnTextEl) {
+          PWA_SLOT_DEFAULTS[`${folder}_${n}`] = {
+            thumbHTML: thumbEl ? thumbEl.innerHTML : null,
+            badgeHTML: badgeEl ? badgeEl.innerHTML : null,
+            badgeClass: badgeEl ? badgeEl.className : null,
+            btnText: btnTextEl ? btnTextEl.textContent : null,
+          };
+        }
+      }
+    });
+
+    // Clears every mandatory slot thumbnail/badge and "Additional Photos" gallery, in every
+    // folder (residence/office/co_office/co_residence/home_3-5), back to its pristine empty
+    // state. Must run on every actual case switch, BEFORE the new case's own documents have
+    // loaded - otherwise a brand-new case momentarily (or, if the load ever fails or the agent
+    // acts before it finishes, permanently) shows whichever photos were last captured for the
+    // PREVIOUS case, still sitting untouched in these same DOM slots.
+    function resetAllPwaPhotoSlotsUi() {
+      Object.keys(PWA_FOLDER_INFO).forEach(folder => {
+        const info = PWA_FOLDER_INFO[folder];
+        for (let n = 1; n <= 4; n++) {
+          const d = PWA_SLOT_DEFAULTS[`${folder}_${n}`];
+          if (!d) continue;
+          const thumbEl = document.getElementById(`${info.slotIdPrefix}${n}Thumb`);
+          if (thumbEl && d.thumbHTML !== null) thumbEl.innerHTML = d.thumbHTML;
+          const badgeEl = document.getElementById(`${info.slotIdPrefix}${n}Badge`);
+          if (badgeEl) {
+            if (d.badgeClass !== null) badgeEl.className = d.badgeClass;
+            if (d.badgeHTML !== null) badgeEl.innerHTML = d.badgeHTML;
+          }
+          const btnTextEl = document.getElementById(`${info.slotIdPrefix}${n}BtnText`);
+          if (btnTextEl && d.btnText !== null) btnTextEl.textContent = d.btnText;
+          info.slotsMap[n] = false;
+        }
+        const gallery = document.getElementById(`extraGallery_${folder}`);
+        if (gallery) gallery.innerHTML = "";
+        if (typeof updateExtraPhotoCount === "function") updateExtraPhotoCount(folder);
+        extraPhotoNextSlot[folder] = 4;
+      });
+      if (typeof updateEvidenceProgress === "function") updateEvidenceProgress();
+    }
+
     // Switch between Residence, Office/Workplace, and (dual-applicant cases) Co-Applicant
     // Office / Co-Applicant Residence photo folders in the PWA. Co-Applicant Residence only
     // applies when the CA office has flagged the co-applicant as living at a different address
@@ -574,6 +629,13 @@
     function triggerSlotCapture(slotNum, docType, folder) {
       if (capturePending) {
         alert("Still uploading the previous photo — please wait a moment before capturing the next one.");
+        return;
+      }
+      // See submitDueDiligenceForm's matching guard - sampleCaseId is unset while a
+      // just-switched-to case is still loading its real data, and a photo captured in that
+      // window has no correct case to attach to.
+      if (!sampleCaseId) {
+        alert("This case is still loading. Please wait a moment for the case details to finish loading, then try taking the photo again.");
         return;
       }
       activeUploadSlot = slotNum;
@@ -1232,6 +1294,14 @@
     function handleAgentSelfieCapture(event) {
       const file = event.target.files[0];
       if (!file) return;
+      // See submitDueDiligenceForm's matching guard - don't let a selfie taken while a
+      // just-switched-to case is still loading get attached to no case (or cached under a
+      // literal "undefined" key that can never be restored/synced).
+      if (!sampleCaseId) {
+        alert("This case is still loading. Please wait a moment for the case details to finish loading, then try the selfie again.");
+        event.target.value = "";
+        return;
+      }
 
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -1847,6 +1917,15 @@
     }
 
     async function submitDueDiligenceForm() {
+      // sampleCaseId is intentionally left unset while a just-switched-to case is still loading
+      // its real data from the server (see switchPwaCase's placeholder branch) - saving here
+      // would otherwise either queue against a literal "undefined" case id that can never sync,
+      // or (before that placeholder existed) silently save under whichever case was PREVIOUSLY
+      // open. Block the save and tell the agent to wait, instead of either of those.
+      if (!sampleCaseId) {
+        alert("This case is still loading. Please wait a moment for the case details to finish loading, then try saving again.");
+        return;
+      }
       if (!agentSelfieDataUrl) {
         if (!confirm("Field Staff Selfie has not been captured yet. Capturing your selfie authenticates attendance to start the survey. Do you wish to continue without selfie?")) {
           return;
@@ -2111,11 +2190,28 @@
     // FIELD AGENT DYNAMIC CASE SWITCHER
     // ==========================================
     function switchPwaCase(key) {
-      const c = caseRegistryPwa[key];
-      if (!c) return;
+      const isActualSwitch = key !== activeCaseKey;
+      let c = caseRegistryPwa[key];
+      if (!c) {
+        // A case this device has never cached yet (e.g. a brand-new case just handed over) -
+        // this used to just return here and leave WHATEVER case was active before fully
+        // rendered on screen (header, address, every Module 2/3 form field, and - because the
+        // photo slot thumbnails are never touched by this function at all - every photo
+        // thumbnail too) until the real case data arrived moments later over the network. An
+        // agent who looked at the screen, or acted, during that window saw/submitted the
+        // PREVIOUS case's own office address, form answers, and even its cached selfie as if
+        // they belonged to this new case - exactly how one case's details have ended up saved
+        // against a completely different one. Render a safe, clearly-blank placeholder instead.
+        c = {
+          case_no: key, applicant: "Loading case...", amount: "", loan_type: "",
+          address: "Loading case details...", lat: TARGET_LAT, lon: TARGET_LON,
+          dev_lat: currentDeviceLat, dev_lon: currentDeviceLon,
+        };
+      }
+      if (isActualSwitch) resetAllPwaPhotoSlotsUi();
 
       activeCaseKey = key;
-      sampleCaseId = c.id;
+      sampleCaseId = c.id; // intentionally undefined for the placeholder - safer than silently keeping the PREVIOUS case's real id while this screen shows blank/loading data
       TARGET_LAT = c.lat;
       TARGET_LON = c.lon;
       currentDeviceLat = c.dev_lat;
