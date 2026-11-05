@@ -2206,12 +2206,19 @@
           case_no: key, applicant: "Loading case...", amount: "", loan_type: "",
           address: "Loading case details...", lat: TARGET_LAT, lon: TARGET_LON,
           dev_lat: currentDeviceLat, dev_lon: currentDeviceLon,
+          // caseRegistryPwa is rebuilt empty on every page load, so this placeholder branch is
+          // ALSO hit on a plain refresh of the SAME case the agent was already working on - not
+          // just a genuine switch to a different one. Only blank out the working case id for a
+          // real switch; on a same-case refresh, keep whatever id was already active (read from
+          // localStorage at page load) so saving/uploading keeps working immediately instead of
+          // being blocked until the network round-trip finishes.
+          id: isActualSwitch ? undefined : sampleCaseId,
         };
       }
       if (isActualSwitch) resetAllPwaPhotoSlotsUi();
 
       activeCaseKey = key;
-      sampleCaseId = c.id; // intentionally undefined for the placeholder - safer than silently keeping the PREVIOUS case's real id while this screen shows blank/loading data
+      sampleCaseId = c.id; // undefined only when actually switching to an uncached case - safer than silently keeping the PREVIOUS case's real id while this screen shows blank/loading data
       TARGET_LAT = c.lat;
       TARGET_LON = c.lon;
       currentDeviceLat = c.dev_lat;
