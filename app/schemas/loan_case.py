@@ -32,6 +32,7 @@ class CaseCreate(BaseModel):
     applicant_3_address: Optional[str] = None
     applicant_4_address: Optional[str] = None
     applicant_5_address: Optional[str] = None
+    field_form_data: Optional[str] = None
 
 
 class CaseUpdate(BaseModel):
@@ -59,6 +60,7 @@ class CaseUpdate(BaseModel):
     applicant_3_address: Optional[str] = None
     applicant_4_address: Optional[str] = None
     applicant_5_address: Optional[str] = None
+    field_form_data: Optional[str] = None
     target_lat: Optional[float] = None
     target_lon: Optional[float] = None
 

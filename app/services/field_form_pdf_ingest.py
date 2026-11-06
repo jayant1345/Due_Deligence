@@ -32,7 +32,7 @@ REQUEST_TIMEOUT_SECONDS = 180.0
 MAX_ATTEMPTS = 2
 
 EXTRACTION_PROMPT = """You are reading a completed "Due Diligence Visit Form" (a Google Form
-export, English with Gujarati translations in parentheses) for applicant {applicant_name}. Each
+export, English with Gujarati translations in parentheses){applicant_hint}. Each
 question shows its selected radio/checkbox option, or the text the field agent typed, directly
 below or next to the question label - read the SELECTED/TYPED answer only, never a label or an
 unselected option. The form spans several page images, in order; some sections (e.g. Office
@@ -45,6 +45,8 @@ embedded in the name field, and never invent a relation that wasn't actually wri
 
 Return ONLY a JSON object with exactly these keys:
 {{
+  "bank_name": "Bank name if mentioned anywhere (e.g. 'Union Bank of India', 'Bank of Baroda', 'State Bank of India', 'HDFC Bank', 'ICICI Bank', or in title like 'Due Diligence Details From - Union Bank', or question 'Bank Name'), string or null",
+  "branch_name": "Branch name if mentioned in the form (e.g. 'Chandkheda', 'Gota Branch', etc.), string or null",
   "executive_name": "string or null",
   "applicant_type": "Applicant | Co-applicant | Guarantor - whichever radio is selected at the top, or null",
   "name": "applicant/co-applicant/guarantor's own name, string or null",
@@ -53,6 +55,9 @@ Return ONLY a JSON object with exactly these keys:
   "age": "string or null (e.g. '52')",
   "community": "Hindu | Muslim | Christian | null",
   "qualification": "Post Graduate | Graduate | 12th Pass | 10th Pass | 8th Pass | null",
+  "co_applicant_name": "Co-applicant full name if mentioned anywhere in the form, string or null",
+  "co_applicant_contact": "Co-applicant phone number if mentioned, string or null",
+  "co_applicant_address": "Co-applicant address if mentioned, string or null",
   "family_members": [
     {{"name": "string", "age": "string", "relation": "string", "earning": "Yes or No"}}
   ],
@@ -90,7 +95,8 @@ Return ONLY a JSON object with exactly these keys:
   "loan_type": "Home | Car | Education | Personal | string (if Other) | null",
   "loan_amount": "string or null",
   "previous_loan_bank": "string or null",
-  "dealership_date": "string or null (DD/MM/YYYY as printed)"
+  "dealership_date": "string or null (DD/MM/YYYY as printed)",
+  "visit_date": "Date of field visit (DD/MM/YYYY) if mentioned or timestamped, string or null"
 }}"""
 
 
@@ -104,7 +110,8 @@ def _call_gemini_extraction(image_paths: List[str], applicant_name: str) -> Dict
     import base64
     import mimetypes
 
-    content = [{"type": "text", "text": EXTRACTION_PROMPT.format(applicant_name=applicant_name or "unknown")}]
+    applicant_hint = f" for applicant {applicant_name}" if applicant_name and applicant_name.lower() != "unknown" else ""
+    content = [{"type": "text", "text": EXTRACTION_PROMPT.format(applicant_hint=applicant_hint)}]
     for p in image_paths:
         mime_type, _ = mimetypes.guess_type(p)
         with open(p, "rb") as f:
@@ -325,6 +332,116 @@ def ingest_field_form_pdf(pdf_path: str, applicant_name: str) -> Dict[str, Any]:
 
         extracted = _call_gemini_extraction(image_paths, applicant_name)
         return build_field_form_payload(extracted)
+    finally:
+        for p in image_paths:
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+        try:
+            os.rmdir(tmp_dir)
+        except OSError:
+            pass
+
+
+def extract_field_form_pdf_for_intake(pdf_path: str, applicant_name: str = "") -> Dict[str, Any]:
+    """
+    Renders the Google Form PDF export pages to images, calls Gemini to extract both:
+    1. Case Intake profile fields (applicant name, phone, address, office address, bank, branch, loan type, amount, co-applicant details, executive name, visit date)
+    2. Full PWA field_form_data payload
+    """
+    if not os.path.exists(pdf_path):
+        raise FileNotFoundError(f"PDF file not found at: {pdf_path}")
+    if fitz is None:
+        raise RuntimeError("PyMuPDF (fitz) is not installed.")
+
+    tmp_dir = pdf_path + "_pages_intake"
+    os.makedirs(tmp_dir, exist_ok=True)
+    image_paths = []
+    try:
+        doc = fitz.open(pdf_path)
+        for page_num in range(len(doc)):
+            page = doc.load_page(page_num)
+            pix = page.get_pixmap(dpi=200)
+            img_path = os.path.join(tmp_dir, f"page_{page_num + 1}.jpg")
+            pix.save(img_path, jpg_quality=90)
+            image_paths.append(img_path)
+        doc.close()
+
+        extracted = _call_gemini_extraction(image_paths, applicant_name)
+        field_form_payload = build_field_form_payload(extracted)
+
+        # Normalize bank name to standard empanelled bank names if possible
+        raw_bank = (extracted.get("bank_name") or "").strip()
+        normalized_bank = None
+        if raw_bank:
+            rb_lower = raw_bank.lower()
+            if "union" in rb_lower:
+                normalized_bank = "Union Bank of India"
+            elif "baroda" in rb_lower or "bob" in rb_lower:
+                normalized_bank = "Bank of Baroda"
+            elif "state bank" in rb_lower or "sbi" in rb_lower:
+                normalized_bank = "State Bank of India"
+            elif "hdfc" in rb_lower:
+                normalized_bank = "HDFC Bank"
+            elif "icici" in rb_lower:
+                normalized_bank = "ICICI Bank"
+            elif "axis" in rb_lower:
+                normalized_bank = "Axis Bank"
+            elif "canara" in rb_lower:
+                normalized_bank = "Canara Bank"
+            elif "punjab" in rb_lower or "pnb" in rb_lower:
+                normalized_bank = "Punjab National Bank"
+            else:
+                normalized_bank = raw_bank
+
+        # Normalize loan type
+        raw_loan = (extracted.get("loan_type") or "").strip()
+        normalized_loan = None
+        if raw_loan:
+            rl_lower = raw_loan.lower()
+            if "home" in rl_lower or "hl" in rl_lower:
+                normalized_loan = "Home Loan"
+            elif "car" in rl_lower or "vehicle" in rl_lower or "auto" in rl_lower:
+                normalized_loan = "Vehicle Loan"
+            elif "personal" in rl_lower or "pl" in rl_lower:
+                normalized_loan = "Personal Loan"
+            elif "education" in rl_lower:
+                normalized_loan = "Education Loan"
+            elif "business" in rl_lower or "bt" in rl_lower:
+                normalized_loan = "Business Takeover"
+            elif "msme" in rl_lower:
+                normalized_loan = "MSME Loan"
+            elif "mudra" in rl_lower:
+                normalized_loan = "Mudra Loan"
+            elif "machinery" in rl_lower:
+                normalized_loan = "Machinery Loan"
+            else:
+                normalized_loan = raw_loan
+
+        case_data = {
+            "applicant_name": extracted.get("name"),
+            "contact_number": extracted.get("contact_number"),
+            "address_visited": extracted.get("address_visited"),
+            "office_address": extracted.get("office_address"),
+            "bank_name": normalized_bank,
+            "branch_name": extracted.get("branch_name"),
+            "loan_type": normalized_loan,
+            "loan_amount": extracted.get("loan_amount"),
+            "executive_name": extracted.get("executive_name"),
+            "co_applicant_name": extracted.get("co_applicant_name"),
+            "co_applicant_contact": extracted.get("co_applicant_contact"),
+            "co_applicant_address": extracted.get("co_applicant_address"),
+            "visit_date": extracted.get("visit_date"),
+            "marital_status": extracted.get("marital_status"),
+            "occupation": extracted.get("occupation"),
+            "firm_name": extracted.get("firm_name"),
+        }
+
+        return {
+            "case_data": case_data,
+            "field_form_data": field_form_payload,
+        }
     finally:
         for p in image_paths:
             try:

@@ -1731,6 +1731,35 @@
           <span class="font-mono text-[10px] text-outline">Step 1 of 2</span>
         </div>
 
+        <!-- Backlog Field Visit Google Form Auto-Extraction Card -->
+        <div class="p-3.5 rounded-xl bg-gradient-to-r from-amber-50/90 via-orange-50/60 to-surface-container-low border border-amber-300/80 shadow-2xs space-y-2">
+          <div class="flex items-center justify-between flex-wrap gap-1">
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-amber-700 text-[18px]">assignment_add</span>
+              <span class="font-headline font-bold text-xs text-amber-950">Backlog Case? Upload Field Visit Google Form PDF</span>
+            </div>
+            <span class="font-mono text-[9px] bg-amber-200/80 text-amber-900 px-1.5 py-0.5 rounded font-bold">Auto-Fill All Details</span>
+          </div>
+          <p class="text-[11px] text-amber-900/80 leading-relaxed">
+            Upload the field visit Google Form PDF (exported from Google Forms). Gemini AI extracts applicant info, contact, addresses, bank, branch, loan details & the full survey questionnaire to automatically populate this form.
+          </p>
+          <div class="flex items-center gap-2 pt-0.5 flex-wrap">
+            <input type="file" id="tabNcFieldFormPdfInput" accept=".pdf" class="hidden" onchange="handleIntakeFieldFormPdfSelected(this.files)"/>
+            <button type="button" onclick="document.getElementById('tabNcFieldFormPdfInput').click()" class="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-headline text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all active:scale-95">
+              <span class="material-symbols-outlined text-[16px]">upload_file</span>
+              <span>📋 Upload Field Visit Google Form PDF...</span>
+            </button>
+            <span id="tabNcFieldFormPdfStatus" class="hidden text-xs font-mono font-bold text-emerald-700 flex items-center gap-1">
+              <span class="material-symbols-outlined text-[15px]">check_circle</span>
+              <span>Extracted & Ready</span>
+            </span>
+          </div>
+          <div id="tabNcFieldFormProgress" class="hidden flex items-center gap-2 p-2 rounded-lg bg-amber-100 text-amber-900 text-xs font-mono animate-pulse">
+            <span class="material-symbols-outlined text-[16px] animate-spin">sync</span>
+            <span id="tabNcFieldFormProgressText">Reading Google Form PDF with Gemini AI... (can take ~20-30s)</span>
+          </div>
+        </div>
+
         <div class="space-y-3 text-xs">
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Empanelled Bank (બેંક)*</label>
@@ -2915,6 +2944,35 @@
 
       <!-- Modal Form Body -->
       <form id="newCaseForm" onsubmit="handleCreateNewCase(event)" class="p-5 overflow-y-auto space-y-4">
+        <!-- Backlog Field Visit Google Form Import Card (Modal) -->
+        <div class="p-3.5 rounded-xl bg-gradient-to-r from-amber-50/90 via-orange-50/60 to-surface-container-low border border-amber-300/80 shadow-2xs space-y-2">
+          <div class="flex items-center justify-between flex-wrap gap-1">
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-amber-700 text-[18px]">assignment_add</span>
+              <span class="font-headline font-bold text-xs text-amber-950">Backlog Case? Upload Field Visit Google Form PDF (ઓટો-ફિલ)</span>
+            </div>
+            <span class="font-mono text-[9px] bg-amber-200/80 text-amber-900 px-1.5 py-0.5 rounded font-bold">Auto-Extract Case Data</span>
+          </div>
+          <p class="text-[11px] text-amber-900/80 leading-relaxed">
+            Upload the field visit Google Form PDF export. Gemini AI will auto-fill all case details below and attach the full field questionnaire.
+          </p>
+          <div class="flex items-center gap-2 pt-0.5 flex-wrap">
+            <input type="file" id="modalNcFieldFormPdfInput" accept=".pdf" class="hidden" onchange="handleModalFieldFormPdfSelected(this.files)"/>
+            <button type="button" onclick="document.getElementById('modalNcFieldFormPdfInput').click()" class="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-headline text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all active:scale-95">
+              <span class="material-symbols-outlined text-[16px]">upload_file</span>
+              <span>📋 Upload Field Visit Google Form PDF...</span>
+            </button>
+            <span id="modalNcFieldFormPdfStatus" class="hidden text-xs font-mono font-bold text-emerald-700 flex items-center gap-1">
+              <span class="material-symbols-outlined text-[15px]">check_circle</span>
+              <span>Extracted & Ready</span>
+            </span>
+          </div>
+          <div id="modalNcFieldFormProgress" class="hidden flex items-center gap-2 p-2 rounded-lg bg-amber-100 text-amber-900 text-xs font-mono animate-pulse">
+            <span class="material-symbols-outlined text-[16px] animate-spin">sync</span>
+            <span>Reading Google Form PDF with Gemini AI... (can take ~20-30s)</span>
+          </div>
+        </div>
+
         <!-- AI Folder Scanner Dropzone -->
         <div class="p-4 rounded-xl bg-gradient-to-r from-blue-50/80 via-indigo-50/70 to-surface-container-lowest border-2 border-dashed border-primary-container/40 space-y-2.5">
           <div class="flex items-center justify-between flex-wrap gap-2">

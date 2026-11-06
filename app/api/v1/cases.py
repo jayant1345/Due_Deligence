@@ -162,6 +162,7 @@ async def create_case(
         applicant_5_address=(req.applicant_5_address or "").strip() or None,
         assigned_agent_id=req.assigned_agent_id,
         created_by_id=current_user.id,
+        field_form_data=req.field_form_data,
     )
     db.add(loan_case)
     await db.flush()
@@ -181,6 +182,55 @@ async def create_case(
     await db.commit()
     await db.refresh(loan_case)
     return loan_case
+
+
+@router.post("/extract-field-form-pdf")
+async def extract_field_form_pdf_endpoint(
+    file: UploadFile = File(...),
+    applicant_name: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_ca_user),
+) -> Dict[str, Any]:
+    """
+    Extract a backlog field visit questionnaire (Google Form exported to PDF) at case creation time.
+    Returns:
+    1. case_data: prefill information (applicant name, phone, addresses, bank, branch, loan type, amount, co-applicant details, etc.)
+    2. field_form_data: full PWA questionnaire payload ready to attach to the new case.
+    """
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please upload the field visit form as a PDF.",
+        )
+
+    temp_dir = os.path.join("storage_uploads", "temp_field_forms")
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_filename = f"{uuid.uuid4().hex}_{os.path.basename(file.filename.replace('\\', '/'))}"
+    saved_pdf_path = os.path.join(temp_dir, temp_filename)
+    try:
+        with open(saved_pdf_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        from app.services.field_form_pdf_ingest import extract_field_form_pdf_for_intake
+        result = await run_in_threadpool(extract_field_form_pdf_for_intake, saved_pdf_path, applicant_name or "")
+        import json as _json_module
+        return {
+            "status": "success",
+            "case_data": result.get("case_data", {}),
+            "field_form_data": result.get("field_form_data", {}),
+            "field_form_data_json": _json_module.dumps(result.get("field_form_data", {})),
+        }
+    except Exception as e:
+        logger.exception("Failed to extract field form PDF for case creation: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to extract the field visit form with Gemini: {str(e)}",
+        )
+    finally:
+        if os.path.exists(saved_pdf_path):
+            try:
+                os.remove(saved_pdf_path)
+            except OSError:
+                pass
 
 
 @router.get("/stats")

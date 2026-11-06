@@ -4801,7 +4801,8 @@
             office_address: officeAddress || undefined,
             target_lat: 23.1030,
             target_lon: 72.5350,
-            assigned_agent_id: null
+            assigned_agent_id: null,
+            field_form_data: tabNcStagedFieldFormData || undefined
           })
         });
 
@@ -5080,6 +5081,11 @@
     function resetNewCaseIntakeForm() {
       tabStagedPdfs = [];
       tabStagedImages = [];
+      tabNcStagedFieldFormData = null;
+      const fStatus = document.getElementById("tabNcFieldFormPdfStatus");
+      if (fStatus) fStatus.classList.add("hidden");
+      const fInput = document.getElementById("tabNcFieldFormPdfInput");
+      if (fInput) fInput.value = "";
 
       const tray = document.getElementById("tabNcFilesTray");
       if (tray) tray.classList.add("hidden");
@@ -5212,6 +5218,215 @@
     }
 
     // ==========================================
+    // BACKLOG FIELD VISIT GOOGLE FORM EXTRACTION AT CASE CREATION (AUTO-FILL)
+    // ==========================================
+    let tabNcStagedFieldFormData = null;
+    let modalNcStagedFieldFormData = null;
+
+    async function handleIntakeFieldFormPdfSelected(files) {
+      if (!files || files.length === 0) return;
+      const file = files[0];
+      const progress = document.getElementById("tabNcFieldFormProgress");
+      const progressText = document.getElementById("tabNcFieldFormProgressText");
+      const statusEl = document.getElementById("tabNcFieldFormPdfStatus");
+      if (progress) progress.classList.remove("hidden");
+      if (statusEl) statusEl.classList.add("hidden");
+      if (progressText) progressText.textContent = `Reading "${file.name}" with Gemini AI... (can take ~20-30s)`;
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file, file.name);
+        const existingName = (document.getElementById("tabNcApplicantName") ? document.getElementById("tabNcApplicantName").value.trim() : "");
+        if (existingName) formData.append("applicant_name", existingName);
+
+        const token = localStorage.getItem("ca_token");
+        const headers = {};
+        if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch("/api/v1/cases/extract-field-form-pdf", {
+          method: "POST",
+          headers: headers,
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert("Could not extract the field visit form: " + (err.detail || res.statusText));
+          return;
+        }
+
+        const data = await res.json();
+        const cd = data.case_data || {};
+        tabNcStagedFieldFormData = data.field_form_data_json || JSON.stringify(data.field_form_data || {});
+
+        // Auto-fill Case Profile fields
+        if (cd.applicant_name && document.getElementById("tabNcApplicantName")) {
+          document.getElementById("tabNcApplicantName").value = cd.applicant_name;
+        }
+        if (cd.contact_number && document.getElementById("tabNcPhone")) {
+          document.getElementById("tabNcPhone").value = cd.contact_number;
+        }
+        if (cd.address_visited && document.getElementById("tabNcAddress")) {
+          document.getElementById("tabNcAddress").value = cd.address_visited;
+        }
+        if (cd.office_address && document.getElementById("tabNcOfficeAddress")) {
+          document.getElementById("tabNcOfficeAddress").value = cd.office_address;
+        }
+        if (cd.bank_name && document.getElementById("tabNcBankName")) {
+          const bSelect = document.getElementById("tabNcBankName");
+          for (let i = 0; i < bSelect.options.length; i++) {
+            if (bSelect.options[i].value.toLowerCase().includes(cd.bank_name.toLowerCase()) || cd.bank_name.toLowerCase().includes(bSelect.options[i].value.toLowerCase())) {
+              bSelect.selectedIndex = i;
+              break;
+            }
+          }
+          if (typeof syncTabNcCaseNoPrefix === "function") syncTabNcCaseNoPrefix();
+        }
+        if (cd.branch_name && document.getElementById("tabNcBranch")) {
+          document.getElementById("tabNcBranch").value = cd.branch_name;
+        }
+        if (cd.loan_type && document.getElementById("tabNcLoanType")) {
+          const ltSelect = document.getElementById("tabNcLoanType");
+          for (let i = 0; i < ltSelect.options.length; i++) {
+            if (ltSelect.options[i].value.toLowerCase().includes(cd.loan_type.toLowerCase()) || cd.loan_type.toLowerCase().includes(ltSelect.options[i].value.toLowerCase())) {
+              ltSelect.selectedIndex = i;
+              break;
+            }
+          }
+        }
+        if (cd.loan_amount && document.getElementById("tabNcLoanAmount")) {
+          document.getElementById("tabNcLoanAmount").value = cd.loan_amount;
+        }
+
+        // Co-applicant info if found in the Google Form
+        if (cd.co_applicant_name) {
+          if (typeof setTabNcApplicantMode === "function") setTabNcApplicantMode(2);
+          if (document.getElementById("tabNcCoApplicantName")) {
+            document.getElementById("tabNcCoApplicantName").value = cd.co_applicant_name;
+          }
+          if (cd.co_applicant_contact && document.getElementById("tabNcCoApplicantPhone")) {
+            document.getElementById("tabNcCoApplicantPhone").value = cd.co_applicant_contact;
+          }
+          if (cd.co_applicant_address && document.getElementById("tabNcCoApplicantAddress")) {
+            document.getElementById("tabNcCoApplicantAddress").value = cd.co_applicant_address;
+          }
+        }
+
+        // Auto-generate fresh sequential case number
+        if (typeof autoGenTabCaseNo === "function") {
+          autoGenTabCaseNo(true);
+        }
+
+        if (statusEl) {
+          statusEl.innerHTML = `<span class="material-symbols-outlined text-[15px]">check_circle</span> <span>Extracted: <b>${cd.applicant_name || 'Applicant'}</b> • ${cd.bank_name || ''}</span>`;
+          statusEl.classList.remove("hidden");
+        }
+
+        alert(`[✓] Google Form PDF extracted successfully!\n\n• Applicant: ${cd.applicant_name || 'N/A'}\n• Phone: ${cd.contact_number || 'N/A'}\n• Bank: ${cd.bank_name || 'N/A'}\n• Loan: ${cd.loan_type || 'N/A'} - ₹${cd.loan_amount || 'N/A'}\n• Property: ${cd.address_visited || 'N/A'}\n\nAll case profile fields have been auto-populated, and the full field questionnaire has been staged. When you create this case, everything will be saved together!`);
+      } catch (err) {
+        console.error("Intake field form PDF error:", err);
+        alert("Error reading Google Form PDF: " + err.message);
+      } finally {
+        if (progress) progress.classList.add("hidden");
+      }
+    }
+
+    async function handleModalFieldFormPdfSelected(files) {
+      if (!files || files.length === 0) return;
+      const file = files[0];
+      const progress = document.getElementById("modalNcFieldFormProgress");
+      const statusEl = document.getElementById("modalNcFieldFormPdfStatus");
+      if (progress) progress.classList.remove("hidden");
+      if (statusEl) statusEl.classList.add("hidden");
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file, file.name);
+        const existingName = (document.getElementById("ncApplicantName") ? document.getElementById("ncApplicantName").value.trim() : "");
+        if (existingName) formData.append("applicant_name", existingName);
+
+        const token = localStorage.getItem("ca_token");
+        const headers = {};
+        if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch("/api/v1/cases/extract-field-form-pdf", {
+          method: "POST",
+          headers: headers,
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert("Could not extract the field visit form: " + (err.detail || res.statusText));
+          return;
+        }
+
+        const data = await res.json();
+        const cd = data.case_data || {};
+        modalNcStagedFieldFormData = data.field_form_data_json || JSON.stringify(data.field_form_data || {});
+
+        // Auto-fill Modal inputs
+        if (cd.applicant_name && document.getElementById("ncApplicantName")) {
+          document.getElementById("ncApplicantName").value = cd.applicant_name;
+        }
+        if (cd.contact_number && document.getElementById("ncApplicantPhone")) {
+          document.getElementById("ncApplicantPhone").value = cd.contact_number;
+        }
+        if (cd.address_visited && document.getElementById("ncAddress")) {
+          document.getElementById("ncAddress").value = cd.address_visited;
+        }
+        if (cd.office_address && document.getElementById("ncOfficeAddress")) {
+          document.getElementById("ncOfficeAddress").value = cd.office_address;
+        }
+        if (cd.bank_name && document.getElementById("ncBankName")) {
+          const bSelect = document.getElementById("ncBankName");
+          for (let i = 0; i < bSelect.options.length; i++) {
+            if (bSelect.options[i].value.toLowerCase().includes(cd.bank_name.toLowerCase()) || cd.bank_name.toLowerCase().includes(bSelect.options[i].value.toLowerCase())) {
+              bSelect.selectedIndex = i;
+              break;
+            }
+          }
+        }
+        if (cd.branch_name && document.getElementById("ncBranch")) {
+          document.getElementById("ncBranch").value = cd.branch_name;
+        }
+        if (cd.loan_type && document.getElementById("ncLoanType")) {
+          const ltSelect = document.getElementById("ncLoanType");
+          for (let i = 0; i < ltSelect.options.length; i++) {
+            if (ltSelect.options[i].value.toLowerCase().includes(cd.loan_type.toLowerCase()) || cd.loan_type.toLowerCase().includes(ltSelect.options[i].value.toLowerCase())) {
+              ltSelect.selectedIndex = i;
+              break;
+            }
+          }
+        }
+        if (cd.loan_amount && document.getElementById("ncLoanAmount")) {
+          document.getElementById("ncLoanAmount").value = cd.loan_amount;
+        }
+        if (cd.co_applicant_name && document.getElementById("ncCoApplicantName")) {
+          document.getElementById("ncCoApplicantName").value = cd.co_applicant_name;
+        }
+        if (cd.co_applicant_contact && document.getElementById("ncCoApplicantPhone")) {
+          document.getElementById("ncCoApplicantPhone").value = cd.co_applicant_contact;
+        }
+        if (cd.co_applicant_address && document.getElementById("ncCoApplicantAddress")) {
+          document.getElementById("ncCoApplicantAddress").value = cd.co_applicant_address;
+        }
+
+        if (statusEl) {
+          statusEl.innerHTML = `<span class="material-symbols-outlined text-[15px]">check_circle</span> <span>Extracted: <b>${cd.applicant_name || 'Applicant'}</b> • ${cd.bank_name || ''}</span>`;
+          statusEl.classList.remove("hidden");
+        }
+
+        alert(`[✓] Google Form PDF extracted successfully!\n\n• Applicant: ${cd.applicant_name || 'N/A'}\n• Phone: ${cd.contact_number || 'N/A'}\n• Bank: ${cd.bank_name || 'N/A'}\n• Loan: ${cd.loan_type || 'N/A'} - ₹${cd.loan_amount || 'N/A'}\n• Property: ${cd.address_visited || 'N/A'}\n\nCase details have been auto-populated in the modal!`);
+      } catch (err) {
+        console.error("Modal field form PDF error:", err);
+        alert("Error reading Google Form PDF: " + err.message);
+      } finally {
+        if (progress) progress.classList.add("hidden");
+      }
+    }
+
+    // ==========================================
     // BANK DOCUMENTS FOLDER INGESTION & AI SCANNER
     // ==========================================
     function triggerAiFolderIngest() {
@@ -5257,6 +5472,11 @@
     function closeNewCaseModal() {
       const modal = document.getElementById("newCaseModal");
       if (modal) modal.classList.add("hidden");
+      modalNcStagedFieldFormData = null;
+      const statusEl = document.getElementById("modalNcFieldFormPdfStatus");
+      if (statusEl) statusEl.classList.add("hidden");
+      const inputEl = document.getElementById("modalNcFieldFormPdfInput");
+      if (inputEl) inputEl.value = "";
     }
 
     function handleNewCaseFolderSelected(files) {
@@ -5702,6 +5922,7 @@
             office_address: officeAddress || undefined,
             target_lat: parseFloat(lat),
             target_lon: parseFloat(lon),
+            field_form_data: modalNcStagedFieldFormData || undefined,
           })
         });
         if (!res.ok) {
