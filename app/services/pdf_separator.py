@@ -963,7 +963,17 @@ def reconcile_case_documents(items: List[Dict[str, Any]], applicant_name: str = 
     applicant["net_salary_monthly"] = [{"month": it.get("pay_month") or it.get("document_period"), "net": it["net_salary_monthly"]} for it in salary]
     applicant["employer_name"] = next((it["employer_name"] for it in applicant_pages if it.get("employer_name")), None)
 
-    bank_pages = sorted((it for it in items if it.get("doc_type") == "BANK_STATEMENT"), key=lambda it: it.get("page_number") or 0)
+    # Bank statements are frequently filed under a business/firm name (e.g. a proprietorship's
+    # own account) rather than the applicant's personal name, so the per-document relationship
+    # classifier sometimes tags them DIFFERENT_PERSON even when they are genuinely the
+    # applicant's own (confirmed live: "Mahavir Jewellers" - the applicant's own firm). Prefer an
+    # explicitly SELF/untagged statement when one exists, but still fall back to a
+    # DIFFERENT_PERSON-tagged one rather than silently dropping real on-file data - matches
+    # pdf_generator.py's identical bank-statement resolution.
+    bank_pages = sorted(
+        (it for it in items if it.get("doc_type") == "BANK_STATEMENT"),
+        key=lambda it: (0 if it.get("relationship_to_applicant") in (None, "SELF") else 1, it.get("page_number") or 0),
+    )
     if bank_pages:
         applicant["bank_account"] = {
             "bank_name": next((p["bank_name"] for p in bank_pages if p.get("bank_name")), None),
