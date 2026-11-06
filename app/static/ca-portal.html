@@ -1743,13 +1743,13 @@
           <p class="text-[11px] text-amber-900/80 leading-relaxed">
             Upload the field visit Google Form PDF (exported from Google Forms). Gemini AI extracts applicant info, contact, addresses, bank, branch, loan details & the full survey questionnaire to automatically populate this form.
           </p>
-          <div class="flex items-center gap-2 pt-0.5 flex-wrap">
-            <input type="file" id="tabNcFieldFormPdfInput" accept=".pdf" class="hidden" onchange="handleIntakeFieldFormPdfSelected(this.files)"/>
-            <button type="button" onclick="document.getElementById('tabNcFieldFormPdfInput').click()" class="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-headline text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all active:scale-95">
+          <div class="flex items-center gap-2 pt-1 flex-wrap">
+            <input type="file" id="tabNcFieldFormPdfInput" accept=".pdf" style="display: none !important;" onchange="handleIntakeFieldFormPdfSelected(this.files)"/>
+            <button type="button" onclick="document.getElementById('tabNcFieldFormPdfInput').click()" class="px-3.5 py-2 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-headline text-xs font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer">
               <span class="material-symbols-outlined text-[16px]">upload_file</span>
               <span>📋 Upload Field Visit Google Form PDF...</span>
             </button>
-            <span id="tabNcFieldFormPdfStatus" class="hidden text-xs font-mono font-bold text-emerald-700 flex items-center gap-1">
+            <span id="tabNcFieldFormPdfStatus" class="hidden text-xs font-mono font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded border border-emerald-300">
               <span class="material-symbols-outlined text-[15px]">check_circle</span>
               <span>Extracted & Ready</span>
             </span>
@@ -2299,7 +2299,7 @@
     </div>
   </div>
 
-  <script src="/static/ca-portal.js?v=17"></script>
+  <script src="/static/ca-portal.js?v=21"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
@@ -2956,13 +2956,13 @@
           <p class="text-[11px] text-amber-900/80 leading-relaxed">
             Upload the field visit Google Form PDF export. Gemini AI will auto-fill all case details below and attach the full field questionnaire.
           </p>
-          <div class="flex items-center gap-2 pt-0.5 flex-wrap">
-            <input type="file" id="modalNcFieldFormPdfInput" accept=".pdf" class="hidden" onchange="handleModalFieldFormPdfSelected(this.files)"/>
-            <button type="button" onclick="document.getElementById('modalNcFieldFormPdfInput').click()" class="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-headline text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all active:scale-95">
+          <div class="flex items-center gap-2 pt-1 flex-wrap">
+            <input type="file" id="modalNcFieldFormPdfInput" accept=".pdf" style="display: none !important;" onchange="handleModalFieldFormPdfSelected(this.files)"/>
+            <button type="button" onclick="document.getElementById('modalNcFieldFormPdfInput').click()" class="px-3.5 py-2 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-headline text-xs font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer">
               <span class="material-symbols-outlined text-[16px]">upload_file</span>
               <span>📋 Upload Field Visit Google Form PDF...</span>
             </button>
-            <span id="modalNcFieldFormPdfStatus" class="hidden text-xs font-mono font-bold text-emerald-700 flex items-center gap-1">
+            <span id="modalNcFieldFormPdfStatus" class="hidden text-xs font-mono font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded border border-emerald-300">
               <span class="material-symbols-outlined text-[15px]">check_circle</span>
               <span>Extracted & Ready</span>
             </span>

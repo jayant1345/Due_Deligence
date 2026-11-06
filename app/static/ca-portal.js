@@ -404,8 +404,6 @@
 
       for (let i = 1; i <= 4; i++) {
         const p = photoList[i - 1];
-        if (!p) continue;
-
         const img = document.getElementById(`imgPhoto${i}`);
         const title = document.getElementById(`titlePhoto${i}`);
         const tag = document.getElementById(`tagPhoto${i}`);
@@ -413,6 +411,21 @@
         const badge = document.getElementById(`badgePhoto${i}`);
         const status = document.getElementById(`statusPhoto${i}`);
         const reportToggle = document.getElementById(`reportTogglePhoto${i}`);
+
+        if (!p) {
+          if (img) img.src = "/static/placeholders/photo_pending.svg";
+          if (title) title.textContent = `Photo Slot ${i}`;
+          if (tag) tag.textContent = "AWAITING FIELD VISIT";
+          if (ts) ts.textContent = "—";
+          if (badge) badge.textContent = "PENDING";
+          if (status) status.textContent = "PENDING";
+          if (reportToggle) {
+            reportToggle.disabled = true;
+            reportToggle.checked = false;
+            reportToggle.dataset.docId = "";
+          }
+          continue;
+        }
 
         if (img) {
           img.onerror = function() {
@@ -1198,9 +1211,12 @@
           }
         }
 
-        // If no documents from server and no local cache, keep current photos
+        // If no documents from server and no local cache, ensure photo slots display clean placeholders
         const hasAnyUploaded = Object.values(slotMap).some(Boolean);
-        if (!hasAnyUploaded && (!docs || docs.length === 0)) return;
+        if (!hasAnyUploaded && (!docs || docs.length === 0)) {
+          renderPhotosForActiveFolder();
+          return;
+        }
 
         // Default specimens to fall back on if slot is empty
         const defaultSpecimens = {
@@ -1728,7 +1744,17 @@
       // A genuine switch to a different case (not just re-rendering the same case after an
       // ingest) must drop any "NEW" badges from the previous case - they'd otherwise mislabel
       // that other case's long-standing documents as just-added.
-      if (activeCaseId && activeCaseId !== caseId) lastIngestedDocIds = new Set();
+      if (activeCaseId && activeCaseId !== caseId) {
+        lastIngestedDocIds = new Set();
+        activeSeparatedDocs = [];
+        selectedSeparatedDocIds.clear();
+        viewerDocList = [];
+        viewerCurrentIndex = 0;
+        const tray = document.getElementById("pdfSeparatedPagesTray");
+        if (tray) tray.classList.add("hidden");
+        const list = document.getElementById("pdfSeparatedPagesList");
+        if (list) list.innerHTML = "";
+      }
 
       activeCaseId = caseId;
 
@@ -1994,8 +2020,17 @@
             onCaseSelected(caseId, { skipRemoteLoad: true });
             bindSeparatedPagesToCards();
           } else {
+            activeSeparatedDocs = [];
+            selectedSeparatedDocIds.clear();
+            viewerDocList = [];
+            viewerCurrentIndex = 0;
             const tray = document.getElementById("pdfSeparatedPagesTray");
             if (tray) tray.classList.add("hidden");
+            const list = document.getElementById("pdfSeparatedPagesList");
+            if (list) list.innerHTML = "";
+            const countBadge = document.getElementById("pdfSeparatedPagesCountBadge");
+            if (countBadge) countBadge.textContent = "0 Pages";
+            if (typeof updateSeparatedDocSelectionCounter === "function") updateSeparatedDocSelectionCounter();
           }
         }
       } catch (e) {
@@ -4814,25 +4849,19 @@
         } else {
           // Case creation failed, most commonly because this case_no is already taken.
           // It's only safe to silently reuse an existing case's id here if it's genuinely
-          // THIS SAME submission retried (e.g. the first POST actually succeeded server-side
-          // but the response was lost to a network hiccup) - confirmed by the applicant name
-          // also matching, not just the case_no. Matching on case_no alone was catastrophic:
-          // confirmed live, a brand new case for a different applicant ("Solanki Nitesh
-          // Mayurkumar") silently adopted a pre-existing, unrelated case's id ("Vikramkumar
-          // Himmatlal Jain", same auto-suggested case_no "UBI-VL-2026-1" from an unrelated
-          // branch) - every subsequent step (document uploads, AI-extracted field writes) then
-          // overwrote that other applicant's real case record in place, permanently mixing the
-          // two applicants' data under one case. A genuine case_no collision with a DIFFERENT
-          // applicant must surface as a real error so the CA can pick another number, not be
-          // silently treated as "this must be my own case".
-          const allRes = await fetch("/api/v1/cases", { headers: headers });
-          if (allRes.ok) {
-            const existingCases = await allRes.json();
-            const found = existingCases.find(c =>
-              c.case_no.toUpperCase() === caseNo.toUpperCase() &&
-              (c.applicant_name || "").trim().toLowerCase() === (applicantName || "").trim().toLowerCase()
-            );
-            if (found) newCaseId = found.id;
+          // THIS SAME submission retried - confirmed by a REAL applicant name (never the
+          // default "Pending AI Identification" placeholder) also matching exactly.
+          const isRealTypedApplicant = applicantName && applicantName.trim() !== "" && applicantName.trim() !== "Pending AI Identification";
+          if (isRealTypedApplicant) {
+            const allRes = await fetch("/api/v1/cases", { headers: headers });
+            if (allRes.ok) {
+              const existingCases = await allRes.json();
+              const found = existingCases.find(c =>
+                c.case_no.toUpperCase() === caseNo.toUpperCase() &&
+                (c.applicant_name || "").trim().toLowerCase() === applicantName.trim().toLowerCase()
+              );
+              if (found) newCaseId = found.id;
+            }
           }
         }
       } catch (err) {
@@ -5330,6 +5359,8 @@
         if (progress) progress.classList.add("hidden");
       }
     }
+    window.handleIntakeFieldFormPdfSelected = handleIntakeFieldFormPdfSelected;
+    window.handleModalFieldFormPdfSelected = handleModalFieldFormPdfSelected;
 
     async function handleModalFieldFormPdfSelected(files) {
       if (!files || files.length === 0) return;
@@ -5425,6 +5456,8 @@
         if (progress) progress.classList.add("hidden");
       }
     }
+    window.handleIntakeFieldFormPdfSelected = handleIntakeFieldFormPdfSelected;
+    window.handleModalFieldFormPdfSelected = handleModalFieldFormPdfSelected;
 
     // ==========================================
     // BANK DOCUMENTS FOLDER INGESTION & AI SCANNER

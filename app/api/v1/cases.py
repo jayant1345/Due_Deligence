@@ -20,7 +20,7 @@ from app.services.pdf_separator import (
 )
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.deps import get_current_user, get_current_ca_user, require_role
+from app.api.deps import get_current_user, get_current_ca_user, get_optional_current_user, require_role
 from app.api.v1.auth import login_aliases
 from app.core.config import settings
 from app.core.database import get_db
@@ -188,7 +188,7 @@ async def create_case(
 async def extract_field_form_pdf_endpoint(
     file: UploadFile = File(...),
     applicant_name: Optional[str] = Form(None),
-    current_user: User = Depends(get_current_ca_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ) -> Dict[str, Any]:
     """
     Extract a backlog field visit questionnaire (Google Form exported to PDF) at case creation time.
