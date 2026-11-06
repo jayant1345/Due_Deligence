@@ -235,6 +235,10 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
         office_met_relation = None
     if office_met_name and not office_met_relation and name and (_name_score(office_met_name, name) or 0) >= 85:
         office_met_relation = "Self"
+    # Same reasoning as residence: no need to make the agent write down a phone number that's
+    # already on file as this person's own contact.
+    if office_met_relation == "Self" and not office_met_contact:
+        office_met_contact = contact
 
     sal = _salutation(gender, marital)
     display = f"{sal} {_title(name)}".strip() if name else ""
@@ -489,6 +493,14 @@ async def assemble_cpv_report_data(
         fam_match = next((m for m in family if m.get("name") and (_name_score(met_name, m["name"]) or 0) >= 80), None)
         if fam_match and fam_match.get("relation"):
             met_relation = fam_match["relation"]
+    # Same reasoning as Owner Name above: the applicant themselves answering their own door has
+    # no natural "(Self)" to type either.
+    if met_name and not met_relation and applicant_name and (_name_score(met_name, applicant_name) or 0) >= 85:
+        met_relation = "Self"
+    # The agent didn't need to write down a phone number for someone whose contact is already
+    # on file as the applicant's own - fall back to it instead of showing NA next to "Self".
+    if met_relation == "Self" and not met_contact:
+        met_contact = loan_case.applicant_phone or form.get("contact_number") or None
 
     residence = {
         "verified_address": target_address if visited else None,
