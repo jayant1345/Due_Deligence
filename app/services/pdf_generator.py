@@ -23,6 +23,7 @@ from reportlab.platypus import (
 )
 from app.core.config import settings
 from app.services.applicant_slots import home_group_for_slot, parse_home_sharing
+from app.services.pdf_separator import _name_score
 
 
 def is_valid_image(path: Optional[str]) -> bool:
@@ -658,6 +659,11 @@ def generate_certified_cpv_report(
     else:
         res_owner = res_owner_raw.strip() or NOT_CAPTURED
         res_rel = NOT_CAPTURED
+    # When the applicant owns the property themselves, there's no natural way to type a
+    # "(Self)" relation suffix in the Owner Name box - the owner name IS the applicant's own
+    # name. Detect that match instead of leaving a confusing NA next to the applicant's own name.
+    if res_owner != NOT_CAPTURED and res_rel == NOT_CAPTURED and applicant_name != NOT_CAPTURED and (_name_score(res_owner, applicant_name) or 0) >= 85:
+        res_rel = "Self"
     res_met = (field_form.get("person_met") if isinstance(field_form, dict) else None) or NOT_CAPTURED
 
     neighbour_1 = field_form.get("neighbour_1") if isinstance(field_form, dict) else None

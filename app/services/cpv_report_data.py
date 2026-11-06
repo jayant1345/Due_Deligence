@@ -214,6 +214,10 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     else:
         office_premises_owner = premises_owner_raw.strip() or None
         office_owner_relation = None
+    # Same reasoning as residence's Owner Name: this person owning their own business premises
+    # has no natural "(Self)" to type - detect the name match instead of leaving NA.
+    if office_premises_owner and not office_owner_relation and name and (_name_score(office_premises_owner, name) or 0) >= 85:
+        office_owner_relation = "Self"
 
     sal = _salutation(gender, marital)
     display = f"{sal} {_title(name)}".strip() if name else ""
@@ -430,6 +434,11 @@ async def assemble_cpv_report_data(
     else:
         res_owner_name = owner_raw.strip() or None
         res_owner_relation = None
+    # When the applicant owns the property themselves, there's no natural way to type a
+    # "(Self)" relation suffix in the Owner Name box - the owner name IS the applicant's own
+    # name. Detect that match instead of leaving a confusing NA next to the applicant's own name.
+    if res_owner_name and not res_owner_relation and applicant_name and (_name_score(res_owner_name, applicant_name) or 0) >= 85:
+        res_owner_relation = "Self"
 
     # "Who did you meet" is suggested to the field agent as "Name - Phone (Relation)" (e.g.
     # "Rajesh Patel - 9876543210 (Husband)") but was only ever stored/shown as one raw string -
