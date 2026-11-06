@@ -428,6 +428,14 @@ async def assemble_cpv_report_data(
         "owner_name": res_owner_name,
         "owner_relation": res_owner_relation,
         "nameboard": form.get("nameboard_visible") or None,
+        # Nature of Building / General Appearance / Locality / Surroundings / Evidence supporting
+        # proof are now real fields in the PWA field-visit form (added per CA office request so
+        # every field in the report has an actual capture source instead of always being NA).
+        "nature": form.get("building_nature") or None,
+        "appearance": form.get("general_appearance") or None,
+        "locality": form.get("locality") or None,
+        "surroundings": form.get("surroundings") or None,
+        "evidence": form.get("residence_evidence_obtained") or None,
         "assets": form.get("assets_observed") or None,
         "met": {"name": form.get("person_met") or None},
     }

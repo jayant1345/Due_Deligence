@@ -381,6 +381,24 @@
       labelEl.classList.add("bg-blue-50", "border-blue-300", "text-primary-container", "font-bold");
     }
 
+    // Shared Yes/No "pill" toggle styling for radio groups like pwaNameBoardRadio and
+    // pwaResEvidenceRadio - the two <label> wrappers' highlighted/plain classes were purely
+    // static in the HTML (matching whichever option happened to be marked "checked" at page
+    // load), so clicking the other option changed which radio was actually checked but never
+    // updated which label looked selected. Called on every change so the visible state always
+    // matches the real one.
+    function syncPillRadioStyle(groupName) {
+      document.querySelectorAll(`input[name="${groupName}"]`).forEach(input => {
+        const label = input.closest("label");
+        if (!label) return;
+        if (input.checked) {
+          label.className = "flex-1 py-1.5 px-2 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-bold text-center cursor-pointer text-xs";
+        } else {
+          label.className = "flex-1 py-1.5 px-2 rounded-lg bg-white border border-outline-variant text-on-surface text-center cursor-pointer text-xs";
+        }
+      });
+    }
+
     // Toggle Occupation UI between Employed/Teacher/Business and Housewife
     function handleOccupationChange(occ) {
       const noticeWork = document.getElementById("officeVerificationNotice");
@@ -2045,6 +2063,12 @@
       // reached the server at all, let alone the report.
       const nameboardRadio = document.querySelector('input[name="pwaNameBoardRadio"]:checked');
       const nameboardVisible = nameboardRadio ? nameboardRadio.value : "";
+      const buildingNature = document.getElementById("formBuildingNature") ? document.getElementById("formBuildingNature").value.trim() : "";
+      const generalAppearance = document.getElementById("formGeneralAppearance") ? document.getElementById("formGeneralAppearance").value.trim() : "";
+      const resLocality = document.getElementById("formLocality") ? document.getElementById("formLocality").value.trim() : "";
+      const resSurroundings = document.getElementById("formSurroundings") ? document.getElementById("formSurroundings").value.trim() : "";
+      const resEvidenceRadio = document.querySelector('input[name="pwaResEvidenceRadio"]:checked');
+      const resEvidence = resEvidenceRadio ? resEvidenceRadio.value : "";
 
       const payload = {
         executive: exec,
@@ -2067,6 +2091,11 @@
         person_met: personMet,
         assets_observed: assetsObserved,
         nameboard_visible: nameboardVisible,
+        building_nature: buildingNature,
+        general_appearance: generalAppearance,
+        locality: resLocality,
+        surroundings: resSurroundings,
+        residence_evidence_obtained: resEvidence,
         occupation: occupation,
         itr_acknowledgement_no: itrAckNo,
         itr_filing_date: itrFilingDate,
@@ -2131,6 +2160,12 @@
           itr_filing_date: itrFilingDate,
           bank_account_status: bankAccountStatus,
           bank_account_status_co: bankAccountStatusCo,
+          nameboard_visible: nameboardVisible,
+          building_nature: buildingNature,
+          general_appearance: generalAppearance,
+          locality: resLocality,
+          surroundings: resSurroundings,
+          residence_evidence_obtained: resEvidence,
         },
       };
 
@@ -2325,6 +2360,20 @@
       if (fRefs) fRefs.value = (c.neighbors || []).join(", ");
       const fLandmark = document.getElementById("formLandmark");
       if (fLandmark) fLandmark.value = c.landmark || "";
+      const fNameboardRadio = document.querySelector(`input[name="pwaNameBoardRadio"][value="${c.nameboard_visible || "No"}"]`);
+      if (fNameboardRadio) fNameboardRadio.checked = true;
+      syncPillRadioStyle("pwaNameBoardRadio");
+      const fBuildingNature = document.getElementById("formBuildingNature");
+      if (fBuildingNature) fBuildingNature.value = c.building_nature || "";
+      const fGeneralAppearance = document.getElementById("formGeneralAppearance");
+      if (fGeneralAppearance) fGeneralAppearance.value = c.general_appearance || "";
+      const fLocality = document.getElementById("formLocality");
+      if (fLocality) fLocality.value = c.locality || "";
+      const fSurroundings = document.getElementById("formSurroundings");
+      if (fSurroundings) fSurroundings.value = c.surroundings || "";
+      const fResEvidenceRadio = document.querySelector(`input[name="pwaResEvidenceRadio"][value="${c.residence_evidence_obtained || "No"}"]`);
+      if (fResEvidenceRadio) fResEvidenceRadio.checked = true;
+      syncPillRadioStyle("pwaResEvidenceRadio");
 
       // Update dynamic family members
       if (c.family_members && Array.isArray(c.family_members)) {
@@ -2899,6 +2948,12 @@
           if (r.itr_filing_date !== undefined) restorePatch.itr_filing_date = r.itr_filing_date;
           if (r.bank_account_status !== undefined) restorePatch.bank_account_status = r.bank_account_status;
           if (r.bank_account_status_co !== undefined) restorePatch.bank_account_status_co = r.bank_account_status_co;
+          if (r.nameboard_visible !== undefined) restorePatch.nameboard_visible = r.nameboard_visible;
+          if (r.building_nature !== undefined) restorePatch.building_nature = r.building_nature;
+          if (r.general_appearance !== undefined) restorePatch.general_appearance = r.general_appearance;
+          if (r.locality !== undefined) restorePatch.locality = r.locality;
+          if (r.surroundings !== undefined) restorePatch.surroundings = r.surroundings;
+          if (r.residence_evidence_obtained !== undefined) restorePatch.residence_evidence_obtained = r.residence_evidence_obtained;
 
           const mergedCase = Object.assign({}, caseRegistryPwa[key] || {}, {
             id: target.id,

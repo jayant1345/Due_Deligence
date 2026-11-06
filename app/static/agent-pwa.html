@@ -671,11 +671,11 @@
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Name board Visibility (નામ બોર્ડ લખેલું છે?)*</label>
             <div class="flex gap-2">
-              <label class="flex-1 py-1.5 px-2 rounded-lg bg-white border border-outline-variant text-on-surface text-center cursor-pointer text-xs">
-                <input type="radio" name="pwaNameBoardRadio" value="Yes" class="hidden"/> Yes (હા)
+              <label id="pwaNameBoardLabelYes" class="flex-1 py-1.5 px-2 rounded-lg bg-white border border-outline-variant text-on-surface text-center cursor-pointer text-xs">
+                <input type="radio" name="pwaNameBoardRadio" value="Yes" class="hidden" onchange="syncPillRadioStyle('pwaNameBoardRadio')"/> Yes (હા)
               </label>
-              <label class="flex-1 py-1.5 px-2 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-bold text-center cursor-pointer text-xs">
-                <input type="radio" name="pwaNameBoardRadio" value="No" checked class="hidden"/> No (ના - બોર્ડ નથી)
+              <label id="pwaNameBoardLabelNo" class="flex-1 py-1.5 px-2 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-bold text-center cursor-pointer text-xs">
+                <input type="radio" name="pwaNameBoardRadio" value="No" checked class="hidden" onchange="syncPillRadioStyle('pwaNameBoardRadio')"/> No (ના - બોર્ડ નથી)
               </label>
             </div>
           </div>
@@ -726,6 +726,37 @@
           </div>
 
           <input type="hidden" id="formAssetsObserved" value=""/>
+        </div>
+
+        <!-- Property Observations (Nature / Appearance / Locality / Surroundings / Evidence) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Nature of Building (મકાનનો પ્રકાર)</label>
+            <input id="formBuildingNature" value="" placeholder="e.g. Fully Residential, Commercial-cum-Residential" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">General Appearance of Property (મકાનનો દેખાવ)</label>
+            <input id="formGeneralAppearance" value="" placeholder="e.g. Good, Average, Poor" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Locality (વિસ્તાર)</label>
+            <input id="formLocality" value="" placeholder="e.g. Middle Class, Posh, Developing" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Surroundings (આસપાસનો વિસ્તાર)</label>
+            <input id="formSurroundings" value="" placeholder="e.g. Developed, Under Development" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
+          </div>
+          <div class="sm:col-span-2">
+            <label class="font-mono text-[10px] text-outline block mb-1">Evidence Supporting Proof of Residence Obtained & Enclosed (પુરાવો મળ્યો?)</label>
+            <div class="flex gap-2">
+              <label id="pwaResEvidenceLabelYes" class="flex-1 py-1.5 px-2 rounded-lg bg-white border border-outline-variant text-on-surface text-center cursor-pointer text-xs">
+                <input type="radio" name="pwaResEvidenceRadio" value="Yes" class="hidden" onchange="syncPillRadioStyle('pwaResEvidenceRadio')"/> Yes (હા)
+              </label>
+              <label id="pwaResEvidenceLabelNo" class="flex-1 py-1.5 px-2 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-bold text-center cursor-pointer text-xs">
+                <input type="radio" name="pwaResEvidenceRadio" value="No" checked class="hidden" onchange="syncPillRadioStyle('pwaResEvidenceRadio')"/> No (ના)
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2200,7 +2231,7 @@
   </nav>
 
   <!-- Interactive JavaScript Engine -->
-  <script src="/static/agent-pwa.js?v=4"></script>
+  <script src="/static/agent-pwa.js?v=5"></script>
 
   <!-- FIELD AGENT AUTHENTICATION MODAL -->
   <div id="agentLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
