@@ -416,6 +416,23 @@ async def assemble_cpv_report_data(
     else:
         res_owner_name = owner_raw.strip() or None
         res_owner_relation = None
+
+    # "Who did you meet" is suggested to the field agent as "Name - Phone (Relation)" (e.g.
+    # "Rajesh Patel - 9876543210 (Husband)") but was only ever stored/shown as one raw string -
+    # the DOCX template has separate Name/Contact/Relation cells for this (_fill_residence's
+    # met.name/contact/relation) that stayed blank even when the agent typed a relation, because
+    # nothing ever parsed it out. Same regex approach as Owner Name above.
+    met_raw_str = form.get("person_met") or ""
+    _met_match = re.match(r"^\s*([^-()]+?)\s*(?:-\s*([\d\s+]{7,15}))?\s*(?:\(([^)]+)\))?\s*$", met_raw_str)
+    if _met_match:
+        met_name = _met_match.group(1).strip() or None
+        met_contact = (_met_match.group(2) or "").strip() or None
+        met_relation = (_met_match.group(3) or "").strip() or None
+    else:
+        met_name = met_raw_str.strip() or None
+        met_contact = None
+        met_relation = None
+
     residence = {
         "verified_address": target_address if visited else None,
         "aadhaar_address": (summary.get("applicant") or {}).get("residential_address"),
@@ -437,7 +454,7 @@ async def assemble_cpv_report_data(
         "surroundings": form.get("surroundings") or None,
         "evidence": form.get("residence_evidence_obtained") or None,
         "assets": form.get("assets_observed") or None,
-        "met": {"name": form.get("person_met") or None},
+        "met": {"name": met_name, "contact": met_contact, "relation": met_relation},
     }
     family = []
     fm = form.get("family_members")
