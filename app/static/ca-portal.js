@@ -1602,7 +1602,9 @@
         const raw = dc.field_form_data || "";
         const prev = lastSeenFieldFormData[caseId];
         const c = caseRegistry[caseId];
-        if (c) c.field_form_data = raw;
+        if (c && raw) {
+          applyFieldFormDataToEntry(c, raw);
+        }
 
         if (prev === undefined) {
           // First time seeing this case this session - record the baseline silently, don't
@@ -4917,6 +4919,9 @@
         benchmark_lon: "72.5350",
         status: "DRAFT"
       });
+      if (tabNcStagedFieldFormData) {
+        applyFieldFormDataToEntry(caseRegistry[newCaseId], tabNcStagedFieldFormData);
+      }
       caseRegistry[caseNo] = caseRegistry[newCaseId];
 
       // Update selector
@@ -5228,7 +5233,7 @@
           if (statusPercent) statusPercent.textContent = "100%";
           if (progressBar) progressBar.style.width = "100%";
           if (statusText) statusText.textContent = "✓ Field visit form extracted and saved!";
-          c.field_form_data = JSON.stringify(data.field_form_data);
+          applyFieldFormDataToEntry(c, data.field_form_data);
           onCaseSelected(activeCaseId);
           alert(`[✓] Field visit form imported for ${c.applicant_name}.\n\nOpen this case in the Field Agent PWA (or just generate the report) to review what AI extracted before certifying - it can occasionally misread handwriting or a checkbox.`);
           setTimeout(() => { if (statusBox) statusBox.classList.add("hidden"); }, 2000);
@@ -5750,6 +5755,27 @@
       };
     }
 
+    function applyFieldFormDataToEntry(c, rawFieldFormData) {
+      if (!c || !rawFieldFormData) return;
+      c.field_form_data = typeof rawFieldFormData === "string" ? rawFieldFormData : JSON.stringify(rawFieldFormData);
+      try {
+        const ffd = typeof rawFieldFormData === "string" ? JSON.parse(rawFieldFormData) : rawFieldFormData;
+        if (!ffd || typeof ffd !== "object") return;
+        if (ffd.period_of_stay) c.stay_period = ffd.period_of_stay;
+        if (ffd.ownership) {
+          c.ownership = ffd.owner_name ? `${ffd.ownership} (${ffd.owner_name})` : ffd.ownership;
+        }
+        if (ffd.person_met) c.person_met = ffd.person_met;
+        const nList = [];
+        if (ffd.neighbour_1) nList.push(`1. ${ffd.neighbour_1}`);
+        if (ffd.neighbour_2) nList.push(`2. ${ffd.neighbour_2}`);
+        if (nList.length > 0) c.neighbors = nList;
+        if (ffd.executive && (!c.agent || c.agent === "Not yet allotted")) {
+          c.agent = `${ffd.executive} (Field Team)`;
+        }
+      } catch (e) {}
+    }
+
     // Resolve a case's real assigned_agent_id (a UUID) to the actual registered field agent's
     // name via /api/v1/agents. Returns null (never a guessed/placeholder name) when the agent
     // list hasn't loaded yet or the id doesn't match anyone - callers must leave the existing
@@ -5853,6 +5879,7 @@
             if (dc.applicant_3_address !== undefined) caseRegistry[dc.id].applicant_3_address = dc.applicant_3_address;
             if (dc.applicant_4_address !== undefined) caseRegistry[dc.id].applicant_4_address = dc.applicant_4_address;
             if (dc.applicant_5_address !== undefined) caseRegistry[dc.id].applicant_5_address = dc.applicant_5_address;
+            if (dc.field_form_data) applyFieldFormDataToEntry(caseRegistry[dc.id], dc.field_form_data);
           }
           if (dc.case_no) {
             caseRegistry[dc.case_no] = caseRegistry[dc.id];
@@ -6001,6 +6028,12 @@
         benchmark_lat: lat,
         benchmark_lon: lon,
       });
+      if (modalNcStagedFieldFormData) {
+        applyFieldFormDataToEntry(caseRegistry[newCaseId], modalNcStagedFieldFormData);
+      }
+      if (caseNo) {
+        caseRegistry[caseNo] = caseRegistry[newCaseId];
+      }
 
       const selector = document.getElementById("caseSelectorSelect");
       if (selector) {
