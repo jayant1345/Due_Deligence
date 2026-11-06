@@ -516,6 +516,7 @@ def generate_certified_cpv_report(
 
     def _build_itr_rows(co_applicant: bool):
         rows = {}
+        cand_ods = []
         for d in document_items:
             if not _is_itr_income_doc(d):
                 continue
@@ -523,21 +524,21 @@ def generate_certified_cpv_report(
             is_co_doc = od.get("relationship_to_applicant") == "DIFFERENT_PERSON"
             if co_applicant != is_co_doc:
                 continue
-            # A document with no cleanly-extracted A.Y. must still print its income, not
-            # vanish from the table - fall back to the raw scanned period text (e.g. a Form 16
-            # that only states "FY 2024-25" in a format _ay_of()/_short_ay() can't parse)
-            # rather than dropping the whole row.
-            ay = _ay_of(od) or od.get("document_period") or od.get("assessment_year") or NOT_CAPTURED
-            row = rows.setdefault(ay, {"ay": ay, "income": None, "ack_no": None, "filed_on": None})
-            # annual_taxable_income is only ever populated by Gemini for an ITR Acknowledgement
-            # or Computation of Income page (see pdf_separator.py's extraction schema) - a Form
-            # 16 states the figure as annual_gross_salary instead. Without this fallback, a
-            # Form-16-only case (no ITR Acknowledgement on record) always printed "total income
-            # not on record" even though the Form 16 itself states the income.
+            cand_ods.append(od)
+        known_ays = [_ay_of(od) for od in cand_ods if _ay_of(od)]
+        default_ay = known_ays[0] if len(set(known_ays)) == 1 else None
+        for od in cand_ods:
+            ay = _ay_of(od) or default_ay
             income_val = od.get("annual_taxable_income") or od.get("annual_gross_salary")
+            ack_val = od.get("itr_acknowledgement_number")
+            dt_val = od.get("document_date")
+            if not ay and not income_val and not ack_val:
+                continue
+            ay = ay or NOT_CAPTURED
+            row = rows.setdefault(ay, {"ay": ay, "income": None, "ack_no": None, "filed_on": None})
             row["income"] = row["income"] or _inr(income_val)
-            row["ack_no"] = row["ack_no"] or od.get("itr_acknowledgement_number")
-            row["filed_on"] = row["filed_on"] or od.get("document_date")
+            row["ack_no"] = row["ack_no"] or ack_val
+            row["filed_on"] = row["filed_on"] or dt_val
         return rows
 
     form16_rows = _build_itr_rows(co_applicant=False)

@@ -84,19 +84,30 @@ def _inr(amount: Optional[str]) -> Optional[str]:
 def _short_ay(ay: Optional[str]) -> Optional[str]:
     if not ay:
         return None
-    m = re.search(r"(20\d{2})\s*[-–/]\s*(20)?(\d{2})", ay)
-    return f"{m.group(1)}-{m.group(3)}" if m else ay
+    m = re.search(r"\b(?:20)?(\d{2})\s*[-–/]\s*(?:20)?(\d{2})\b", str(ay))
+    if m:
+        y1, y2 = int(m.group(1)), int(m.group(2))
+        if 15 <= y1 <= 40 and y2 == (y1 + 1) % 100:
+            return f"20{y1:02d}-{y2:02d}"
+    return ay
 
 
 def _ay_of(page: Dict[str, Any]) -> Optional[str]:
-    """Assessment year of a Form 16 page; Part B often states only the financial year (AY = FY + 1)."""
+    """Assessment year of a Form 16 / ITR / Computation page; Part B often states only the financial year (AY = FY + 1)."""
+    for candidate in (page.get("assessment_year"), page.get("document_period"), page.get("document_title")):
+        if not candidate:
+            continue
+        m_ay = re.search(r"A\.?\s*Y\.?[^0-9]*(?:20)?(\d{2})\s*[-–/]\s*(?:20)?(\d{2})", str(candidate), re.I)
+        if m_ay:
+            y1, y2 = int(m_ay.group(1)), int(m_ay.group(2))
+            return f"20{y1:02d}-{y2:02d}"
     if page.get("assessment_year"):
         return _short_ay(page["assessment_year"])
     text = " ".join(filter(None, [page.get("document_period"), page.get("document_title")]))
-    m = re.search(r"F\.?\s*Y\.?[^0-9]*(20\d{2})\s*[-–/]\s*(?:20)?(\d{2})", text, re.I)
+    m = re.search(r"F\.?\s*Y\.?[^0-9]*(?:20)?(\d{2})\s*[-–/]\s*(?:20)?(\d{2})", text, re.I)
     if m:
-        return f"{int(m.group(1)) + 1}-{int(m.group(2)) + 1:02d}"
-    return None
+        return f"20{int(m.group(1)) + 1:02d}-{int(m.group(2)) + 1:02d}"
+    return _short_ay(page.get("document_period"))
 
 
 def _age(dob: Optional[str], on: date) -> Optional[str]:
@@ -181,18 +192,23 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     # COMPUTATION_OF_INCOME (the final taxable income figure), scanned as their own doc types.
     ITR_INCOME_DOC_TYPES = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME"}
     itr: Dict[str, Dict[str, Any]] = {}
-    for p in sorted((p for p in pages if p.get("doc_type") in ITR_INCOME_DOC_TYPES), key=lambda p: p.get("page_number") or 0):
-        # A document with no cleanly-extracted A.Y. must still print its income, not vanish
-        # from the table - fall back to the raw scanned period text rather than dropping it.
-        ay = _ay_of(p) or p.get("document_period") or p.get("assessment_year") or "NA"
+    itr_pages = sorted((p for p in pages if p.get("doc_type") in ITR_INCOME_DOC_TYPES), key=lambda p: p.get("page_number") or 0)
+    known_ays = [_ay_of(p) for p in itr_pages if _ay_of(p)]
+    default_ay = known_ays[0] if len(set(known_ays)) == 1 else None
+    for p in itr_pages:
+        ay = _ay_of(p) or default_ay
+        inc_val = _inr(p.get("annual_taxable_income") or p.get("annual_gross_salary"))
+        ack_val = p.get("itr_acknowledgement_number")
+        dt_val = p.get("document_date")
+        if not ay and not inc_val and not ack_val:
+            # Continuation/schedule page with no A.Y., no total income, and no ack number
+            continue
+        ay = ay or "NA"
         row = itr.setdefault(ay, {"ay": ay, "ack_no": None, "filed_on": None, "total_income": None,
                                   "status": "Income Tax Return provided (total income not on record)"})
-        # annual_taxable_income is only ever populated by Gemini for an ITR Acknowledgement or
-        # Computation of Income page - a Form 16 states the figure as annual_gross_salary
-        # instead. Without this fallback, a Form-16-only case always showed no income figure.
-        row["total_income"] = row["total_income"] or _inr(p.get("annual_taxable_income") or p.get("annual_gross_salary"))
-        row["ack_no"] = row["ack_no"] or p.get("itr_acknowledgement_number") or itr_ack_no
-        row["filed_on"] = row["filed_on"] or p.get("document_date") or itr_filing_date
+        row["total_income"] = row["total_income"] or inc_val
+        row["ack_no"] = row["ack_no"] or ack_val or itr_ack_no
+        row["filed_on"] = row["filed_on"] or dt_val or itr_filing_date
         if row["total_income"]:
             row["status"] = "Income Tax Return / Computation of Income Verified"
 
@@ -457,7 +473,11 @@ async def assemble_cpv_report_data(
     if loan_case.assigned_agent_id:
         agent = (await db.execute(select(User).where(User.id == loan_case.assigned_agent_id))).scalar_one_or_none()
 
-    refs = [(form.get("neighbour_1"), "Neighbour"), (form.get("neighbour_2"), "Neighbour")]
+    refs = [
+        (tuple(p.strip() for p in r.split(" - ", 1)) if " - " in str(r) else (str(r).strip(), "Neighbour"))
+        for r in (form.get("neighbour_1"), form.get("neighbour_2"))
+        if r and str(r).strip()
+    ]
     # The PWA's Owner Name field is a single string in the form "(Name) Relation" (e.g.
     # "(Ranjanba Vaghela) Mother in law") - there's no separate relation input. pdf_generator.py
     # already parses this out into owner_name/owner_relation; this used to just hardcode
