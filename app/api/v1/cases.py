@@ -29,7 +29,7 @@ from app.models.document import CaseDocument, DocumentType, VerificationStatus
 from app.models.loan_case import CaseStatus, LoanCase
 from app.models.report import AuditLog
 from app.models.user import User, UserRole
-from app.schemas.loan_case import CaseAssignRequest, CaseCreate, CaseResponse, CaseUpdate
+from app.schemas.loan_case import CaseAssignRequest, CaseCreate, CaseResponse, CaseUpdate, ReassignDocumentsRequest
 from app.services.geocoder import PRECISION_INFO, geocode_address, is_placeholder
 
 router = APIRouter(prefix="/cases", tags=["Case Management & Allocation"])
@@ -241,6 +241,16 @@ async def update_case(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
 
     update_data = req.model_dump(exclude_unset=True)
+    new_case_no = update_data.get("case_no")
+    if new_case_no and new_case_no.strip().upper() != loan_case.case_no.upper():
+        dup = await db.execute(
+            select(LoanCase).where(LoanCase.case_no == new_case_no.strip(), LoanCase.id != loan_case.id)
+        )
+        if dup.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Case number '{new_case_no}' already exists in system.",
+            )
     for field, val in update_data.items():
         setattr(loan_case, field, val)
 
@@ -1462,5 +1472,51 @@ async def delete_case_document(
     await db.commit()
 
     return {"status": "success", "document_id": str(document_id), "message": f"Removed '{removed_title or removed_type}' from the case."}
+
+
+@router.post("/{case_id}/reassign-documents")
+async def reassign_documents_to_case(
+    case_id: str,
+    req: ReassignDocumentsRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.CA_VERIFIER, UserRole.SUPER_ADMIN)),
+):
+    """
+    Data-repair tool: moves specific documents onto this case record. For the rare case where
+    documents ended up attached to the wrong case - e.g. a case_no collision at creation
+    silently merged a brand new applicant's uploads into an unrelated, pre-existing case id,
+    mixing two different people's documents under one case.
+    """
+    loan_case = await resolve_loan_case(db, case_id)
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target case not found")
+
+    result = await db.execute(select(CaseDocument).where(CaseDocument.id.in_(req.document_ids)))
+    docs = result.scalars().all()
+    found_ids = {d.id for d in docs}
+    missing = [str(i) for i in req.document_ids if i not in found_ids]
+
+    source_case_ids = {d.case_id for d in docs if d.case_id != loan_case.id}
+    moved_ids = []
+    for d in docs:
+        if d.case_id != loan_case.id:
+            d.case_id = loan_case.id
+            moved_ids.append(str(d.id))
+
+    db.add(AuditLog(
+        case_id=loan_case.id,
+        user_id=current_user.id,
+        action="DOCUMENTS_REASSIGNED",
+        extra_metadata={"document_ids": moved_ids, "missing_ids": missing},
+    ))
+    await db.commit()
+    await _refresh_case_relationships(db, loan_case)
+    for source_id in source_case_ids:
+        source_case = await db.get(LoanCase, source_id)
+        if source_case:
+            await _refresh_case_relationships(db, source_case)
+    await db.commit()
+
+    return {"status": "success", "moved_count": len(moved_ids), "missing_ids": missing}
 
 

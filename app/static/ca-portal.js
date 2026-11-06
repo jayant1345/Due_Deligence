@@ -4512,17 +4512,23 @@
       return TAB_NC_LOAN_TYPE_CODES[loanType] || "OTH";
     }
 
-    // Finds the next ascending serial for this exact Bank + Branch + Loan Type combination by
-    // scanning every real case already loaded (case-insensitive branch match, same convention
-    // the Branches filter uses) and taking the highest existing trailing number + 1 - not a
+    // Finds the next ascending serial for this Bank + Loan Type combination by scanning every
+    // real case already loaded and taking the highest existing trailing number + 1 - not a
     // random guess, which could collide, skip numbers, or restart from 1 on an already-used
     // combination (exactly what was reported: numbers "not in sequence").
-    function nextTabNcSerial(bankPrefix, loanCode, branch) {
-      const normBranch = (branch || "").trim().toLowerCase();
+    //
+    // Deliberately NOT scoped by branch (it used to be) - the case_no is the one thing that
+    // must be globally unique for this bank+loan-type across every branch, since it's the
+    // public-facing reference number (bank-side correspondence, UDIN, the PWA share link).
+    // Scoping the serial search by branch meant every branch's first vehicle loan case for
+    // Union Bank got "UBI-VL-2026-1" independently - confirmed live: three real, different
+    // cases (Gota, Gurukul, Satellite branches) all ended up named "UBI-VL-2026-1", and the
+    // PWA/report-lookup endpoints that resolve a case by case_no (there being no other public
+    // identifier) started returning/mixing in whichever one of the three happened to match.
+    function nextTabNcSerial(bankPrefix, loanCode) {
       let maxSerial = 0;
       Object.values(caseRegistry).forEach(c => {
         if (!c || !c.case_no) return;
-        if ((c.branch || "").trim().toLowerCase() !== normBranch) return;
         const parts = c.case_no.split("-");
         if (parts.length < 4) return;
         if (parts[0].toUpperCase() !== bankPrefix.toUpperCase()) return;
@@ -4548,11 +4554,10 @@
 
       const bank = document.getElementById("tabNcBankName") ? document.getElementById("tabNcBankName").value : "";
       const prefix = tabNcBankPrefix(bank);
-      const branch = document.getElementById("tabNcBranch") ? document.getElementById("tabNcBranch").value : "";
       const loanType = document.getElementById("tabNcLoanType") ? document.getElementById("tabNcLoanType").value : "Home Loan";
       const loanCode = tabNcLoanTypeCode(loanType);
       const year = new Date().getFullYear();
-      const serial = nextTabNcSerial(prefix, loanCode, branch);
+      const serial = nextTabNcSerial(prefix, loanCode);
 
       if (force) tabNcCaseNoManuallyEdited = false;
       caseNoInput.value = `${prefix}-${loanCode}-${year}-${serial}`;
@@ -4806,12 +4811,26 @@
         } else if (createRes.status === 401) {
           sessionExpired = true;
         } else {
-          // Case creation failed for some other reason - check if the case number
-          // already exists in the DB (a prior attempt may have already created it).
+          // Case creation failed, most commonly because this case_no is already taken.
+          // It's only safe to silently reuse an existing case's id here if it's genuinely
+          // THIS SAME submission retried (e.g. the first POST actually succeeded server-side
+          // but the response was lost to a network hiccup) - confirmed by the applicant name
+          // also matching, not just the case_no. Matching on case_no alone was catastrophic:
+          // confirmed live, a brand new case for a different applicant ("Solanki Nitesh
+          // Mayurkumar") silently adopted a pre-existing, unrelated case's id ("Vikramkumar
+          // Himmatlal Jain", same auto-suggested case_no "UBI-VL-2026-1" from an unrelated
+          // branch) - every subsequent step (document uploads, AI-extracted field writes) then
+          // overwrote that other applicant's real case record in place, permanently mixing the
+          // two applicants' data under one case. A genuine case_no collision with a DIFFERENT
+          // applicant must surface as a real error so the CA can pick another number, not be
+          // silently treated as "this must be my own case".
           const allRes = await fetch("/api/v1/cases", { headers: headers });
           if (allRes.ok) {
             const existingCases = await allRes.json();
-            const found = existingCases.find(c => c.case_no.toUpperCase() === caseNo.toUpperCase());
+            const found = existingCases.find(c =>
+              c.case_no.toUpperCase() === caseNo.toUpperCase() &&
+              (c.applicant_name || "").trim().toLowerCase() === (applicantName || "").trim().toLowerCase()
+            );
             if (found) newCaseId = found.id;
           }
         }

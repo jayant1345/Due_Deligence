@@ -67,6 +67,13 @@ class CaseAssignRequest(BaseModel):
     agent_username: str
 
 
+class ReassignDocumentsRequest(BaseModel):
+    # Data-repair tool: moves specific documents to a different case record - for the rare
+    # case where documents ended up attached to the wrong case (e.g. a case_no collision
+    # silently merged two different applicants' uploads into one case id).
+    document_ids: List[uuid.UUID]
+
+
 class CaseResponse(BaseModel):
     id: uuid.UUID
     case_no: str
