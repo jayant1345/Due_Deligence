@@ -665,6 +665,17 @@ def generate_certified_cpv_report(
     if res_owner != NOT_CAPTURED and res_rel == NOT_CAPTURED and applicant_name != NOT_CAPTURED and (_name_score(res_owner, applicant_name) or 0) >= 85:
         res_rel = "Self"
     res_met = (field_form.get("person_met") if isinstance(field_form, dict) else None) or NOT_CAPTURED
+    # If the agent only typed a bare name (no "(Relation)" suffix) and that name matches someone
+    # already on the Family Members list, show the relation already on file instead of leaving it
+    # out just because it wasn't retyped here too - PDF has no separate relation cell for this
+    # field, so append it the same way the suggested "Name (Relation)" format would have shown it.
+    if res_met != NOT_CAPTURED and "(" not in res_met and isinstance(raw_fam, list):
+        _met_fam_match = next(
+            (m for m in raw_fam if isinstance(m, dict) and m.get("name") and (_name_score(res_met, m["name"]) or 0) >= 80),
+            None,
+        )
+        if _met_fam_match and _met_fam_match.get("relation"):
+            res_met = f"{res_met} ({_met_fam_match['relation']})"
 
     neighbour_1 = field_form.get("neighbour_1") if isinstance(field_form, dict) else None
     neighbour_2 = field_form.get("neighbour_2") if isinstance(field_form, dict) else None

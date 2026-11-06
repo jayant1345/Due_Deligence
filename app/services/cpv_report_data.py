@@ -440,6 +440,16 @@ async def assemble_cpv_report_data(
     if res_owner_name and not res_owner_relation and applicant_name and (_name_score(res_owner_name, applicant_name) or 0) >= 85:
         res_owner_relation = "Self"
 
+    # Family Members is filled in separately (Module 2) and is already a reliable source of
+    # name -> relation - built here, ahead of "Who did you meet" below, so that field can fall
+    # back to it instead of requiring the agent to type the same relation twice.
+    family = []
+    fm = form.get("family_members")
+    if isinstance(fm, list):
+        for m in fm:
+            if isinstance(m, dict):
+                family.append({k: m.get(k) for k in ("name", "relation", "age", "earning")})
+
     # "Who did you meet" is suggested to the field agent as "Name - Phone (Relation)" (e.g.
     # "Rajesh Patel - 9876543210 (Husband)") but was only ever stored/shown as one raw string -
     # the DOCX template has separate Name/Contact/Relation cells for this (_fill_residence's
@@ -455,6 +465,13 @@ async def assemble_cpv_report_data(
         met_name = met_raw_str.strip() or None
         met_contact = None
         met_relation = None
+    # No relation typed (just a bare name, e.g. "Amitaben Jain") - the Family Members list
+    # already has this person's relation on file if they're a family member, so use it instead
+    # of leaving a confusing NA when the relation is genuinely already known.
+    if met_name and not met_relation:
+        fam_match = next((m for m in family if m.get("name") and (_name_score(met_name, m["name"]) or 0) >= 80), None)
+        if fam_match and fam_match.get("relation"):
+            met_relation = fam_match["relation"]
 
     residence = {
         "verified_address": target_address if visited else None,
@@ -479,12 +496,6 @@ async def assemble_cpv_report_data(
         "assets": form.get("assets_observed") or None,
         "met": {"name": met_name, "contact": met_contact, "relation": met_relation},
     }
-    family = []
-    fm = form.get("family_members")
-    if isinstance(fm, list):
-        for m in fm:
-            if isinstance(m, dict):
-                family.append({k: m.get(k) for k in ("name", "relation", "age", "earning")})
 
     # Narrative (summary page) — facts on record only
     a_name = applicant["display_name"] or applicant["name"] or "the applicant"
