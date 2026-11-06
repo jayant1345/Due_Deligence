@@ -1604,6 +1604,22 @@
         const c = caseRegistry[caseId];
         if (c && raw) {
           applyFieldFormDataToEntry(c, raw);
+          if (caseId === activeCaseId) {
+            const dispFieldAgent = document.getElementById("dispFieldAgent");
+            if (dispFieldAgent && c.agent) dispFieldAgent.textContent = c.agent;
+            const selfieName = document.getElementById("dispAgentSelfieName");
+            if (selfieName && c.agent) selfieName.textContent = c.agent;
+            const stayEl = document.getElementById("dispStayPeriod");
+            if (stayEl && c.stay_period) stayEl.textContent = c.stay_period;
+            const ownEl = document.getElementById("dispOwnership");
+            if (ownEl && c.ownership) ownEl.textContent = c.ownership;
+            const metEl = document.getElementById("dispPersonMet");
+            if (metEl && c.person_met) metEl.textContent = c.person_met;
+            const neighEl = document.getElementById("dispNeighbors");
+            if (neighEl && c.neighbors && c.neighbors.length) {
+              neighEl.innerHTML = `<span class="font-bold text-primary-container">Neighbour Corroboration:</span> ${c.neighbors.join(' • ')}`;
+            }
+          }
         }
 
         if (prev === undefined) {
@@ -1742,6 +1758,7 @@
     function onCaseSelected(caseId, opts = {}) {
       const c = caseRegistry[caseId];
       if (!c) return;
+      if (c.field_form_data) applyFieldFormDataToEntry(c, c.field_form_data);
 
       // A genuine switch to a different case (not just re-rendering the same case after an
       // ingest) must drop any "NEW" badges from the previous case - they'd otherwise mislabel
@@ -4652,16 +4669,34 @@
     // cases (Gota, Gurukul, Satellite branches) all ended up named "UBI-VL-2026-1", and the
     // PWA/report-lookup endpoints that resolve a case by case_no (there being no other public
     // identifier) started returning/mixing in whichever one of the three happened to match.
-    function nextTabNcSerial(bankPrefix, loanCode) {
+    function tabNcBranchCode(branch) {
+      if (!branch) return "";
+      const cleaned = String(branch)
+        .replace(/\b(branch|br|city|dist|district|ahmedabad|gandhinagar|gujarat)\b/gi, " ")
+        .replace(/[^A-Za-z0-9]+/g, " ")
+        .trim();
+      if (!cleaned) {
+        const raw = String(branch).replace(/[^A-Za-z0-9]+/g, "").toUpperCase();
+        return raw.slice(0, 12);
+      }
+      return cleaned.split(/\s+/)[0].toUpperCase().slice(0, 12);
+    }
+
+    function nextTabNcSerial(bankPrefix, branchCode, loanCode) {
       let maxSerial = 0;
+      const basePrefix = branchCode
+        ? `${bankPrefix}-${branchCode}-${loanCode}-`.toUpperCase()
+        : `${bankPrefix}-${loanCode}-`.toUpperCase();
       Object.values(caseRegistry).forEach(c => {
-        if (!c || !c.case_no) return;
-        const parts = c.case_no.split("-");
-        if (parts.length < 4) return;
-        if (parts[0].toUpperCase() !== bankPrefix.toUpperCase()) return;
-        if (parts[1].toUpperCase() !== loanCode.toUpperCase()) return;
+        if (!c || !c.case_no || !c.db_id) return;
+        const cn = String(c.case_no).toUpperCase().trim();
+        if (!cn.startsWith(basePrefix)) return;
+        const parts = cn.split("-");
         const n = parseInt(parts[parts.length - 1], 10);
-        if (Number.isFinite(n) && n > maxSerial) maxSerial = n;
+        // Ignore legacy 3-digit random suffixes (> 500 like 928/929) so sequential numbering starts cleanly from 1
+        if (Number.isFinite(n) && n > 0 && n < 500 && n > maxSerial) {
+          maxSerial = n;
+        }
       });
       return maxSerial + 1;
     }
@@ -4671,9 +4706,7 @@
     // tab is freshly opened or the 🎲 Auto button is tapped (an explicit opt back into auto-fill).
     let tabNcCaseNoManuallyEdited = false;
 
-    // force=true (the 🎲 Auto button) always regenerates. Bank/Branch/Loan Type change handlers
-    // call this with no argument, so once the CA has started typing their own case number it's
-    // respected instead of being silently replaced on every keystroke in Branch.
+    // Format: BANK-BRANCH-LOANTYPE-SERIAL (starting from 1), e.g. UBI-GOTA-VL-1
     function autoGenTabCaseNo(force) {
       const caseNoInput = document.getElementById("tabNcCaseNo");
       if (!caseNoInput) return;
@@ -4681,13 +4714,16 @@
 
       const bank = document.getElementById("tabNcBankName") ? document.getElementById("tabNcBankName").value : "";
       const prefix = tabNcBankPrefix(bank);
+      const branch = document.getElementById("tabNcBranch") ? document.getElementById("tabNcBranch").value : "";
+      const branchCode = tabNcBranchCode(branch);
       const loanType = document.getElementById("tabNcLoanType") ? document.getElementById("tabNcLoanType").value : "Home Loan";
       const loanCode = tabNcLoanTypeCode(loanType);
-      const year = new Date().getFullYear();
-      const serial = nextTabNcSerial(prefix, loanCode);
+      const serial = nextTabNcSerial(prefix, branchCode, loanCode);
 
       if (force) tabNcCaseNoManuallyEdited = false;
-      caseNoInput.value = `${prefix}-${loanCode}-${year}-${serial}`;
+      caseNoInput.value = branchCode
+        ? `${prefix}-${branchCode}-${loanCode}-${serial}`
+        : `${prefix}-${loanCode}-${serial}`;
     }
 
     // Kept as the Bank dropdown's onchange target (existing markup) - now just re-runs the full

@@ -192,7 +192,10 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     # COMPUTATION_OF_INCOME (the final taxable income figure), scanned as their own doc types.
     ITR_INCOME_DOC_TYPES = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME"}
     itr: Dict[str, Dict[str, Any]] = {}
-    itr_pages = sorted((p for p in pages if p.get("doc_type") in ITR_INCOME_DOC_TYPES), key=lambda p: p.get("page_number") or 0)
+    itr_pages = sorted(
+        (p for p in pages if p.get("doc_type") in ITR_INCOME_DOC_TYPES),
+        key=lambda p: p.get("page_number") if isinstance(p.get("page_number"), int) else 0,
+    )
     known_ays = [_ay_of(p) for p in itr_pages if _ay_of(p)]
     default_ay = known_ays[0] if len(set(known_ays)) == 1 else None
     for p in itr_pages:

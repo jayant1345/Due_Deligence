@@ -1057,9 +1057,13 @@ def reconcile_case_documents(items: List[Dict[str, Any]], applicant_name: str = 
     applicant["name"] = next((it["holder_name"] for it in applicant_pages if it.get("doc_type") in ("AADHAAR_CARD", "PAN_CARD")), None) \
         or (applicant_pages[0]["holder_name"] if applicant_pages else applicant_name or None)
 
+    def _pg_num(it: Dict[str, Any]) -> int:
+        v = it.get("page_number")
+        return v if isinstance(v, int) else (int(v) if isinstance(v, str) and v.isdigit() else 0)
+
     salary = sorted(
         (it for it in applicant_pages if it.get("doc_type") == "SALARY_SLIP" and it.get("net_salary_monthly")),
-        key=lambda it: it.get("page_number") or 0,
+        key=_pg_num,
     )
     applicant["net_salary_monthly"] = [{"month": it.get("pay_month") or it.get("document_period"), "net": it["net_salary_monthly"]} for it in salary]
     applicant["employer_name"] = next((it["employer_name"] for it in applicant_pages if it.get("employer_name")), None)
@@ -1075,7 +1079,7 @@ def reconcile_case_documents(items: List[Dict[str, Any]], applicant_name: str = 
     # Computation of Income, ITR Acknowledgement, or Salary Slip.
     bank_pages = sorted(
         (it for it in items if it.get("doc_type") == "BANK_STATEMENT"),
-        key=lambda it: (0 if it.get("relationship_to_applicant") in (None, "SELF") else 1, it.get("page_number") or 0),
+        key=lambda it: (0 if it.get("relationship_to_applicant") in (None, "SELF") else 1, _pg_num(it)),
     )
     secondary_bank_pages = [
         it for it in applicant_pages
@@ -1167,7 +1171,7 @@ def classify_and_store_single_image(
     )
     _apply_rotation_if_needed(analysis.get("rotation_needed"), storage_img_path, static_img_path)
     relative_web_url = f"/storage/separated_docs/{case_id}/{img_name}"
-    return _finalize_page_item(analysis, storage_img_path, None, relative_web_url, [storage_img_path, static_img_path])
+    return _finalize_page_item(analysis, None, None, relative_web_url, [storage_img_path, static_img_path])
 
 
 _FORM16_SIGNATORY_TITLES = (
