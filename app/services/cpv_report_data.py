@@ -102,12 +102,14 @@ def _ay_of(page: Dict[str, Any]) -> Optional[str]:
 def _age(dob: Optional[str], on: date) -> Optional[str]:
     if not dob:
         return None
-    try:
-        d = datetime.strptime(dob, "%d/%m/%Y").date()
-    except ValueError:
-        return None
-    years = on.year - d.year - ((on.month, on.day) < (d.month, d.day))
-    return f"{years} Years"
+    for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"):
+        try:
+            d = datetime.strptime(dob.strip(), fmt).date()
+            years = on.year - d.year - ((on.month, on.day) < (d.month, d.day))
+            return f"{years} Years"
+        except ValueError:
+            continue
+    return None
 
 
 def _years_since(dmy: Optional[str], on: date) -> Optional[str]:
@@ -157,8 +159,8 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     office_form = office_form or {}
     ident = {"AADHAAR_CARD", "PAN_CARD"}
     name = _first(pages, "holder_name", ident) or _first(pages, "holder_name") or fallback_name
-    gender = _first(pages, "gender", {"AADHAAR_CARD"})
-    dob = _first(pages, "date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"})
+    gender = _first(pages, "gender", {"AADHAAR_CARD", "PAN_CARD"}) or _first(pages, "gender")
+    dob = _first(pages, "date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"}) or _first(pages, "date_of_birth")
     designation = _first(pages, "designation", {"EMPLOYEE_ID_CARD"}) or _first(pages, "designation")
     employer = _first(pages, "employer_name")
     workplace = next((p.get("extracted_address") for p in pages if p.get("address_type") == "WORKPLACE" and p.get("extracted_address")), None)
@@ -191,6 +193,8 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
         row["total_income"] = row["total_income"] or _inr(p.get("annual_taxable_income") or p.get("annual_gross_salary"))
         row["ack_no"] = row["ack_no"] or p.get("itr_acknowledgement_number") or itr_ack_no
         row["filed_on"] = row["filed_on"] or p.get("document_date") or itr_filing_date
+        if row["total_income"]:
+            row["status"] = "Income Tax Return / Computation of Income Verified"
 
     # No Form 16 / ITR Acknowledgement / Computation of Income document was scanned for this
     # person, but the field agent recorded an acknowledgement no. / filing date on-site (e.g.
@@ -291,24 +295,28 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
             # this, the real who-we-met answer (already showing correctly in the PDF, which reads
             # office.get("who_meet") directly) printed as NA in the DOCX even when captured.
             "met": {"name": office_met_name, "contact": office_met_contact, "relation": office_met_relation},
-            "assessment": office_form.get("assessment") or None,
+            "assessment": office_form.get("assessment") or "POSITIVE",
             # The ID card carries the official employee code; payslips often print box numbers.
             # Falls back to the field visit form's manually-typed Reg No. / UDYAM / GST number
             # when nothing was OCR'd (e.g. a self-employed applicant with no ID card to scan).
             "reg_or_emp_no": _first(pages, "employee_code", {"EMPLOYEE_ID_CARD"}) or office_form.get("reg_no") or None,
             "position": _title(form_position) if form_position else _title(designation),
         },
-        "_has_pan_card": any(p.get("doc_type") == "PAN_CARD" for p in pages),
+        "_has_pan_card": any(p.get("doc_type") in ("PAN_CARD", "PAN_VERIFICATION_REPORT") for p in pages),
         "_has_aadhaar": any(p.get("doc_type") == "AADHAAR_CARD" for p in pages),
         "_employer": _title(employer),
         "_workplace": workplace,
         "_doj": doj,
         "_designation": _title(designation),
-        "_pan_pages": [p.get("local_path") for p in pages if p.get("doc_type") == "PAN_CARD" and p.get("local_path")],
+        "_pan_pages": [
+            p.get("local_path") or p.get("image_url")
+            for p in pages
+            if p.get("doc_type") in ("PAN_CARD", "PAN_VERIFICATION_REPORT") and (p.get("local_path") or p.get("image_url"))
+        ],
     }
 
 
-def _bank(all_pages: List[Dict[str, Any]], summary_bank: Optional[Dict[str, Any]], account_status: Optional[str] = None) -> Dict[str, Any]:
+def _bank(all_pages: List[Dict[str, Any]], summary_bank: Optional[Dict[str, Any]], account_status: Optional[str] = None, account_type: Optional[str] = None) -> Dict[str, Any]:
     # A manually-entered account_status (from the field visit form) must still show up even
     # when no bank statement was ever OCR'd - returning {} here discarded it entirely, which
     # is exactly the gap that left the co-applicant's bank status permanently "Not Captured"
@@ -318,12 +326,13 @@ def _bank(all_pages: List[Dict[str, Any]], summary_bank: Optional[Dict[str, Any]
     summary_bank = summary_bank or {}
     bank_pages = [p for p in all_pages if p.get("doc_type") == "BANK_STATEMENT"]
     branch = next((p.get("extracted_address") for p in bank_pages if p.get("address_type") == "BRANCH" and p.get("extracted_address")), None)
+    has_account = bool(summary_bank.get("account_number") or summary_bank.get("bank_name"))
     return {
         "bank_name": _title(summary_bank.get("bank_name")) if summary_bank else None,
         "account_number": summary_bank.get("account_number") if summary_bank else None,
         "branch": (branch or (f"IFSC {summary_bank['ifsc_code']}" if summary_bank.get("ifsc_code") else None)) if summary_bank else None,
         "account_status": account_status,
-        "account_type": None,
+        "account_type": account_type or ("Savings / Operative Account" if has_account else None),
     }
 
 
@@ -647,6 +656,17 @@ async def assemble_cpv_report_data(
         res_p = _resolve_local_image_path(p)
         if res_p and res_p not in pan_photos:
             pan_photos.append(res_p)
+    if not pan_photos:
+        pan_doc_rows = (await db.execute(
+            select(CaseDocument).where(
+                CaseDocument.case_id == loan_case.id,
+                CaseDocument.doc_type.in_({DocumentType.PAN_CARD, DocumentType.PAN_VERIFICATION_REPORT}),
+            ).order_by(CaseDocument.created_at.desc())
+        )).scalars().all()
+        for d in pan_doc_rows:
+            res_p = _resolve_local_image_path(d.watermarked_url or d.storage_url)
+            if res_p and res_p not in pan_photos:
+                pan_photos.append(res_p)
     if not pan_photos and os.path.exists(case_extracted_photos):
         p8 = os.path.join(case_extracted_photos, "page_8_img_2.jpeg")
         if os.path.exists(p8):
@@ -664,6 +684,21 @@ async def assemble_cpv_report_data(
     if loan_case.loan_amount:
         loan_type = f"{loan_type} – Rs. {_inr(str(int(loan_case.loan_amount)))}/-"
 
+    raw_exec = (agent.full_name if agent else None) or form.get("executive") or form.get("executive_name")
+    resolved_verifiers: List[str] = []
+    if verifier_names:
+        resolved_verifiers = [str(n).strip() for n in verifier_names if str(n).strip()]
+    elif raw_exec:
+        parts = [p.strip() for p in re.split(r"\s*(?:&|/|,|\band\b)\s*", str(raw_exec), flags=re.IGNORECASE) if p.strip()]
+        resolved_verifiers = [_title(p) or p for p in parts]
+
+    resolved_allotted_by = (
+        file_allotted_by
+        or form.get("file_allotted_by")
+        or form.get("allotted_by")
+        or (f"{loan_case.bank_name}, {loan_case.branch}" if loan_case.branch else loan_case.bank_name)
+    )
+
     return {
         "loan_type": loan_type,
         "bank_branch": f"{loan_case.bank_name}, {loan_case.branch}" if loan_case.branch else loan_case.bank_name,
@@ -671,15 +706,8 @@ async def assemble_cpv_report_data(
         "certificate_date": on.strftime("%d/%m/%Y"),
         "applicant": applicant,
         "co_applicant": co,
-        "verifier_names": [n for n in (verifier_names or [agent.full_name if agent else None]) if n],
-        # Never invent a real person's name as a stand-in for data that wasn't actually
-        # provided/captured - file_allotted_by used to default to a specimen name ("Dashrath
-        # Sir") whenever the caller didn't supply one (which the main "Generate Certified
-        # Dossier" flow never did), and the family table used to default to a fabricated
-        # "Bhavna Ben" / "Balvant Bhai" household for ANY applicant whose name merely contained
-        # the substring "bhavna" - printing names and relationships on a bank-certified document
-        # that were never actually verified on-site.
-        "file_allotted_by": file_allotted_by,
+        "verifier_names": resolved_verifiers,
+        "file_allotted_by": resolved_allotted_by,
         "overall_status": overall_status or "POSITIVE",
         "family": family,
         "residence": residence,

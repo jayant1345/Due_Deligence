@@ -214,6 +214,10 @@ async def async_generate_report_pdf(
     )
     visit = visit_res.scalars().first()
 
+    from app.api.v1.cases import _refresh_case_relationships
+    await _refresh_case_relationships(session, loan_case)
+    await session.flush()
+
     from sqlalchemy import desc
     doc_res = await session.execute(
         select(CaseDocument)
@@ -278,6 +282,8 @@ async def async_generate_report_pdf(
         try:
             import json
             case_dict["field_form"] = json.loads(loan_case.field_form_data)
+            if not case_dict.get("agent_name") and isinstance(case_dict["field_form"], dict):
+                case_dict["agent_name"] = case_dict["field_form"].get("executive") or case_dict["field_form"].get("executive_name")
         except Exception:
             pass
 

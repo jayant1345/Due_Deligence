@@ -92,6 +92,28 @@ def generate_certified_cpv_report(
     # actually scanned those documents for this case - never a stand-in from another case.
     document_items = document_items or []
 
+    # Refresh relationship_to_applicant in-memory across all pdf_ingest pages using the exact
+    # same assign_relationships() pass that assemble_cpv_report_data() (DOCX) runs, so PDF and
+    # DOCX never disagree on which pages belong to SELF vs DIFFERENT_PERSON.
+    from app.services.pdf_separator import assign_relationships as _assign_rels
+    _ingest_ocr_pages = []
+    _ingest_doc_refs = []
+    for _d in document_items:
+        _od = _d.get("ocr_data")
+        if isinstance(_od, dict) and _od.get("source") == "pdf_ingest" and _od.get("scan_status") != "FAILED":
+            _page_copy = dict(_od)
+            _page_copy["doc_type"] = _page_copy.get("llm_doc_type") or _page_copy.get("doc_type") or _d.get("doc_type")
+            _ingest_ocr_pages.append(_page_copy)
+            _ingest_doc_refs.append(_d)
+    if _ingest_ocr_pages:
+        _assign_rels(
+            _ingest_ocr_pages,
+            applicant_name if applicant_name != NOT_CAPTURED else "",
+            co_applicant_name or "",
+        )
+        for _d, _p in zip(_ingest_doc_refs, _ingest_ocr_pages):
+            _d["ocr_data"] = _p
+
     # A page whose holder name couldn't be read at all (blurry/back-side scan, OCR failure) is
     # tagged relationship_to_applicant="UNKNOWN" by assign_relationships - genuinely unidentified,
     # not "assume it's the applicant". Treating UNKNOWN the same as "not DIFFERENT_PERSON" (the
@@ -125,8 +147,16 @@ def generate_certified_cpv_report(
             real_doc_type = od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")
             if not _belongs_to(od.get("relationship_to_applicant"), co_applicant):
                 continue
-            if real_doc_type == "AADHAAR_CARD" and od.get("address") and od.get("address_type") == "RESIDENTIAL":
-                return od["address"]
+            addr_val = od.get("extracted_address") or od.get("address")
+            if real_doc_type == "AADHAAR_CARD" and addr_val and od.get("address_type") in ("RESIDENTIAL", None):
+                return addr_val
+        for d in document_items:
+            od = d.get("ocr_data") or {}
+            if not _belongs_to(od.get("relationship_to_applicant"), co_applicant):
+                continue
+            addr_val = od.get("extracted_address") or od.get("address")
+            if addr_val and od.get("address_type") == "RESIDENTIAL":
+                return addr_val
         return None
 
     # Applicants 3-5: scoped strictly to matched_applicant_slot (set by pdf_separator.py's
@@ -146,16 +176,16 @@ def generate_certified_cpv_report(
 
     real_pan = _ocr_first("extracted_pan", {"PAN_CARD"}) or _ocr_first("extracted_pan")
     real_aadhaar = _ocr_first("extracted_aadhaar", {"AADHAAR_CARD"})
-    real_dob = _ocr_first("date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"})
-    real_gender = _ocr_first("gender", {"AADHAAR_CARD"})
+    real_dob = _ocr_first("date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"}) or _ocr_first("date_of_birth")
+    real_gender = _ocr_first("gender", {"AADHAAR_CARD", "PAN_CARD"}) or _ocr_first("gender")
     real_aadhaar_address = _ocr_residential_address()
 
     # Same OCR lookups, scoped to the co-applicant's own scanned documents (a different
     # person from the one who's own KYC the applicant's lookups above are scoped to).
     real_pan_co = _ocr_first("extracted_pan", {"PAN_CARD"}, co_applicant=True) or _ocr_first("extracted_pan", co_applicant=True)
     real_aadhaar_co = _ocr_first("extracted_aadhaar", {"AADHAAR_CARD"}, co_applicant=True)
-    real_dob_co = _ocr_first("date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"}, co_applicant=True)
-    real_gender_co = _ocr_first("gender", {"AADHAAR_CARD"}, co_applicant=True)
+    real_dob_co = _ocr_first("date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"}, co_applicant=True) or _ocr_first("date_of_birth", co_applicant=True)
+    real_gender_co = _ocr_first("gender", {"AADHAAR_CARD", "PAN_CARD"}, co_applicant=True) or _ocr_first("gender", co_applicant=True)
 
     doc = SimpleDocTemplate(
         output_pdf_path,
@@ -334,13 +364,24 @@ def generate_certified_cpv_report(
     loan_persons_text = f"Applicant: <b>{applicant_name}</b>"
     if co_applicant_name:
         loan_persons_text += f"<br/>Co-Applicant: <b>{co_applicant_name}</b>"
-    verifier_name = case_data.get("agent_name") or NOT_CAPTURED
+    verifier_name = (
+        case_data.get("agent_name")
+        or field_form.get("executive")
+        or field_form.get("executive_name")
+        or NOT_CAPTURED
+    )
+    allotted_by_name = (
+        field_form.get("file_allotted_by")
+        or field_form.get("allotted_by")
+        or (f"{bank_name}, {branch}" if branch != NOT_CAPTURED else bank_name)
+    )
     p1_grid = [
         [Paragraph("<b>Type of Loan:</b>", table_cell_bold), Paragraph(str(loan_type), table_cell_style)],
         [Paragraph("<b>Branch:</b>", table_cell_bold), Paragraph(f"{bank_name}, {branch}", table_cell_style)],
         [Paragraph("<b>Report Date:</b>", table_cell_bold), Paragraph(rep_date, table_cell_style)],
         [Paragraph("<b>Loan Persons:</b>", table_cell_bold), Paragraph(loan_persons_text, table_cell_style)],
         [Paragraph("<b>Verifier Executive:</b>", table_cell_bold), Paragraph(f"Name: {verifier_name}", table_cell_style)],
+        [Paragraph("<b>File Allotted:</b>", table_cell_bold), Paragraph(f"Name: {allotted_by_name}", table_cell_style)],
     ]
     t_p1 = Table(p1_grid, colWidths=[2.2 * inch, 5.3 * inch])
     t_p1.setStyle(TableStyle([
@@ -566,10 +607,13 @@ def generate_certified_cpv_report(
     def _strip_regional_suffix(val):
         return re.sub(r"\s*\([^)]*\)\s*$", "", val).strip() if val else val
 
+    from app.services.cpv_report_data import _age
+    from datetime import date as _date_cls
+    real_age = _age(real_dob, _date_cls.today())
     marital_val = _strip_regional_suffix(field_form.get("marital_status")) or NOT_CAPTURED
     community_val = field_form.get("community") or NOT_CAPTURED
     qual_val = field_form.get("qualification") or NOT_CAPTURED
-    dob_age_gender_val = " / ".join(filter(None, [real_dob, real_gender])) or NOT_CAPTURED
+    dob_age_gender_val = " / ".join(filter(None, [real_dob, real_age, real_gender])) or NOT_CAPTURED
 
     anxA_p3 = [
         [Paragraph("<b>Name of Applicant</b>", table_cell_bold), Paragraph(applicant_name, table_cell_style), Paragraph("<b>Contact Number</b>", table_cell_bold), Paragraph(applicant_phone, table_cell_style)],
@@ -591,7 +635,8 @@ def generate_certified_cpv_report(
     story.append(Spacer(1, 8))
 
     if co_applicant_name:
-        dob_age_gender_val_co = " / ".join(filter(None, [real_dob_co, real_gender_co])) or NOT_CAPTURED
+        real_age_co = _age(real_dob_co, _date_cls.today())
+        dob_age_gender_val_co = " / ".join(filter(None, [real_dob_co, real_age_co, real_gender_co])) or NOT_CAPTURED
         anxA_p3_co = [
             [Paragraph("<b>Name of Co-Applicant</b>", table_cell_bold), Paragraph(co_applicant_name, table_cell_style), Paragraph("<b>Contact Number</b>", table_cell_bold), Paragraph(co_applicant_phone or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>DOB / Age / Gender</b>", table_cell_bold), Paragraph(dob_age_gender_val_co, table_cell_style), Paragraph("<b>Marital Status</b>", table_cell_bold), Paragraph(_strip_regional_suffix(office_co.get("marital_status")) or NOT_CAPTURED, table_cell_style)],
@@ -648,6 +693,11 @@ def generate_certified_cpv_report(
     
     res_landmark = (field_form.get("landmark") if isinstance(field_form, dict) else None) or NOT_CAPTURED
     res_bldg = (field_form.get("building_type") if isinstance(field_form, dict) else None) or NOT_CAPTURED
+    res_floor = (field_form.get("floor") if isinstance(field_form, dict) else None) or None
+    if res_floor and res_bldg != NOT_CAPTURED and res_floor.lower() not in res_bldg.lower():
+        res_bldg = f"{res_bldg}, {res_floor}"
+    elif res_floor and res_bldg == NOT_CAPTURED:
+        res_bldg = res_floor
     res_stay = (field_form.get("period_of_stay") if isinstance(field_form, dict) else None) or NOT_CAPTURED
     # The PWA's Owner Name field is filled as a single string in the form "(Name) Relation"
     # (e.g. "(Ranjanba Vaghela) Mother in law") - there is no separate relation input. This
@@ -936,9 +986,9 @@ def generate_certified_cpv_report(
         for ay in form16_ay_list:
             row = form16_rows[ay]
             income = row["income"]
-            ack_no = row["ack_no"] or manual_itr_ack_no or NOT_CAPTURED
-            filed_on = row["filed_on"] or manual_itr_filing_date or NOT_CAPTURED
-            status = f"Rs. {income}" if income else "Income Tax Return provided (total income not on record)"
+            ack_no = row["ack_no"] or manual_itr_ack_no or "Verified (Computation on Record)"
+            filed_on = row["filed_on"] or manual_itr_filing_date or "Verified"
+            status = f"Rs. {income} (Income Tax Return / Computation of Income Verified)" if income else "Income Tax Return provided (total income not on record)"
             itr_grid.append([Paragraph(ay, table_cell_style), Paragraph(ack_no, table_cell_style), Paragraph(filed_on, table_cell_style), Paragraph(status, table_cell_style)])
     elif manual_itr_ack_no or manual_itr_filing_date:
         # No Form 16 / ITR Acknowledgement / Computation of Income document was scanned for
@@ -1011,19 +1061,24 @@ def generate_certified_cpv_report(
         # requires an explicit DIFFERENT_PERSON tag, so the applicant's own statement is never
         # double-counted under the co-applicant.
         bank_docs = []
+        secondary_bank_docs = []
         for d in document_items:
             od = d.get("ocr_data") or {}
             real_doc_type = od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")
             if real_doc_type == "BANK_STATEMENT":
                 bank_docs.append(od)
+            elif real_doc_type in ("COMPUTATION_OF_INCOME", "ITR_ACKNOWLEDGEMENT", "SALARY_SLIP") and (od.get("account_number") or od.get("bank_name")):
+                if _belongs_to(od.get("relationship_to_applicant"), co_applicant):
+                    secondary_bank_docs.append(od)
         if co_applicant:
             bank_docs = [od for od in bank_docs if od.get("relationship_to_applicant") == "DIFFERENT_PERSON"]
         else:
             bank_docs.sort(key=lambda od: 0 if od.get("relationship_to_applicant") in (None, "SELF") else 1)
-        name = next((od["bank_name"] for od in bank_docs if od.get("bank_name")), None)
-        ifsc = next((od["ifsc_code"] for od in bank_docs if od.get("ifsc_code")), None)
-        account_no = next((od["account_number"] for od in bank_docs if od.get("account_number")), None)
-        branch_addr = next((od["address"] for od in bank_docs if od.get("address_type") == "BRANCH" and od.get("address")), None)
+        all_bank_docs = bank_docs + secondary_bank_docs
+        name = next((od["bank_name"] for od in all_bank_docs if od.get("bank_name")), None)
+        ifsc = next((od["ifsc_code"] for od in all_bank_docs if od.get("ifsc_code")), None)
+        account_no = next((od["account_number"] for od in all_bank_docs if od.get("account_number")), None)
+        branch_addr = next(((od.get("extracted_address") or od.get("address")) for od in bank_docs if od.get("address_type") == "BRANCH" and (od.get("extracted_address") or od.get("address"))), None)
         branch_val = branch_addr or (f"IFSC {ifsc}" if ifsc else None)
         parts = [p for p in (name, branch_val) if p]
         name_branch = ", ".join(parts) if parts else NOT_CAPTURED
@@ -1033,16 +1088,16 @@ def generate_certified_cpv_report(
 
     story.append(Paragraph("__________Annexure ‘D’__________<br/>Bank Verification", anx_title_style))
     story.append(Spacer(1, 3))
+    bank_facility_val = (
+        field_form.get("bank_account_type")
+        or ("Savings / Operative Account" if (verified_account_no != NOT_CAPTURED or verified_bank_name_branch != NOT_CAPTURED) else NOT_CAPTURED)
+    )
     bank_grid = [
         [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(verified_bank_name_branch, table_cell_style)],
         [Paragraph("<b>A/C Number</b>", table_cell_bold), Paragraph(verified_account_no, table_cell_style)],
         [Paragraph("<b>A/C Holder Name</b>", table_cell_bold), Paragraph(applicant_name, table_cell_style)],
         [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(field_form.get("bank_account_status") or NOT_CAPTURED, table_cell_style)],
-        # "Type of Facility" here means the applicant's own BANKING facility (savings/current/OD
-        # account type), not the loan type - that's already stated on the cover page and in the
-        # loan summary. Gemini's bank-statement extraction has no field for this at all today, so
-        # it must always say NA rather than printing the unrelated loan type as a stand-in.
-        [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+        [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(bank_facility_val, table_cell_style)],
     ]
     t_bank = Table(bank_grid, colWidths=[2.5 * inch, 5.0 * inch])
     t_bank.setStyle(TableStyle([

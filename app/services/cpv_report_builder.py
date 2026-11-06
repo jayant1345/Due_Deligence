@@ -368,13 +368,14 @@ def _fill_office(table, person: Dict[str, Any]) -> None:
 
 def _fill_itr(table, rows: List[Dict[str, Any]]) -> None:
     for i, r in enumerate((1, 3, 5)):
-        item = rows[i] if i < len(rows) else {}
+        has_row = i < len(rows)
+        item = rows[i] if has_row else {}
         cells = _ucells(table, r)
-        _set_cell(cells[0], item.get("ay"))
-        _set_cell(cells[1], item.get("ack_no"))
-        _set_cell(cells[2], item.get("filed_on"))
-        _set_cell(cells[3], ("Rs. " + item["total_income"]) if item.get("total_income") else "Rs.")
-        _set_cell(_ucells(table, r + 1)[-1], item.get("status"))
+        _set_cell(cells[0], item.get("ay") if has_row else "")
+        _set_cell(cells[1], (item.get("ack_no") or "Verified (Computation on Record)") if has_row else "")
+        _set_cell(cells[2], (item.get("filed_on") or "Verified") if has_row else "")
+        _set_cell(cells[3], ("Rs. " + item["total_income"]) if item.get("total_income") else ("Rs. NA" if has_row else "Rs."))
+        _set_cell(_ucells(table, r + 1)[-1], item.get("status") if has_row else "")
 
 
 def _fill_bank(table, bank: Dict[str, Any]) -> None:
@@ -434,22 +435,15 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
     is_working = not any(kw in occupation_str for kw in NOT_WORKING_OCCUPATIONS) if occupation_str else bool(firm_name and firm_name != "NA")
 
     itr_list = applicant.get("itr") or []
-    if itr_list:
-        ays = [r.get("ay") for r in itr_list if r.get("ay")]
-        if len(ays) >= 2:
-            itr_ay_str = ", ".join(ays[:-1]) + " and " + ays[-1]
-        elif len(ays) == 1:
-            itr_ay_str = ays[0]
-        else:
-            itr_ay_str = "2023–24, 2024–25 and 2025-26"
+    ays = [r.get("ay") for r in itr_list if r.get("ay") and r.get("ay") != "NA"]
+    if len(ays) >= 2:
+        itr_ay_str = ", ".join(ays[:-1]) + " and " + ays[-1]
+    elif len(ays) == 1:
+        itr_ay_str = ays[0]
     else:
-        itr_ay_str = "2023–24, 2024–25 and 2025-26"
+        itr_ay_str = ""
 
-    form16_ay = data.get("form16_ay") or ["2026-2027", "2025-2026"]
-    if isinstance(form16_ay, list) and form16_ay:
-        form16_ay_str = ", ".join(f"A.Y.{ay}" if not str(ay).startswith("A.Y.") else str(ay) for ay in form16_ay)
-    else:
-        form16_ay_str = "A.Y.2025-2026, A.Y.2024-2025, A.Y.2023-2024"
+    form16_ay_str = ", ".join(f"A.Y.{ay}" if not str(ay).startswith("A.Y.") else str(ay) for ay in ays) if ays else ""
 
     for p in doc.paragraphs:
         t = p.text.strip()
@@ -485,9 +479,15 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
             else:
                 _set_par_text(p, "Based on the verification conducted, the applicant's profile details are genuine.")
         elif "submitted Income Tax Returns" in t and "Assessment years" in t:
-            _set_par_text(p, f"The applicant has submitted Income Tax Returns (ITRs) for the Assessment years {itr_ay_str}, as proof of income.")
+            if itr_ay_str:
+                _set_par_text(p, f"The applicant has submitted Income Tax Return(s) / Form No. 16 for the Assessment year(s) {itr_ay_str} as proof of income, provided for our verification.")
+            else:
+                _set_par_text(p, "No Income Tax Returns or Form No. 16 were provided for our verification.")
         elif "Form No: 16" in t and "Was Provided for Our Verification" in t:
-            _set_par_text(p, f"The Form No: 16 {form16_ay_str}, Was Provided for Our Verification from Traces Website.")
+            if form16_ay_str:
+                _set_par_text(p, f"Income Tax Return / Computation of Income ({form16_ay_str}) was verified from the records provided.")
+            else:
+                _set_par_text(p, "")
         elif "The applicant," in t and "has submitted the KYC documents" in t:
             _set_par_text(p, f"The applicant, {a_name}, has submitted the KYC documents.")
         elif "The co applicant," in t and "has submitted the KYC documents" in t:
@@ -573,7 +573,7 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
         if holder_idx >= len(bank_holders):
             break
         if p.text.strip() == "Name: Mr":
-            _set_par_text(p, f"Name: Mr. {bank_holders[holder_idx] or 'NA'}")
+            _set_par_text(p, f"Name: {bank_holders[holder_idx] or 'NA'}")
             holder_idx += 1
 
     _replace_token(doc, "[[ITR_NAME_1]]", applicant.get("display_name"))

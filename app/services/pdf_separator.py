@@ -234,14 +234,79 @@ def _normalize_indian_name(name: str) -> str:
     return " ".join(out)
 
 
+def _phonetic_indian_token(token: str) -> str:
+    """
+    Normalize common English transliteration variants of Indian names (Gujarati/Hindi -> English)
+    so routine spelling differences across documents of the same person (e.g. SHWETA vs SWETA,
+    ASHWIN vs ASHVIN, SANJEEV vs SANJIV, POONAM vs PUNAM) compare consistently.
+    """
+    t = token.upper()
+    for src, dst in (
+        ("SHW", "SV"),
+        ("SW", "SV"),
+        ("SH", "S"),
+        ("EE", "I"),
+        ("OO", "U"),
+        ("AA", "A"),
+        ("BH", "B"),
+        ("PH", "F"),
+        ("TH", "T"),
+        ("DH", "D"),
+        ("KH", "K"),
+        ("GH", "G"),
+        ("W", "V"),
+    ):
+        t = t.replace(src, dst)
+    return t
+
+
+def _token_similarity(x: str, y: str) -> float:
+    if not x or not y:
+        return 0.0
+    if x == y or _phonetic_indian_token(x) == _phonetic_indian_token(y):
+        return 100.0
+    if (len(x) == 1 and y.startswith(x)) or (len(y) == 1 and x.startswith(y)):
+        return 95.0
+    if fuzz is not None:
+        raw = float(fuzz.ratio(x, y))
+        phon = float(fuzz.ratio(_phonetic_indian_token(x), _phonetic_indian_token(y)))
+        return max(raw, phon * 0.95)
+    return 0.0
+
+
 def _name_score(extracted: Optional[str], reference: Optional[str]) -> Optional[float]:
     if not extracted or not reference:
         return None
     a, b = _normalize_indian_name(extracted.upper()), _normalize_indian_name(reference.upper())
+    if not a or not b:
+        return None
     if fuzz is not None:
-        return float(round(fuzz.token_set_ratio(a, b), 1))
-    ta, tb = set(a.split()), set(b.split())
-    return round(100.0 * len(ta & tb) / max(1, min(len(ta), len(tb))), 1)
+        base_score = float(round(fuzz.token_set_ratio(a, b), 1))
+    else:
+        ta_set, tb_set = set(a.split()), set(b.split())
+        base_score = round(100.0 * len(ta_set & tb_set) / max(1, min(len(ta_set), len(tb_set))), 1)
+
+    ta, tb = a.split(), b.split()
+    # Handle Indian naming convention where one document records [GivenName, Middle/Father/Husband, Surname]
+    # (3+ tokens, e.g. "SHWETA ANAND VORA" or "VORA SHWETA ANAND") while another records only
+    # [GivenName, Surname] (2 tokens, e.g. "SWETA VORA"). Never match [Middle, Surname] ("ANAND VORA")
+    # so a spouse or father is never mistaken for the applicant.
+    if len(ta) >= 2 and len(tb) >= 2:
+        t_short, t_long = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
+        if len(t_short) == 2 and len(t_long) >= 2:
+            candidates = [[t_long[0], t_long[-1]]]
+            # If the 3-token name has Surname first (e.g. "VORA SHWETA ANAND"), t_long[0] is the
+            # surname and t_long[1] is the given name (while t_long[-1] is the father/husband name).
+            if len(t_long) >= 3 and max(_token_similarity(t_long[0], t_short[0]), _token_similarity(t_long[0], t_short[1])) >= 85 and _token_similarity(t_long[0], t_short[-1]) >= _token_similarity(t_long[-1], t_short[-1]):
+                candidates.append([t_long[0], t_long[1]])
+            for cand in candidates:
+                for p1, p2 in ((cand[0], cand[1]), (cand[1], cand[0])):
+                    s1 = _token_similarity(t_short[0], p1)
+                    s2 = _token_similarity(t_short[1], p2)
+                    if s1 >= 80.0 and s2 >= 80.0:
+                        base_score = max(base_score, round((s1 + s2) / 2.0, 1))
+
+    return base_score
 
 
 def _names_equivalent(a: Optional[str], b: Optional[str]) -> bool:
@@ -267,16 +332,10 @@ def _names_equivalent(a: Optional[str], b: Optional[str]) -> bool:
         return True
 
     def _tok_eq(x: str, y: str) -> bool:
-        if x == y:
-            return True
-        if len(x) == 1 and y.startswith(x):
-            return True
-        if len(y) == 1 and x.startswith(y):
-            return True
-        return False
+        return _token_similarity(x, y) >= 85.0
 
     if not _tok_eq(ta[0], tb[0]) or not _tok_eq(ta[-1], tb[-1]):
-        return False
+        return (_name_score(a, b) or 0) >= 88.0
 
     shorter, longer = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
     remaining = list(longer)
@@ -876,6 +935,30 @@ def assign_relationships(items: List[Dict[str, Any]], applicant_name: str = "", 
                 it["discrepancies"].insert(0,
                     f"{_BELONGS_PREFIX}{holder}', not the applicant '{reference}' "
                     f"(name match {score}%). Confirm relationship (co-applicant / spouse / guarantor).")
+
+    # Second pass: PAN and 12-digit Aadhaar numbers are globally unique per individual.
+    # If a page (such as an NSDL PAN portal printout with a masked holder name, or the back
+    # side of an Aadhaar card with a shorter name variant) carries the exact same PAN or
+    # Aadhaar number as a confirmed SELF document, it unambiguously belongs to SELF.
+    self_pans = {
+        str(it.get("extracted_pan")).strip().upper()
+        for it in items
+        if it.get("relationship_to_applicant") == "SELF" and it.get("extracted_pan")
+    }
+    self_aadhaars = {
+        re.sub(r"\D", "", str(it.get("extracted_aadhaar")))
+        for it in items
+        if it.get("relationship_to_applicant") == "SELF" and it.get("extracted_aadhaar")
+    }
+    self_aadhaars.discard("")
+    for it in items:
+        if it.get("scan_status") == "FAILED" or it.get("relationship_to_applicant") == "SELF":
+            continue
+        pan_val = str(it.get("extracted_pan") or "").strip().upper()
+        aadhaar_val = re.sub(r"\D", "", str(it.get("extracted_aadhaar") or ""))
+        if (pan_val and pan_val in self_pans) or (aadhaar_val and aadhaar_val in self_aadhaars):
+            it["relationship_to_applicant"] = "SELF"
+            it["discrepancies"] = [d for d in (it.get("discrepancies") or []) if not str(d).startswith(_BELONGS_PREFIX)]
     return reference
 
 
@@ -962,7 +1045,13 @@ def reconcile_case_documents(items: List[Dict[str, Any]], applicant_name: str = 
             detail = "; ".join(f"'{v}' on page(s) {pgs}" for v, pgs in values.items())
             conflicts.append(f"Applicant {field.replace('extracted_', '').upper()} differs across documents: {detail}")
 
-    residential = [it for it in applicant_pages if it.get("address_type") == "RESIDENTIAL" and it.get("extracted_address")]
+    residential = [
+        it for it in applicant_pages
+        if it.get("extracted_address") and (
+            it.get("address_type") == "RESIDENTIAL"
+            or (it.get("doc_type") == "AADHAAR_CARD" and it.get("address_type") in (None, "RESIDENTIAL"))
+        )
+    ]
     aadhaar_addr = next((it["extracted_address"] for it in residential if it.get("doc_type") == "AADHAAR_CARD"), None)
     applicant["residential_address"] = aadhaar_addr or (residential[0]["extracted_address"] if residential else None)
     applicant["name"] = next((it["holder_name"] for it in applicant_pages if it.get("doc_type") in ("AADHAAR_CARD", "PAN_CARD")), None) \
@@ -981,16 +1070,24 @@ def reconcile_case_documents(items: List[Dict[str, Any]], applicant_name: str = 
     # applicant's own (confirmed live: "Mahavir Jewellers" - the applicant's own firm). Prefer an
     # explicitly SELF/untagged statement when one exists, but still fall back to a
     # DIFFERENT_PERSON-tagged one rather than silently dropping real on-file data - matches
-    # pdf_generator.py's identical bank-statement resolution.
+    # pdf_generator.py's identical bank-statement resolution. When no standalone BANK_STATEMENT
+    # exists, also fall back to the applicant's own bank account details printed on their
+    # Computation of Income, ITR Acknowledgement, or Salary Slip.
     bank_pages = sorted(
         (it for it in items if it.get("doc_type") == "BANK_STATEMENT"),
         key=lambda it: (0 if it.get("relationship_to_applicant") in (None, "SELF") else 1, it.get("page_number") or 0),
     )
-    if bank_pages:
+    secondary_bank_pages = [
+        it for it in applicant_pages
+        if it.get("doc_type") in ("COMPUTATION_OF_INCOME", "ITR_ACKNOWLEDGEMENT", "SALARY_SLIP")
+        and (it.get("account_number") or it.get("bank_name"))
+    ]
+    all_bank_sources = bank_pages + secondary_bank_pages
+    if all_bank_sources:
         applicant["bank_account"] = {
-            "bank_name": next((p["bank_name"] for p in bank_pages if p.get("bank_name")), None),
-            "account_number": next((p["account_number"] for p in bank_pages if p.get("account_number")), None),
-            "ifsc_code": next((p["ifsc_code"] for p in bank_pages if p.get("ifsc_code")), None),
+            "bank_name": next((p["bank_name"] for p in all_bank_sources if p.get("bank_name")), None),
+            "account_number": next((p["account_number"] for p in all_bank_sources if p.get("account_number")), None),
+            "ifsc_code": next((p["ifsc_code"] for p in all_bank_sources if p.get("ifsc_code")), None),
             "statement_period": next((p["document_period"] for p in bank_pages if p.get("document_period")), None),
             "opening_balance": next((p["opening_balance"] for p in bank_pages if p.get("opening_balance")), None),
             "closing_balance": next((p["closing_balance"] for p in reversed(bank_pages) if p.get("closing_balance")), None),
@@ -1070,7 +1167,7 @@ def classify_and_store_single_image(
     )
     _apply_rotation_if_needed(analysis.get("rotation_needed"), storage_img_path, static_img_path)
     relative_web_url = f"/storage/separated_docs/{case_id}/{img_name}"
-    return _finalize_page_item(analysis, None, None, relative_web_url, [storage_img_path, static_img_path])
+    return _finalize_page_item(analysis, storage_img_path, None, relative_web_url, [storage_img_path, static_img_path])
 
 
 _FORM16_SIGNATORY_TITLES = (

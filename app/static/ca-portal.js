@@ -5928,6 +5928,7 @@
               agent: resolveAgentName(dc.assigned_agent_id), assigned_agent_id: dc.assigned_agent_id,
               capture_lat: dc.capture_lat, capture_lon: dc.capture_lon, distance_m: dc.distance_m,
             });
+            if (dc.field_form_data) applyFieldFormDataToEntry(caseRegistry[dc.id], dc.field_form_data);
           } else {
             // Built-in seed case that also exists in the database: the benchmark lives on the server.
             caseRegistry[dc.id].server_id = dc.id;
