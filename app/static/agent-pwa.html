@@ -681,13 +681,35 @@
           </div>
         </div>
 
-        <!-- Person Met & 2 Neighbour References (PAGE 5 & 7) -->
+        <!-- Person Met, their Relation to Applicant & 2 Neighbour References (PAGE 5 & 7) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
           <div>
-            <label class="font-mono text-[10px] text-outline block mb-1">Who did you meet (કોને મળ્યા: Name, Contact, Relation)*</label>
-            <input id="formPersonMet" value="" placeholder="e.g. Rajesh Patel - 9876543210 (Husband)" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
+            <label class="font-mono text-[10px] text-outline block mb-1">Who did you meet - Name & Contact (કોને મળ્યા)*</label>
+            <input id="formPersonMet" value="" placeholder="e.g. Rajesh Patel - 9876543210" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
           </div>
           <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Their Relation with Applicant (અરજદાર સાથે સંબંધ)*</label>
+            <select id="formPersonMetRelation" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface">
+              <option value="" selected>-- Select Relation --</option>
+              <option value="Self">Self / Applicant (પોતે / અરજદાર)</option>
+              <option value="Husband">Husband (પતિ)</option>
+              <option value="Wife">Wife (પત્ની)</option>
+              <option value="Son">Son (પુત્ર)</option>
+              <option value="Daughter">Daughter (પુત્રી)</option>
+              <option value="Father">Father (પિતા)</option>
+              <option value="Mother">Mother (માતા)</option>
+              <option value="Father in law">Father in law (સસરા)</option>
+              <option value="Mother in law">Mother in law (સાસુ)</option>
+              <option value="Brother">Brother (ભાઈ)</option>
+              <option value="Sister">Sister (બહેન)</option>
+              <option value="Grandfather">Grandfather (દાદા)</option>
+              <option value="Grandmother">Grandmother (દાદી)</option>
+              <option value="Uncle">Uncle (કાકા / મામા)</option>
+              <option value="Aunt">Aunt (કાકી / મામી)</option>
+              <option value="Relative / Other">Relative / Other (અન્ય)</option>
+            </select>
+          </div>
+          <div class="sm:col-span-2">
             <label class="font-mono text-[10px] text-outline block mb-1">References (2 Neighbour Name, Relation)*</label>
             <input id="formReferences" value="" placeholder="e.g. 1 - Suresh Shah - Neighbour, 2 - Ramesh Mehta - Neighbour" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface"/>
           </div>
@@ -2231,7 +2253,7 @@
   </nav>
 
   <!-- Interactive JavaScript Engine -->
-  <script src="/static/agent-pwa.js?v=5"></script>
+  <script src="/static/agent-pwa.js?v=6"></script>
 
   <!-- FIELD AGENT AUTHENTICATION MODAL -->
   <div id="agentLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">

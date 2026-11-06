@@ -1965,7 +1965,13 @@
       const owner = document.getElementById("formOwnerName").value;
       const refs = document.getElementById("formReferences").value;
       const landmark = document.getElementById("formLandmark") ? document.getElementById("formLandmark").value.trim() : "";
-      const personMet = document.getElementById("formPersonMet").value;
+      // Combine the Name/Contact box with the explicit Relation dropdown into the same
+      // "Name - Phone (Relation)" string the backend already parses (person_met) - an explicit
+      // dropdown is far more reliable than expecting the agent to type "(Relation)" by hand, and
+      // this way no backend change is needed to make use of it.
+      const personMetRaw = document.getElementById("formPersonMet").value.trim();
+      const personMetRelationSel = document.getElementById("formPersonMetRelation") ? document.getElementById("formPersonMetRelation").value : "";
+      const personMet = personMetRelationSel ? `${personMetRaw} (${personMetRelationSel})` : personMetRaw;
       const occupation = document.getElementById("formOccupation") ? document.getElementById("formOccupation").value : "Job";
       const firmName = document.getElementById("formFirmName") ? document.getElementById("formFirmName").value : "";
       const designation = document.getElementById("formDesignation") ? document.getElementById("formDesignation").value : "";
@@ -2355,7 +2361,17 @@
       const fOwner = document.getElementById("formOwnerName");
       if (fOwner) fOwner.value = c.owner_name || "";
       const fMet = document.getElementById("formPersonMet");
-      if (fMet) fMet.value = c.person_met || "";
+      const fMetRelation = document.getElementById("formPersonMetRelation");
+      // c.person_met is the combined "Name - Phone (Relation)" string - split it back apart so
+      // the Relation dropdown shows the right selection on reopen, not just dumped into the name
+      // box as raw text.
+      const metRawVal = c.person_met || "";
+      const metSplit = metRawVal.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+      if (fMet) fMet.value = metSplit ? metSplit[1].trim() : metRawVal;
+      if (fMetRelation) {
+        const metRelationVal = metSplit ? metSplit[2].trim() : "";
+        fMetRelation.value = Array.from(fMetRelation.options).some(o => o.value === metRelationVal) ? metRelationVal : "";
+      }
       const fRefs = document.getElementById("formReferences");
       if (fRefs) fRefs.value = (c.neighbors || []).join(", ");
       const fLandmark = document.getElementById("formLandmark");
