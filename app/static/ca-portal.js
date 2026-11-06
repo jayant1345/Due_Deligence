@@ -5910,16 +5910,41 @@
 
       const idName = a.name || fromOwn("holder_name", ["AADHAAR_CARD", "PAN_CARD"]);
       if (idName && idName !== c.applicant_name_persisted) {
-        c.applicant_name = idName;
-        c.ai_corrected_applicant_name = idName;
-        c.applicant_name_persisted = idName;
-        const opt = document.querySelector(`#caseSelectorSelect option[value="${CSS.escape(caseId)}"]`);
-        if (opt) opt.textContent = `[${c.case_no}] - ${idName}${c.created_at ? " (" + fmtCaseOptDate(c.created_at) + ")" : ""} | ${c.bank}${c.branch ? " (" + c.branch + ")" : ""}`;
-        // This correction must reach the database, not just this browser's local caseRegistry -
-        // the field agent's PWA (a separate device/session) always fetches the case fresh from
-        // the server, never from this cache. Without this, the dashboard shows the AI-identified
-        // name while the handover link the agent actually opens still serves the old placeholder.
-        persistAiCorrectedApplicantName(caseId, idName);
+        // Only silently auto-fill when the CA genuinely left this for AI to identify (the
+        // "Pending AI Identification" placeholder) or hasn't named anyone yet. If the CA typed
+        // a REAL name and the scanned documents identify a clearly DIFFERENT person, that is not
+        // a correction - it means the wrong folder/files were selected for this case. Silently
+        // overwriting (and persisting to the server) in that situation is exactly what mixed two
+        // different applicants' data together in a real, confirmed production incident: a case
+        // typed as "Solanki Nitesh Mayurkumar" had a different applicant's bank folder scanned
+        // into it, and this code silently renamed the case to the scanned name with no warning.
+        const priorName = (c.applicant_name_persisted || "").trim();
+        const isPlaceholder = !priorName || priorName === "Pending AI Identification";
+        const priorTokens = new Set(priorName.toUpperCase().split(/\s+/).filter(t => t.length > 1));
+        const newTokens = new Set(idName.toUpperCase().split(/\s+/).filter(t => t.length > 1));
+        const sharedTokens = [...priorTokens].filter(t => newTokens.has(t)).length;
+        const likelySamePerson = sharedTokens > 0;
+        if (isPlaceholder || likelySamePerson) {
+          c.applicant_name = idName;
+          c.ai_corrected_applicant_name = idName;
+          c.applicant_name_persisted = idName;
+          const opt = document.querySelector(`#caseSelectorSelect option[value="${CSS.escape(caseId)}"]`);
+          if (opt) opt.textContent = `[${c.case_no}] - ${idName}${c.created_at ? " (" + fmtCaseOptDate(c.created_at) + ")" : ""} | ${c.bank}${c.branch ? " (" + c.branch + ")" : ""}`;
+          // This correction must reach the database, not just this browser's local caseRegistry -
+          // the field agent's PWA (a separate device/session) always fetches the case fresh from
+          // the server, never from this cache. Without this, the dashboard shows the AI-identified
+          // name while the handover link the agent actually opens still serves the old placeholder.
+          persistAiCorrectedApplicantName(caseId, idName);
+        } else {
+          alert(
+            `⚠ WRONG DOCUMENTS FOR THIS CASE?\n\n` +
+            `This case is for "${priorName}", but the files just scanned identify a different ` +
+            `person: "${idName}".\n\n` +
+            `The applicant name on this case was NOT changed. If you selected the wrong folder/` +
+            `files, delete these scanned pages and re-scan the correct ones. If "${idName}" really ` +
+            `is correct, update the applicant name manually via Edit Details.`
+          );
+        }
       }
     }
 
@@ -6686,13 +6711,39 @@
     }
 
     async function handleDeleteCasePrompt(caseId, caseNo) {
-      if (!confirm(`Are you sure you want to delete case "${caseNo}" and all its uploaded documents?\n\nThis action cannot be undone.`)) {
-        return;
+      let token = localStorage.getItem("ca_token");
+      const headers = {};
+      if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
+
+      // Know how much is actually at stake before asking - a plain "are you sure?" was too easy
+      // to click through without registering it. Confirmed in a real incident: deleting a case
+      // permanently destroyed 48 real scanned documents with no undo, no warning of the count,
+      // and no distinction from deleting an empty draft case.
+      let docCount = null;
+      try {
+        const docsRes = await fetch(`/api/v1/cases/${caseId}/documents`, { headers });
+        if (docsRes.ok) {
+          const docs = await docsRes.json();
+          docCount = Array.isArray(docs) ? docs.length : null;
+        }
+      } catch (e) {}
+
+      if (docCount && docCount > 0) {
+        const typed = prompt(
+          `⚠ This case has ${docCount} uploaded document(s) that will be PERMANENTLY DELETED — ` +
+          `there is no undo and no recovery.\n\n` +
+          `To confirm, type the case number exactly: ${caseNo}`
+        );
+        if (typed === null || typed.trim().toUpperCase() !== caseNo.trim().toUpperCase()) {
+          if (typed !== null) alert("Case number did not match — nothing was deleted.");
+          return;
+        }
+      } else {
+        if (!confirm(`Are you sure you want to delete case "${caseNo}"?\n\nThis action cannot be undone.`)) {
+          return;
+        }
       }
       try {
-        let token = localStorage.getItem("ca_token");
-        const headers = {};
-        if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
 
         let isSuccess = false;
         try {
