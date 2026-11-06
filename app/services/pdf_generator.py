@@ -969,28 +969,44 @@ def generate_certified_cpv_report(
     # bank name/branch actually printed on a scanned bank statement when one exists; otherwise
     # this row must say NA like the rest of the section, never silently fall back to the loan's
     # own bank_name/branch as a stand-in for a verification that was never actually done.
-    def _verified_bank_name_branch(co_applicant: bool = False) -> str:
-        name = _ocr_first("bank_name", {"BANK_STATEMENT"}, co_applicant=co_applicant)
-        ifsc = _ocr_first("ifsc_code", {"BANK_STATEMENT"}, co_applicant=co_applicant)
-        branch_addr = None
+    def _verified_bank_fields(co_applicant: bool = False):
+        # Bank statements are frequently filed under a business/firm name (e.g. a
+        # proprietorship's own account) rather than the applicant's personal name, which the
+        # AI's per-document relationship classifier doesn't know to treat as the applicant's own
+        # - it tags such statements DIFFERENT_PERSON even when they are genuinely the
+        # applicant's (confirmed live: a scanned bank statement with full account details was
+        # hidden behind NA this way). reconcile_case_documents() (the DOCX path) never filtered
+        # bank statements by relationship_to_applicant for exactly this reason - match that here:
+        # prefer an explicitly SELF/untagged statement, but fall back to a DIFFERENT_PERSON-
+        # tagged one rather than hide real on-file data. The co-applicant's own row still
+        # requires an explicit DIFFERENT_PERSON tag, so the applicant's own statement is never
+        # double-counted under the co-applicant.
+        bank_docs = []
         for d in document_items:
             od = d.get("ocr_data") or {}
             real_doc_type = od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type")
-            if not _belongs_to(od.get("relationship_to_applicant"), co_applicant):
-                continue
-            if real_doc_type == "BANK_STATEMENT" and od.get("address_type") == "BRANCH" and od.get("address"):
-                branch_addr = od["address"]
-                break
+            if real_doc_type == "BANK_STATEMENT":
+                bank_docs.append(od)
+        if co_applicant:
+            bank_docs = [od for od in bank_docs if od.get("relationship_to_applicant") == "DIFFERENT_PERSON"]
+        else:
+            bank_docs.sort(key=lambda od: 0 if od.get("relationship_to_applicant") in (None, "SELF") else 1)
+        name = next((od["bank_name"] for od in bank_docs if od.get("bank_name")), None)
+        ifsc = next((od["ifsc_code"] for od in bank_docs if od.get("ifsc_code")), None)
+        account_no = next((od["account_number"] for od in bank_docs if od.get("account_number")), None)
+        branch_addr = next((od["address"] for od in bank_docs if od.get("address_type") == "BRANCH" and od.get("address")), None)
         branch_val = branch_addr or (f"IFSC {ifsc}" if ifsc else None)
         parts = [p for p in (name, branch_val) if p]
-        return ", ".join(parts) if parts else NOT_CAPTURED
+        name_branch = ", ".join(parts) if parts else NOT_CAPTURED
+        return name_branch, (account_no or NOT_CAPTURED)
 
-    verified_bank_name_branch = _verified_bank_name_branch(co_applicant=False)
+    verified_bank_name_branch, verified_account_no = _verified_bank_fields(co_applicant=False)
 
     story.append(Paragraph("__________Annexure ‘D’__________<br/>Bank Verification", anx_title_style))
     story.append(Spacer(1, 3))
     bank_grid = [
         [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(verified_bank_name_branch, table_cell_style)],
+        [Paragraph("<b>A/C Number</b>", table_cell_bold), Paragraph(verified_account_no, table_cell_style)],
         [Paragraph("<b>A/C Holder Name</b>", table_cell_bold), Paragraph(applicant_name, table_cell_style)],
         [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(field_form.get("bank_account_status") or NOT_CAPTURED, table_cell_style)],
         # "Type of Facility" here means the applicant's own BANKING facility (savings/current/OD
@@ -1014,9 +1030,10 @@ def generate_certified_cpv_report(
         # The co-applicant's OWN bank statement, when one was scanned for them specifically -
         # never assumed to be the same bank as the applicant's row above just because it's one
         # joint loan; two people on a loan very often bank separately.
-        verified_bank_name_branch_co = _verified_bank_name_branch(co_applicant=True)
+        verified_bank_name_branch_co, verified_account_no_co = _verified_bank_fields(co_applicant=True)
         bank_grid_co = [
             [Paragraph("<b>Bank Name & Branch</b>", table_cell_bold), Paragraph(verified_bank_name_branch_co, table_cell_style)],
+            [Paragraph("<b>A/C Number</b>", table_cell_bold), Paragraph(verified_account_no_co, table_cell_style)],
             [Paragraph("<b>A/C Holder Name</b>", table_cell_bold), Paragraph(co_applicant_name, table_cell_style)],
             [Paragraph("<b>Account Status</b>", table_cell_bold), Paragraph(field_form.get("bank_account_status_co") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Type of Facility</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
