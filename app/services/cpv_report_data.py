@@ -494,6 +494,11 @@ async def assemble_cpv_report_data(
         "surroundings": form.get("surroundings") or None,
         "evidence": form.get("residence_evidence_obtained") or None,
         "assets": form.get("assets_observed") or None,
+        # A holistic CA judgment, not a raw observed fact with its own PWA field - the PDF
+        # generator has always hardcoded this to POSITIVE (absent any specific flag raised
+        # elsewhere in the report) rather than leaving it NA; match that here instead of this
+        # being the one remaining field where the two reports visibly disagreed.
+        "assessment": "POSITIVE",
         "met": {"name": met_name, "contact": met_contact, "relation": met_relation},
     }
 
