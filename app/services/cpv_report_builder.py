@@ -140,8 +140,17 @@ def _strip_specimen_signature_image(doc) -> None:
         return
     for p in list(_all_paragraphs(doc)):
         for r in list(p.runs):
+            # Modern DrawingML picture (<w:drawing><a:pic>...<a:blip r:embed="...">)
             blips = r._r.findall(".//" + qn("a:blip"))
-            if any(b.get(qn("r:embed")) in sig_rids for b in blips):
+            # Legacy VML fallback picture (<w:pict><v:shape><v:imagedata r:id="...">) - this is
+            # the actual form the signature turned out to be embedded as (Word keeps both forms
+            # for older picture-insertion paths), which the a:blip-only check above missed
+            # entirely, so the scanned signature kept printing even after that fix shipped.
+            # python-docx's qn() has no "v" (VML) prefix registered, so build that tag manually.
+            imagedatas = r._r.findall(".//{urn:schemas-microsoft-com:vml}imagedata")
+            hit = any(b.get(qn("r:embed")) in sig_rids for b in blips) or \
+                any(d.get(qn("r:id")) in sig_rids for d in imagedatas)
+            if hit:
                 r._r.getparent().remove(r._r)
 
 
