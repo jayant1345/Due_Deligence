@@ -219,6 +219,23 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     if office_premises_owner and not office_owner_relation and name and (_name_score(office_premises_owner, name) or 0) >= 85:
         office_owner_relation = "Self"
 
+    # Office "Who did you meet" is plain free text in the PWA (no relation dropdown like
+    # residence's) - still parse an optional "Name - Phone (Relation)" in case an agent typed
+    # one, then fall back to self-detection: a self-employed/proprietor applicant met at their
+    # own shop is routinely themselves, with no natural way to type "(Self)" after their own name.
+    office_met_raw = office_form.get("who_meet") or ""
+    _office_met_match = re.match(r"^\s*([^-()]+?)\s*(?:-\s*([\d\s+]{7,15}))?\s*(?:\(([^)]+)\))?\s*$", office_met_raw)
+    if _office_met_match:
+        office_met_name = _office_met_match.group(1).strip() or None
+        office_met_contact = (_office_met_match.group(2) or "").strip() or None
+        office_met_relation = (_office_met_match.group(3) or "").strip() or None
+    else:
+        office_met_name = office_met_raw.strip() or None
+        office_met_contact = None
+        office_met_relation = None
+    if office_met_name and not office_met_relation and name and (_name_score(office_met_name, name) or 0) >= 85:
+        office_met_relation = "Self"
+
     sal = _salutation(gender, marital)
     display = f"{sal} {_title(name)}".strip() if name else ""
     return {
@@ -267,7 +284,7 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
             # (same shape as residence's "met"), not the flat "who_meet" string above - without
             # this, the real who-we-met answer (already showing correctly in the PDF, which reads
             # office.get("who_meet") directly) printed as NA in the DOCX even when captured.
-            "met": {"name": office_form.get("who_meet") or None},
+            "met": {"name": office_met_name, "contact": office_met_contact, "relation": office_met_relation},
             "assessment": office_form.get("assessment") or None,
             # The ID card carries the official employee code; payslips often print box numbers.
             # Falls back to the field visit form's manually-typed Reg No. / UDYAM / GST number
