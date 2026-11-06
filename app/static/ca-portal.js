@@ -3409,9 +3409,99 @@
       updateZoomTransform();
     }
 
-    function rotateDocModal() {
-      docZoomState.rotation = (docZoomState.rotation + 90) % 360;
-      updateZoomTransform();
+    async function rotateDocModal(degOrMode = 90) {
+      const d = viewerDocList && viewerDocList[viewerCurrentIndex];
+      const flipCard = document.getElementById("zoomFlipCard");
+      const isFlipped = flipCard && flipCard.classList.contains("is-flipped");
+      const frontImg = document.getElementById("zoomFrontImg");
+      const backImg = document.getElementById("zoomBackImg");
+      const activeImg = isFlipped ? backImg : frontImg;
+      const activeSrc = (activeImg && activeImg.src) || (d && d.src) || "";
+
+      const isAuto = String(degOrMode).toLowerCase() === "auto";
+      const deg = isAuto ? "auto" : ((Number(degOrMode) % 360) + 360) % 360;
+
+      // If no real server image is open, apply client-side CSS rotation fallback
+      if (!activeCaseId || !activeSrc || activeSrc.includes("placeholders")) {
+        if (!isAuto) {
+          docZoomState.rotation = (docZoomState.rotation + Number(degOrMode) + 360) % 360;
+          updateZoomTransform();
+        }
+        return;
+      }
+
+      const autoBtn = document.getElementById("btnAutoRotateDoc");
+      const autoTxt = document.getElementById("btnAutoRotateDocText");
+      if (autoBtn) autoBtn.disabled = true;
+      if (autoTxt) autoTxt.textContent = isAuto ? "Detecting..." : "Saving...";
+
+      try {
+        const c = caseRegistry[activeCaseId];
+        const caseIdForApi = (c && c.db_id) || activeCaseId;
+        const res = await fetch(`/api/v1/cases/${encodeURIComponent(caseIdForApi)}/documents/rotate`, {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            document_id: (!isFlipped && d && d.id) ? d.id : null,
+            image_url: activeSrc,
+            degrees: deg,
+          }),
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        const newUrl = data.image_url || `${activeSrc.split("?")[0]}?t=${Date.now()}`;
+        const cleanTarget = (data.clean_url || activeSrc.split("?")[0]).replace(/^https?:\/\/[^/]+/, "");
+
+        docZoomState.rotation = 0;
+        updateZoomTransform();
+
+        if (activeImg) activeImg.src = newUrl;
+        if (d) {
+          if (isFlipped && d.backSrc) d.backSrc = newUrl;
+          else d.src = newUrl;
+        }
+
+        // Update matching items in viewerDocList & activeSeparatedDocs & caseRegistry cards
+        const matchesUrl = (u) => u && u.split("?")[0].endsWith(cleanTarget.split("/").pop());
+        (viewerDocList || []).forEach((item, idx) => {
+          if (matchesUrl(item.src)) {
+            item.src = newUrl;
+            const thumbImg = document.querySelector(`#viewerThumb_${idx} img`);
+            if (thumbImg) thumbImg.src = newUrl;
+          }
+          if (matchesUrl(item.backSrc)) item.backSrc = newUrl;
+        });
+        (activeSeparatedDocs || []).forEach(sd => {
+          if (matchesUrl(sd.image_url)) sd.image_url = newUrl;
+        });
+        if (c) {
+          ["aadhaar_front_img", "aadhaar_back_img", "pan_front_img", "pan_back_img", "utility_front_img", "utility_back_img"].forEach(k => {
+            if (matchesUrl(c[k])) c[k] = newUrl;
+          });
+        }
+        ["dispAadhaarFrontImg", "dispAadhaarBackImg", "dispPanFrontImg", "dispPanBackImg", "dispUtilityFrontImg", "dispUtilityBackImg"].forEach(elId => {
+          const el = document.getElementById(elId);
+          if (el && matchesUrl(el.src)) el.src = newUrl;
+        });
+        if (typeof renderSeparatedDocsTray === "function" && activeSeparatedDocs && activeSeparatedDocs.length) {
+          renderSeparatedDocsTray(activeSeparatedDocs);
+        }
+        if (autoTxt) {
+          autoTxt.textContent = data.rotated_degrees ? `Rotated ${data.rotated_degrees}° ✓` : "Upright ✓";
+          setTimeout(() => { if (autoTxt) autoTxt.textContent = "Auto-Rotate"; }, 1800);
+        }
+      } catch (err) {
+        console.warn("Server document rotation fallback to CSS:", err);
+        if (!isAuto) {
+          docZoomState.rotation = (docZoomState.rotation + Number(degOrMode) + 360) % 360;
+          updateZoomTransform();
+        }
+        if (autoTxt) autoTxt.textContent = "Auto-Rotate";
+      } finally {
+        if (autoBtn) autoBtn.disabled = false;
+      }
     }
 
     function toggleDocZoomFullscreen() {

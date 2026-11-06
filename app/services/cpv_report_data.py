@@ -274,6 +274,8 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
             # instead meant it was almost always None for exactly the applicants who reach this
             # section (is_working with no salaried employment), printing a blank "...for ." in
             # the Working Details narrative even though the PDF shows the real answer.
+            "area": office_form.get("area") or None,
+            "period_of_stay": office_form.get("period_of_stay") or office_form.get("established_since") or None,
             "experience": _years_since(doj, on) or office_form.get("experience") or office_form.get("period_of_stay") or None,
             "established_since": office_form.get("established_since") or None,
             "location": office_form.get("location") or None,
@@ -370,11 +372,16 @@ async def assemble_cpv_report_data(
     pages = [dict(p) for p in pages if p.get("scan_status") != "FAILED"]
     applicant_name = assign_relationships(pages, loan_case.applicant_name, loan_case.co_applicant_name) or loan_case.applicant_name
     summary = reconcile_case_documents(pages, loan_case.applicant_name, loan_case.co_applicant_name)
-    form = _form(loan_case)
     # The dashboard saves this literal placeholder when a case is created without typing a real
     # address (awaiting a later AI/manual correction) - it must never be treated as an actual,
     # verified address in a bank-facing report.
     target_address = loan_case.target_address if loan_case.target_address != "Pending AI Extraction" else None
+    from app.services.field_form_pdf_ingest import enrich_field_form_defaults
+    form = enrich_field_form_defaults(
+        _form(loan_case),
+        applicant_name=applicant_name,
+        target_address=target_address,
+    )
 
     # The PWA submits "occupation" at both the top level of the form AND nested inside
     # office_details - but older/incomplete submissions only ever had the top-level one (no
@@ -508,7 +515,7 @@ async def assemble_cpv_report_data(
         "landmark": form.get("landmark") or None,
         "references": [(n, r) for n, r in refs if n],
         "building_type": form.get("building_type") or None,
-        "floor": None,
+        "floor": form.get("floor") or None,
         "stay_period": form.get("period_of_stay") or None,
         "ownership": form.get("ownership") or None,
         "owner_name": res_owner_name,

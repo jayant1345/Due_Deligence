@@ -11,7 +11,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 try:
     import pymupdf as fitz
@@ -376,12 +376,16 @@ STRICT RULES
     for/sanctioned, exactly as printed. Never the applicant's own savings/salary account branch
     or balance from a bank statement - those belong in bank_name/account_number/ifsc_code
     instead and must never be confused with these two fields.
-11. rotation_needed: a document photographed sideways or upside-down (common for a card/book
-    photographed on a flat surface) must still be read correctly for every field above - rotate
-    the page mentally before extracting. Separately report how many degrees CLOCKWISE the saved
-    image itself must be rotated for a human viewer to see it upright, using the printed text's
-    reading direction, the photo/portrait's upright orientation, and the QR code's normal
-    position as your guide.
+11. rotation_needed & header_edge: a document photographed sideways or upside-down (common for a
+    card/book photographed on a flat surface) must still be read correctly for every field above -
+    rotate the page mentally before extracting. Separately report:
+    - "header_edge": "TOP" | "RIGHT" | "BOTTOM" | "LEFT" — which edge of the current image holds the
+      TOP header of the document (e.g. "Government of India / ભારત સરકાર" banner, portrait head top,
+      or document title). If the document's top banner is along the right edge of the image (text reads
+      top-to-bottom vertically), header_edge is "RIGHT". If along the left edge, "LEFT". If upside
+      down along the bottom edge, "BOTTOM". If already upright along the top edge, "TOP".
+    - "rotation_needed": 0 | 90 | 180 | 270 — degrees CLOCKWISE to rotate the image so it is upright
+      (TOP -> 0, LEFT -> 90, BOTTOM -> 180, RIGHT -> 270).
 
 Return ONLY a JSON object with exactly these keys:
 {{
@@ -428,7 +432,8 @@ Return ONLY a JSON object with exactly these keys:
   "is_tampered_or_suspicious": false,
   "observations": ["factual red flags a CA should note, e.g. bounced cheques, name mismatch"],
   "forensic_summary": "1-2 factual sentences",
-  "rotation_needed": "0 | 90 | 180 | 270 - degrees to rotate the image CLOCKWISE so printed text, the photo, and the QR code all read upright. 0 if the page already reads normally top-to-bottom."
+  "header_edge": "TOP | RIGHT | BOTTOM | LEFT - which edge of the current image contains the top header/banner of the document (or top of the person's head in portrait photo)",
+  "rotation_needed": "0 | 90 | 180 | 270 - degrees to rotate the image CLOCKWISE so printed text, the photo, and the QR code all read upright (TOP=0, LEFT=90, BOTTOM=180, RIGHT=270)."
 }}"""
 
 
@@ -514,6 +519,12 @@ def _normalize_extraction(raw: Dict[str, Any], applicant_name: str, target_addre
 
     net_monthly = _to_amount(r.get("net_salary_monthly"))
 
+    header_edge = (r.get("header_edge") or "").upper().strip()
+    edge_to_deg = {"TOP": 0, "LEFT": 90, "BOTTOM": 180, "RIGHT": 270}
+    rot_val = r.get("rotation_needed")
+    if header_edge in edge_to_deg:
+        rot_val = edge_to_deg[header_edge]
+
     result = {
         "doc_type": doc_type,
         "doc_sub_type": r.get("doc_sub_type"),
@@ -567,7 +578,8 @@ def _normalize_extraction(raw: Dict[str, Any], applicant_name: str, target_addre
         "is_tampered_or_suspicious": bool(raw.get("is_tampered_or_suspicious")),
         "discrepancies": discrepancies + [str(o) for o in observations if _clean(o)],
         "forensic_summary": r.get("forensic_summary") or "",
-        "rotation_needed": r.get("rotation_needed"),
+        "header_edge": header_edge or None,
+        "rotation_needed": rot_val,
     }
     return result
 
@@ -1046,8 +1058,9 @@ def classify_and_store_single_image(
     static_img_path = os.path.join(static_dir, img_name)
 
     with Image.open(image_path) as im:
-        im.convert("RGB").save(storage_img_path, "JPEG", quality=92)
-        im.convert("RGB").save(static_img_path, "JPEG", quality=92)
+        im_upright = ImageOps.exif_transpose(im).convert("RGB")
+        im_upright.save(storage_img_path, "JPEG", quality=92)
+        im_upright.save(static_img_path, "JPEG", quality=92)
 
     analysis = call_openrouter_gemini_page_classifier(
         image_path=storage_img_path,
@@ -1055,6 +1068,7 @@ def classify_and_store_single_image(
         applicant_name=applicant_name,
         target_address=target_address,
     )
+    _apply_rotation_if_needed(analysis.get("rotation_needed"), storage_img_path, static_img_path)
     relative_web_url = f"/storage/separated_docs/{case_id}/{img_name}"
     return _finalize_page_item(analysis, None, None, relative_web_url, [storage_img_path, static_img_path])
 
@@ -1112,6 +1126,61 @@ def _reattribute_form16_signatory_pages(results: List[Dict[str, Any]]) -> None:
                 else:
                     page["observations"] = [note]
                 break
+
+
+def detect_document_rotation_with_llm(image_path: str) -> int:
+    """Ask Gemini Vision solely for the document's upright orientation and return clockwise degrees (0, 90, 180, 270)."""
+    api_key = settings.OPENROUTER_API_KEY
+    model = settings.OPENROUTER_EXTRACTION_MODEL or "google/gemini-2.5-flash"
+    base_url = settings.OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
+    if not api_key or not os.path.exists(image_path):
+        return 0
+    mime_type, _ = mimetypes.guess_type(image_path)
+    with open(image_path, "rb") as f:
+        b64_img = base64.b64encode(f.read()).decode("utf-8")
+    prompt = (
+        "Inspect this scanned document/card image. Which edge of the image currently contains the TOP "
+        "header/banner of the document (e.g. 'Government of India / ભારત સરકાર' header, top of the person's "
+        "portrait head, or top title line)?\n"
+        "- 'TOP': the document is already upright (reads left-to-right normally).\n"
+        "- 'RIGHT': the top header is along the right edge (text runs vertically top-to-bottom; needs 270° clockwise / 90° counter-clockwise rotation).\n"
+        "- 'LEFT': the top header is along the left edge (text runs vertically bottom-to-top; needs 90° clockwise rotation).\n"
+        "- 'BOTTOM': the document is upside-down (needs 180° rotation).\n"
+        "Return ONLY JSON: {\"header_edge\": \"TOP | RIGHT | BOTTOM | LEFT\", \"rotation_needed\": 0 | 90 | 180 | 270}"
+    )
+    payload = {
+        "model": model,
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:{mime_type or 'image/jpeg'};base64,{b64_img}"}},
+            ],
+        }],
+        "response_format": {"type": "json_object"},
+        "temperature": 0,
+        "max_tokens": 1000,
+    }
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "HTTP-Referer": "https://duedeligence-production.up.railway.app",
+        "X-Title": settings.PROJECT_NAME,
+        "Content-Type": "application/json",
+    }
+    try:
+        with httpx.Client(timeout=45.0) as client:
+            resp = client.post(f"{base_url}/chat/completions", headers=headers, json=payload)
+        if resp.status_code == 200:
+            raw = _parse_model_json(resp.json()["choices"][0]["message"]["content"])
+            edge = str(raw.get("header_edge") or "").upper().strip()
+            edge_map = {"TOP": 0, "LEFT": 90, "BOTTOM": 180, "RIGHT": 270}
+            if edge in edge_map:
+                return edge_map[edge]
+            deg = int(str(raw.get("rotation_needed") or 0).strip()) % 360
+            return deg if deg in (90, 180, 270) else 0
+    except Exception as e:
+        logger.warning("Auto-rotate detection failed for %s: %s", image_path, e)
+    return 0
 
 
 def _apply_rotation_if_needed(rotation_needed: Any, *image_paths: str) -> None:

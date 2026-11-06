@@ -18,7 +18,10 @@ from typing import Any, Dict, List, Optional
 
 
 def _missing(value: Optional[str]) -> bool:
-    return not value or not str(value).strip() or str(value).strip() == "Pending AI Extraction"
+    if not value:
+        return True
+    s = str(value).strip()
+    return not s or s.upper() in ("NA", "N/A", "PENDING AI EXTRACTION", "-")
 
 
 def _entry(field: str, label: str, source: str, how: str) -> Dict[str, str]:
@@ -42,7 +45,12 @@ def compute_report_readiness(
     extra_applicants: Optional[List[Dict[str, Any]]] = None,
     has_home_photo: Optional[Dict[int, bool]] = None,
 ) -> List[Dict[str, str]]:
-    field_form = field_form or {}
+    from app.services.field_form_pdf_ingest import enrich_field_form_defaults
+    field_form = enrich_field_form_defaults(
+        field_form or {},
+        applicant_name=applicant_name,
+        target_address=target_address if target_address != "Pending AI Extraction" else None,
+    )
     missing: List[Dict[str, str]] = []
     # has_income_doc supersedes the older has_form16 name (self-employed applicants prove income
     # with an ITR acknowledgement or computation-of-income sheet, not a Form 16) - callers that
@@ -77,8 +85,15 @@ def compute_report_readiness(
         ("landmark", "Residence Landmark"),
         ("building_type", "Building Type"),
         ("period_of_stay", "Period of Stay at Residence"),
-        ("owner_name", "Residence Owner Name"),
+        ("owner_name", "Residence Owner Name & Relation (e.g. (Name) Relation)"),
         ("ownership", "Residence Ownership"),
+        ("nameboard_visible", "Residence Name Board Visibility"),
+        ("building_nature", "Nature of Building"),
+        ("general_appearance", "General Appearance of Property"),
+        ("locality", "Locality"),
+        ("surroundings", "Surroundings"),
+        ("assets_observed", "Residence Assets Visible"),
+        ("residence_evidence_obtained", "Evidence Supporting Proof Obtained"),
         ("person_met", "Person Met at Residence"),
     ]
     for key, label in checks:
@@ -135,7 +150,9 @@ def compute_report_readiness(
             ("established_since", "Office Established Since"),
             ("location", "Office Location Type"),
             ("nameboard", "Office Name Board Visibility"),
+            ("infrastructure", "Office Infrastructure of Premises"),
             ("employees", "Office Number of Workers"),
+            ("position", "Line of Business / Position at Work"),
             ("assets", "Office Assets Visible"),
             ("reference", "Office Reference"),
             ("who_meet", "Who Was Met at Office"),

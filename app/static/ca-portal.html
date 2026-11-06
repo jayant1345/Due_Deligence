@@ -2299,7 +2299,7 @@
     </div>
   </div>
 
-  <script src="/static/ca-portal.js?v=22"></script>
+  <script src="/static/ca-portal.js?v=23"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
@@ -2379,8 +2379,16 @@
               <span class="material-symbols-outlined text-[15px]">width</span>
               <span class="hidden lg:inline">Fit Width</span>
             </button>
-            <button type="button" onclick="rotateDocModal()" class="p-1 rounded hover:bg-surface-container text-on-surface" title="Rotate 90° Clockwise [R]">
+            <div class="w-px h-3.5 bg-outline-variant/60 mx-0.5"></div>
+            <button type="button" onclick="rotateDocModal(-90)" class="p-1 rounded hover:bg-surface-container text-on-surface" title="Rotate 90° Left (Counter-Clockwise) & Save Permanently">
+              <span class="material-symbols-outlined text-[17px]">rotate_left</span>
+            </button>
+            <button type="button" onclick="rotateDocModal(90)" class="p-1 rounded hover:bg-surface-container text-on-surface" title="Rotate 90° Right (Clockwise) & Save Permanently [R]">
               <span class="material-symbols-outlined text-[17px]">rotate_right</span>
+            </button>
+            <button type="button" id="btnAutoRotateDoc" onclick="rotateDocModal('auto')" style="background-color: #0284c7; color: #ffffff;" class="px-2 py-0.5 rounded hover:opacity-90 text-[10px] font-bold flex items-center gap-1 shadow-2xs transition-all" title="AI Auto-Rotate Document to Proper Upright Position & Save Permanently">
+              <span class="material-symbols-outlined text-[14px]">auto_fix_high</span>
+              <span id="btnAutoRotateDocText">Auto-Rotate</span>
             </button>
           </div>
 

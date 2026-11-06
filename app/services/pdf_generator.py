@@ -67,12 +67,14 @@ def generate_certified_cpv_report(
     NOT_CAPTURED = "NA"
 
     applicant_name = case_data.get("applicant_name") or NOT_CAPTURED
-    field_form = case_data.get("field_form") or {}
-    # The dashboard saves this literal placeholder when a case is created without typing a
-    # real address (awaiting a later AI/manual correction) - it must never be printed as if it
-    # were an actual, verified address in a bank-facing report.
     raw_target_address = case_data.get("target_address")
     target_address = raw_target_address if raw_target_address and raw_target_address != "Pending AI Extraction" else NOT_CAPTURED
+    from app.services.field_form_pdf_ingest import enrich_field_form_defaults
+    field_form = enrich_field_form_defaults(
+        case_data.get("field_form") or {},
+        applicant_name=applicant_name if applicant_name != NOT_CAPTURED else None,
+        target_address=target_address if target_address != NOT_CAPTURED else None,
+    )
     applicant_phone = case_data.get("applicant_phone") or field_form.get("contact_number") or NOT_CAPTURED
     bank_name = case_data.get("bank_name") or NOT_CAPTURED
     branch = case_data.get("branch") or NOT_CAPTURED

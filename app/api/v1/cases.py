@@ -11,9 +11,11 @@ from app.services.pdf_separator import (
     PLACEHOLDER_APPLICANT_NAMES,
     PdfPasswordRequired,
     PdfWrongPassword,
+    _apply_rotation_if_needed,
     assign_relationships,
     burst_and_separate_pdf_with_llm,
     classify_and_store_single_image,
+    detect_document_rotation_with_llm,
     map_llm_doc_type_to_document_type,
     reconcile_case_documents,
     tag_applicant_slots,
@@ -1569,5 +1571,122 @@ async def reassign_documents_to_case(
     await db.commit()
 
     return {"status": "success", "moved_count": len(moved_ids), "missing_ids": missing}
+
+
+@router.post("/{case_id}/documents/rotate")
+async def rotate_case_document_image(
+    case_id: str,
+    req: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_ca_user),
+):
+    """
+    Permanently rotate a document image on disk (storage_uploads + app/static/extracted_pages)
+    by 90, 180, or 270 degrees clockwise, or "auto" (uses Gemini Vision to detect upright
+    orientation). Keeps the document permanently upright in the Document Viewer, thumbnails,
+    Scrutiny Desk cards, and generated PDF/DOCX reports.
+    """
+    loan_case = await resolve_loan_case(db, case_id)
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
+
+    doc_id_str = str((req or {}).get("document_id") or "").strip()
+    image_url = str((req or {}).get("image_url") or "").strip()
+    degrees_raw = (req or {}).get("degrees", "auto")
+
+    # Strip any query-string cache buster from image_url
+    clean_img_url = image_url.split("?")[0].strip()
+    if clean_img_url.startswith("http://") or clean_img_url.startswith("https://"):
+        from urllib.parse import urlparse
+        clean_img_url = urlparse(clean_img_url).path
+
+    target_doc: Optional[CaseDocument] = None
+    if doc_id_str:
+        try:
+            doc_uuid = uuid.UUID(doc_id_str)
+            res = await db.execute(
+                select(CaseDocument).where(CaseDocument.id == doc_uuid, CaseDocument.case_id == loan_case.id)
+            )
+            target_doc = res.scalar_one_or_none()
+        except ValueError:
+            target_doc = None
+
+    if not target_doc and clean_img_url:
+        base_fname = os.path.basename(clean_img_url)
+        res = await db.execute(select(CaseDocument).where(CaseDocument.case_id == loan_case.id))
+        for d in res.scalars().all():
+            u1 = (d.watermarked_url or "").split("?")[0]
+            u2 = (d.storage_url or "").split("?")[0]
+            u3 = ((d.ocr_data or {}).get("image_url") or "").split("?")[0] if isinstance(d.ocr_data, dict) else ""
+            if any(base_fname and os.path.basename(u) == base_fname for u in (u1, u2, u3) if u):
+                target_doc = d
+                break
+
+    # Collect all candidate file paths on disk to rotate in lockstep
+    paths_to_rotate = set()
+    urls_to_check = [clean_img_url]
+    if target_doc:
+        urls_to_check.extend([
+            target_doc.watermarked_url or "",
+            target_doc.storage_url or "",
+            (target_doc.ocr_data or {}).get("image_url") or "" if isinstance(target_doc.ocr_data, dict) else "",
+            (target_doc.ocr_data or {}).get("local_path") or "" if isinstance(target_doc.ocr_data, dict) else "",
+        ])
+
+    for u in urls_to_check:
+        if not u:
+            continue
+        u_clean = str(u).split("?")[0].replace("\\", "/").strip()
+        p = _resolve_doc_image_path(u_clean)
+        if p and os.path.exists(p):
+            paths_to_rotate.add(os.path.normpath(p))
+        fname = os.path.basename(u_clean)
+        if fname:
+            for extra_cand in (
+                os.path.join("storage_uploads", "separated_docs", str(loan_case.id), fname),
+                os.path.join("app", "static", "extracted_pages", str(loan_case.id), fname),
+                os.path.join("storage_uploads", fname),
+            ):
+                if os.path.exists(extra_cand):
+                    paths_to_rotate.add(os.path.normpath(extra_cand))
+
+    if not paths_to_rotate:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document image file not found on server")
+
+    primary_path = sorted(paths_to_rotate)[0]
+    if str(degrees_raw).strip().lower() == "auto":
+        deg = await run_in_threadpool(detect_document_rotation_with_llm, primary_path)
+    else:
+        try:
+            deg = int(degrees_raw) % 360
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid rotation degrees")
+
+    if deg in (90, 180, 270):
+        await run_in_threadpool(_apply_rotation_if_needed, deg, *list(paths_to_rotate))
+
+    if target_doc:
+        target_doc.captured_at = datetime.now(timezone.utc)
+        if isinstance(target_doc.ocr_data, dict):
+            updated_ocr = dict(target_doc.ocr_data)
+            updated_ocr["rotation_needed"] = 0
+            updated_ocr["header_edge"] = "TOP"
+            target_doc.ocr_data = updated_ocr
+        await db.commit()
+
+    canonical_url = clean_img_url or (target_doc.watermarked_url if target_doc else "") or ""
+    if "/static/extracted_pages/" in canonical_url:
+        canonical_url = canonical_url.replace("/static/extracted_pages/", "/storage/separated_docs/")
+    cache_busted_url = f"{canonical_url}?t={int(datetime.now(timezone.utc).timestamp() * 1000)}" if canonical_url else ""
+
+    return {
+        "status": "success",
+        "rotated_degrees": deg,
+        "document_id": str(target_doc.id) if target_doc else doc_id_str,
+        "image_url": cache_busted_url,
+        "clean_url": canonical_url,
+        "message": f"Rotated {deg}° clockwise to upright position." if deg else "Document is already in upright position (0°).",
+    }
+
 
 
