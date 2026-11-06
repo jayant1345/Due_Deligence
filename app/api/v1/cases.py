@@ -1116,6 +1116,67 @@ async def ingest_and_separate_case_pdf(
     }
 
 
+@router.post("/{case_id}/ingest-field-form-pdf")
+async def ingest_field_form_pdf(
+    case_id: str,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_ca_user),
+) -> Dict[str, Any]:
+    """
+    For a backlog case whose field visit is already complete - captured on the CA office's old
+    Google Form (exported to PDF) before this system had its own PWA questionnaire, photos
+    handled separately - extract that PDF with Gemini and save it as this case's
+    field_form_data, in exactly the shape the PWA's own form submission already produces. Skips
+    the need to manually retype a visit that already happened; does not touch KYC documents or
+    photos, which already have their own working ingestion paths.
+    """
+    loan_case = await resolve_loan_case(db, case_id)
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
+
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please upload the field visit form as a PDF.")
+
+    real_case_id = str(loan_case.id)
+    upload_dir = os.path.join("storage_uploads", "field_form_pdfs", real_case_id)
+    os.makedirs(upload_dir, exist_ok=True)
+    clean_filename = os.path.basename(file.filename.replace("\\", "/"))
+    saved_pdf_path = os.path.join(upload_dir, clean_filename)
+    with open(saved_pdf_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    from app.services.field_form_pdf_ingest import ingest_field_form_pdf as run_extraction
+
+    try:
+        field_form_payload = await run_in_threadpool(run_extraction, saved_pdf_path, loan_case.applicant_name)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to extract the field visit form with Gemini: {str(e)}",
+        )
+
+    import json as _json
+    loan_case.field_form_data = _json.dumps(field_form_payload)
+
+    audit = AuditLog(
+        case_id=loan_case.id,
+        user_id=current_user.id,
+        action="FIELD_FORM_PDF_INGESTED",
+        extra_metadata={"source_pdf": clean_filename},
+    )
+    db.add(audit)
+    await db.commit()
+
+    return {
+        "status": "success",
+        "case_id": real_case_id,
+        "case_no": loan_case.case_no,
+        "field_form_data": field_form_payload,
+        "message": "Field visit form extracted and saved. Review the Residential/Office Details tab, then generate the report.",
+    }
+
+
 @router.post("/{case_id}/pan-verification")
 async def upload_pan_verification_report(
     case_id: str,

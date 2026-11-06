@@ -5127,6 +5127,72 @@
     }
 
     // ==========================================
+    // BACKLOG FIELD VISIT FORM (OLD GOOGLE FORM PDF EXPORT) INGESTION
+    // ==========================================
+    // For a case whose field visit was already completed on the CA office's old Google Form
+    // (photos handled separately, already covered by the existing upload features) before this
+    // system had its own PWA questionnaire - extracts the PDF with Gemini and saves it as the
+    // case's field_form_data in exactly the shape the PWA's own form submission already
+    // produces, so report generation needs no special-casing for an imported case.
+    async function handleFieldFormPdfSelected(files) {
+      if (!files || files.length === 0 || !activeCaseId) return;
+      const file = files[0];
+      const c = caseRegistry[activeCaseId];
+      if (!c) return;
+      const serverId = gfServerId(c) || activeCaseId;
+
+      const confirmMsg = `Extract "${file.name}" with AI and fill in the Residential/Office Details questionnaire for ${c.applicant_name}?\n\nThis replaces any Residential/Office Details already saved for this case.`;
+      if (!confirm(confirmMsg)) {
+        document.getElementById("fieldFormPdfInput").value = "";
+        return;
+      }
+
+      const statusBox = document.getElementById("pdfBurstStatusBox");
+      const statusText = document.getElementById("pdfBurstStatusText");
+      const statusPercent = document.getElementById("pdfBurstStatusPercent");
+      const progressBar = document.getElementById("pdfBurstProgressBar");
+      if (statusBox) statusBox.classList.remove("hidden");
+      if (statusText) statusText.textContent = `Reading "${file.name}" with Gemini AI - this can take a minute for a multi-page form...`;
+      if (statusPercent) statusPercent.textContent = "50%";
+      if (progressBar) progressBar.style.width = "50%";
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file, file.name);
+        const token = localStorage.getItem("ca_token");
+        const headers = {};
+        if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`/api/v1/cases/${encodeURIComponent(serverId)}/ingest-field-form-pdf`, {
+          method: "POST",
+          headers: headers,
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (statusPercent) statusPercent.textContent = "100%";
+          if (progressBar) progressBar.style.width = "100%";
+          if (statusText) statusText.textContent = "✓ Field visit form extracted and saved!";
+          c.field_form_data = JSON.stringify(data.field_form_data);
+          onCaseSelected(activeCaseId);
+          alert(`[✓] Field visit form imported for ${c.applicant_name}.\n\nOpen this case in the Field Agent PWA (or just generate the report) to review what AI extracted before certifying - it can occasionally misread handwriting or a checkbox.`);
+          setTimeout(() => { if (statusBox) statusBox.classList.add("hidden"); }, 2000);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`Could not extract the field visit form: ${err.detail || res.statusText}`);
+          if (statusBox) statusBox.classList.add("hidden");
+        }
+      } catch (err) {
+        console.error("Field form PDF ingest error:", err);
+        alert("Network error — field visit form was not imported: " + err.message);
+        if (statusBox) statusBox.classList.add("hidden");
+      } finally {
+        document.getElementById("fieldFormPdfInput").value = "";
+      }
+    }
+
+    // ==========================================
     // BANK DOCUMENTS FOLDER INGESTION & AI SCANNER
     // ==========================================
     function triggerAiFolderIngest() {

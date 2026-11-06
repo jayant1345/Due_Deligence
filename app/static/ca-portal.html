@@ -388,6 +388,13 @@
             <span>📁 Select Folder from PC...</span>
           </button>
 
+          <!-- 3. Backlog Field Visit Form (old Google Form PDF export) -->
+          <input type="file" id="fieldFormPdfInput" accept="application/pdf" class="hidden" onchange="handleFieldFormPdfSelected(this.files)"/>
+          <button type="button" onclick="document.getElementById('fieldFormPdfInput').click()" class="py-1.5 px-3.5 bg-purple-200 hover:bg-purple-300 text-purple-950 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all" title="For a case whose field visit is already done on the old Google Form (PDF export) - extract it with AI and fill in the Residential/Office Details questionnaire, instead of retyping it by hand">
+            <span class="material-symbols-outlined text-[16px]">forms_add_on</span>
+            <span>📝 Import Backlog Field Visit Form (PDF)...</span>
+          </button>
+
           <!-- 3. Multiple Loose Files Selection -->
           <input type="file" id="portalMultiFilesInput" multiple class="hidden" onchange="handlePortalMultiFilesSelected(this.files)"/>
           <button type="button" onclick="document.getElementById('portalMultiFilesInput').click()" class="py-1.5 px-3 bg-blue-800/80 hover:bg-blue-700 text-white border border-blue-500/40 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all" title="Select multiple PDFs or photos at once">
@@ -2263,7 +2270,7 @@
     </div>
   </div>
 
-  <script src="/static/ca-portal.js?v=14"></script>
+  <script src="/static/ca-portal.js?v=15"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
