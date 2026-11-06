@@ -202,6 +202,19 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
             "status": "Income Tax Return filed - acknowledgement recorded on-site by the field agent (supporting document not scanned)",
         }
 
+    # Premises Owner Name is now suggested to the agent in the same "(Name) Relation" format as
+    # the residence Owner Name field (e.g. "( Rajesh Patel ) Landlord") - the DOCX template has a
+    # separate "Relation with Applicant" cell for the office premises owner that stayed NA even
+    # when a relation was typed, because nothing parsed it out of the combined string.
+    premises_owner_raw = office_form.get("premises_owner") or ""
+    _premises_owner_match = re.match(r"^\s*\(([^)]+)\)\s*(.*)$", premises_owner_raw)
+    if _premises_owner_match:
+        office_premises_owner = _premises_owner_match.group(1).strip() or None
+        office_owner_relation = _premises_owner_match.group(2).strip() or None
+    else:
+        office_premises_owner = premises_owner_raw.strip() or None
+        office_owner_relation = None
+
     sal = _salutation(gender, marital)
     display = f"{sal} {_title(name)}".strip() if name else ""
     return {
@@ -225,7 +238,8 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
             "landmark": office_form.get("landmark") or None,
             "firm_type": office_form.get("firm_type") or None,
             "premises_ownership": office_form.get("premises_ownership") or None,
-            "premises_owner": office_form.get("premises_owner") or None,
+            "premises_owner": office_premises_owner,
+            "owner_relation": office_owner_relation,
             "employees": office_form.get("employees") or None,
             "nameboard": office_form.get("nameboard") or None,
             "infrastructure": office_form.get("infrastructure") or None,

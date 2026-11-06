@@ -416,6 +416,13 @@ def generate_certified_cpv_report(
     office = field_form.get("office_details") or {}
     firm_name = office.get("firm_name") or ""
     office_addr = office.get("address") or ""
+    # Premises Owner Name is suggested to the agent as "(Name) Relation" (e.g. "( Rajesh Patel )
+    # Landlord") so the DOCX's separate Relation with Applicant cell can be populated - without
+    # parsing it out here too, the PDF (which has no separate relation row) would print the raw
+    # "(Rajesh Patel) Landlord" string, parentheses and all, instead of just the name.
+    premises_owner_raw = office.get("premises_owner") or ""
+    _premises_owner_match = re.match(r"^\s*\(([^)]+)\)\s*(.*)$", premises_owner_raw)
+    office_premises_owner = (_premises_owner_match.group(1).strip() if _premises_owner_match else premises_owner_raw.strip()) or NOT_CAPTURED
     position = office.get("position") or NOT_CAPTURED
     experience = office.get("experience") or office.get("period_of_stay") or ""
     if experience and not str(experience).lower().endswith("years") and not str(experience).lower().endswith("yrs"):
@@ -434,6 +441,9 @@ def generate_certified_cpv_report(
     # Co-applicant's own office, submitted separately in the PWA questionnaire since the
     # co-applicant's workplace is frequently a different premises from the applicant's.
     office_co = field_form.get("office_details_co") or {}
+    co_premises_owner_raw = office_co.get("premises_owner") or ""
+    _co_premises_owner_match = re.match(r"^\s*\(([^)]+)\)\s*(.*)$", co_premises_owner_raw)
+    office_co_premises_owner = (_co_premises_owner_match.group(1).strip() if _co_premises_owner_match else co_premises_owner_raw.strip()) or NOT_CAPTURED
 
     # Co-applicant's own residence details, only ever submitted by the PWA when the CA office
     # flagged co_applicant_address on the case record (most dual-applicant cases share one home
@@ -798,7 +808,7 @@ def generate_certified_cpv_report(
             [Paragraph("<b>Landmark</b>", table_cell_bold), Paragraph(office.get("landmark") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Firm Type</b>", table_cell_bold), Paragraph(office.get("firm_type") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Premises Ownership</b>", table_cell_bold), Paragraph(office.get("premises_ownership") or NOT_CAPTURED, table_cell_style)],
-            [Paragraph("<b>Premises Owner Name</b>", table_cell_bold), Paragraph(office.get("premises_owner") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Premises Owner Name</b>", table_cell_bold), Paragraph(office_premises_owner, table_cell_style)],
             [Paragraph("<b>Established since</b>", table_cell_bold), Paragraph(office.get("established_since") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Location</b>", table_cell_bold), Paragraph(office.get("location") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph(office.get("nameboard") or NOT_CAPTURED, table_cell_style)],
@@ -853,7 +863,7 @@ def generate_certified_cpv_report(
                 [Paragraph("<b>Landmark</b>", table_cell_bold), Paragraph(office_co.get("landmark") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Firm Type</b>", table_cell_bold), Paragraph(office_co.get("firm_type") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Premises Ownership</b>", table_cell_bold), Paragraph(office_co.get("premises_ownership") or NOT_CAPTURED, table_cell_style)],
-                [Paragraph("<b>Premises Owner Name</b>", table_cell_bold), Paragraph(office_co.get("premises_owner") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Premises Owner Name</b>", table_cell_bold), Paragraph(office_co_premises_owner, table_cell_style)],
                 [Paragraph("<b>Established since</b>", table_cell_bold), Paragraph(office_co.get("established_since") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Location</b>", table_cell_bold), Paragraph(office_co.get("location") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph(office_co.get("nameboard") or NOT_CAPTURED, table_cell_style)],
