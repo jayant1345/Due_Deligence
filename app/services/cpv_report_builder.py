@@ -121,8 +121,12 @@ def _replace_token(doc, token: str, text: Optional[str], drop_if_empty: bool = F
                 _set_par_text(p, p.text.replace(token, _v(text)))
 
 
-def _set_numpages_field(cell) -> None:
-    """Total pages as a Word NUMPAGES field (counted by Word itself), keeping the cell's font."""
+def _set_numpages_field(cell, fallback: str) -> None:
+    """Total pages as a Word NUMPAGES field (recalculated by Word itself on open/print), with
+    a cached literal matching the PDF's fixed annexure-count convention (pdf_generator.py's
+    idx_grid: "13" with a co-applicant, "11" without) - any viewer that doesn't recalculate
+    fields (e.g. a DOCX-to-image/PDF preview) shows this cached value, so it must match the PDF
+    rather than the stale "1" python-docx otherwise bakes in, keeping the cell's font."""
     p = cell.paragraphs[0]
     rpr = _first_run_props(p)
     for r in list(p.runs):
@@ -138,7 +142,7 @@ def _set_numpages_field(cell) -> None:
     begin = OxmlElement("w:fldChar"); begin.set(qn("w:fldCharType"), "begin"); _run(begin)
     instr = OxmlElement("w:instrText"); instr.set(qn("xml:space"), "preserve"); instr.text = r" NUMPAGES \* MERGEFORMAT "; _run(instr)
     sep = OxmlElement("w:fldChar"); sep.set(qn("w:fldCharType"), "separate"); _run(sep)
-    t = OxmlElement("w:t"); t.text = cell.text or "1"; _run(t)
+    t = OxmlElement("w:t"); t.text = fallback; _run(t)
     end = OxmlElement("w:fldChar"); end.set(qn("w:fldCharType"), "end"); _run(end)
 
 
@@ -492,7 +496,7 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
     _set_cell(_ucells(T[0], row)[-1], verifiers[0])
     _set_cell(_ucells(T[0], row + 1)[-1], verifiers[1])
     _set_cell_or_na(_ucells(T[0], row + 2)[-1], data.get("file_allotted_by"))
-    _set_numpages_field(_ucells(T[1], 6)[-1])
+    _set_numpages_field(_ucells(T[1], 6)[-1], "13" if co else "11")
     _set_cell(_ucells(T[2], 1)[-1], data.get("overall_status"))
 
     # Summary narrative (Dynamic write-up of residential, working, ITR, KYC)
