@@ -204,7 +204,8 @@ async def extract_field_form_pdf_endpoint(
 
     temp_dir = os.path.join("storage_uploads", "temp_field_forms")
     os.makedirs(temp_dir, exist_ok=True)
-    temp_filename = f"{uuid.uuid4().hex}_{os.path.basename(file.filename.replace('\\', '/'))}"
+    clean_base = os.path.basename(file.filename.replace("\\", "/"))
+    temp_filename = f"{uuid.uuid4().hex}_{clean_base}"
     saved_pdf_path = os.path.join(temp_dir, temp_filename)
     try:
         with open(saved_pdf_path, "wb") as buffer:
