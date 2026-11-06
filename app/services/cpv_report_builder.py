@@ -121,6 +121,30 @@ def _replace_token(doc, token: str, text: Optional[str], drop_if_empty: bool = F
                 _set_par_text(p, p.text.replace(token, _v(text)))
 
 
+def _strip_specimen_signature_image(doc) -> None:
+    """The templates have a real CA's signature scan baked directly into the document as a
+    static picture (word/media/image1.png - a scan of "Pranav N. Shah"'s own signature, left
+    over from whoever originally authored the specimen report), not something our code ever
+    placed. Setting data["signature_path"] to None only stops the code below from PASTING a
+    new one; it never touched this pre-existing embedded picture, so a scanned signature kept
+    printing on every generated report regardless of that setting. Remove it by relationship
+    (any run whose drawing embeds the image file named "image1.png"), since it isn't anchored
+    to any label text we could match on - the firm's own "CA India" body logo (image2.jpeg) is
+    untouched, only the personal signature scan is removed.
+    """
+    sig_rids = {
+        rid for rid, rel in doc.part.rels.items()
+        if "image" in rel.reltype and rel.target_ref.endswith("image1.png")
+    }
+    if not sig_rids:
+        return
+    for p in list(_all_paragraphs(doc)):
+        for r in list(p.runs):
+            blips = r._r.findall(".//" + qn("a:blip"))
+            if any(b.get(qn("r:embed")) in sig_rids for b in blips):
+                r._r.getparent().remove(r._r)
+
+
 def _set_numpages_field(cell, fallback: str) -> None:
     """Total pages as a Word NUMPAGES field (recalculated by Word itself on open/print), with
     a cached literal matching the PDF's fixed annexure-count convention (pdf_generator.py's
@@ -474,6 +498,7 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
     co = data.get("co_applicant")
     persons = 2 if co else 1
     doc = docx.Document(os.path.join(TEMPLATE_DIR, TEMPLATES[persons]))
+    _strip_specimen_signature_image(doc)
     T = doc.tables
 
     # Cover page
