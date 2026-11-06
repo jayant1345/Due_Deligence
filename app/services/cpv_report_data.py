@@ -554,11 +554,11 @@ async def assemble_cpv_report_data(
 
     # The signature block is left blank on purpose so the CA signs the printed report by hand -
     # auto-pasting a scanned signature image into every generated report was a demo/specimen
-    # leftover, not something that should go out on a real bank-facing certified document.
-    # CA_SIGNATURE_IMAGE_PATH remains available as an explicit opt-in if ever needed again.
-    sig_path = os.getenv("CA_SIGNATURE_IMAGE_PATH") or None
-    if sig_path and not os.path.exists(sig_path):
-        sig_path = None
+    # leftover, not something that should go out on a real bank-facing certified document. This
+    # used to still auto-paste whenever CA_SIGNATURE_IMAGE_PATH happened to be set in the
+    # environment (it was, on production) - per explicit CA office instruction, never insert an
+    # image here at all, full stop; matches the PDF, which has never pasted one either.
+    sig_path = None
 
     loan_type = loan_case.loan_type
     if loan_case.loan_amount:
