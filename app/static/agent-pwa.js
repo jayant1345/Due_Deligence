@@ -2039,7 +2039,13 @@
 
       const assetsObserved = (document.getElementById("formAssetsObserved") || {}).value
         || visibleAssets.filter(a => a.active).map(a => a.name || a.label || a.id).filter(Boolean).join(", ");
-      
+      // The Name board Visibility Yes/No radio (pwaNameBoardRadio) was a real, filled-in field
+      // in the UI that this function never actually read - it hardcoded nameboard_visible to ""
+      // regardless of the agent's answer, so the data the field staff correctly captured never
+      // reached the server at all, let alone the report.
+      const nameboardRadio = document.querySelector('input[name="pwaNameBoardRadio"]:checked');
+      const nameboardVisible = nameboardRadio ? nameboardRadio.value : "";
+
       const payload = {
         executive: exec,
         persona: persona,
@@ -2060,7 +2066,7 @@
         landmark: landmark,
         person_met: personMet,
         assets_observed: assetsObserved,
-        nameboard_visible: "",
+        nameboard_visible: nameboardVisible,
         occupation: occupation,
         itr_acknowledgement_no: itrAckNo,
         itr_filing_date: itrFilingDate,
