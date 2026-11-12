@@ -321,7 +321,7 @@ async def update_case(
 
 @router.get("/{case_id}/report-readiness")
 async def get_report_readiness(
-    case_id: uuid.UUID,
+    case_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_ca_user),
 ):
@@ -402,7 +402,7 @@ async def get_report_readiness(
 
 @router.patch("/{case_id}/report-fields")
 async def patch_report_fields(
-    case_id: uuid.UUID,
+    case_id: str,
     req: dict,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_ca_user),

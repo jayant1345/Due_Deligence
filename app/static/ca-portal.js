@@ -1620,6 +1620,9 @@
             if (neighEl && c.neighbors && c.neighbors.length) {
               neighEl.innerHTML = `<span class="font-bold text-primary-container">Neighbour Corroboration:</span> ${c.neighbors.join(' • ')}`;
             }
+            if (Array.isArray(c.audit_checks)) {
+              restoreAuditChecksForCase(caseId, c);
+            }
           }
         }
 
@@ -1803,8 +1806,7 @@
         : `○ NOT YET VISITED (benchmark ${c.benchmark_lat}° N, ${c.benchmark_lon}° E)`;
       const geoBadge = document.getElementById("dispGeofenceHeaderBadge");
       if (geoBadge) geoBadge.textContent = visitedForBadge ? (c.distance_m <= 150 ? "GEOFENCE VERIFIED" : "GEOFENCE BREACH") : "GEOFENCE PENDING";
-      document.querySelectorAll(".audit-check").forEach(cb => { cb.checked = false; });
-      updateAuditCheckCount();
+      restoreAuditChecksForCase(caseId, c);
       document.getElementById("dispVisitDate").textContent = "Visited: " + c.visit_date;
       restoreUdinForCase(caseId, c);
 
@@ -2015,10 +2017,76 @@
     // the CA is asked for each one's password separately once everything else is done.
     let pendingPasswordPdfs = [];
 
-    function updateAuditCheckCount() {
+    function restoreAuditChecksForCase(caseId, c) {
       const boxes = [...document.querySelectorAll(".audit-check")];
+      if (!boxes.length) return;
+      let saved = null;
+      if (c && Array.isArray(c.audit_checks) && c.audit_checks.length === boxes.length) {
+        saved = c.audit_checks.map(Boolean);
+      } else {
+        try {
+          const keys = [
+            c && c.db_id ? `audit_checks_${c.db_id}` : null,
+            caseId ? `audit_checks_${caseId}` : null,
+            c && c.case_no ? `audit_checks_${c.case_no}` : null,
+          ].filter(Boolean);
+          for (const k of keys) {
+            const raw = localStorage.getItem(k);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed) && parsed.length === boxes.length) {
+                saved = parsed.map(Boolean);
+                break;
+              }
+            }
+          }
+        } catch (e) {}
+      }
+      if (!saved && c && c.status === "CERTIFIED") {
+        saved = boxes.map(() => true);
+      }
+      boxes.forEach((cb, idx) => {
+        cb.checked = saved ? Boolean(saved[idx]) : false;
+      });
+      if (c && saved) c.audit_checks = saved;
+      updateAuditCheckCount(false);
+    }
+
+    function updateAuditCheckCount(persist = false) {
+      const boxes = [...document.querySelectorAll(".audit-check")];
+      const states = boxes.map(b => Boolean(b.checked));
       const el = document.getElementById("auditCheckCount");
-      if (el) el.textContent = `${boxes.filter(b => b.checked).length}/${boxes.length} SATISFIED`;
+      if (el) el.textContent = `${states.filter(Boolean).length}/${boxes.length} SATISFIED`;
+
+      if (persist && activeCaseId) {
+        const c = caseRegistry[activeCaseId];
+        if (c) {
+          c.audit_checks = states;
+          try {
+            const ffd = c.field_form_data
+              ? (typeof c.field_form_data === "string" ? JSON.parse(c.field_form_data) : { ...c.field_form_data })
+              : {};
+            if (ffd && typeof ffd === "object") {
+              ffd.audit_checks = states;
+              c.field_form_data = JSON.stringify(ffd);
+            }
+          } catch (e) {}
+        }
+        try {
+          const serialized = JSON.stringify(states);
+          localStorage.setItem(`audit_checks_${activeCaseId}`, serialized);
+          if (c && c.db_id) localStorage.setItem(`audit_checks_${c.db_id}`, serialized);
+          if (c && c.case_no) localStorage.setItem(`audit_checks_${c.case_no}`, serialized);
+        } catch (e) {}
+        const serverId = (c && typeof gfServerId === "function" ? gfServerId(c) : null) || (c && c.db_id) || activeCaseId;
+        if (serverId) {
+          fetch(`/api/v1/cases/${encodeURIComponent(serverId)}/report-fields`, {
+            method: "PATCH",
+            headers: authHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({ audit_checks: states }),
+          }).catch(() => {});
+        }
+      }
     }
 
     function authHeaders(extra = {}) {
@@ -5999,6 +6067,9 @@
         if (nList.length > 0) c.neighbors = nList;
         if (ffd.executive && (!c.agent || c.agent === "Not yet allotted")) {
           c.agent = `${ffd.executive} (Field Team)`;
+        }
+        if (Array.isArray(ffd.audit_checks)) {
+          c.audit_checks = ffd.audit_checks.map(Boolean);
         }
       } catch (e) {}
     }
