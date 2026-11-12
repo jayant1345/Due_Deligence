@@ -377,17 +377,18 @@ STRICT RULES
    AADHAAR_CARD, PAN_CARD, UTILITY_BILL, SALARY_SLIP, FORM_16, BANK_STATEMENT,
    EMPLOYEE_ID_CARD, PROPERTY_DOCUMENT, APPLICATION_FORM, ITR_ACKNOWLEDGEMENT,
    COMPUTATION_OF_INCOME, PROFIT_LOSS_BALANCE_SHEET, OTHER.
-   A Form 16 Part-B / Annexure page is FORM_16 (not SALARY_SLIP). A page that only continues a
-   previous document (e.g. a verification block, more ledger rows) keeps that document's type.
-   A self-employed/business applicant never has a Form 16 - their income proof is instead:
-   ITR_ACKNOWLEDGEMENT (the ITR-V acknowledgement/filing receipt - carries an acknowledgement
-   number and filing date), COMPUTATION_OF_INCOME (the CA's "Computation of Total Income"
-   sheet showing income-head-wise income and the final taxable income figure, sometimes titled
-   "Computation of Income" or just shows PAN/A.Y. with a tax computation layout), and
+   A Form 16 Part-A, Part-B, Annexure, or TRACES TDS Certificate page under Sec 192 is FORM_16 (not SALARY_SLIP).
+   A page that only continues a previous document (e.g. a verification block, more ledger rows) keeps that document's type.
+   A self-employed/business/professional applicant's income proof is:
+   ITR_ACKNOWLEDGEMENT (the ITR-V acknowledgement/filing receipt, e-Filing portal return receipt,
+   or Income Tax Intimation u/s 143(1) / Assessment Order - carries an acknowledgement number and filing date),
+   COMPUTATION_OF_INCOME (the CA's "Computation of Total Income", "Return Assessment Statement",
+   "Statement of Total Income", "Tax Assessment Statement", or full ITR-1/2/3/4 return assessment sheet
+   showing income-head-wise income and the final taxable income figure), and
    PROFIT_LOSS_BALANCE_SHEET (Trading Account / Profit & Loss Account / Capital Account /
-   Balance Sheet pages for the business - filed for the CA's own record, not itself a source of
-   the headline income figure). These three are frequently in the same bundle for one business
-   applicant - classify each page as whichever of the three it actually is, not OTHER.
+   Balance Sheet pages for the business). These are frequently in the same bundle - classify each
+   page as whichever of FORM_16, ITR_ACKNOWLEDGEMENT, COMPUTATION_OF_INCOME, or PROFIT_LOSS_BALANCE_SHEET
+   it actually is, never OTHER.
    When the physical PAN card itself is not provided, the CA office instead verifies the PAN on
    the Income Tax e-filing portal and includes that printout - a "Know Your Jurisdictional
    Assessing Officer" page, an NSDL/e-filing "Verify Your PAN" result, or any other official
@@ -470,12 +471,12 @@ Return ONLY a JSON object with exactly these keys:
   "gross_salary_monthly": "string or null",
   "total_deductions_monthly": "string or null",
   "net_salary_monthly": "string or null",
-  "assessment_year": "string or null",
+  "assessment_year": "string or null (e.g. '2025-26', '2024-25'; if only Financial Year like 2024-25 is printed on Form 16/Computation, report Assessment Year '2025-26')",
   "employer_tan": "string or null",
-  "annual_gross_salary": "string or null",
-  "annual_taxable_income": "string or null (ITR_ACKNOWLEDGEMENT/COMPUTATION_OF_INCOME: the final Total/Taxable Income figure)",
+  "annual_gross_salary": "string or null (Form 16 / Computation / Return Assessment: Gross Salary or Gross Total Income, digits only)",
+  "annual_taxable_income": "string or null (Form 16 / ITR_ACKNOWLEDGEMENT / COMPUTATION_OF_INCOME / Return Assessment: final Total Taxable Income / Total Income / Net Profit figure, digits only)",
   "annual_tax_payable": "string or null",
-  "itr_acknowledgement_number": "string or null (ITR_ACKNOWLEDGEMENT only - the acknowledgement/receipt number, not the PAN)",
+  "itr_acknowledgement_number": "string or null (ITR_ACKNOWLEDGEMENT / COMPUTATION_OF_INCOME / Return Assessment: the 15-digit e-filing Acknowledgement Number; FORM_16: the TRACES Certificate Number or Q4 Receipt Number, never the PAN)",
   "bank_name": "string or null",
   "account_number": "string or null",
   "ifsc_code": "string or null",
@@ -529,8 +530,26 @@ def _normalize_extraction(raw: Dict[str, Any], applicant_name: str, target_addre
     discrepancies: List[str] = []
 
     doc_type = (r.get("doc_type") or "OTHER").upper().replace(" ", "_")
+    if doc_type in {"RETURN_ASSESSMENT", "RETURN_ASSESSMENT_STATEMENT", "ASSESSMENT_STATEMENT", "STATEMENT_OF_INCOME", "TAX_COMPUTATION"}:
+        doc_type = "COMPUTATION_OF_INCOME"
+    elif doc_type in {"ITR", "ITR_V", "INCOME_TAX_RETURN", "INTIMATION_143_1", "ASSESSMENT_ORDER"}:
+        doc_type = "ITR_ACKNOWLEDGEMENT"
+    elif doc_type in {"FORM16", "FORM_NO_16", "TDS_CERTIFICATE"}:
+        doc_type = "FORM_16"
     if doc_type not in ALLOWED_DOC_TYPES:
         doc_type = "OTHER"
+
+    # Auto-promote income/assessment pages that Gemini labeled OTHER despite clear Form 16 / ITR / Assessment content
+    if doc_type == "OTHER":
+        title_up = f"{r.get('document_title') or ''} {r.get('forensic_summary') or ''}".upper()
+        if any(k in title_up for k in ("FORM 16", "FORM NO. 16", "FORM NO 16", "FORM-16", "SECTION 192", "TRACES")):
+            doc_type = "FORM_16"
+        elif r.get("itr_acknowledgement_number") or any(k in title_up for k in ("ITR-V", "ITR V", "ACKNOWLEDGEMENT", "143(1)", "INCOME TAX RETURN")):
+            doc_type = "ITR_ACKNOWLEDGEMENT"
+        elif any(k in title_up for k in ("COMPUTATION", "ASSESSMENT STATEMENT", "RETURN ASSESSMENT", "STATEMENT OF TOTAL INCOME", "STATEMENT OF INCOME", "TAXABLE INCOME")) or (r.get("assessment_year") and (r.get("annual_taxable_income") or r.get("annual_gross_salary"))):
+            doc_type = "COMPUTATION_OF_INCOME"
+        elif any(k in title_up for k in ("PROFIT AND LOSS", "PROFIT & LOSS", "BALANCE SHEET", "TRADING ACCOUNT", "CAPITAL ACCOUNT")):
+            doc_type = "PROFIT_LOSS_BALANCE_SHEET"
 
     pan, pan_err = _validate_pan(r.get("pan_number"))
     tan = _validate_tan(r.get("employer_tan"))
@@ -952,13 +971,28 @@ def assign_relationships(items: List[Dict[str, Any]], applicant_name: str = "", 
     }
     self_aadhaars.discard("")
     for it in items:
-        if it.get("scan_status") == "FAILED" or it.get("relationship_to_applicant") == "SELF":
+        if it.get("scan_status") == "FAILED":
+            continue
+        if it.get("forced_relationship") in ("SELF", "DIFFERENT_PERSON"):
+            it["relationship_to_applicant"] = it["forced_relationship"]
+            it["discrepancies"] = [d for d in (it.get("discrepancies") or []) if not str(d).startswith(_BELONGS_PREFIX)]
+            continue
+        if it.get("relationship_to_applicant") == "SELF":
             continue
         pan_val = str(it.get("extracted_pan") or "").strip().upper()
         aadhaar_val = re.sub(r"\D", "", str(it.get("extracted_aadhaar") or ""))
         if (pan_val and pan_val in self_pans) or (aadhaar_val and aadhaar_val in self_aadhaars):
             it["relationship_to_applicant"] = "SELF"
             it["discrepancies"] = [d for d in (it.get("discrepancies") or []) if not str(d).startswith(_BELONGS_PREFIX)]
+            continue
+        # Income / Assessment continuation pages (Form 16 Part B, Computation schedules, Balance Sheet)
+        # often omit the holder name or print the business/trade name. When there is no co-applicant on
+        # the case (or when holder_name is blank/UNKNOWN), link them to SELF so the report's ITR table
+        # is never left empty.
+        if it.get("doc_type") in {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET"}:
+            if it.get("relationship_to_applicant") == "UNKNOWN" or not co_on_file:
+                it["relationship_to_applicant"] = "SELF"
+                it["discrepancies"] = [d for d in (it.get("discrepancies") or []) if not str(d).startswith(_BELONGS_PREFIX)]
     return reference
 
 

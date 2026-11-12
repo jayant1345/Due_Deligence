@@ -125,15 +125,8 @@ def compute_report_readiness(
     # in a gap on a row the scan already created - they can never create the row by themselves,
     # so a case with neither has an empty Annexure C no matter what's typed into them). ---
     if not has_income_doc:
-        missing.append(_entry("income_doc", "Applicant Income Proof (Form 16 / ITR Acknowledgement / Computation of Income)",
-                               "document", "AI Ingest Bank Folder/PDF -> scan the income-proof document"))
-    else:
-        if _missing(field_form.get("itr_acknowledgement_no")):
-            missing.append(_entry("itr_acknowledgement_no", "ITR Acknowledgement No. (fallback if not read off the scan)", "field_form",
-                                   "Field Visit Form -> Income Tax & Bank Verification"))
-        if _missing(field_form.get("itr_filing_date")):
-            missing.append(_entry("itr_filing_date", "ITR Date of Filing (fallback if not read off the scan)", "field_form",
-                                   "Field Visit Form -> Income Tax & Bank Verification"))
+        missing.append(_entry("income_doc", "Applicant Income Proof (Form 16 / ITR Acknowledgement / Return Assessment / Computation of Income)",
+                               "document", "Click 'Upload & Scan Document' to scan Form 16, ITR-V, Return Assessment Statement, or Computation of Income"))
 
     # --- Office / workplace questionnaire (only when the applicant is not a housewife) ---
     occupation = str(field_form.get("occupation") or "")

@@ -402,6 +402,13 @@
             <span>📄 Select Multiple Files...</span>
           </button>
 
+          <!-- 4. Dedicated Form 16 / ITR / Return Assessment Document Upload -->
+          <input type="file" id="portalIncomeDocInput" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp" multiple class="hidden" onchange="handlePortalIncomeDocSelected(this.files)"/>
+          <button type="button" onclick="document.getElementById('portalIncomeDocInput').click()" class="py-1.5 px-3.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all" title="Upload Form 16, ITR Acknowledgement, Return Assessment Statement, Computation of Income, or Balance Sheet (PDF or Image)">
+            <span class="material-symbols-outlined text-[16px]">request_quote</span>
+            <span>📊 Upload Form 16 / ITR / Assessment Doc...</span>
+          </button>
+
           <button type="button" id="btnRunPargiPdfDemo" onclick="runPargiPdfSeparationDemo()" class="ml-auto py-1.5 px-3 bg-blue-950/70 hover:bg-blue-900 text-blue-200 border border-blue-400/30 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all" title="Select PDF and extract every page with Gemini AI">
             <span class="material-symbols-outlined text-[16px]">bolt</span>
             <span>Scan (AI)</span>
@@ -2337,7 +2344,7 @@
     </div>
   </div>
 
-  <script src="/static/ca-portal.js?v=27"></script>
+  <script src="/static/ca-portal.js?v=28"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
@@ -2954,7 +2961,17 @@
           <div id="rrDashboardList" class="space-y-1.5"></div>
         </div>
         <div id="rrDocumentSection" class="hidden space-y-2">
-          <p class="font-mono text-[10px] font-bold text-outline uppercase">Needs a Document AI-Scanned</p>
+          <p class="font-mono text-[10px] font-bold text-outline uppercase">Needs a Document AI-Scanned (Form 16 / ITR / Return Assessment / KYC)</p>
+          <input type="file" id="rrScanDocInput" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp" multiple class="hidden" onchange="handleReportReadinessDocUpload(this.files)"/>
+          <div id="rrDocScanStatusBox" class="hidden p-2.5 rounded-lg bg-blue-950 text-white border border-blue-500/50 font-mono text-[11px] space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span id="rrDocScanStatusText" class="text-amber-300 font-bold">Uploading & AI-Scanning document...</span>
+              <span id="rrDocScanPercent" class="text-blue-200 font-bold">0%</span>
+            </div>
+            <div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
+              <div id="rrDocScanProgressBar" class="bg-amber-400 h-full w-0 transition-all duration-300"></div>
+            </div>
+          </div>
           <div id="rrDocumentList" class="space-y-1.5"></div>
         </div>
         <div id="rrFieldFormSection" class="hidden space-y-2">

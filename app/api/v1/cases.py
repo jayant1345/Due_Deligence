@@ -399,7 +399,7 @@ async def get_report_readiness(
     # document type lives in ocr_data (the DB doc_type column collapses odd documents like an
     # employee ID card down to OTHER), and a doc belongs to the co-applicant only when Gemini
     # explicitly tagged it DIFFERENT_PERSON during AI ingestion.
-    ITR_INCOME_DOC_TYPES = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME"}
+    ITR_INCOME_DOC_TYPES = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET"}
 
     def _real_doc_type(d):
         od = d.ocr_data if isinstance(d.ocr_data, dict) else {}
@@ -1097,6 +1097,39 @@ async def _persist_ai_ingested_documents(
                 pass
 
 
+def _apply_doc_hint(results: List[Dict[str, Any]], doc_hint: Optional[str]) -> None:
+    """
+    When CA staff upload a document from a specific Report Readiness row (e.g. 'income_doc' for
+    Form 16 / ITR / Return Assessment Statement, or 'aadhaar_scan' / 'pan_scan'), lock the
+    applicant relationship (SELF vs DIFFERENT_PERSON) and ensure pages that Gemini classified as
+    generic OTHER are promoted to the appropriate income/KYC document type.
+    """
+    hint = (doc_hint or "").strip().lower()
+    if not hint:
+        return
+    is_co = hint.endswith("_co")
+    forced_rel = "DIFFERENT_PERSON" if is_co else "SELF"
+    for item in results:
+        if item.get("scan_status") == "FAILED":
+            continue
+        item["forced_relationship"] = forced_rel
+        item["relationship_to_applicant"] = forced_rel
+        dt = (item.get("doc_type") or "OTHER").upper()
+        if hint in ("income_doc", "income_doc_co"):
+            if dt not in {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET"}:
+                title_up = f"{item.get('document_title') or ''} {item.get('forensic_summary') or ''}".upper()
+                if any(k in title_up for k in ("FORM 16", "FORM NO. 16", "FORM NO 16", "FORM-16", "SECTION 192", "TRACES")):
+                    item["doc_type"] = "FORM_16"
+                elif item.get("itr_acknowledgement_number") or any(k in title_up for k in ("ITR-V", "ITR V", "ACKNOWLEDGEMENT", "143(1)")):
+                    item["doc_type"] = "ITR_ACKNOWLEDGEMENT"
+                else:
+                    item["doc_type"] = "COMPUTATION_OF_INCOME"
+        elif hint in ("aadhaar_scan", "aadhaar_scan_co") and dt == "OTHER":
+            item["doc_type"] = "AADHAAR_CARD"
+        elif hint in ("pan_scan", "pan_scan_co") and dt == "OTHER":
+            item["doc_type"] = "PAN_CARD"
+
+
 @router.post("/{case_id}/ingest-pdf")
 async def ingest_and_separate_case_pdf(
     case_id: str,
@@ -1106,6 +1139,7 @@ async def ingest_and_separate_case_pdf(
     target_address: Optional[str] = Form(None),
     replace_existing: bool = Form(True),
     password: Optional[str] = Form(None),
+    doc_hint: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_ca_user),
 ) -> Dict[str, Any]:
@@ -1181,6 +1215,7 @@ async def ingest_and_separate_case_pdf(
 
     # Replace any previously ingested pages for this case (idempotent re-ingestion), unless
     # this call is part of a multi-file batch where earlier files must be kept.
+    _apply_doc_hint(results, doc_hint)
     try:
         await _persist_ai_ingested_documents(db, loan_case, results, replace_existing=replace_existing)
         await db.flush()
@@ -1389,6 +1424,7 @@ async def ingest_and_classify_case_images(
     files: List[UploadFile] = File(...),
     applicant_name: Optional[str] = Form(None),
     target_address: Optional[str] = Form(None),
+    doc_hint: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_ca_user),
 ) -> Dict[str, Any]:
@@ -1449,6 +1485,7 @@ async def ingest_and_classify_case_images(
         )
 
     # Loose images are additive (a case may already have PDF-ingested pages), never clobber existing ones
+    _apply_doc_hint(results, doc_hint)
     await _persist_ai_ingested_documents(db, loan_case, results, replace_existing=False)
     await db.flush()
     await _refresh_case_relationships(db, loan_case)

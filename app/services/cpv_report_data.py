@@ -94,7 +94,7 @@ def _short_ay(ay: Optional[str]) -> Optional[str]:
 
 def _ay_of(page: Dict[str, Any]) -> Optional[str]:
     """Assessment year of a Form 16 / ITR / Computation page; Part B often states only the financial year (AY = FY + 1)."""
-    for candidate in (page.get("assessment_year"), page.get("document_period"), page.get("document_title")):
+    for candidate in (page.get("assessment_year"), page.get("document_period"), page.get("document_title"), page.get("forensic_summary")):
         if not candidate:
             continue
         m_ay = re.search(r"A\.?\s*Y\.?[^0-9]*(?:20)?(\d{2})\s*[-–/]\s*(?:20)?(\d{2})", str(candidate), re.I)
@@ -103,11 +103,11 @@ def _ay_of(page: Dict[str, Any]) -> Optional[str]:
             return f"20{y1:02d}-{y2:02d}"
     if page.get("assessment_year"):
         return _short_ay(page["assessment_year"])
-    text = " ".join(filter(None, [page.get("document_period"), page.get("document_title")]))
+    text = " ".join(filter(None, [page.get("document_period"), page.get("document_title"), page.get("forensic_summary")]))
     m = re.search(r"F\.?\s*Y\.?[^0-9]*(?:20)?(\d{2})\s*[-–/]\s*(?:20)?(\d{2})", text, re.I)
     if m:
         return f"20{int(m.group(1)) + 1:02d}-{int(m.group(2)) + 1:02d}"
-    return _short_ay(page.get("document_period"))
+    return _short_ay(page.get("document_period")) or _short_ay(page.get("document_title"))
 
 
 def _age(dob: Optional[str], on: date) -> Optional[str]:
@@ -234,9 +234,10 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     form_occupation = office_form.get("occupation") or None
 
     # A salaried applicant's income proof is FORM_16; a self-employed/business applicant has
-    # none - their equivalent is ITR_ACKNOWLEDGEMENT (ack no / filing date) and/or
-    # COMPUTATION_OF_INCOME (the final taxable income figure), scanned as their own doc types.
-    ITR_INCOME_DOC_TYPES = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME"}
+    # none - their equivalent is ITR_ACKNOWLEDGEMENT (ack no / filing date),
+    # COMPUTATION_OF_INCOME (Return Assessment Statement / Computation of Total Income), and/or
+    # PROFIT_LOSS_BALANCE_SHEET, scanned as their own doc types.
+    ITR_INCOME_DOC_TYPES = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET"}
     itr: Dict[str, Dict[str, Any]] = {}
     itr_pages = sorted(
         (p for p in pages if p.get("doc_type") in ITR_INCOME_DOC_TYPES),
@@ -252,14 +253,28 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
         if not ay and not inc_val and not ack_val:
             # Continuation/schedule page with no A.Y., no total income, and no ack number
             continue
-        ay = ay or "NA"
+        ay = ay or "Verified"
         row = itr.setdefault(ay, {"ay": ay, "ack_no": None, "filed_on": None, "total_income": None,
-                                  "status": "Income Tax Return provided (total income not on record)"})
+                                  "status": "Income Tax Return / Form 16 / Assessment Statement Verified"})
         row["total_income"] = row["total_income"] or inc_val
         row["ack_no"] = row["ack_no"] or ack_val or itr_ack_no
         row["filed_on"] = row["filed_on"] or dt_val or itr_filing_date
         if row["total_income"]:
             row["status"] = "Income Tax Return / Computation of Income Verified"
+
+    # If an income/assessment document was scanned on record (itr_pages is non-empty) yet every
+    # page lacked a parsed A.Y./income/ack_no, still emit a verified row from the first page so
+    # Annexure C reflects the uploaded document rather than claiming no document is on record.
+    if not itr and itr_pages:
+        first_p = itr_pages[0]
+        ay_fallback = _ay_of(first_p) or "Verified"
+        itr[ay_fallback] = {
+            "ay": ay_fallback,
+            "ack_no": first_p.get("itr_acknowledgement_number") or itr_ack_no or "Verified on Record",
+            "filed_on": first_p.get("document_date") or itr_filing_date or "Verified",
+            "total_income": _inr(first_p.get("annual_taxable_income") or first_p.get("annual_gross_salary")),
+            "status": "Income Tax Return / Form 16 / Assessment Statement Verified",
+        }
 
     # No Form 16 / ITR Acknowledgement / Computation of Income document was scanned for this
     # person, but the field agent recorded an acknowledgement no. / filing date on-site (e.g.

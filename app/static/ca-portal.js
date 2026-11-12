@@ -6056,6 +6056,11 @@
           setTimeout(() => aiBox.classList.remove('ring-4', 'ring-amber-400'), 2500);
         }, 150);
       }
+      const multiInput = document.getElementById('portalMultiFilesInput');
+      if (multiInput) {
+        multiInput.value = '';
+        multiInput.click();
+      }
     }
 
     function openNewCaseModal() {
@@ -8657,12 +8662,15 @@
         if (docItems.length) {
           docSection.classList.remove("hidden");
           docList.innerHTML = docItems.map(f => `
-            <div class="flex items-center justify-between p-2 rounded-lg bg-blue-50 border border-blue-200 text-xs">
+            <div class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs">
               <div>
                 <span class="font-bold text-blue-900">${f.label}</span>
                 <span class="text-blue-700 block text-[10px] font-mono">${f.how}</span>
               </div>
-              <button onclick="closeReportReadiness(); triggerAiFolderIngestForCase('${activeCaseId}');" class="px-2.5 py-1 bg-white border border-blue-300 text-blue-900 rounded font-bold text-[10px] hover:bg-blue-100 shrink-0">Scan Document</button>
+              <button type="button" onclick="triggerReportReadinessDocScan('${f.field}')" class="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white border border-blue-800 rounded-lg font-bold text-[11px] shadow-xs flex items-center gap-1 shrink-0 active:scale-95 transition-all">
+                <span class="material-symbols-outlined text-[15px]">upload_file</span>
+                <span>Upload & Scan Document</span>
+              </button>
             </div>`).join("");
         }
 
@@ -8687,6 +8695,194 @@
         loading.innerHTML = `<span class="text-rose-700">Could not check report readiness — check connection and retry.</span>`;
       }
     }
+
+    let _rrCurrentDocHint = "income_doc";
+
+    function triggerReportReadinessDocScan(docField) {
+      if (!activeCaseId) {
+        alert("Select a case first.");
+        return;
+      }
+      _rrCurrentDocHint = docField || "income_doc";
+      const inp = document.getElementById("rrScanDocInput");
+      if (inp) {
+        inp.value = "";
+        inp.click();
+      }
+    }
+
+    async function handleReportReadinessDocUpload(fileList) {
+      if (!fileList || fileList.length === 0 || !activeCaseId) return;
+      const files = Array.from(fileList);
+      const inp = document.getElementById("rrScanDocInput");
+      if (inp) inp.value = "";
+
+      await _uploadAndScanDocsWithHint(files, _rrCurrentDocHint, {
+        statusBoxId: "rrDocScanStatusBox",
+        statusTextId: "rrDocScanStatusText",
+        percentId: "rrDocScanPercent",
+        progressBarId: "rrDocScanProgressBar",
+        refreshReadiness: true,
+      });
+    }
+
+    async function handlePortalIncomeDocSelected(fileList) {
+      if (!fileList || fileList.length === 0) return;
+      if (!activeCaseId) {
+        const firstKey = Object.keys(caseRegistry)[0];
+        if (firstKey) activeCaseId = firstKey;
+      }
+      if (!activeCaseId) {
+        alert("Please select or load an active case first.");
+        return;
+      }
+      const files = Array.from(fileList);
+      const inp = document.getElementById("portalIncomeDocInput");
+      if (inp) inp.value = "";
+
+      await _uploadAndScanDocsWithHint(files, "income_doc", {
+        statusBoxId: "pdfBurstStatusBox",
+        statusTextId: "pdfBurstStatusText",
+        percentId: "pdfBurstStatusPercent",
+        progressBarId: "pdfBurstProgressBar",
+        refreshReadiness: false,
+      });
+    }
+
+    async function _uploadAndScanDocsWithHint(files, docHint, uiOpts) {
+      const pdfs = files.filter(f => f.name.toLowerCase().endsWith(".pdf"));
+      const images = files.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name));
+      if (pdfs.length === 0 && images.length === 0) {
+        alert("Please select one or more PDF or image (JPG/PNG/WEBP) files to scan.");
+        return;
+      }
+
+      const statusBox = document.getElementById(uiOpts.statusBoxId);
+      const statusText = document.getElementById(uiOpts.statusTextId);
+      const statusPercent = document.getElementById(uiOpts.percentId);
+      const progressBar = document.getElementById(uiOpts.progressBarId);
+
+      if (statusBox) statusBox.classList.remove("hidden");
+      if (statusText) statusText.textContent = `Uploading & AI-Scanning ${files.length} file(s) with Gemini Vision...`;
+      if (statusPercent) statusPercent.textContent = "20%";
+      if (progressBar) progressBar.style.width = "20%";
+
+      const c = caseRegistry[activeCaseId] || {};
+      const token = localStorage.getItem("ca_token");
+      const headers = {};
+      if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
+
+      const extractedSummaries = [];
+      let totalSteps = pdfs.length + (images.length > 0 ? 1 : 0);
+      let completedSteps = 0;
+
+      for (let i = 0; i < pdfs.length; i++) {
+        const f = pdfs[i];
+        if (statusText) statusText.textContent = `AI Scanning PDF ${i + 1}/${pdfs.length}: "${f.name}" (extracting A.Y., Ack No., Income, KYC)...`;
+        const pct = Math.round(25 + (completedSteps / Math.max(1, totalSteps)) * 65);
+        if (statusPercent) statusPercent.textContent = `${pct}%`;
+        if (progressBar) progressBar.style.width = `${pct}%`;
+
+        const sendPdf = async (pwd) => {
+          const fd = new FormData();
+          fd.append("file", f, f.name);
+          fd.append("replace_existing", "false");
+          if (docHint) fd.append("doc_hint", docHint);
+          if (pwd) fd.append("password", pwd);
+          if (c.applicant_name) fd.append("applicant_name", c.applicant_name);
+          if (c.address) fd.append("target_address", c.address);
+          return fetch(`/api/v1/cases/${activeCaseId}/ingest-pdf`, {
+            method: "POST",
+            headers,
+            body: fd,
+          });
+        };
+
+        try {
+          let res = await sendPdf(null);
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const code = err.detail && typeof err.detail === "object" ? err.detail.code : null;
+            if (code === "PASSWORD_REQUIRED" || code === "WRONG_PASSWORD") {
+              const pwd = prompt(`"${f.name}" is password-protected. Enter its password to scan:`);
+              if (pwd) res = await sendPdf(pwd);
+            } else {
+              alert(`Could not scan "${f.name}": ${err.detail || res.statusText}`);
+            }
+          }
+          if (res && res.ok) {
+            const data = await res.json();
+            const docs = data.documents || [];
+            docs.forEach(d => {
+              if (d.id) lastIngestedDocIds.add(d.id);
+              const dt = (d.doc_type || "DOCUMENT").replace(/_/g, " ");
+              const ay = d.assessment_year ? ` • A.Y. ${d.assessment_year}` : "";
+              const inc = (d.annual_taxable_income || d.annual_gross_salary) ? ` • Rs. ${d.annual_taxable_income || d.annual_gross_salary}` : "";
+              extractedSummaries.push(`${dt}${ay}${inc}`);
+            });
+            mergeExtractedDocsIntoCase(activeCaseId, docs, data.case_summary);
+          }
+        } catch (err) {
+          alert(`Network error scanning "${f.name}": ${err.message}`);
+        }
+        completedSteps++;
+      }
+
+      if (images.length > 0) {
+        if (statusText) statusText.textContent = `AI Scanning ${images.length} image(s) (extracting A.Y., Ack No., Income, KYC)...`;
+        if (statusPercent) statusPercent.textContent = "80%";
+        if (progressBar) progressBar.style.width = "80%";
+
+        try {
+          const fd = new FormData();
+          images.forEach(f => fd.append("files", f, f.name));
+          if (docHint) fd.append("doc_hint", docHint);
+          if (c.applicant_name) fd.append("applicant_name", c.applicant_name);
+          if (c.address) fd.append("target_address", c.address);
+          const res = await fetch(`/api/v1/cases/${activeCaseId}/ingest-images`, {
+            method: "POST",
+            headers,
+            body: fd,
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const docs = data.documents || [];
+            docs.forEach(d => {
+              if (d.id) lastIngestedDocIds.add(d.id);
+              const dt = (d.doc_type || "DOCUMENT").replace(/_/g, " ");
+              const ay = d.assessment_year ? ` • A.Y. ${d.assessment_year}` : "";
+              const inc = (d.annual_taxable_income || d.annual_gross_salary) ? ` • Rs. ${d.annual_taxable_income || d.annual_gross_salary}` : "";
+              extractedSummaries.push(`${dt}${ay}${inc}`);
+            });
+            mergeExtractedDocsIntoCase(activeCaseId, docs, data.case_summary);
+          } else {
+            const err = await res.json().catch(() => ({}));
+            alert(`Could not scan image(s): ${err.detail || res.statusText}`);
+          }
+        } catch (err) {
+          alert(`Network error scanning image(s): ${err.message}`);
+        }
+      }
+
+      if (statusPercent) statusPercent.textContent = "100%";
+      if (progressBar) progressBar.style.width = "100%";
+      if (statusText) {
+        statusText.textContent = extractedSummaries.length
+          ? `✓ Scanned & Extracted: ${extractedSummaries.join(" | ")}`
+          : "✓ Document scan complete!";
+      }
+
+      onCaseSelected(activeCaseId);
+      if (uiOpts.refreshReadiness) {
+        await loadReportReadiness();
+      }
+      setTimeout(() => {
+        if (statusBox) statusBox.classList.add("hidden");
+      }, 3500);
+    }
+    window.triggerReportReadinessDocScan = triggerReportReadinessDocScan;
+    window.handleReportReadinessDocUpload = handleReportReadinessDocUpload;
+    window.handlePortalIncomeDocSelected = handlePortalIncomeDocSelected;
 
     async function saveReportReadinessFields() {
       const inputs = document.querySelectorAll("#rrFieldFormList [data-rr-field]");
