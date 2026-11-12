@@ -365,8 +365,10 @@ async def zero_lag_upload_document(
         except Exception:
             watermarked_url = storage_url
 
+    clean_orig_name = os.path.basename((file.filename or "upload.jpg").replace("\\", "/"))
     ocr_meta = {
         "folder": norm_folder,
+        "original_filename": clean_orig_name,
     }
     if slot_number is not None:
         ocr_meta["slot_number"] = slot_number

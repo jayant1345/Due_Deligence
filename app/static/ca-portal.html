@@ -1011,20 +1011,35 @@
               Auto-place by filename: <code class="font-bold text-primary-container">1_xxxx</code>, <code class="font-bold text-primary-container">2_xxxx</code>, <code class="font-bold text-primary-container">3_xxxx</code>, <code class="font-bold text-primary-container">4_xxxx</code>
             </span>
             <div class="flex flex-wrap items-center gap-1.5">
-              <input type="file" id="homeFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleDedicatedFolderUpload('residence', this.files); this.value='';"/>
+              <input type="file" id="homeFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleDedicatedFolderUpload('residence', this)"/>
               <button type="button" id="btnUploadHomeFolder" onclick="document.getElementById('homeFolderInput').click()" title="Select Home/Residence photo folder (auto-places 1_xxxx, 2_xxxx, 3_xxxx, 4_xxxx into Slots 1–4)" class="px-2.5 py-1 rounded border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-900 text-[10px] font-bold flex items-center gap-1 shadow-xs transition-all">
                 <span class="material-symbols-outlined text-[14px]">home_work</span>
                 <span>Upload Home Photos Folder</span>
               </button>
 
-              <input type="file" id="officeFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleDedicatedFolderUpload('work', this.files); this.value='';"/>
+              <input type="file" id="officeFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleDedicatedFolderUpload('work', this)"/>
               <button type="button" id="btnUploadOfficeFolder" onclick="document.getElementById('officeFolderInput').click()" title="Select Office/Work photo folder (auto-places 1_xxxx, 2_xxxx, 3_xxxx, 4_xxxx into Slots 1–4)" class="px-2.5 py-1 rounded border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-900 text-[10px] font-bold flex items-center gap-1 shadow-xs transition-all">
                 <span class="material-symbols-outlined text-[14px]">domain_add</span>
                 <span>Upload Office Photos Folder</span>
               </button>
 
-              <input type="file" id="bulkFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleBulkFolderUpload(this.files); this.value='';"/>
+              <input type="file" id="bulkFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleBulkFolderUpload(this)"/>
             </div>
+          </div>
+
+          <!-- Live Folder Upload Progress & Completion Status Banner -->
+          <div id="folderUploadStatusBox" class="hidden rounded-lg border p-2.5 space-y-1.5 transition-all">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-1.5 text-[11px] font-bold" id="folderUploadStatusHeader">
+                <span id="folderUploadStatusIcon" class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                <span id="folderUploadStatusTitle">Uploading folder photos...</span>
+              </div>
+              <span id="folderUploadPercentText" class="font-mono text-[10px] font-bold">0%</span>
+            </div>
+            <div class="w-full h-2 bg-black/10 rounded-full overflow-hidden">
+              <div id="folderUploadProgressBar" class="h-full bg-blue-600 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div id="folderUploadSlotPills" class="flex flex-wrap items-center gap-1.5 pt-0.5 font-mono text-[10px]"></div>
           </div>
         </div>
 
@@ -2322,7 +2337,7 @@
     </div>
   </div>
 
-  <script src="/static/ca-portal.js?v=23"></script>
+  <script src="/static/ca-portal.js?v=26"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">

@@ -329,7 +329,9 @@ CACHEABLE_STATIC_FILES = {"/static/ca-portal.js", "/static/agent-pwa.js", "/stat
 @app.middleware("http")
 async def add_static_cache_headers(request: Request, call_next):
     response = await call_next(request)
-    if request.url.path in CACHEABLE_STATIC_FILES and "v" in request.query_params:
+    if request.url.path in ("/static/ca-portal.js", "/static/agent-pwa.js", "/static/geofence-map.js"):
+        response.headers["Cache-Control"] = "no-cache"
+    elif request.url.path in CACHEABLE_STATIC_FILES and "v" in request.query_params:
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
 

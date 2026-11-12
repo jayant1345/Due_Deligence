@@ -412,6 +412,7 @@
         const badge = document.getElementById(`badgePhoto${i}`);
         const status = document.getElementById(`statusPhoto${i}`);
         const reportToggle = document.getElementById(`reportTogglePhoto${i}`);
+        const prefixBadge = document.getElementById(`prefixBadgePhoto${i}`);
 
         if (!p) {
           if (img) img.src = "/static/placeholders/photo_pending.svg";
@@ -420,6 +421,10 @@
           if (ts) ts.textContent = "—";
           if (badge) badge.textContent = "PENDING";
           if (status) status.textContent = "PENDING";
+          if (prefixBadge) {
+            prefixBadge.textContent = `${i}_xxxxx`;
+            prefixBadge.className = "absolute top-1.5 left-1.5 z-10 bg-black/80 text-amber-300 border border-amber-400/50 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none";
+          }
           if (reportToggle) {
             reportToggle.disabled = true;
             reportToggle.checked = false;
@@ -440,6 +445,16 @@
         if (ts && p.timestamp) ts.textContent = p.timestamp;
         if (badge && p.badge) badge.textContent = p.badge;
         if (status && p.status) status.textContent = p.status;
+        if (prefixBadge) {
+          if (p.id) {
+            const fname = p.original_filename ? p.original_filename.slice(0, 18) : `${i}_uploaded`;
+            prefixBadge.textContent = `✓ ${fname}`;
+            prefixBadge.className = "absolute top-1.5 left-1.5 z-10 bg-emerald-950/90 text-emerald-300 border border-emerald-400/60 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none";
+          } else {
+            prefixBadge.textContent = `${i}_xxxxx`;
+            prefixBadge.className = "absolute top-1.5 left-1.5 z-10 bg-black/80 text-amber-300 border border-amber-400/50 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none";
+          }
+        }
         if (reportToggle) {
           // No real doc id (an un-replaced placeholder specimen) - nothing to toggle yet.
           reportToggle.disabled = !p.id;
@@ -1255,7 +1270,8 @@
               is_live: true,
               include_in_report: d.include_in_report !== false,
               lat: d.latitude,
-              lon: d.longitude
+              lon: d.longitude,
+              original_filename: (d.ocr_data && d.ocr_data.original_filename) || null
             });
           } else {
             finalPhotos.push(defaultSpecimens[s]);
@@ -1365,7 +1381,8 @@
               is_live: true,
               include_in_report: d.include_in_report !== false,
               lat: d.latitude,
-              lon: d.longitude
+              lon: d.longitude,
+              original_filename: (d.ocr_data && d.ocr_data.original_filename) || null
             });
           } else {
             finalWorkPhotos.push(defaultWorkSpecimens[s]);
@@ -1777,6 +1794,8 @@
         if (tray) tray.classList.add("hidden");
         const list = document.getElementById("pdfSeparatedPagesList");
         if (list) list.innerHTML = "";
+        const folderStatusBox = document.getElementById("folderUploadStatusBox");
+        if (folderStatusBox) folderStatusBox.classList.add("hidden");
       }
 
       activeCaseId = caseId;
@@ -3031,16 +3050,17 @@
 
     // Handle Manual Photo Upload & Realtime Preview in Active or Specified Folder
     async function handlePhotoUpload(index, docType, file, folderOverride = null, skipRefresh = false) {
-      if (!file) return;
+      if (!file) return { ok: false, error: "No file provided" };
       if (!activeCaseId) {
         alert("Please select an active case before uploading photos.");
-        return;
+        return { ok: false, error: "No active case selected" };
       }
 
       const targetFolder = folderOverride || currentPhotoFolder;
       const resolvedDocType = (docType && !docType.includes("_IMG_"))
         ? docType
         : manualUploadDocTypeFor(index, targetFolder);
+      const shortName = (file.name || `photo_${index}.jpg`).split(/[\\/]/).pop();
 
       const previewUrl = URL.createObjectURL(file);
       if (targetFolder === currentPhotoFolder) {
@@ -3048,18 +3068,21 @@
         if (targetImg) targetImg.src = previewUrl;
 
         const prefixBadge = document.getElementById(`prefixBadgePhoto${index}`);
-        if (prefixBadge) prefixBadge.textContent = `${index}_${file.name.replace(/^[0-9]+[_.\-\s]*/, "").slice(0, 12)}`;
+        if (prefixBadge) {
+          prefixBadge.textContent = `⏳ ${shortName.slice(0, 18)}`;
+          prefixBadge.className = "absolute top-1.5 left-1.5 z-10 bg-blue-950/90 text-blue-200 border border-blue-400/60 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none";
+        }
 
         const statusBadge = document.getElementById(`statusPhoto${index}`);
         if (statusBadge) {
-          statusBadge.textContent = "UPLOADED ✓";
-          statusBadge.className = "text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-300";
+          statusBadge.textContent = "⏳ UPLOADING...";
+          statusBadge.className = "text-blue-700 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-300";
         }
 
         const tsBadge = document.getElementById(`tsPhoto${index}`);
         if (tsBadge) {
           const now = new Date();
-          tsBadge.textContent = "UPLOADED: " + now.toLocaleTimeString();
+          tsBadge.textContent = "UPLOADING: " + now.toLocaleTimeString();
         }
       }
 
@@ -3074,13 +3097,14 @@
         if (targetList && targetList[index - 1]) {
           targetList[index - 1].src = previewUrl;
           targetList[index - 1].status = "MATCH";
+          targetList[index - 1].original_filename = shortName;
         }
       }
 
       // Sync file to backend case with explicit slot_number and case coordinates
       try {
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", file, shortName);
         formData.append("doc_type", resolvedDocType);
         formData.append("folder", targetFolder);
         formData.append("slot_number", String(index));
@@ -3093,31 +3117,83 @@
         if (lon && !isNaN(parseFloat(lon))) formData.append("longitude", String(parseFloat(lon)));
 
         const caseIdForUpload = (c && c.db_id) || activeCaseId;
-        await fetch(`/api/v1/visits/cases/${encodeURIComponent(caseIdForUpload)}/upload`, {
+        const res = await fetch(`/api/v1/visits/cases/${encodeURIComponent(caseIdForUpload)}/upload`, {
           method: "POST",
           headers: authHeaders(),
           body: formData
         });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || `HTTP ${res.status}`);
+        }
+        if (targetFolder === currentPhotoFolder) {
+          const prefixBadge = document.getElementById(`prefixBadgePhoto${index}`);
+          if (prefixBadge) {
+            prefixBadge.textContent = `✓ ${shortName.slice(0, 18)}`;
+            prefixBadge.className = "absolute top-1.5 left-1.5 z-10 bg-emerald-950/90 text-emerald-300 border border-emerald-400/60 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none";
+          }
+          const statusBadge = document.getElementById(`statusPhoto${index}`);
+          if (statusBadge) {
+            statusBadge.textContent = "UPLOADED ✓";
+            statusBadge.className = "text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-300";
+          }
+        }
         if (!skipRefresh) {
           await fetchLiveCaseDocuments(activeCaseId);
         }
+        return { ok: true, filename: shortName };
       } catch (e) {
         console.warn("handlePhotoUpload sync error:", e);
+        if (targetFolder === currentPhotoFolder) {
+          const statusBadge = document.getElementById(`statusPhoto${index}`);
+          if (statusBadge) {
+            statusBadge.textContent = "UPLOAD FAILED";
+            statusBadge.className = "text-rose-700 font-bold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-300";
+          }
+        }
+        return { ok: false, error: e.message || "Upload failed", filename: shortName };
       }
     }
 
-    // Matches files named 1_xxxxx, 2_xxxxx, 3_xxxxx, 4_xxxxx (or 1-..., 1...., 01_...) to Slots 1..4,
-    // and fills any remaining empty slots in natural filename sort order.
+    // Matches files whose filename starts with 1_xxxxx, 2_xxxxx, 3_xxxxx, 4_xxxxx to Slots 1..4:
+    // Pass 1: Strict '1_', '2_', '3_', '4_' (or '01_..04_') prefix match.
+    // Pass 2: Secondary '1-', '1.', '1 ', 'slot_1', 'photo_1' prefix match for any still-open slot.
+    // Pass 3: Any remaining unmatched image files fill any still-open slot in natural sort order.
     function matchFilesToPhotoSlots(images) {
-      const sorted = [...images].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
+      const getCleanBase = (f) => {
+        const fname = (f.name || "").split(/[\\/]/).pop().trim();
+        return fname.replace(/\.[^.]+$/, "").trim();
+      };
+      const sorted = [...images].sort((a, b) => {
+        const na = (a.name || "").split(/[\\/]/).pop();
+        const nb = (b.name || "").split(/[\\/]/).pop();
+        return na.localeCompare(nb, undefined, { numeric: true, sensitivity: "base" });
+      });
+
       const slotMap = { 1: null, 2: null, 3: null, 4: null };
+      const pass2Candidates = [];
       const unmatched = [];
 
+      // Pass 1: Exact 1_xxxxx, 2_xxxxx, 3_xxxxx, 4_xxxxx (starts with 1_, 2_, 3_, 4_)
       sorted.forEach(file => {
-        const baseName = file.name.replace(/\.[^.]+$/, "").trim();
-        const m = baseName.match(/^0*([1-4])(?:[_\-\.\s]|$)/i) || baseName.match(/^(?:slot|photo)[_\-\s]*0*([1-4])(?:[_\-\.\s]|$)/i);
-        if (m) {
-          const slotNum = parseInt(m[1], 10);
+        const baseName = getCleanBase(file);
+        const mStrict = baseName.match(/^0*([1-4])_/);
+        if (mStrict) {
+          const slotNum = parseInt(mStrict[1], 10);
+          if (slotNum >= 1 && slotNum <= 4 && !slotMap[slotNum]) {
+            slotMap[slotNum] = file;
+            return;
+          }
+        }
+        pass2Candidates.push(file);
+      });
+
+      // Pass 2: 1-xxxx, 1.xxxx, 1 xxxx, slot 1, photo 1
+      pass2Candidates.forEach(file => {
+        const baseName = getCleanBase(file);
+        const mLoose = baseName.match(/^0*([1-4])(?:[\-\.\s]|$)/i) || baseName.match(/^(?:slot|photo)[_\-\s]*0*([1-4])(?:[_\-\.\s]|$)/i);
+        if (mLoose) {
+          const slotNum = parseInt(mLoose[1], 10);
           if (slotNum >= 1 && slotNum <= 4 && !slotMap[slotNum]) {
             slotMap[slotNum] = file;
             return;
@@ -3126,6 +3202,7 @@
         unmatched.push(file);
       });
 
+      // Pass 3: Fill any remaining empty slots in natural filename sort order
       unmatched.forEach(file => {
         for (let s = 1; s <= 4; s++) {
           if (!slotMap[s]) {
@@ -3138,17 +3215,81 @@
       return slotMap;
     }
 
+    function updateFolderUploadBanner({ visible = true, state = "uploading", title = "", percent = 0, slotStates = {} }) {
+      const box = document.getElementById("folderUploadStatusBox");
+      const icon = document.getElementById("folderUploadStatusIcon");
+      const titleEl = document.getElementById("folderUploadStatusTitle");
+      const pctEl = document.getElementById("folderUploadPercentText");
+      const bar = document.getElementById("folderUploadProgressBar");
+      const pills = document.getElementById("folderUploadSlotPills");
+      if (!box) return;
+
+      if (!visible) {
+        box.classList.add("hidden");
+        return;
+      }
+      box.classList.remove("hidden");
+
+      if (state === "uploading") {
+        box.className = "rounded-lg border border-blue-300 bg-blue-50/90 text-blue-950 p-2.5 space-y-1.5 transition-all";
+        if (icon) { icon.textContent = "progress_activity"; icon.className = "material-symbols-outlined text-[16px] text-blue-700 animate-spin"; }
+        if (bar) bar.className = "h-full bg-blue-600 rounded-full transition-all duration-300";
+      } else if (state === "success") {
+        box.className = "rounded-lg border border-emerald-300 bg-emerald-50/95 text-emerald-950 p-2.5 space-y-1.5 transition-all";
+        if (icon) { icon.textContent = "check_circle"; icon.className = "material-symbols-outlined text-[16px] text-emerald-700"; }
+        if (bar) bar.className = "h-full bg-emerald-600 rounded-full transition-all duration-300";
+      } else {
+        box.className = "rounded-lg border border-amber-300 bg-amber-50/95 text-amber-950 p-2.5 space-y-1.5 transition-all";
+        if (icon) { icon.textContent = "warning"; icon.className = "material-symbols-outlined text-[16px] text-amber-700"; }
+        if (bar) bar.className = "h-full bg-amber-600 rounded-full transition-all duration-300";
+      }
+
+      if (titleEl) titleEl.textContent = title;
+      if (pctEl) pctEl.textContent = `${Math.round(percent)}%`;
+      if (bar) bar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+
+      if (pills) {
+        pills.innerHTML = [1, 2, 3, 4].map(s => {
+          const info = slotStates[s];
+          if (!info) {
+            return `<span class="px-2 py-0.5 rounded border border-slate-300 bg-white/80 text-slate-500">Slot ${s} (${s}_xxxxx): Not in folder</span>`;
+          }
+          const shortName = info.name.length > 20 ? info.name.slice(0, 18) + "…" : info.name;
+          if (info.status === "done") {
+            return `<span class="px-2 py-0.5 rounded border border-emerald-400 bg-emerald-100 text-emerald-900 font-bold">Slot ${s} ← ${shortName} ✓</span>`;
+          }
+          if (info.status === "uploading") {
+            return `<span class="px-2 py-0.5 rounded border border-blue-400 bg-blue-100 text-blue-900 font-bold animate-pulse">Slot ${s} ← ${shortName} ⏳ Uploading...</span>`;
+          }
+          if (info.status === "error") {
+            return `<span class="px-2 py-0.5 rounded border border-rose-400 bg-rose-100 text-rose-900 font-bold">Slot ${s} ← ${shortName} ✗ Failed</span>`;
+          }
+          return `<span class="px-2 py-0.5 rounded border border-slate-300 bg-white text-slate-700">Slot ${s} ← ${shortName} (Queued)</span>`;
+        }).join("");
+      }
+    }
+
     // Dedicated Folder Upload for Home ('residence') or Office ('work') with 1_xxxx..4_xxxx auto-placement
-    async function handleDedicatedFolderUpload(targetFolder, fileList) {
-      if (!fileList || fileList.length === 0) return;
+    async function handleDedicatedFolderUpload(targetFolder, inputOrFileList) {
+      // Clone File objects BEFORE resetting input.value so the browser never clears the live FileList
+      const rawFiles = Array.from(
+        (inputOrFileList && inputOrFileList.files) ? inputOrFileList.files : (inputOrFileList || [])
+      );
+      if (inputOrFileList && typeof inputOrFileList.value === "string") {
+        try { inputOrFileList.value = ""; } catch (e) {}
+      }
+
+      if (rawFiles.length === 0) return;
       if (!activeCaseId) {
         alert("Please select an active case first.");
         return;
       }
 
-      const images = Array.from(fileList).filter(f =>
-        (f.type && f.type.startsWith("image/")) || /\.(jpe?g|png|webp|bmp|heic)$/i.test(f.name)
-      );
+      const images = rawFiles.filter(f => {
+        const base = (f.name || "").split(/[\\/]/).pop();
+        if (!base || base.startsWith(".")) return false;
+        return (f.type && f.type.startsWith("image/")) || /\.(jpe?g|png|webp|bmp|gif|heic|jfif|tif|tiff)$/i.test(base);
+      });
       if (images.length === 0) {
         alert("No valid image files (.jpg, .jpeg, .png, .webp) found in the selected folder.");
         return;
@@ -3165,24 +3306,83 @@
       const btnId = targetFolder === "residence" ? "btnUploadHomeFolder" : "btnUploadOfficeFolder";
       const btn = document.getElementById(btnId);
       const origHtml = btn ? btn.innerHTML : null;
+
+      const slotStates = {};
+      assignedSlots.forEach(([slotStr, file]) => {
+        const s = parseInt(slotStr, 10);
+        const cleanName = (file.name || `photo_${s}.jpg`).split(/[\\/]/).pop();
+        slotStates[s] = { name: cleanName, status: "queued" };
+      });
+
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<span class="material-symbols-outlined text-[14px] animate-spin">progress_activity</span><span>Uploading ${assignedSlots.length} photo(s)...</span>`;
+        btn.innerHTML = `<span class="material-symbols-outlined text-[14px] animate-spin">progress_activity</span><span>Uploading 0/${assignedSlots.length}...</span>`;
       }
 
+      updateFolderUploadBanner({
+        visible: true,
+        state: "uploading",
+        title: `Uploading ${folderLabel} Photos Folder (0 of ${assignedSlots.length} completed)...`,
+        percent: 5,
+        slotStates,
+      });
+
+      let successCount = 0;
+      let failCount = 0;
+
       try {
-        await Promise.all(
-          assignedSlots.map(([slotStr, file]) => {
-            const slotIndex = parseInt(slotStr, 10);
-            return handlePhotoUpload(slotIndex, manualUploadDocTypeFor(slotIndex, targetFolder), file, targetFolder, true);
-          })
-        );
+        for (let i = 0; i < assignedSlots.length; i++) {
+          const [slotStr, file] = assignedSlots[i];
+          const slotIndex = parseInt(slotStr, 10);
+          const cleanName = slotStates[slotIndex].name;
+          slotStates[slotIndex].status = "uploading";
+
+          if (btn) {
+            btn.innerHTML = `<span class="material-symbols-outlined text-[14px] animate-spin">progress_activity</span><span>Uploading ${i + 1}/${assignedSlots.length} (${cleanName})...</span>`;
+          }
+          updateFolderUploadBanner({
+            visible: true,
+            state: "uploading",
+            title: `Uploading ${folderLabel} Folder: Photo ${i + 1} of ${assignedSlots.length} — placing ${cleanName} into Slot ${slotIndex}...`,
+            percent: Math.round(((i + 0.35) / assignedSlots.length) * 100),
+            slotStates,
+          });
+
+          const res = await handlePhotoUpload(slotIndex, manualUploadDocTypeFor(slotIndex, targetFolder), file, targetFolder, true);
+          if (res && res.ok) {
+            slotStates[slotIndex].status = "done";
+            successCount++;
+          } else {
+            slotStates[slotIndex].status = "error";
+            failCount++;
+          }
+
+          updateFolderUploadBanner({
+            visible: true,
+            state: "uploading",
+            title: `Uploaded ${successCount} of ${assignedSlots.length} photo(s) to ${folderLabel} folder...`,
+            percent: Math.round(((i + 1) / assignedSlots.length) * 100),
+            slotStates,
+          });
+        }
+
         await fetchLiveCaseDocuments(activeCaseId);
-        const mappingSummary = assignedSlots.map(([s, f]) => `Slot ${s} ← ${f.name}`).join(" • ");
+
+        const doneState = failCount === 0 ? "success" : "warning";
+        const doneTitle = failCount === 0
+          ? `✅ ${folderLabel} Folder Upload Complete — ${successCount}/${assignedSlots.length} photo(s) placed & watermarked!`
+          : `⚠ ${folderLabel} Folder Upload Finished — ${successCount} succeeded, ${failCount} failed.`;
+        updateFolderUploadBanner({
+          visible: true,
+          state: doneState,
+          title: doneTitle,
+          percent: 100,
+          slotStates,
+        });
+
+        const mappingSummary = assignedSlots.map(([s]) => `Slot ${s} ← ${slotStates[s].name}`).join(" • ");
         if (typeof showToast === "function") {
-          showToast(`✓ ${folderLabel} (${assignedSlots.length} photos placed): ${mappingSummary}`, 7000);
-        } else {
-          alert(`Imported ${assignedSlots.length} photo(s) into ${folderLabel} folder:\n${mappingSummary}`);
+          showToast(`${doneTitle} (${mappingSummary})`, 8000);
         }
       } finally {
         if (btn && origHtml !== null) {
@@ -3193,8 +3393,8 @@
     }
 
     // Handle Bulk Folder Upload (Select entire directory from disk)
-    async function handleBulkFolderUpload(fileList) {
-      await handleDedicatedFolderUpload(currentPhotoFolder, fileList);
+    async function handleBulkFolderUpload(inputOrFileList) {
+      await handleDedicatedFolderUpload(currentPhotoFolder, inputOrFileList);
     }
 
     // Photo Lightbox Zoom Modal

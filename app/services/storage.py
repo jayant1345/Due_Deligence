@@ -35,6 +35,8 @@ class StorageService:
         Returns the persistent path or public URL.
         """
         extension = os.path.splitext(filename)[1].lower()
+        if extension == ".jfif" or not extension:
+            extension = ".jpg"
         unique_name = f"{uuid.uuid4().hex}{extension}"
         
         target_dir = os.path.join(self.local_dir, subfolder)
