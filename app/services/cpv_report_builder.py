@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 import docx
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Inches
+from docx.shared import Inches, Pt
 from PIL import Image
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "report_templates")
@@ -241,9 +241,24 @@ def _fill_photo_section(doc, title: str, photos: List[str], next_titles: List[st
     if not body:
         return
     photos = [p for p in photos if p and os.path.exists(p)]
+    # Ensure the VML title box in pars[start] renders dark text even in Word Dark Mode
+    for rpr in pars[start]._p.iter(qn("w:rPr")):
+        if rpr.find(qn("w:color")) is None:
+            c = OxmlElement("w:color")
+            c.set(qn("w:val"), "000000")
+            rpr.append(c)
+
     first = body[0]
     for p in body[1:]:
         p._p.getparent().remove(p._p)
+    # Remove the template's 0.50-inch left indent (w:ind w:left="720") on photo paragraphs
+    # which otherwise shrinks the usable width from 6.50" to 6.00" and forces the 2nd column
+    # photo to wrap onto the next line.
+    first.paragraph_format.left_indent = Inches(0)
+    first.paragraph_format.right_indent = Inches(0)
+    first.paragraph_format.first_line_indent = Inches(0)
+    first.paragraph_format.space_before = Inches(0.10)
+    first.paragraph_format.space_after = Inches(0)
     if not photos:
         _set_par_text(first, "No photographs on record for this section.")
         if is_last:
@@ -259,11 +274,11 @@ def _fill_photo_section(doc, title: str, photos: List[str], next_titles: List[st
         box_h = PHOTO_AREA_H_IN / rows - 0.15
     else:
         # Match the PDF's uniform 2x2 grid so mixed portrait/landscape field photos
-        # always align with identical width, height, and column/row edges.
+        # always sit side-by-side (2 columns x 2 rows) on a single page.
         cols = 2 if n >= 2 else 1
         rows = max(1, (n + cols - 1) // cols)
-        box_w = 3.05 if cols == 2 else 5.6
-        box_h = 2.40 if rows >= 2 else 3.40
+        box_w = 2.95 if cols == 2 else 5.6
+        box_h = 2.35 if rows >= 2 else 3.40
 
     first.alignment = 1  # centre
     for k, path in enumerate(photos):
@@ -276,7 +291,8 @@ def _fill_photo_section(doc, title: str, photos: List[str], next_titles: List[st
         elif k and k % cols == 0:
             first.add_run().add_break()
         elif k:
-            first.add_run("   ")
+            sep = first.add_run("  ")
+            sep.font.size = Pt(9)
         first.add_run().add_picture(path, width=w, height=h)
     if is_last:
         _page_break_run(first)
