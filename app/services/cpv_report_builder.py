@@ -251,19 +251,32 @@ def _fill_photo_section(doc, title: str, photos: List[str], next_titles: List[st
         return
 
     n = len(photos)
-    cols = 1 if n <= 2 else 2
-    rows = (n + cols - 1) // cols
-    box_w = PHOTO_AREA_W_IN / cols - (0.1 if cols > 1 else 0)
-    box_h = PHOTO_AREA_H_IN / rows - 0.15
+    is_pan_section = (title == PHOTO_SECTIONS["pan"])
+    if is_pan_section:
+        cols = 1 if n <= 2 else 2
+        rows = (n + cols - 1) // cols
+        box_w = PHOTO_AREA_W_IN / cols - (0.1 if cols > 1 else 0)
+        box_h = PHOTO_AREA_H_IN / rows - 0.15
+    else:
+        # Match the PDF's uniform 2x2 grid so mixed portrait/landscape field photos
+        # always align with identical width, height, and column/row edges.
+        cols = 2 if n >= 2 else 1
+        rows = max(1, (n + cols - 1) // cols)
+        box_w = 3.05 if cols == 2 else 5.6
+        box_h = 2.40 if rows >= 2 else 3.40
+
     first.alignment = 1  # centre
     for k, path in enumerate(photos):
-        w, h = _fit(path, box_w, box_h)
+        if is_pan_section:
+            w, h = _fit(path, box_w, box_h)
+        else:
+            w, h = Inches(box_w), Inches(box_h)
         if k and cols == 1:
             first.add_run().add_break()
         elif k and k % cols == 0:
             first.add_run().add_break()
         elif k:
-            first.add_run("  ")
+            first.add_run("   ")
         first.add_run().add_picture(path, width=w, height=h)
     if is_last:
         _page_break_run(first)

@@ -1197,15 +1197,42 @@ def generate_certified_cpv_report(
             return 0.0
         sorted_docs = sorted(document_items, key=_doc_sort_key, reverse=True)
 
-    # PAN Image
+    # PAN Verification Report Image (Annexure E Part 1 must show the PAN Verification Report
+    # printout when present, falling back to the physical PAN card only if no verification report exists)
     pan_img_path = None
     if sorted_docs:
+        pan_cands = []
         for d in sorted_docs:
-            if d.get("doc_type") == "PAN_CARD":
+            dt = (d.get("doc_type") or "").upper()
+            od = d.get("ocr_data") if isinstance(d.get("ocr_data"), dict) else {}
+            real_dt = (od.get("llm_doc_type") or od.get("doc_type") or dt).upper()
+            if dt in ("PAN_CARD", "PAN_VERIFICATION_REPORT") or real_dt in ("PAN_CARD", "PAN_VERIFICATION_REPORT"):
                 cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
-                if cand:
-                    pan_img_path = cand
-                    break
+                if cand and is_valid_image(cand):
+                    sub = (od.get("doc_sub_type") or "").upper()
+                    meta = f"{od.get('document_title') or ''} {od.get('forensic_summary') or ''} {od.get('original_filename') or ''}".upper()
+                    score = 0
+                    if dt == "PAN_VERIFICATION_REPORT" or real_dt == "PAN_VERIFICATION_REPORT":
+                        score += 100
+                    if sub == "BACK":
+                        score += 80
+                    elif sub == "FRONT":
+                        score -= 20
+                    if any(k in meta for k in ("VERIF", "KNOW YOUR", "NSDL", "E-FILING", "EFILING", "PORTAL", "JAO", "JURISDICTION", "ACTIVE")):
+                        score += 60
+                    try:
+                        from PIL import Image as _PilPan
+                        with _PilPan.open(cand) as _im:
+                            _w, _h = _im.size
+                        if _h > _w * 1.05:
+                            score += 35
+                    except Exception:
+                        pass
+                    pan_cands.append((score, cand))
+        if pan_cands:
+            pan_cands.sort(key=lambda x: x[0], reverse=True)
+            pan_img_path = pan_cands[0][1]
+
     if not pan_img_path and field_photos_dir:
         cand = os.path.join(field_photos_dir, "page_8_img_2.jpeg")
         if os.path.exists(cand):
@@ -1216,39 +1243,20 @@ def generate_certified_cpv_report(
 
     if pan_img_path and is_valid_image(pan_img_path):
         try:
-            story.append(Image(pan_img_path, width=6.2 * inch, height=4.2 * inch))
+            from PIL import Image as _PilPanFit
+            with _PilPanFit.open(pan_img_path) as _im:
+                _pw, _ph = _im.size
+            _max_w, _max_h = 6.2 * inch, 6.8 * inch
+            _scale = min(_max_w / max(1, _pw), _max_h / max(1, _ph))
+            _img_flow = Image(pan_img_path, width=_pw * _scale, height=_ph * _scale)
+            _img_flow.hAlign = "CENTER"
+            story.append(_img_flow)
             story.append(Spacer(1, 4))
             story.append(Paragraph(f"<font size='7' color='#64748B'><b>Income Tax Department Know Your JAO / PAN Verification: Active status confirmed for {applicant_name}</b></font>", ParagraphStyle("PanCap", alignment=1)))
         except Exception:
             story.append(Paragraph(f"PAN Card Verification: {applicant_name} (Active)", body_style))
     else:
         story.append(Paragraph(f"PAN Card Verification: {NOT_CAPTURED} (no PAN card or NSDL/e-filing verification scanned for {applicant_name})", body_style))
-
-    # NSDL / e-filing "Know Your PAN" verification report - a distinct document from the
-    # physical PAN card scan above (DocumentType.PAN_VERIFICATION_REPORT, uploaded separately
-    # by the CA office), printed on its own page only when one was actually uploaded - no
-    # placeholder/missing line here, unlike the mandatory PAN card above, since this document
-    # is a supplementary corroboration, not itself a required KYC item.
-    pan_verification_img_path = None
-    if sorted_docs:
-        for d in sorted_docs:
-            if d.get("doc_type") == "PAN_VERIFICATION_REPORT":
-                cand = _resolve_img(d.get("watermarked_url") or d.get("storage_url"))
-                if cand:
-                    pan_verification_img_path = cand
-                    break
-
-    if pan_verification_img_path and is_valid_image(pan_verification_img_path):
-        story.append(PageBreak())
-        add_firm_header("7A")
-        story.append(Paragraph("Annexure ‘E’ (Part 1, continued) — NSDL / e-Filing PAN Verification Report:", anx_title_style))
-        story.append(Spacer(1, 6))
-        try:
-            story.append(Image(pan_verification_img_path, width=6.2 * inch, height=8.0 * inch))
-            story.append(Spacer(1, 4))
-            story.append(Paragraph(f"<font size='7' color='#64748B'><b>NSDL / Income Tax e-Filing Portal — PAN Verification Report for {applicant_name}</b></font>", ParagraphStyle("PanVerCap", alignment=1)))
-        except Exception:
-            pass
 
     # ================= PAGE 8: RESIDENCE VISIT PHOTOGRAPHS =================
     story.append(PageBreak())

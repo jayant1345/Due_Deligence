@@ -162,6 +162,52 @@ def _first(pages: List[Dict[str, Any]], field: str, types: Optional[set] = None)
     return None
 
 
+def _pick_best_pan_verification_page(pages: List[Dict[str, Any]]) -> List[str]:
+    """
+    From a person's PAN_CARD / PAN_VERIFICATION_REPORT pages, select ONLY the single best
+    PAN Verification Report image (Know Your PAN / NSDL / Income Tax e-filing verification page),
+    falling back to the PAN card image only if no verification report page exists.
+    Never returns both the physical PAN card and the verification report for the same person.
+    """
+    cands = [
+        p for p in pages
+        if p.get("doc_type") in ("PAN_CARD", "PAN_VERIFICATION_REPORT")
+        and (p.get("local_path") or p.get("image_url"))
+    ]
+    if not cands:
+        return []
+
+    def _score(p: Dict[str, Any]) -> int:
+        s = 0
+        dt = (p.get("doc_type") or "").upper()
+        sub = (p.get("doc_sub_type") or "").upper()
+        meta_text = f"{p.get('document_title') or ''} {p.get('forensic_summary') or ''} {p.get('original_filename') or ''}".upper()
+        if dt == "PAN_VERIFICATION_REPORT":
+            s += 100
+        if sub == "BACK":
+            s += 80
+        elif sub == "FRONT":
+            s -= 20
+        if any(k in meta_text for k in ("VERIF", "KNOW YOUR", "NSDL", "E-FILING", "EFILING", "PORTAL", "JAO", "JURISDICTION", "ACTIVE")):
+            s += 60
+        local_p = _resolve_local_image_path(p.get("local_path") or p.get("image_url"))
+        if local_p and os.path.exists(local_p):
+            try:
+                from PIL import Image as _PilImg
+                with _PilImg.open(local_p) as im:
+                    w, h = im.size
+                # Full-page PAN Verification Report printouts are portrait (h > w), whereas cropped PAN cards are landscape
+                if h > w * 1.05:
+                    s += 35
+            except Exception:
+                pass
+        return s
+
+    best = max(cands, key=_score)
+    best_path = best.get("local_path") or best.get("image_url")
+    return [best_path] if best_path else []
+
+
 def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: date,
             contact: Optional[str] = None, marital: Optional[str] = None,
             community: Optional[str] = None, qualification: Optional[str] = None,
@@ -327,11 +373,7 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
         "_workplace": workplace,
         "_doj": doj,
         "_designation": _title(designation),
-        "_pan_pages": [
-            p.get("local_path") or p.get("image_url")
-            for p in pages
-            if p.get("doc_type") in ("PAN_CARD", "PAN_VERIFICATION_REPORT") and (p.get("local_path") or p.get("image_url"))
-        ],
+        "_pan_pages": _pick_best_pan_verification_page(pages),
     }
 
 
@@ -674,22 +716,47 @@ async def assemble_cpv_report_data(
         if resolved and resolved not in office_photos:
             office_photos.append(resolved)
 
+    # Always prefer an explicitly uploaded PAN_VERIFICATION_REPORT row if present on the case
+    pan_verif_rows = (await db.execute(
+        select(CaseDocument).where(
+            CaseDocument.case_id == loan_case.id,
+            CaseDocument.doc_type == DocumentType.PAN_VERIFICATION_REPORT,
+        ).order_by(CaseDocument.created_at.desc())
+    )).scalars().all()
     pan_photos = []
-    for p in applicant["_pan_pages"] + ((co or {}).get("_pan_pages") or []):
-        res_p = _resolve_local_image_path(p)
+    for d in pan_verif_rows:
+        res_p = _resolve_local_image_path(d.watermarked_url or d.storage_url)
         if res_p and res_p not in pan_photos:
             pan_photos.append(res_p)
+            break
+    if not pan_photos:
+        for p in applicant["_pan_pages"] + ((co or {}).get("_pan_pages") or []):
+            res_p = _resolve_local_image_path(p)
+            if res_p and res_p not in pan_photos:
+                pan_photos.append(res_p)
     if not pan_photos:
         pan_doc_rows = (await db.execute(
             select(CaseDocument).where(
                 CaseDocument.case_id == loan_case.id,
-                CaseDocument.doc_type.in_({DocumentType.PAN_CARD, DocumentType.PAN_VERIFICATION_REPORT}),
+                CaseDocument.doc_type == DocumentType.PAN_CARD,
             ).order_by(CaseDocument.created_at.desc())
         )).scalars().all()
-        for d in pan_doc_rows:
-            res_p = _resolve_local_image_path(d.watermarked_url or d.storage_url)
-            if res_p and res_p not in pan_photos:
-                pan_photos.append(res_p)
+        if pan_doc_rows:
+            cand_dicts = []
+            for d in pan_doc_rows:
+                od = d.ocr_data if isinstance(d.ocr_data, dict) else {}
+                cand_dicts.append({
+                    "doc_type": "PAN_CARD",
+                    "doc_sub_type": od.get("doc_sub_type"),
+                    "document_title": od.get("document_title"),
+                    "forensic_summary": od.get("forensic_summary"),
+                    "original_filename": od.get("original_filename"),
+                    "local_path": d.watermarked_url or d.storage_url,
+                })
+            for p in _pick_best_pan_verification_page(cand_dicts):
+                res_p = _resolve_local_image_path(p)
+                if res_p and res_p not in pan_photos:
+                    pan_photos.append(res_p)
     if not pan_photos and os.path.exists(case_extracted_photos):
         p8 = os.path.join(case_extracted_photos, "page_8_img_2.jpeg")
         if os.path.exists(p8):
