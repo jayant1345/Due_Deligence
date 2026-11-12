@@ -376,14 +376,15 @@
     }
 
     // Manual-upload doc_type for the dashboard's 4-slot grid, matching whichever of the
-    // Residence / Work / Co-Applicant Office folders is currently active.
-    function manualUploadDocTypeFor(index) {
+    // Residence / Work / Co-Applicant Office folders is specified (or currently active).
+    function manualUploadDocTypeFor(index, folderOverride = null) {
+      const folder = folderOverride || currentPhotoFolder;
       const byFolder = {
         residence: { 1: "PROPERTY_EXTERIOR", 2: "PROPERTY_EXTERIOR", 3: "ELECTRICITY_METER", 4: "NEIGHBOR_VERIFICATION" },
         work: { 1: "OFFICE_FACADE", 2: "OFFICE_NAMEBOARD", 3: "OFFICE_INTERIOR", 4: "OFFICE_SELFIE" },
         co_work: { 1: "CO_OFFICE_FACADE", 2: "CO_OFFICE_NAMEBOARD", 3: "CO_OFFICE_INTERIOR", 4: "CO_OFFICE_SELFIE" },
       };
-      return (byFolder[currentPhotoFolder] || byFolder.residence)[index];
+      return (byFolder[folder] || byFolder.residence)[index] || "PROPERTY_EXTERIOR";
     }
 
     // Render 4 photos dynamically for active folder (Residence vs Work vs Co-Applicant Office)
@@ -2960,72 +2961,172 @@
       if (input) input.click();
     }
 
-    // Handle Manual Photo Upload & Realtime Preview in Active Folder
-    async function handlePhotoUpload(index, docType, file) {
+    // Handle Manual Photo Upload & Realtime Preview in Active or Specified Folder
+    async function handlePhotoUpload(index, docType, file, folderOverride = null, skipRefresh = false) {
       if (!file) return;
-
-      const previewUrl = URL.createObjectURL(file);
-      const targetImg = document.getElementById(`imgPhoto${index}`);
-      if (targetImg) targetImg.src = previewUrl;
-
-      const statusBadge = document.getElementById(`statusPhoto${index}`);
-      if (statusBadge) {
-        statusBadge.textContent = "MANUAL ACTIVE";
-        statusBadge.className = "text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-300";
+      if (!activeCaseId) {
+        alert("Please select an active case before uploading photos.");
+        return;
       }
 
-      const tsBadge = document.getElementById(`tsPhoto${index}`);
-      if (tsBadge) {
-        const now = new Date();
-        tsBadge.textContent = "MANUAL: " + now.toLocaleTimeString();
+      const targetFolder = folderOverride || currentPhotoFolder;
+      const resolvedDocType = (docType && !docType.includes("_IMG_"))
+        ? docType
+        : manualUploadDocTypeFor(index, targetFolder);
+
+      const previewUrl = URL.createObjectURL(file);
+      if (targetFolder === currentPhotoFolder) {
+        const targetImg = document.getElementById(`imgPhoto${index}`);
+        if (targetImg) targetImg.src = previewUrl;
+
+        const prefixBadge = document.getElementById(`prefixBadgePhoto${index}`);
+        if (prefixBadge) prefixBadge.textContent = `${index}_${file.name.replace(/^[0-9]+[_.\-\s]*/, "").slice(0, 12)}`;
+
+        const statusBadge = document.getElementById(`statusPhoto${index}`);
+        if (statusBadge) {
+          statusBadge.textContent = "UPLOADED ✓";
+          statusBadge.className = "text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-300";
+        }
+
+        const tsBadge = document.getElementById(`tsPhoto${index}`);
+        if (tsBadge) {
+          const now = new Date();
+          tsBadge.textContent = "UPLOADED: " + now.toLocaleTimeString();
+        }
       }
 
       // Update in-memory case registry
       const c = caseRegistry[activeCaseId];
       if (c) {
-        const targetList = currentPhotoFolder === 'residence'
+        const targetList = targetFolder === 'residence'
           ? c.residence_photos
-          : currentPhotoFolder === 'co_work'
+          : targetFolder === 'co_work'
             ? c.co_work_photos
             : c.work_photos;
         if (targetList && targetList[index - 1]) {
           targetList[index - 1].src = previewUrl;
-          targetList[index - 1].status = "MANUAL ACTIVE";
+          targetList[index - 1].status = "MATCH";
         }
       }
 
-      // Automatically sync file to backend case
+      // Sync file to backend case with explicit slot_number and case coordinates
       try {
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("doc_type", docType);
-        formData.append("folder", currentPhotoFolder);
-        formData.append("latitude", "23.2154");
-        formData.append("longitude", "72.6367");
+        formData.append("doc_type", resolvedDocType);
+        formData.append("folder", targetFolder);
+        formData.append("slot_number", String(index));
 
-        await fetch(`/api/v1/visits/cases/${activeCaseId}/upload`, {
+        // Use the case's own coordinates when uploading from CA desk so backlog uploads
+        // are not falsely flagged with a hardcoded coordinate breach
+        const lat = c && ((c.capture_lat && c.capture_lat !== "—") ? c.capture_lat : (c.benchmark_lat && c.benchmark_lat !== "—" ? c.benchmark_lat : null));
+        const lon = c && ((c.capture_lon && c.capture_lon !== "—") ? c.capture_lon : (c.benchmark_lon && c.benchmark_lon !== "—" ? c.benchmark_lon : null));
+        if (lat && !isNaN(parseFloat(lat))) formData.append("latitude", String(parseFloat(lat)));
+        if (lon && !isNaN(parseFloat(lon))) formData.append("longitude", String(parseFloat(lon)));
+
+        const caseIdForUpload = (c && c.db_id) || activeCaseId;
+        await fetch(`/api/v1/visits/cases/${encodeURIComponent(caseIdForUpload)}/upload`, {
           method: "POST",
+          headers: authHeaders(),
           body: formData
         });
+        if (!skipRefresh) {
+          await fetchLiveCaseDocuments(activeCaseId);
+        }
       } catch (e) {
-        console.log("Local preview active");
+        console.warn("handlePhotoUpload sync error:", e);
+      }
+    }
+
+    // Matches files named 1_xxxxx, 2_xxxxx, 3_xxxxx, 4_xxxxx (or 1-..., 1...., 01_...) to Slots 1..4,
+    // and fills any remaining empty slots in natural filename sort order.
+    function matchFilesToPhotoSlots(images) {
+      const sorted = [...images].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
+      const slotMap = { 1: null, 2: null, 3: null, 4: null };
+      const unmatched = [];
+
+      sorted.forEach(file => {
+        const baseName = file.name.replace(/\.[^.]+$/, "").trim();
+        const m = baseName.match(/^0*([1-4])(?:[_\-\.\s]|$)/i) || baseName.match(/^(?:slot|photo)[_\-\s]*0*([1-4])(?:[_\-\.\s]|$)/i);
+        if (m) {
+          const slotNum = parseInt(m[1], 10);
+          if (slotNum >= 1 && slotNum <= 4 && !slotMap[slotNum]) {
+            slotMap[slotNum] = file;
+            return;
+          }
+        }
+        unmatched.push(file);
+      });
+
+      unmatched.forEach(file => {
+        for (let s = 1; s <= 4; s++) {
+          if (!slotMap[s]) {
+            slotMap[s] = file;
+            break;
+          }
+        }
+      });
+
+      return slotMap;
+    }
+
+    // Dedicated Folder Upload for Home ('residence') or Office ('work') with 1_xxxx..4_xxxx auto-placement
+    async function handleDedicatedFolderUpload(targetFolder, fileList) {
+      if (!fileList || fileList.length === 0) return;
+      if (!activeCaseId) {
+        alert("Please select an active case first.");
+        return;
+      }
+
+      const images = Array.from(fileList).filter(f =>
+        (f.type && f.type.startsWith("image/")) || /\.(jpe?g|png|webp|bmp|heic)$/i.test(f.name)
+      );
+      if (images.length === 0) {
+        alert("No valid image files (.jpg, .jpeg, .png, .webp) found in the selected folder.");
+        return;
+      }
+
+      // Switch view to the target folder so operator sees all 4 slots populate live
+      switchPhotoFolder(targetFolder);
+
+      const slotMap = matchFilesToPhotoSlots(images);
+      const assignedSlots = Object.entries(slotMap).filter(([, f]) => Boolean(f));
+      if (assignedSlots.length === 0) return;
+
+      const folderLabel = targetFolder === "residence" ? "Home / Residence" : targetFolder === "co_work" ? "Co-Applicant Office" : "Work / Office";
+      const btnId = targetFolder === "residence" ? "btnUploadHomeFolder" : "btnUploadOfficeFolder";
+      const btn = document.getElementById(btnId);
+      const origHtml = btn ? btn.innerHTML : null;
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-outlined text-[14px] animate-spin">progress_activity</span><span>Uploading ${assignedSlots.length} photo(s)...</span>`;
+      }
+
+      try {
+        await Promise.all(
+          assignedSlots.map(([slotStr, file]) => {
+            const slotIndex = parseInt(slotStr, 10);
+            return handlePhotoUpload(slotIndex, manualUploadDocTypeFor(slotIndex, targetFolder), file, targetFolder, true);
+          })
+        );
+        await fetchLiveCaseDocuments(activeCaseId);
+        const mappingSummary = assignedSlots.map(([s, f]) => `Slot ${s} ← ${f.name}`).join(" • ");
+        if (typeof showToast === "function") {
+          showToast(`✓ ${folderLabel} (${assignedSlots.length} photos placed): ${mappingSummary}`, 7000);
+        } else {
+          alert(`Imported ${assignedSlots.length} photo(s) into ${folderLabel} folder:\n${mappingSummary}`);
+        }
+      } finally {
+        if (btn && origHtml !== null) {
+          btn.disabled = false;
+          btn.innerHTML = origHtml;
+        }
       }
     }
 
     // Handle Bulk Folder Upload (Select entire directory from disk)
-    function handleBulkFolderUpload(fileList) {
-      if (!fileList || fileList.length === 0) return;
-      const images = Array.from(fileList).filter(f => f.type.startsWith("image/") || /\.(jpe?g|png|webp)$/i.test(f.name));
-      if (images.length === 0) {
-        alert("No valid images found in selected folder.");
-        return;
-      }
-
-      const count = Math.min(4, images.length);
-      for (let i = 0; i < count; i++) {
-        handlePhotoUpload(i + 1, `${currentPhotoFolder.toUpperCase()}_IMG_${i + 1}`, images[i]);
-      }
-      alert(`Imported ${count} photo(s) into the ${currentPhotoFolder.toUpperCase()} folder successfully!`);
+    async function handleBulkFolderUpload(fileList) {
+      await handleDedicatedFolderUpload(currentPhotoFolder, fileList);
     }
 
     // Photo Lightbox Zoom Modal

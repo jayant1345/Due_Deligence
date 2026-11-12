@@ -979,33 +979,52 @@
         </div>
 
         <!-- DUAL FOLDER TABS: Residence Folder vs Work / Office Folder -->
-        <div class="bg-surface-container-low p-1.5 rounded-lg border border-outline-variant flex items-center justify-between gap-2">
-          <div class="flex items-center gap-1">
-            <button id="folderTabResidence" onclick="switchPhotoFolder('residence')" class="px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 bg-primary-container text-white shadow-sm">
-              <span class="material-symbols-outlined text-[15px]">home</span>
-              <span>Residence Folder (4)</span>
-            </button>
-            <button id="folderTabWork" onclick="switchPhotoFolder('work')" class="px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high">
-              <span class="material-symbols-outlined text-[15px]">apartment</span>
-              <span>Work / Office Folder (4)</span>
-            </button>
-            <button id="folderTabCoWork" onclick="switchPhotoFolder('co_work')" class="hidden px-2.5 py-1 rounded text-xs font-bold transition-all items-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high">
-              <span class="material-symbols-outlined text-[15px]">business_center</span>
-              <span>Co-Applicant Office Folder (4)</span>
-            </button>
+        <div class="bg-surface-container-low p-1.5 rounded-lg border border-outline-variant space-y-1.5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-1">
+              <button id="folderTabResidence" onclick="switchPhotoFolder('residence')" class="px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 bg-primary-container text-white shadow-sm">
+                <span class="material-symbols-outlined text-[15px]">home</span>
+                <span>Residence Folder (4)</span>
+              </button>
+              <button id="folderTabWork" onclick="switchPhotoFolder('work')" class="px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high">
+                <span class="material-symbols-outlined text-[15px]">apartment</span>
+                <span>Work / Office Folder (4)</span>
+              </button>
+              <button id="folderTabCoWork" onclick="switchPhotoFolder('co_work')" class="hidden px-2.5 py-1 rounded text-xs font-bold transition-all items-center gap-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high">
+                <span class="material-symbols-outlined text-[15px]">business_center</span>
+                <span>Co-Applicant Office Folder (4)</span>
+              </button>
+            </div>
+            <div class="flex items-center gap-1.5 font-mono text-[10px]">
+              <span id="activeFolderBadge" class="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 font-bold">
+                📁 /residence/
+              </span>
+              <span id="liveSyncBadge" class="hidden bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300 font-bold flex items-center gap-1 font-mono">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> ⚡ LIVE SYNC
+              </span>
+            </div>
           </div>
-          <div class="flex items-center gap-1.5 font-mono text-[10px]">
-            <span id="activeFolderBadge" class="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 font-bold">
-              📁 /residence/
+
+          <!-- Backlog Fast Folder Upload Buttons (1_xxxx, 2_xxxx, 3_xxxx, 4_xxxx auto-placement) -->
+          <div class="flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-outline-variant/60">
+            <span class="font-mono text-[10px] text-on-surface-variant">
+              Auto-place by filename: <code class="font-bold text-primary-container">1_xxxx</code>, <code class="font-bold text-primary-container">2_xxxx</code>, <code class="font-bold text-primary-container">3_xxxx</code>, <code class="font-bold text-primary-container">4_xxxx</code>
             </span>
-            <span id="liveSyncBadge" class="hidden bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300 font-bold flex items-center gap-1 font-mono">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> ⚡ LIVE SYNC
-            </span>
-            <input type="file" id="bulkFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleBulkFolderUpload(this.files)"/>
-            <button onclick="document.getElementById('bulkFolderInput').click()" title="Select local directory to import photos into active folder" class="text-[10px] font-bold text-primary-container hover:underline flex items-center gap-0.5 px-1 py-0.5">
-              <span class="material-symbols-outlined text-[13px]">folder_zip</span>
-              Import
-            </button>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <input type="file" id="homeFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleDedicatedFolderUpload('residence', this.files); this.value='';"/>
+              <button type="button" id="btnUploadHomeFolder" onclick="document.getElementById('homeFolderInput').click()" title="Select Home/Residence photo folder (auto-places 1_xxxx, 2_xxxx, 3_xxxx, 4_xxxx into Slots 1–4)" class="px-2.5 py-1 rounded border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-900 text-[10px] font-bold flex items-center gap-1 shadow-xs transition-all">
+                <span class="material-symbols-outlined text-[14px]">home_work</span>
+                <span>Upload Home Photos Folder</span>
+              </button>
+
+              <input type="file" id="officeFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleDedicatedFolderUpload('work', this.files); this.value='';"/>
+              <button type="button" id="btnUploadOfficeFolder" onclick="document.getElementById('officeFolderInput').click()" title="Select Office/Work photo folder (auto-places 1_xxxx, 2_xxxx, 3_xxxx, 4_xxxx into Slots 1–4)" class="px-2.5 py-1 rounded border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-900 text-[10px] font-bold flex items-center gap-1 shadow-xs transition-all">
+                <span class="material-symbols-outlined text-[14px]">domain_add</span>
+                <span>Upload Office Photos Folder</span>
+              </button>
+
+              <input type="file" id="bulkFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleBulkFolderUpload(this.files); this.value='';"/>
+            </div>
           </div>
         </div>
 
@@ -1016,11 +1035,12 @@
             <input type="file" id="inputPhoto1" accept="image/*" class="hidden" onchange="handlePhotoUpload(1, manualUploadDocTypeFor(1), this.files[0])"/>
             <div class="relative h-32 sm:h-36 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(1)">
               <img id="imgPhoto1" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 1" src="/static/placeholders/photo_pending.svg"/>
+              <span id="prefixBadgePhoto1" class="absolute top-1.5 left-1.5 z-10 bg-black/80 text-amber-300 border border-amber-400/50 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none">1_xxxxx</span>
               
               <!-- Hover / Manual Overlay -->
               <div id="overlayPhoto1" class="absolute inset-0 bg-primary-container/75 text-white flex flex-col items-center justify-center opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity" onclick="event.stopPropagation(); triggerPhotoSelect(1)">
                 <span class="material-symbols-outlined text-[24px]">add_a_photo</span>
-                <span class="text-[10px] font-bold mt-1">Upload / Replace</span>
+                <span class="text-[10px] font-bold mt-1">Upload / Replace (1_xxxxx)</span>
               </div>
 
               <div class="absolute inset-x-0 bottom-0 bg-black/85 p-1 text-[8px] font-mono text-white leading-tight">
@@ -1048,11 +1068,12 @@
             <input type="file" id="inputPhoto2" accept="image/*" class="hidden" onchange="handlePhotoUpload(2, manualUploadDocTypeFor(2), this.files[0])"/>
             <div class="relative h-32 sm:h-36 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(2)">
               <img id="imgPhoto2" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 2" src="/static/placeholders/photo_pending.svg"/>
+              <span id="prefixBadgePhoto2" class="absolute top-1.5 left-1.5 z-10 bg-black/80 text-amber-300 border border-amber-400/50 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none">2_xxxxx</span>
               
               <!-- Hover / Manual Overlay -->
               <div id="overlayPhoto2" class="absolute inset-0 bg-primary-container/75 text-white flex flex-col items-center justify-center opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity" onclick="event.stopPropagation(); triggerPhotoSelect(2)">
                 <span class="material-symbols-outlined text-[24px]">add_a_photo</span>
-                <span class="text-[10px] font-bold mt-1">Upload / Replace</span>
+                <span class="text-[10px] font-bold mt-1">Upload / Replace (2_xxxxx)</span>
               </div>
 
               <div class="absolute inset-x-0 bottom-0 bg-black/85 p-1 text-[8px] font-mono text-white leading-tight">
@@ -1080,11 +1101,12 @@
             <input type="file" id="inputPhoto3" accept="image/*" class="hidden" onchange="handlePhotoUpload(3, manualUploadDocTypeFor(3), this.files[0])"/>
             <div class="relative h-32 sm:h-36 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(3)">
               <img id="imgPhoto3" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 3" src="/static/placeholders/photo_pending.svg"/>
+              <span id="prefixBadgePhoto3" class="absolute top-1.5 left-1.5 z-10 bg-black/80 text-amber-300 border border-amber-400/50 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none">3_xxxxx</span>
               
               <!-- Hover / Manual Overlay -->
               <div id="overlayPhoto3" class="absolute inset-0 bg-primary-container/75 text-white flex flex-col items-center justify-center opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity" onclick="event.stopPropagation(); triggerPhotoSelect(3)">
                 <span class="material-symbols-outlined text-[24px]">add_a_photo</span>
-                <span class="text-[10px] font-bold mt-1">Upload / Replace</span>
+                <span class="text-[10px] font-bold mt-1">Upload / Replace (3_xxxxx)</span>
               </div>
 
               <div class="absolute inset-x-0 bottom-0 bg-black/85 p-1 text-[8px] font-mono text-white leading-tight">
@@ -1112,11 +1134,12 @@
             <input type="file" id="inputPhoto4" accept="image/*" class="hidden" onchange="handlePhotoUpload(4, manualUploadDocTypeFor(4), this.files[0])"/>
             <div class="relative h-32 sm:h-36 w-full overflow-hidden bg-slate-900 cursor-pointer" onclick="openPhotoLightbox(4)">
               <img id="imgPhoto4" class="w-full h-full object-cover group-hover:scale-105 transition-all" alt="Photo 4" src="/static/placeholders/photo_pending.svg"/>
+              <span id="prefixBadgePhoto4" class="absolute top-1.5 left-1.5 z-10 bg-black/80 text-amber-300 border border-amber-400/50 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none">4_xxxxx</span>
               
               <!-- Hover / Manual Overlay -->
               <div id="overlayPhoto4" class="absolute inset-0 bg-primary-container/75 text-white flex flex-col items-center justify-center opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity" onclick="event.stopPropagation(); triggerPhotoSelect(4)">
                 <span class="material-symbols-outlined text-[24px]">add_a_photo</span>
-                <span class="text-[10px] font-bold mt-1">Upload / Replace</span>
+                <span class="text-[10px] font-bold mt-1">Upload / Replace (4_xxxxx)</span>
               </div>
 
               <div class="absolute inset-x-0 bottom-0 bg-black/85 p-1 text-[8px] font-mono text-white leading-tight">
