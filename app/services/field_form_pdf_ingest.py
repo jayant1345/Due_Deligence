@@ -72,7 +72,9 @@ Return ONLY a JSON object with exactly these keys:
   "address_visited": "string or null",
   "residence_landmark": "Landmark or locality extracted from address_visited (e.g. 'Near SAL Hospital, Driving Road, Thaltej'), string or null",
   "residence_ownership": "Rented | Owned | Government Provided | Company Provided | null",
-  "residence_references": [{{"name": "string", "relation": "string"}}],
+  "residence_references": [
+    {{"name": "Neighbour 1 person's name ONLY (if two neighbour names are written on one line separated by '-', ',', '&', or '/', output TWO separate objects in this array, NEVER put the second person's name into 'relation')", "relation": "Neighbour (default to 'Neighbour' unless another relation like 'Friend', 'Landlord', 'Relative', 'Secretary', 'Watchman' is explicitly written)"}}
+  ],
   "residence_building_type": "Bungalow | Flat | Independent House | null",
   "residence_bhk": "e.g. '1 BHK', '2 BHK', '3 BHK', '4 BHK' or null",
   "duration_of_stay": "string or null (e.g. '2.5 years')",
@@ -98,7 +100,9 @@ Return ONLY a JSON object with exactly these keys:
   "office_owner_relation": "string or null",
   "position_or_nature_of_business": "string or null",
   "office_assets_visible": ["list of checked items"],
-  "office_references": [{{"name": "string", "relation": "string"}}],
+  "office_references": [
+    {{"name": "Reference person's name ONLY (if two reference names are written separated by '-', ',', '&', or '/', output TWO separate objects in this array, NEVER put the second person's name into 'relation')", "relation": "Colleague | Staff | Manager | Owner | Neighbour | Friend (default to 'Colleague' or 'Neighbour' if not explicitly written)"}}
+  ],
   "who_met_office_name": "string or null - name only",
   "who_met_office_contact": "string or null",
   "who_met_office_relation": "string or null - only if explicitly written",
@@ -197,6 +201,133 @@ def _clean_val(val: Optional[Any], allow_na: bool = False) -> Optional[str]:
     if not allow_na and s.lower() in _PLACEHOLDER_STRINGS:
         return None
     return s
+
+
+_VALID_REFERENCE_RELATIONS = {
+    "NEIGHBOUR", "NEIGHBOR", "NEIGHBOURS", "NEIGHBORS",
+    "FRIEND", "FERIND", "FRIND", "FREIND", "FRIENDS",
+    "COLLEAGUE", "COLLEAGUES", "CO-WORKER", "COWORKER",
+    "STAFF", "OFFICE STAFF", "EMPLOYEE", "WORKER", "HELPER", "ASSISTANT",
+    "MANAGER", "MENEGER", "MANEGER", "SUPERVISOR", "INCHARGE", "HEAD",
+    "OWNER", "LANDLORD", "PROPRIETOR", "PARTNER", "BUSINESS PARTNER", "DIRECTOR", "BOSS", "EMPLOYER", "CHAIRMAN", "SECRETARY",
+    "TENANT", "RENTER", "LESSEE",
+    "SHOPKEEPER", "NEARBY SHOPKEEPER", "VENDOR", "SUPPLIER", "CLIENT", "CUSTOMER", "DEALER",
+    "ACCOUNTANT", "CLERK", "CASHIER", "RECEPTIONIST", "ADMIN", "HR", "SALESMAN",
+    "WATCHMAN", "SECURITY", "SECURITY GUARD", "GUARD", "CARETAKER",
+    "RELATIVE", "FAMILY", "FAMILY MEMBER",
+    "FATHER", "MOTHER", "HUSBAND", "WIFE", "SON", "DAUGHTER", "BROTHER", "SISTER",
+    "UNCLE", "AUNT", "COUSIN", "NEPHEW", "NIECE",
+    "FATHER IN LAW", "MOTHER IN LAW", "BROTHER IN LAW", "SISTER IN LAW",
+    "FATHER-IN-LAW", "MOTHER-IN-LAW", "BROTHER-IN-LAW", "SISTER-IN-LAW",
+    "SELF", "APPLICANT", "APP", "CO-APPLICANT", "GUARANTOR",
+}
+
+
+def _is_valid_reference_relation(val: Optional[str]) -> bool:
+    """Return True only if `val` is an actual relationship/role word (e.g. 'Neighbour', 'Friend',
+    'Colleague', 'Manager') and NOT a second person's name (like 'RAJU BHAI')."""
+    s = _clean_val(val)
+    if not s:
+        return False
+    upper = re.sub(r"\s+", " ", s.upper().strip(" .,-()/"))
+    if upper in _VALID_REFERENCE_RELATIONS or upper in _RELATION_NORMALIZATION:
+        return True
+    # Also accept composite role labels like "Society Secretary", "Shop Owner", "Next Door Neighbour"
+    role_keywords = (
+        "NEIGHBOUR", "NEIGHBOR", "FRIEND", "FERIND", "FRIND", "FREIND",
+        "COLLEAGUE", "COWORKER", "STAFF", "MANAGER", "MENEGER", "MANEGER",
+        "OWNER", "LANDLORD", "PROPRIETOR", "PARTNER", "DIRECTOR", "BOSS",
+        "EMPLOYER", "EMPLOYEE", "SUPERVISOR", "WATCHMAN", "SECURITY", "GUARD",
+        "SECRETARY", "CHAIRMAN", "TENANT", "SHOPKEEPER", "RELATIVE", "ACCOUNTANT",
+        "CLERK", "VENDOR", "SUPPLIER", "CLIENT", "CUSTOMER",
+    )
+    return any(re.search(rf"\b{kw}\b", upper) for kw in role_keywords)
+
+
+def _expand_and_normalize_references(
+    raw_items: List[Any],
+    default_relation: str = "Neighbour",
+) -> List[str]:
+    """
+    Takes raw reference strings or {name, relation} dicts and returns normalized
+    'Name - Relation' strings. Crucially, if two people's names were combined with
+    ' - ', ',', '&', or '/' (e.g. 'BABU RAO - RAJU BHAI' where 'RAJU BHAI' was mistaken
+    for a relation), splits them into two separate reference entries, each with `default_relation`.
+    """
+    pairs: List[tuple[str, str]] = []
+
+    def _add_name_or_split(name_str: str, rel_str: Optional[str]):
+        clean_n = (_clean_val(name_str) or "").strip(" .,-")
+        clean_n = re.sub(r"^\d+[\.\)\-\s]+", "", clean_n).strip()
+        if not clean_n:
+            return
+        norm_r = _normalize_relation_or_title(rel_str) if _is_valid_reference_relation(rel_str) else None
+        # Check if clean_n itself contains two names separated by ',', '&', '/', or ' and '
+        sub_names = [
+            re.sub(r"^\d+[\.\)\-\s]+", "", p.strip(" .,-")).strip()
+            for p in re.split(r"\s*(?:,|&|/|\band\b)\s*", clean_n, flags=re.IGNORECASE)
+            if p and p.strip(" .,-")
+        ]
+        if len(sub_names) > 1:
+            for sn in sub_names:
+                if sn:
+                    pairs.append((sn, norm_r or default_relation))
+        else:
+            pairs.append((clean_n, norm_r or default_relation))
+
+    for item in raw_items:
+        if not item:
+            continue
+        if isinstance(item, dict):
+            n_val = _clean_val(item.get("name"))
+            r_val = _clean_val(item.get("relation"))
+            if not n_val:
+                continue
+            if r_val and not _is_valid_reference_relation(r_val):
+                # Gemini put the 2nd person's name into 'relation' (e.g. name='BABU RAO', relation='RAJU BHAI')
+                _add_name_or_split(n_val, default_relation)
+                _add_name_or_split(r_val, default_relation)
+            else:
+                _add_name_or_split(n_val, r_val or default_relation)
+        else:
+            s_val = _clean_val(item)
+            if not s_val:
+                continue
+            # Check for parenthetical relation like "BABU RAO (Neighbour)"
+            m_paren = re.match(r"^(.+?)\s*\(([^)]+)\)\s*$", s_val)
+            if m_paren and _is_valid_reference_relation(m_paren.group(2)):
+                _add_name_or_split(m_paren.group(1), m_paren.group(2))
+                continue
+            if " - " in s_val:
+                parts = [p.strip() for p in s_val.split(" - ") if p.strip()]
+                if len(parts) == 2:
+                    left, right = parts[0], parts[1]
+                    if _is_valid_reference_relation(right):
+                        _add_name_or_split(left, right)
+                    else:
+                        # Both left and right are people's names (e.g. "BABU RAO - RAJU BHAI")!
+                        _add_name_or_split(left, default_relation)
+                        _add_name_or_split(right, default_relation)
+                else:
+                    # 3+ parts separated by " - "
+                    if _is_valid_reference_relation(parts[-1]):
+                        rel_part = parts[-1]
+                        for nm in parts[:-1]:
+                            _add_name_or_split(nm, rel_part)
+                    else:
+                        for nm in parts:
+                            _add_name_or_split(nm, default_relation)
+            else:
+                _add_name_or_split(s_val, default_relation)
+
+    out: List[str] = []
+    seen = set()
+    for n, r in pairs:
+        key = n.upper()
+        if key not in seen:
+            seen.add(key)
+            out.append(f"{n} - {r}")
+    return out
 
 
 def _normalize_relation_or_title(val: Optional[str]) -> Optional[str]:
@@ -381,13 +512,15 @@ def enrich_field_form_defaults(
     if cleaned_fam:
         ff["family_members"] = cleaned_fam
 
-    # 2. Clean neighbour references
-    for n_key in ("neighbour_1", "neighbour_2"):
-        n_val = _clean_val(ff.get(n_key))
-        if n_val and " - " in n_val:
-            p_name, p_rel = n_val.split(" - ", 1)
-            norm_rel = _normalize_relation_or_title(p_rel) or p_rel.strip()
-            ff[n_key] = f"{p_name.strip()} - {norm_rel}" if norm_rel else p_name.strip()
+    # 2. Clean & split neighbour references (e.g. "BABU RAO - RAJU BHAI" -> two separate Neighbours)
+    norm_neighbours = _expand_and_normalize_references(
+        [ff.get("neighbour_1"), ff.get("neighbour_2")],
+        default_relation="Neighbour",
+    )
+    ff["neighbour_1"] = norm_neighbours[0] if len(norm_neighbours) > 0 else ""
+    ff["neighbour_2"] = norm_neighbours[1] if len(norm_neighbours) > 1 else ""
+    if isinstance(ff.get("restore"), dict) and norm_neighbours:
+        ff["restore"]["neighbors"] = norm_neighbours[:2]
 
     # 3. Residence Owner Name & Relation
     owner_raw = _clean_val(ff.get("owner_name")) or ""
@@ -451,13 +584,14 @@ def enrich_field_form_defaults(
             off["position"] = pos
             off["designation"] = pos
 
-        # Normalize office references
-        for r_key in ("reference_1", "reference_2"):
-            r_val = _clean_val(off.get(r_key))
-            if r_val and " - " in r_val:
-                rn, rr = r_val.split(" - ", 1)
-                norm_rr = _normalize_relation_or_title(rr) or rr.strip()
-                off[r_key] = f"{rn.strip()} - {norm_rr}" if norm_rr else rn.strip()
+        # Normalize & split office references (if two names were combined with ' - ', split into reference_1 and reference_2)
+        norm_off_refs = _expand_and_normalize_references(
+            [off.get("reference_1") or off.get("reference"), off.get("reference_2")],
+            default_relation="Colleague",
+        )
+        if norm_off_refs:
+            off["reference_1"] = norm_off_refs[0]
+            off["reference_2"] = norm_off_refs[1] if len(norm_off_refs) > 1 else None
 
         # Normalize office who_meet
         if off.get("who_meet"):
@@ -575,13 +709,19 @@ def build_field_form_payload(extracted: Dict[str, Any]) -> Dict[str, Any]:
     person_met = _combine_met(e.get("who_met_residence_name"), e.get("who_met_residence_contact"), e.get("who_met_residence_relation"))
     office_who_meet = _combine_met(e.get("who_met_office_name"), e.get("who_met_office_contact"), e.get("who_met_office_relation"))
 
-    res_refs = [r for r in (e.get("residence_references") or []) if isinstance(r, dict) and _clean_val(r.get("name"))]
-    neighbour_1 = f"{_clean_val(res_refs[0]['name'])} - {_normalize_relation_or_title(res_refs[0].get('relation')) or ''}".strip(" -") if len(res_refs) > 0 else ""
-    neighbour_2 = f"{_clean_val(res_refs[1]['name'])} - {_normalize_relation_or_title(res_refs[1].get('relation')) or ''}".strip(" -") if len(res_refs) > 1 else ""
+    norm_res_refs = _expand_and_normalize_references(
+        e.get("residence_references") or [],
+        default_relation="Neighbour",
+    )
+    neighbour_1 = norm_res_refs[0] if len(norm_res_refs) > 0 else ""
+    neighbour_2 = norm_res_refs[1] if len(norm_res_refs) > 1 else ""
 
-    off_refs = [r for r in (e.get("office_references") or []) if isinstance(r, dict) and _clean_val(r.get("name"))]
-    office_reference_1 = f"{_clean_val(off_refs[0]['name'])} - {_normalize_relation_or_title(off_refs[0].get('relation')) or ''}".strip(" -") if len(off_refs) > 0 else ""
-    office_reference_2 = f"{_clean_val(off_refs[1]['name'])} - {_normalize_relation_or_title(off_refs[1].get('relation')) or ''}".strip(" -") if len(off_refs) > 1 else ""
+    norm_off_refs = _expand_and_normalize_references(
+        e.get("office_references") or [],
+        default_relation="Colleague",
+    )
+    office_reference_1 = norm_off_refs[0] if len(norm_off_refs) > 0 else ""
+    office_reference_2 = norm_off_refs[1] if len(norm_off_refs) > 1 else ""
 
     bhk = _clean_val(e.get("residence_bhk")) or ""
     bldg_type = _clean_val(e.get("residence_building_type")) or ""
@@ -732,6 +872,84 @@ def ingest_field_form_pdf(pdf_path: str, applicant_name: str) -> Dict[str, Any]:
             pass
 
 
+def parse_inr_loan_amount(raw_val: Any) -> Optional[float]:
+    """
+    Parse Indian loan amount expressions into exact full Rupees (float).
+    Examples:
+      "20.35 LAC" / "20.35 Lacs" / "20.35 Lakh" / "20.35L" -> 2035000.0
+      "1.5 CR" / "1.50 Crore" -> 15000000.0
+      "20,35,000" / "Rs. 20,35,000/-" -> 2035000.0
+      "20.35" (decimal < 500 with no unit) -> 2035000.0 (20.35 Lakhs)
+    """
+    if raw_val is None:
+        return None
+    if isinstance(raw_val, (int, float)):
+        val = float(raw_val)
+        if val <= 0:
+            return None
+        if val < 500:
+            return float(round(val * 100_000))
+        return val
+
+    s = str(raw_val).strip()
+    if not s or s.upper() in ("NA", "N/A", "NONE", "NULL", "-"):
+        return None
+
+    s_clean = s.replace(",", "")
+    m_num = re.search(r"(\d+(?:\.\d+)?)", s_clean)
+    if not m_num:
+        return None
+    num = float(m_num.group(1))
+    if num <= 0:
+        return None
+
+    s_upper = s_clean.upper()
+    if re.search(r"\b(?:CR|CRORE|CRORES)\b|(?<=\d)CR\b", s_upper):
+        return float(round(num * 10_000_000))
+    if re.search(r"\b(?:LAC|LACS|LAKH|LAKHS|LC|L)\b|(?<=\d)(?:LAC|LACS|LAKH|LAKHS|L)\b", s_upper):
+        return float(round(num * 100_000))
+    if re.search(r"\b(?:K|THOUSAND)\b|(?<=\d)K\b", s_upper):
+        return float(round(num * 1_000))
+
+    # If written as a small decimal or number < 500 (e.g. "20.35" or "15"), Indian loan forms mean Lakhs
+    if num < 500:
+        return float(round(num * 100_000))
+
+    return float(round(num))
+
+
+def resolve_effective_loan_amount(
+    loan_amount: Any,
+    field_form: Optional[Dict[str, Any]] = None,
+) -> Optional[float]:
+    """
+    Return the authoritative loan amount in full Rupees, auto-healing cases where a Lakh
+    string like '20.35 LAC' had its decimal and unit stripped to '2035' (Rs. 2,035/-).
+    """
+    form_amt: Optional[float] = None
+    if isinstance(field_form, dict):
+        prev_loan = field_form.get("previous_loan")
+        raw_form_amt = (
+            (prev_loan.get("amount") if isinstance(prev_loan, dict) else None)
+            or field_form.get("loan_amount")
+        )
+        form_amt = parse_inr_loan_amount(raw_form_amt)
+
+    parsed_db = parse_inr_loan_amount(loan_amount)
+
+    # If the DB amount is missing or implausibly tiny (< Rs. 50,000, e.g. 2035 from "20.35 LAC"),
+    # prefer the properly parsed amount from field_form_data (e.g. 2035000.0)
+    if form_amt and form_amt >= 50_000 and (not parsed_db or parsed_db < 50_000):
+        return form_amt
+
+    # Even if field_form_data has no amount, a stored integer between 500 and 9999 on a bank loan
+    # (e.g. 2035 from stripping '.' out of '20.35 LAC') represents 2-decimal Lakhs (2035 * 1000 = 20,35,000)
+    if parsed_db and 500 <= parsed_db < 10_000:
+        return float(round(parsed_db * 1_000))
+
+    return parsed_db or form_amt
+
+
 def extract_field_form_pdf_for_intake(pdf_path: str, applicant_name: str = "") -> Dict[str, Any]:
     """
     Renders the Google Form PDF export pages to images, calls Gemini to extract both:
@@ -809,6 +1027,14 @@ def extract_field_form_pdf_for_intake(pdf_path: str, applicant_name: str = "") -
             else:
                 normalized_loan = raw_loan
 
+        raw_loan_amt = extracted.get("loan_amount")
+        parsed_loan_amt = parse_inr_loan_amount(raw_loan_amt)
+        resolved_loan_amt_str = (
+            str(int(round(parsed_loan_amt)))
+            if parsed_loan_amt and parsed_loan_amt > 0
+            else (str(raw_loan_amt).strip() if raw_loan_amt else None)
+        )
+
         case_data = {
             "applicant_name": extracted.get("name"),
             "contact_number": extracted.get("contact_number"),
@@ -817,7 +1043,8 @@ def extract_field_form_pdf_for_intake(pdf_path: str, applicant_name: str = "") -
             "bank_name": normalized_bank,
             "branch_name": extracted.get("branch_name"),
             "loan_type": normalized_loan,
-            "loan_amount": extracted.get("loan_amount"),
+            "loan_amount": resolved_loan_amt_str,
+            "loan_amount_raw": raw_loan_amt,
             "executive_name": extracted.get("executive_name"),
             "co_applicant_name": extracted.get("co_applicant_name"),
             "co_applicant_contact": extracted.get("co_applicant_contact"),

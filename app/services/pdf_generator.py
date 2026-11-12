@@ -69,7 +69,7 @@ def generate_certified_cpv_report(
     applicant_name = case_data.get("applicant_name") or NOT_CAPTURED
     raw_target_address = case_data.get("target_address")
     target_address = raw_target_address if raw_target_address and raw_target_address != "Pending AI Extraction" else NOT_CAPTURED
-    from app.services.field_form_pdf_ingest import enrich_field_form_defaults
+    from app.services.field_form_pdf_ingest import enrich_field_form_defaults, resolve_effective_loan_amount
     field_form = enrich_field_form_defaults(
         case_data.get("field_form") or {},
         applicant_name=applicant_name if applicant_name != NOT_CAPTURED else None,
@@ -79,7 +79,7 @@ def generate_certified_cpv_report(
     bank_name = case_data.get("bank_name") or NOT_CAPTURED
     branch = case_data.get("branch") or NOT_CAPTURED
     loan_type = case_data.get("loan_type") or NOT_CAPTURED
-    loan_amount = case_data.get("loan_amount")
+    loan_amount = resolve_effective_loan_amount(case_data.get("loan_amount"), field_form)
     loan_amount_str = f"Rs. {loan_amount:,.0f}/-" if loan_amount else NOT_CAPTURED
     co_applicant_name = case_data.get("co_applicant_name") or None
     co_applicant_phone = case_data.get("co_applicant_phone") or None

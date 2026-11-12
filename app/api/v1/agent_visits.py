@@ -348,7 +348,9 @@ async def zero_lag_upload_document(
                 active_address = loan_case.target_address
                 applicant_label = loan_case.applicant_name
 
-            stamp_hard_watermark(
+            from starlette.concurrency import run_in_threadpool
+            await run_in_threadpool(
+                stamp_hard_watermark,
                 input_image_path=storage_url,
                 output_image_path=watermarked_path,
                 case_no=loan_case.case_no,
@@ -412,12 +414,10 @@ async def zero_lag_upload_document(
     await db.commit()
     await db.refresh(doc)
 
-    # Asynchronously dispatch to Celery background worker if available
-    try:
-        celery_task = process_uploaded_media_task.delay(str(doc.id))
-        task_id = celery_task.id
-    except Exception:
-        task_id = f"local-sync-{uuid.uuid4().hex[:8]}"
+    # Watermarking and metadata persistence are already completed above via threadpool;
+    # do not call Celery .delay() synchronously because when Redis is not provisioned
+    # (e.g. single-service Railway deployment), kombu blocks for 4-6s per photo retrying localhost:6379.
+    task_id = f"sync-watermarked-{uuid.uuid4().hex[:8]}"
 
     return DocumentUploadResponse(
         document_id=doc.id,
@@ -425,7 +425,7 @@ async def zero_lag_upload_document(
         case_id=loan_case.id,
         doc_type=doc_type,
         status="ACCEPTED",
-        message="File ingested and queued for background watermarking, EXIF parsing, and OCR scrutiny.",
+        message="File ingested and watermarked immediately.",
     )
 
 

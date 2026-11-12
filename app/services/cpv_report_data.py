@@ -703,9 +703,11 @@ async def assemble_cpv_report_data(
     # image here at all, full stop; matches the PDF, which has never pasted one either.
     sig_path = None
 
+    from app.services.field_form_pdf_ingest import resolve_effective_loan_amount
+    effective_loan_amount = resolve_effective_loan_amount(loan_case.loan_amount, form)
     loan_type = loan_case.loan_type
-    if loan_case.loan_amount:
-        loan_type = f"{loan_type} – Rs. {_inr(str(int(loan_case.loan_amount)))}/-"
+    if effective_loan_amount:
+        loan_type = f"{loan_type} – Rs. {_inr(str(int(round(effective_loan_amount))))}/-"
 
     raw_exec = (agent.full_name if agent else None) or form.get("executive") or form.get("executive_name")
     resolved_verifiers: List[str] = []

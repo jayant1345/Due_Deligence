@@ -115,6 +115,45 @@ async def list_cases(
             c.capture_lat = d.latitude if d else None
             c.capture_lon = d.longitude if d else None
             c.distance_m = d.distance_from_target if d else None
+
+    # Auto-heal any case whose loan_amount was stored with a stripped Lakh decimal (e.g. 2035 from "20.35 LAC")
+    # or whose neighbour_1 combined two neighbour names (e.g. "BABU RAO - RAJU BHAI")
+    import json as _json_heal
+    from app.services.field_form_pdf_ingest import (
+        resolve_effective_loan_amount,
+        _expand_and_normalize_references,
+    )
+    healed_any = False
+    for c in cases:
+        ff_dict = {}
+        if c.field_form_data:
+            try:
+                parsed_ff = _json_heal.loads(c.field_form_data)
+                if isinstance(parsed_ff, dict):
+                    ff_dict = parsed_ff
+            except Exception:
+                ff_dict = {}
+        if c.loan_amount is None or (0 < c.loan_amount < 50_000):
+            corrected = resolve_effective_loan_amount(c.loan_amount, ff_dict or None)
+            if corrected and corrected != c.loan_amount:
+                c.loan_amount = corrected
+                healed_any = True
+        if ff_dict and (ff_dict.get("neighbour_1") or ff_dict.get("neighbour_2")):
+            old_n1 = ff_dict.get("neighbour_1") or ""
+            old_n2 = ff_dict.get("neighbour_2") or ""
+            norm_n = _expand_and_normalize_references([old_n1, old_n2], default_relation="Neighbour")
+            new_n1 = norm_n[0] if len(norm_n) > 0 else ""
+            new_n2 = norm_n[1] if len(norm_n) > 1 else ""
+            if (new_n1, new_n2) != (old_n1, old_n2):
+                ff_dict["neighbour_1"] = new_n1
+                ff_dict["neighbour_2"] = new_n2
+                if isinstance(ff_dict.get("restore"), dict):
+                    ff_dict["restore"]["neighbors"] = [x for x in (new_n1, new_n2) if x]
+                c.field_form_data = _json_heal.dumps(ff_dict)
+                healed_any = True
+    if healed_any:
+        await db.commit()
+
     return cases
 
 
@@ -135,6 +174,14 @@ async def create_case(
 
     initial_status = CaseStatus.ASSIGNED if req.assigned_agent_id else CaseStatus.DRAFT
 
+    import json as _json_create
+    from app.services.field_form_pdf_ingest import resolve_effective_loan_amount
+    try:
+        ff_create = _json_create.loads(req.field_form_data or "{}") if req.field_form_data else {}
+    except Exception:
+        ff_create = {}
+    resolved_amt = resolve_effective_loan_amount(req.loan_amount, ff_create if isinstance(ff_create, dict) else None)
+
     loan_case = LoanCase(
         case_no=req.case_no.strip(),
         bank_name=req.bank_name.strip(),
@@ -142,7 +189,7 @@ async def create_case(
         applicant_name=req.applicant_name.strip(),
         applicant_phone=req.applicant_phone.strip(),
         loan_type=req.loan_type.strip(),
-        loan_amount=req.loan_amount,
+        loan_amount=resolved_amt if resolved_amt is not None else req.loan_amount,
         target_address=req.target_address.strip(),
         office_address=(req.office_address or "").strip() or None,
         target_lat=req.target_lat,
@@ -1209,7 +1256,10 @@ async def ingest_field_form_pdf(
     with open(saved_pdf_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    from app.services.field_form_pdf_ingest import ingest_field_form_pdf as run_extraction
+    from app.services.field_form_pdf_ingest import (
+        ingest_field_form_pdf as run_extraction,
+        resolve_effective_loan_amount,
+    )
 
     try:
         field_form_payload = await run_in_threadpool(run_extraction, saved_pdf_path, loan_case.applicant_name)
@@ -1221,6 +1271,9 @@ async def ingest_field_form_pdf(
 
     import json as _json
     loan_case.field_form_data = _json.dumps(field_form_payload)
+    resolved_amt = resolve_effective_loan_amount(loan_case.loan_amount, field_form_payload)
+    if resolved_amt and (not loan_case.loan_amount or loan_case.loan_amount < 50_000):
+        loan_case.loan_amount = resolved_amt
 
     audit = AuditLog(
         case_id=loan_case.id,
