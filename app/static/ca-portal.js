@@ -1074,7 +1074,8 @@
       });
     }
 
-    async function fetchLiveCaseDocuments(caseId) {
+    const lastSeenDocsSignature = {};
+    async function fetchLiveCaseDocuments(caseId, opts = {}) {
       if (!caseId) return;
       try {
         let docs = [];
@@ -1089,6 +1090,14 @@
 
         const c = caseRegistry[caseId];
         if (!c) return;
+
+        // Avoid tearing down and recreating the photo grid DOM and geofence map every poll tick
+        // when the document list and active folder have not changed at all.
+        const sig = (docs || []).map(d => `${d.id}:${d.url}:${d.slot_number}:${d.include_in_report}:${d.created_at_raw || d.created_at}`).join("|") + `||${currentPhotoFolder}`;
+        if (opts && opts.fromPoll && lastSeenDocsSignature[caseId] === sig) {
+          return;
+        }
+        lastSeenDocsSignature[caseId] = sig;
 
         // Field-captured KYC photos (agent snaps Aadhaar/PAN/utility bill as a JPEG instead of
         // the bank supplying a scannable PDF): these never go through the AI PDF-ingestion
@@ -1636,6 +1645,9 @@
         const dc = await res.json();
         const raw = dc.field_form_data || "";
         const prev = lastSeenFieldFormData[caseId];
+        if (prev !== undefined && raw === prev) {
+          return;
+        }
         const c = caseRegistry[caseId];
         if (c && raw) {
           applyFieldFormDataToEntry(c, raw);
@@ -1679,15 +1691,26 @@
       }
     }
 
+    let _liveSyncInFlight = false;
     function startLiveDocumentSync() {
       if (liveSyncInterval) clearInterval(liveSyncInterval);
       fetchLiveCaseDocuments(activeCaseId);
       checkLiveFieldFormUpdate(activeCaseId);
-      // Auto-poll every 4 seconds
-      liveSyncInterval = setInterval(() => {
-        fetchLiveCaseDocuments(activeCaseId);
-        checkLiveFieldFormUpdate(activeCaseId);
-      }, 4000);
+      // Auto-poll every 6 seconds only when Scrutiny Desk is visible and tab is active
+      liveSyncInterval = setInterval(async () => {
+        if (document.hidden || _liveSyncInFlight) return;
+        const scrutinyDesk = document.getElementById("viewScrutinyDesk");
+        if (scrutinyDesk && scrutinyDesk.classList.contains("hidden")) return;
+        _liveSyncInFlight = true;
+        try {
+          await Promise.all([
+            fetchLiveCaseDocuments(activeCaseId, { fromPoll: true }),
+            checkLiveFieldFormUpdate(activeCaseId),
+          ]);
+        } finally {
+          _liveSyncInFlight = false;
+        }
+      }, 6000);
     }
 
     // Realtime Manual UDIN Validation & Synchronization by CA Staff
@@ -1948,10 +1971,12 @@
       document.getElementById("dispRadarDistance").textContent = visited ? `${c.distance_m}m / Max 150m Safe Harbor` : "Awaiting field visit";
       document.getElementById("dispRadarBar").style.width = visited ? Math.min(100, Math.round((c.distance_m / 150) * 100)) + "%" : "0%";
       document.getElementById("dispRadarBar").className = `${visited && c.distance_m > 150 ? "bg-red-500" : "bg-secondary"} h-full rounded-full`;
-      refreshGeofenceMap(true);
-      autoLocateCase(c);
       renderApplicantInfo(c);
-      loadApplicantLocationPortal(c);
+      if (!opts.skipRemoteLoad) {
+        refreshGeofenceMap(true);
+        autoLocateCase(c);
+        loadApplicantLocationPortal(c);
+      }
 
       // 6. Update Dual Folder Site Evidence Photos
       renderPhotosForActiveFolder();
@@ -2028,8 +2053,11 @@
       // Hide previous report badge if case changed
       document.getElementById("pdfSuccessCard").classList.add("hidden");
 
-      // 10. Render Case Document Vault for Active Case
-      renderCaseDocumentVault(caseId);
+      // 10. Render Case Document Vault for Active Case only if Vault view is currently open
+      const vaultPortalEl = document.getElementById("viewDocumentVault");
+      if (vaultPortalEl && !vaultPortalEl.classList.contains("hidden")) {
+        renderCaseDocumentVault(caseId);
+      }
 
       // 11/12. Fetch live evidence photos and AI-scanned documents (skipped when this call is
       // itself the re-render that follows loading those scans, to avoid a fetch loop)
@@ -7380,6 +7408,19 @@
       if (btnActive) btnActive.className = mode === "active" ? MGMT_TAB_ACTIVE_CLASS : MGMT_TAB_INACTIVE_CLASS;
       if (btnCompleted) btnCompleted.className = mode === "completed" ? MGMT_TAB_ACTIVE_CLASS : MGMT_TAB_INACTIVE_CLASS;
       if (mode === "completed") {
+        if (mgmtCompletedCases !== null && mgmtCompletedCases.length > 0) {
+          // Render cached completed cases immediately for instant click response, then refresh in background
+          renderMgmtBankCards(mgmtCompletedCases);
+          applyManagementFilters();
+          loadManagementCompletedCases().then(() => {
+            if (mgmtViewMode === "completed") {
+              if (btnCompleted) btnCompleted.textContent = `Completed Cases (${(mgmtCompletedCases || []).length})`;
+              renderMgmtBankCards(mgmtCompletedCases || []);
+              applyManagementFilters();
+            }
+          });
+          return;
+        }
         if (btnCompleted) btnCompleted.innerHTML = `<span class="material-symbols-outlined text-[14px] animate-spin align-middle">sync</span> Loading...`;
         await loadManagementCompletedCases();
         if (btnCompleted) btnCompleted.textContent = `Completed Cases (${(mgmtCompletedCases || []).length})`;
@@ -7434,6 +7475,12 @@
 
     async function renderManagementPortal() {
       updateGlobalCaseCounters();
+
+      // Render immediately from cached cases if available so switching to Management Portal is instant
+      if ((mgmtViewMode === "completed" && mgmtCompletedCases && mgmtCompletedCases.length > 0) || (mgmtViewMode !== "completed" && mgmtActiveCases && mgmtActiveCases.length > 0)) {
+        renderMgmtBankCards(mgmtViewMode === "completed" ? (mgmtCompletedCases || []) : mgmtActiveCases);
+        applyManagementFilters();
+      }
 
       const [stats] = await Promise.all([loadManagementStats(), loadManagementActiveCases()]);
 

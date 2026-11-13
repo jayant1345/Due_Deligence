@@ -54,6 +54,9 @@ async def resolve_loan_case(db: AsyncSession, case_id: str) -> Optional[LoanCase
         return result.scalar_one_or_none()
 
 
+_HEALED_CASE_SIGNATURES: set = set()
+
+
 @router.get("", response_model=List[CaseResponse])
 async def list_cases(
     status_filter: Optional[CaseStatus] = Query(None, alias="status"),
@@ -87,18 +90,16 @@ async def list_cases(
     result = await db.execute(query)
     cases = result.scalars().all()
 
-    # The Management view's "Visit Telemetry" column used to fall back to a hardcoded "32m
-    # (COMPLIANT)" placeholder whenever a case's benchmark-distance wasn't already computed
-    # client-side (which only ever happened for whichever ONE case the CA had last opened in
-    # Scrutiny) - every other case in the list silently showed fake, always-compliant telemetry.
-    # Attach each case's real distance here instead, from its most recent geotagged photo (the
-    # exact same distance_from_target already computed and stored at upload time), in one
-    # extra query rather than per-case, so a CA-office test upload shows its real (likely
-    # breach) distance instead of looking compliant.
+    # Fetch only the 4 lightweight coordinate columns instead of full CaseDocument ORM rows (which carry large ocr_data JSONB blobs)
     case_ids = [c.id for c in cases]
     if case_ids:
         docs_result = await db.execute(
-            select(CaseDocument)
+            select(
+                CaseDocument.case_id,
+                CaseDocument.latitude,
+                CaseDocument.longitude,
+                CaseDocument.distance_from_target,
+            )
             .where(
                 CaseDocument.case_id.in_(case_ids),
                 CaseDocument.latitude.isnot(None),
@@ -106,15 +107,15 @@ async def list_cases(
             )
             .order_by(CaseDocument.captured_at.desc())
         )
-        latest_by_case: Dict[uuid.UUID, CaseDocument] = {}
-        for d in docs_result.scalars().all():
-            if d.case_id not in latest_by_case:
-                latest_by_case[d.case_id] = d
+        latest_by_case: Dict[uuid.UUID, tuple] = {}
+        for row in docs_result.all():
+            if row.case_id not in latest_by_case:
+                latest_by_case[row.case_id] = (row.latitude, row.longitude, row.distance_from_target)
         for c in cases:
-            d = latest_by_case.get(c.id)
-            c.capture_lat = d.latitude if d else None
-            c.capture_lon = d.longitude if d else None
-            c.distance_m = d.distance_from_target if d else None
+            coords = latest_by_case.get(c.id)
+            c.capture_lat = coords[0] if coords else None
+            c.capture_lon = coords[1] if coords else None
+            c.distance_m = coords[2] if coords else None
 
     # Auto-heal any case whose loan_amount was stored with a stripped Lakh decimal (e.g. 2035 from "20.35 LAC")
     # or whose neighbour_1 combined two neighbour names (e.g. "BABU RAO - RAJU BHAI")
@@ -127,6 +128,9 @@ async def list_cases(
     )
     healed_any = False
     for c in cases:
+        sig = (c.id, getattr(c, "updated_at", None), c.applicant_name, c.loan_amount)
+        if sig in _HEALED_CASE_SIGNATURES:
+            continue
         try:
             ff_dict = {}
             if c.field_form_data:
@@ -186,6 +190,7 @@ async def list_cases(
                 if changed_ff:
                     c.field_form_data = _json_heal.dumps(ff_dict)
                     healed_any = True
+            _HEALED_CASE_SIGNATURES.add((c.id, getattr(c, "updated_at", None), c.applicant_name, c.loan_amount))
         except Exception:
             pass
     if healed_any:
@@ -1041,19 +1046,21 @@ async def download_combined_form16(
     )
 
 
-async def _refresh_case_relationships(db: AsyncSession, loan_case: LoanCase) -> None:
+async def _refresh_case_relationships(db: AsyncSession, loan_case: LoanCase) -> bool:
     """
     After any file of a case is scanned, decide who the applicant is across ALL of the case's
     pages (a multi-file batch may bring the Aadhaar only in a later file) and rewrite each
     page's SELF / DIFFERENT_PERSON verdict. If the case was created without a name, or if an
     earlier partial scan mistakenly picked a parent's card before the child/applicant's card
     was scanned, heal loan_case.applicant_name to the actual applicant.
+    Returns True only if any database field was actually modified.
     """
     from app.services.pdf_separator import _name_score, identify_applicant_name
 
     result = await db.execute(select(CaseDocument).where(CaseDocument.case_id == loan_case.id))
     docs = [d for d in result.scalars().all() if isinstance(d.ocr_data, dict) and d.ocr_data.get("source") == "pdf_ingest"]
     pages = [dict(d.ocr_data) for d in docs]
+    dirty = False
 
     # Auto-heal if loan_case.applicant_name was mistakenly set to the father/parent of another
     # identity holder on the same case (e.g. "NARAYAN CHANDRASHEKHRAN PILLAI" when the daughter
@@ -1075,8 +1082,9 @@ async def _refresh_case_relationships(db: AsyncSession, loan_case: LoanCase) -> 
                 if len(c_toks) >= 3 and len(i_toks) >= 3 and _token_similarity(c_toks[-1], i_toks[-1]) >= 85:
                     if _token_similarity(i_toks[1], c_toks[0]) >= 85 and _token_similarity(i_toks[0], c_toks[1]) < 75:
                         is_cur_parent = True
-            if is_cur_parent:
+            if is_cur_parent and loan_case.applicant_name != inferred_primary:
                 loan_case.applicant_name = inferred_primary
+                dirty = True
 
     reference = assign_relationships(pages, loan_case.applicant_name, loan_case.co_applicant_name)
     tag_applicant_slots(pages, {
@@ -1087,15 +1095,23 @@ async def _refresh_case_relationships(db: AsyncSession, loan_case: LoanCase) -> 
         5: loan_case.applicant_5_name,
     })
     for d, page in zip(docs, pages):
-        d.ocr_data = page
+        if page != d.ocr_data:
+            d.ocr_data = page
+            dirty = True
         if page.get("scan_status") == "FAILED":
-            d.verification_status = VerificationStatus.PENDING_PROCESSING
+            new_vs = VerificationStatus.PENDING_PROCESSING
         elif page.get("is_tampered_or_suspicious") or page.get("relationship_to_applicant") == "DIFFERENT_PERSON":
-            d.verification_status = VerificationStatus.DISCREPANCY_FLAGGED
+            new_vs = VerificationStatus.DISCREPANCY_FLAGGED
         else:
-            d.verification_status = VerificationStatus.VERIFIED
+            new_vs = VerificationStatus.VERIFIED
+        if d.verification_status != new_vs:
+            d.verification_status = new_vs
+            dirty = True
     if reference and (loan_case.applicant_name or "").strip().upper() in PLACEHOLDER_APPLICANT_NAMES:
-        loan_case.applicant_name = reference
+        if loan_case.applicant_name != reference:
+            loan_case.applicant_name = reference
+            dirty = True
+    return dirty
 
 
 async def _persist_ai_ingested_documents(
@@ -1584,8 +1600,9 @@ async def get_separated_case_documents(
     if not loan_case:
         return {"case_id": case_id, "documents": [], "case_summary": None}
 
-    await _refresh_case_relationships(db, loan_case)
-    await db.commit()
+    dirty = await _refresh_case_relationships(db, loan_case)
+    if dirty:
+        await db.commit()
     docs = await _ai_ingested_pages(db, loan_case)
     return {
         "case_id": str(loan_case.id),
