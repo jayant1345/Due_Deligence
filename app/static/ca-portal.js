@@ -6327,6 +6327,7 @@
         bank: f.bank,
         branch: f.branch || "",
         applicant_name: f.applicant_name,
+        applicant_name_persisted: f.applicant_name || null,
         created_at: f.created_at || null,
         phone: f.phone || "",
         co_applicant_name: f.co_applicant_name || "",
@@ -6845,7 +6846,7 @@
         // different applicants' data together in a real, confirmed production incident: a case
         // typed as "Solanki Nitesh Mayurkumar" had a different applicant's bank folder scanned
         // into it, and this code silently renamed the case to the scanned name with no warning.
-        const priorName = (c.applicant_name_persisted || "").trim();
+        const priorName = (c.applicant_name_persisted || c.applicant_name || "").trim();
         const isPlaceholder = !priorName || priorName === "Pending AI Identification";
         const priorTokens = priorName.toUpperCase().split(/\s+/).filter(t => t.length > 1);
         const newTokens = new Set(idName.toUpperCase().split(/\s+/).filter(t => t.length > 1));

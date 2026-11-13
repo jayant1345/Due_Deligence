@@ -651,29 +651,145 @@ def _combine_met(name: Optional[str], contact: Optional[str], relation: Optional
     return out
 
 
-def _clean_person_met_string(raw_met: Optional[str], applicant_name: Optional[str] = None, contact_number: Optional[str] = None, family_members: Optional[List[Dict[str, Any]]] = None) -> str:
+def reconcile_person_relation(
+    person_name: Optional[str],
+    raw_relation: Optional[str],
+    applicant_name: Optional[str] = None,
+    applicant_gender: Optional[str] = None,
+    applicant_age: Optional[Any] = None,
+    person_age: Optional[Any] = None,
+    family_members: Optional[List[Dict[str, Any]]] = None,
+) -> Optional[str]:
+    """
+    Reconciles a single person's relationship to the primary applicant (used for family_members,
+    person_met / 'Who did you meet', and residence/office owner_name) so a Female applicant can
+    never have someone labeled 'Wife' and a Male applicant can never have someone labeled 'Husband'.
+    """
+    p_name = _clean_val(person_name)
+    rel = _clean_val(raw_relation)
+    if rel:
+        rel = re.sub(r"\s*\([^)]*\)\s*$", "", rel).strip()
+        rel = _normalize_relation_or_title(rel) or rel
+
+    if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 80:
+        return "Self"
+    if rel and rel.lower().startswith("self"):
+        return "Self"
+
+    # If this person is already in the reconciled family_members list, use their reconciled relation
+    # whenever raw_relation is missing OR is an impossible spouse relation.
+    fm_rel = None
+    if p_name and family_members:
+        fm = next(
+            (m for m in family_members if isinstance(m, dict) and m.get("name") and (_name_score(p_name, m["name"]) or 0) >= 80),
+            None,
+        )
+        if fm and fm.get("relation"):
+            fm_rel = _normalize_relation_or_title(fm.get("relation")) or fm.get("relation")
+            if not person_age and fm.get("age"):
+                person_age = fm.get("age")
+
+    app_gender = _infer_gender_from_name_or_hint(applicant_name, applicant_gender)
+    app_age_num: Optional[int] = None
+    if applicant_age is not None:
+        m_a = re.search(r"\b(\d{1,3})\b", str(applicant_age))
+        if m_a:
+            app_age_num = int(m_a.group(1))
+
+    mem_age_num: Optional[int] = None
+    if person_age is not None:
+        m_ma = re.search(r"\b(\d{1,3})\b", str(person_age))
+        if m_ma:
+            mem_age_num = int(m_ma.group(1))
+
+    app_tokens = [
+        re.sub(r"[^A-Za-z]", "", t).upper()
+        for t in (applicant_name or "").split()
+        if re.sub(r"[^A-Za-z]", "", t).upper() not in ("MR", "MRS", "MS", "MISS", "SMT", "SHRI", "DR")
+    ]
+    app_middle_token = app_tokens[1] if len(app_tokens) >= 3 else None
+
+    mem_gender = _infer_gender_from_name_or_hint(p_name)
+    if not mem_gender and p_name and app_middle_token and p_name.strip().upper().startswith(app_middle_token):
+        mem_gender = "MALE"
+
+    rel_upper = (rel or "").upper()
+
+    if app_gender == "FEMALE" and rel_upper == "WIFE":
+        if fm_rel and fm_rel.upper() != "WIFE":
+            return fm_rel
+        if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 65:
+            return "Self"
+        if mem_gender == "MALE":
+            return "Husband"
+        if app_age_num and mem_age_num and mem_age_num >= app_age_num + 16:
+            return "Mother-in-law"
+        return "Sister-in-law"
+
+    if app_gender == "MALE" and rel_upper == "HUSBAND":
+        if fm_rel and fm_rel.upper() != "HUSBAND":
+            return fm_rel
+        if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 65:
+            return "Self"
+        if mem_gender == "FEMALE":
+            return "Wife"
+        if app_age_num and mem_age_num and mem_age_num >= app_age_num + 16:
+            return "Father"
+        return "Brother"
+
+    if rel_upper == "HUSBAND" and mem_gender == "FEMALE":
+        if fm_rel and fm_rel.upper() != "HUSBAND":
+            return fm_rel
+        return "Wife" if app_gender == "MALE" else "Sister-in-law"
+
+    if rel_upper == "WIFE" and mem_gender == "MALE":
+        if fm_rel and fm_rel.upper() != "WIFE":
+            return fm_rel
+        return "Husband" if app_gender == "FEMALE" else "Brother"
+
+    return rel or fm_rel
+
+
+def _clean_person_met_string(
+    raw_met: Optional[str],
+    applicant_name: Optional[str] = None,
+    contact_number: Optional[str] = None,
+    family_members: Optional[List[Dict[str, Any]]] = None,
+    applicant_gender: Optional[str] = None,
+    applicant_age: Optional[Any] = None,
+) -> str:
     s = _clean_val(raw_met)
     if not s:
         return ""
-    # Normalize any parenthetical relation suffix like (APP) -> (Self), (FERIND) -> (Friend), (MENEGER) -> (Manager)
-    def _repl_paren(match):
-        inner = match.group(1).strip()
-        norm = _normalize_relation_or_title(inner) or inner
-        return f"({norm})"
-    s = re.sub(r"\(([^)]+)\)", _repl_paren, s)
-    # If bare name with no relation in parens, check if matches applicant or family member
-    if "(" not in s:
-        base_name = re.sub(r"\s*-\s*[\d\s+]{7,15}.*$", "", s).strip()
-        rel = None
-        if applicant_name and (_name_score(base_name, applicant_name) or 0) >= 80:
-            rel = "Self"
-        elif family_members:
-            fm = next((m for m in family_members if isinstance(m, dict) and m.get("name") and (_name_score(base_name, m["name"]) or 0) >= 80), None)
-            if fm and fm.get("relation"):
-                rel = _normalize_relation_or_title(fm.get("relation"))
-        if rel:
-            s = f"{s} ({rel})"
-    return s
+    # Parse "Name - Phone (Relation)" or "Name (Relation)" or bare "Name"
+    m_met = re.match(r"^\s*([^-()]+?)\s*(?:-\s*([\d\s+]{7,15}))?\s*(?:\(([^)]+)\))?\s*$", s)
+    if m_met:
+        base_name = (m_met.group(1) or "").strip()
+        phone = (m_met.group(2) or "").strip()
+        raw_rel = (m_met.group(3) or "").strip() or None
+    else:
+        base_name = re.sub(r"\s*\([^)]*\)\s*", "", s).strip()
+        phone = ""
+        m_p = re.search(r"\(([^)]+)\)", s)
+        raw_rel = m_p.group(1).strip() if m_p else None
+
+    if raw_rel:
+        raw_rel = re.sub(r"\s+of\s+the\s+applicant\s*$", "", raw_rel, flags=re.IGNORECASE).strip()
+
+    reconciled_rel = reconcile_person_relation(
+        base_name,
+        raw_rel,
+        applicant_name=applicant_name,
+        applicant_gender=applicant_gender,
+        applicant_age=applicant_age,
+        family_members=family_members,
+    )
+    out = base_name
+    if phone:
+        out += f" - {phone}"
+    if reconciled_rel:
+        out += f" ({reconciled_rel})"
+    return out
 
 
 def _infer_owner_relation(
@@ -682,19 +798,22 @@ def _infer_owner_relation(
     applicant_name: Optional[str],
     ownership: Optional[str],
     family_members: Optional[List[Dict[str, Any]]],
+    applicant_gender: Optional[str] = None,
+    applicant_age: Optional[Any] = None,
 ) -> Optional[str]:
-    rel = _normalize_relation_or_title(explicit_relation)
-    if rel:
-        return rel
     owner = _clean_val(owner_name)
+    reconciled = reconcile_person_relation(
+        owner,
+        explicit_relation,
+        applicant_name=applicant_name,
+        applicant_gender=applicant_gender,
+        applicant_age=applicant_age,
+        family_members=family_members,
+    )
+    if reconciled:
+        return reconciled
     if not owner:
         return None
-    if applicant_name and (_name_score(owner, applicant_name) or 0) >= 85:
-        return "Self"
-    if family_members:
-        fm = next((m for m in family_members if isinstance(m, dict) and m.get("name") and (_name_score(owner, m["name"]) or 0) >= 80), None)
-        if fm and fm.get("relation"):
-            return _normalize_relation_or_title(fm.get("relation"))
     own_lower = (ownership or "").lower()
     if "rent" in own_lower:
         return "Landlord"
@@ -759,9 +878,14 @@ def enrich_field_form_defaults(
     else:
         o_name = _clean_val(owner_raw)
         o_rel = None
-    inferred_rel = _infer_owner_relation(o_name, o_rel, app_name, ff.get("ownership"), cleaned_fam)
+    inferred_rel = _infer_owner_relation(
+        o_name, o_rel, app_name, ff.get("ownership"), cleaned_fam,
+        applicant_gender=applicant_gender, applicant_age=app_age,
+    )
     if o_name:
         ff["owner_name"] = _combine_name_relation(o_name, inferred_rel) or o_name
+        if isinstance(ff.get("restore"), dict):
+            ff["restore"]["owner_name"] = ff["owner_name"]
 
     # 4. Person Met at Residence
     if ff.get("person_met"):
@@ -770,7 +894,11 @@ def enrich_field_form_defaults(
             applicant_name=app_name,
             contact_number=ff.get("contact_number"),
             family_members=cleaned_fam,
+            applicant_gender=applicant_gender,
+            applicant_age=app_age,
         )
+        if isinstance(ff.get("restore"), dict):
+            ff["restore"]["person_met"] = ff["person_met"]
 
     # 5. Residence Landmark, Floor, Nature of Building, General Appearance, Locality, Surroundings, Evidence
     bldg_type = _clean_val(ff.get("building_type"))

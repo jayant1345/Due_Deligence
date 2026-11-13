@@ -180,6 +180,21 @@ def generate_certified_cpv_report(
     real_gender = _ocr_first("gender", {"AADHAAR_CARD", "PAN_CARD"}) or _ocr_first("gender")
     real_aadhaar_address = _ocr_residential_address()
 
+    from app.services.cpv_report_data import _age as _calc_age_pdf
+    from datetime import date as _date_cls_pdf
+    real_age = _calc_age_pdf(real_dob, _date_cls_pdf.today())
+
+    # Re-enrich field_form now that OCR-verified gender and age are known, so person_met
+    # ("Khushbu (Wife)" -> "Khushbu (Sister-in-law)"), owner_name, and family_members are
+    # reconciled before Page 2 ("SUMMARY OF THE REPORT") and Page 3 ("Annexure A") are built.
+    field_form = enrich_field_form_defaults(
+        field_form,
+        applicant_name=applicant_name if applicant_name != NOT_CAPTURED else None,
+        target_address=target_address if target_address != NOT_CAPTURED else None,
+        applicant_gender=real_gender,
+        applicant_age=real_age,
+    )
+
     # Same OCR lookups, scoped to the co-applicant's own scanned documents (a different
     # person from the one who's own KYC the applicant's lookups above are scoped to).
     real_pan_co = _ocr_first("extracted_pan", {"PAN_CARD"}, co_applicant=True) or _ocr_first("extracted_pan", co_applicant=True)
@@ -443,7 +458,7 @@ def generate_certified_cpv_report(
         clean_met = re.sub(r"\s*-\s*\d+", "", str(met_raw)).strip()
         if ")" not in clean_met and ")" in str(met_raw):
             clean_met += ")"
-        if "of the applicant" not in clean_met.lower() and "(" in clean_met:
+        if "of the applicant" not in clean_met.lower() and "(self)" not in clean_met.lower() and "(" in clean_met:
             clean_met = clean_met.replace(")", " of the applicant)")
         met_desc = clean_met
     else:

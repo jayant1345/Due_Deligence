@@ -165,6 +165,22 @@ async def list_cases(
                     if isinstance(ff_dict.get("restore"), dict):
                         ff_dict["restore"]["family_members"] = new_fam
                     changed_ff = True
+            if ff_dict.get("person_met") or ff_dict.get("owner_name"):
+                old_pm = ff_dict.get("person_met")
+                old_on = ff_dict.get("owner_name")
+                enriched_ff = enrich_field_form_defaults(
+                    ff_dict,
+                    applicant_name=c.applicant_name,
+                    target_address=c.target_address if c.target_address != "Pending AI Extraction" else None,
+                    applicant_age=ff_dict.get("age_community") or ff_dict.get("age"),
+                )
+                if enriched_ff.get("person_met") != old_pm or enriched_ff.get("owner_name") != old_on:
+                    ff_dict["person_met"] = enriched_ff.get("person_met")
+                    ff_dict["owner_name"] = enriched_ff.get("owner_name")
+                    if isinstance(ff_dict.get("restore"), dict):
+                        ff_dict["restore"]["person_met"] = ff_dict["person_met"]
+                        ff_dict["restore"]["owner_name"] = ff_dict["owner_name"]
+                    changed_ff = True
             if changed_ff:
                 c.field_form_data = _json_heal.dumps(ff_dict)
                 healed_any = True

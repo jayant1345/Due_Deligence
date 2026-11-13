@@ -483,6 +483,15 @@ async def assemble_cpv_report_data(
         applicant["name"] = _title(applicant_name)
         applicant["display_name"] = applicant["name"]
 
+    # Re-run enrich_field_form_defaults now that OCR-verified gender/age are known on `applicant`
+    form = enrich_field_form_defaults(
+        form,
+        applicant_name=applicant.get("display_name") or applicant.get("name") or applicant_name,
+        target_address=target_address,
+        applicant_gender=applicant.get("gender"),
+        applicant_age=applicant.get("age"),
+    )
+
     # Co-applicant. The CA's own explicit designation on the case record (set via the New Case
     # Intake / Edit Case applicant-count stepper) is the ONLY thing that may turn this on - never
     # AI document classification alone. "Other person" documents in the scanned bundle (co_pages
@@ -553,14 +562,25 @@ async def assemble_cpv_report_data(
     # Family Members is filled in separately (Module 2) and is already a reliable source of
     # name -> relation - built here, ahead of "Who did you meet" below, so that field can fall
     # back to it instead of requiring the agent to type the same relation twice.
-    from app.services.field_form_pdf_ingest import reconcile_family_members_for_applicant
+    from app.services.field_form_pdf_ingest import reconcile_family_members_for_applicant, reconcile_person_relation
     fm = reconcile_family_members_for_applicant(
         form.get("family_members"),
-        applicant_name=applicant.get("name") or applicant_name,
+        applicant_name=applicant.get("display_name") or applicant.get("name") or applicant_name,
         applicant_gender=applicant.get("gender"),
         applicant_age=applicant.get("age"),
     )
     family = [{k: m.get(k) for k in ("name", "relation", "age", "earning")} for m in fm if isinstance(m, dict)]
+
+    # Reconcile Owner relation against Family Members & applicant gender/age
+    if res_owner_name:
+        res_owner_relation = reconcile_person_relation(
+            res_owner_name,
+            res_owner_relation,
+            family_members=family,
+            applicant_name=applicant.get("display_name") or applicant.get("name") or applicant_name,
+            applicant_gender=applicant.get("gender"),
+            applicant_age=applicant.get("age"),
+        )
 
     # "Who did you meet" is suggested to the field agent as "Name - Phone (Relation)" (e.g.
     # "Rajesh Patel - 9876543210 (Husband)") but was only ever stored/shown as one raw string -
@@ -577,17 +597,15 @@ async def assemble_cpv_report_data(
         met_name = met_raw_str.strip() or None
         met_contact = None
         met_relation = None
-    # No relation typed (just a bare name, e.g. "Amitaben Jain") - the Family Members list
-    # already has this person's relation on file if they're a family member, so use it instead
-    # of leaving a confusing NA when the relation is genuinely already known.
-    if met_name and not met_relation:
-        fam_match = next((m for m in family if m.get("name") and (_name_score(met_name, m["name"]) or 0) >= 80), None)
-        if fam_match and fam_match.get("relation"):
-            met_relation = fam_match["relation"]
-    # Same reasoning as Owner Name above: the applicant themselves answering their own door has
-    # no natural "(Self)" to type either.
-    if met_name and not met_relation and applicant_name and (_name_score(met_name, applicant_name) or 0) >= 85:
-        met_relation = "Self"
+    if met_name:
+        met_relation = reconcile_person_relation(
+            met_name,
+            met_relation,
+            family_members=family,
+            applicant_name=applicant.get("display_name") or applicant.get("name") or applicant_name,
+            applicant_gender=applicant.get("gender"),
+            applicant_age=applicant.get("age"),
+        )
     # The agent didn't need to write down a phone number for someone whose contact is already
     # on file as the applicant's own - fall back to it instead of showing NA next to "Self".
     if met_relation == "Self" and not met_contact:

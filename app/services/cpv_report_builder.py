@@ -448,11 +448,14 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
 
     met_info = residence.get("met") or {}
     met_raw = met_info.get("name") or ""
+    met_rel = (met_info.get("relation") or "").strip()
     if met_raw:
         clean_met = re.sub(r"\s*-\s*\d+", "", met_raw).strip()
         if ")" not in clean_met and ")" in met_raw:
             clean_met += ")"
-        if "of the applicant" not in clean_met.lower() and "(" in clean_met:
+        if "(" not in clean_met and met_rel:
+            clean_met = f"{clean_met} ({met_rel})"
+        if "of the applicant" not in clean_met.lower() and "(" in clean_met and "(self)" not in clean_met.lower():
             clean_met = clean_met.replace(")", " of the applicant)")
         met_text = clean_met
     else:
