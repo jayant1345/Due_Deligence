@@ -669,6 +669,7 @@ def reconcile_person_relation(
     rel = _clean_val(raw_relation)
     if rel:
         rel = re.sub(r"\s*\([^)]*\)\s*$", "", rel).strip()
+        rel = re.sub(r"\s+of\s+the\s+applicant\s*$", "", rel, flags=re.IGNORECASE).strip()
         rel = _normalize_relation_or_title(rel) or rel
 
     if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 80:
@@ -676,8 +677,8 @@ def reconcile_person_relation(
     if rel and rel.lower().startswith("self"):
         return "Self"
 
-    # If this person is already in the reconciled family_members list, use their reconciled relation
-    # whenever raw_relation is missing OR is an impossible spouse relation.
+    # When the person matches a reconciled family member, that member's relation to the applicant
+    # is authoritative whenever raw_relation is missing OR is an impossible spouse relation.
     fm_rel = None
     if p_name and family_members:
         fm = next(
@@ -715,9 +716,10 @@ def reconcile_person_relation(
 
     rel_upper = (rel or "").upper()
 
+    if fm_rel and not (applicant_name and p_name and (_name_score(p_name, applicant_name) or 0) >= 80):
+        return fm_rel
+
     if app_gender == "FEMALE" and rel_upper == "WIFE":
-        if fm_rel and fm_rel.upper() != "WIFE":
-            return fm_rel
         if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 65:
             return "Self"
         if mem_gender == "MALE":
@@ -727,8 +729,6 @@ def reconcile_person_relation(
         return "Sister-in-law"
 
     if app_gender == "MALE" and rel_upper == "HUSBAND":
-        if fm_rel and fm_rel.upper() != "HUSBAND":
-            return fm_rel
         if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 65:
             return "Self"
         if mem_gender == "FEMALE":
@@ -738,13 +738,9 @@ def reconcile_person_relation(
         return "Brother"
 
     if rel_upper == "HUSBAND" and mem_gender == "FEMALE":
-        if fm_rel and fm_rel.upper() != "HUSBAND":
-            return fm_rel
         return "Wife" if app_gender == "MALE" else "Sister-in-law"
 
     if rel_upper == "WIFE" and mem_gender == "MALE":
-        if fm_rel and fm_rel.upper() != "WIFE":
-            return fm_rel
         return "Husband" if app_gender == "FEMALE" else "Brother"
 
     return rel or fm_rel
@@ -761,7 +757,6 @@ def _clean_person_met_string(
     s = _clean_val(raw_met)
     if not s:
         return ""
-    # Parse "Name - Phone (Relation)" or "Name (Relation)" or bare "Name"
     m_met = re.match(r"^\s*([^-()]+?)\s*(?:-\s*([\d\s+]{7,15}))?\s*(?:\(([^)]+)\))?\s*$", s)
     if m_met:
         base_name = (m_met.group(1) or "").strip()
@@ -772,9 +767,6 @@ def _clean_person_met_string(
         phone = ""
         m_p = re.search(r"\(([^)]+)\)", s)
         raw_rel = m_p.group(1).strip() if m_p else None
-
-    if raw_rel:
-        raw_rel = re.sub(r"\s+of\s+the\s+applicant\s*$", "", raw_rel, flags=re.IGNORECASE).strip()
 
     reconciled_rel = reconcile_person_relation(
         base_name,

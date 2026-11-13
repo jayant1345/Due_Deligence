@@ -7272,6 +7272,7 @@
     let mgmtViewMode = "active";
     let mgmtActiveCases = [];
     let mgmtCompletedCases = null; // null = not loaded yet this session
+    let mgmtCompletedError = "";
 
     function buildMgmtEntriesFromApi(apiCases) {
       return (apiCases || []).map(dc => buildCaseEntry({
@@ -7307,11 +7308,16 @@
     async function loadManagementCompletedCases() {
       if (!window.allAgents || window.allAgents.length === 0) await loadFieldAgents();
       try {
+        mgmtCompletedError = "";
         const res = await fetch("/api/v1/cases?status=CERTIFIED", { headers: authHeaders() });
-        if (!res.ok) return;
+        if (!res.ok) {
+          mgmtCompletedError = `Server error ${res.status} while loading completed cases. Please retry or contact support.`;
+          return;
+        }
         mgmtCompletedCases = buildMgmtEntriesFromApi(await res.json());
         rebuildMonthFilterOptions();
       } catch (e) {
+        mgmtCompletedError = "Could not reach the server to load completed cases.";
         console.warn("Could not load completed cases for Management Portal:", e);
       }
     }
@@ -7509,7 +7515,7 @@
           <tr>
             <td colspan="9" class="py-8 text-center text-outline font-mono text-xs">
               <span class="material-symbols-outlined text-[28px] text-outline/60 block mb-1">search_off</span>
-              No case records match the specified filters. Try selecting "All" or clearing search.
+              ${mgmtViewMode === "completed" && mgmtCompletedError ? mgmtCompletedError : 'No case records match the specified filters. Try selecting "All" or clearing search.'}
             </td>
           </tr>
         `;

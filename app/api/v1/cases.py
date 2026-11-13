@@ -123,67 +123,71 @@ async def list_cases(
         resolve_effective_loan_amount,
         _expand_and_normalize_references,
         reconcile_family_members_for_applicant,
+        enrich_field_form_defaults,
     )
     healed_any = False
     for c in cases:
-        ff_dict = {}
-        if c.field_form_data:
-            try:
-                parsed_ff = _json_heal.loads(c.field_form_data)
-                if isinstance(parsed_ff, dict):
-                    ff_dict = parsed_ff
-            except Exception:
-                ff_dict = {}
-        if c.loan_amount is None or (0 < c.loan_amount < 50_000):
-            corrected = resolve_effective_loan_amount(c.loan_amount, ff_dict or None)
-            if corrected and corrected != c.loan_amount:
-                c.loan_amount = corrected
-                healed_any = True
-        if ff_dict:
-            changed_ff = False
-            if ff_dict.get("neighbour_1") or ff_dict.get("neighbour_2"):
-                old_n1 = ff_dict.get("neighbour_1") or ""
-                old_n2 = ff_dict.get("neighbour_2") or ""
-                norm_n = _expand_and_normalize_references([old_n1, old_n2], default_relation="Neighbour")
-                new_n1 = norm_n[0] if len(norm_n) > 0 else ""
-                new_n2 = norm_n[1] if len(norm_n) > 1 else ""
-                if (new_n1, new_n2) != (old_n1, old_n2):
-                    ff_dict["neighbour_1"] = new_n1
-                    ff_dict["neighbour_2"] = new_n2
-                    if isinstance(ff_dict.get("restore"), dict):
-                        ff_dict["restore"]["neighbors"] = [x for x in (new_n1, new_n2) if x]
-                    changed_ff = True
-            if isinstance(ff_dict.get("family_members"), list) and ff_dict["family_members"]:
-                old_fam = ff_dict["family_members"]
-                new_fam = reconcile_family_members_for_applicant(
-                    old_fam,
-                    applicant_name=c.applicant_name,
-                    applicant_age=ff_dict.get("age_community") or ff_dict.get("age"),
-                )
-                if new_fam != old_fam:
-                    ff_dict["family_members"] = new_fam
-                    if isinstance(ff_dict.get("restore"), dict):
-                        ff_dict["restore"]["family_members"] = new_fam
-                    changed_ff = True
-            if ff_dict.get("person_met") or ff_dict.get("owner_name"):
-                old_pm = ff_dict.get("person_met")
-                old_on = ff_dict.get("owner_name")
-                enriched_ff = enrich_field_form_defaults(
-                    ff_dict,
-                    applicant_name=c.applicant_name,
-                    target_address=c.target_address if c.target_address != "Pending AI Extraction" else None,
-                    applicant_age=ff_dict.get("age_community") or ff_dict.get("age"),
-                )
-                if enriched_ff.get("person_met") != old_pm or enriched_ff.get("owner_name") != old_on:
-                    ff_dict["person_met"] = enriched_ff.get("person_met")
-                    ff_dict["owner_name"] = enriched_ff.get("owner_name")
-                    if isinstance(ff_dict.get("restore"), dict):
-                        ff_dict["restore"]["person_met"] = ff_dict["person_met"]
-                        ff_dict["restore"]["owner_name"] = ff_dict["owner_name"]
-                    changed_ff = True
-            if changed_ff:
-                c.field_form_data = _json_heal.dumps(ff_dict)
-                healed_any = True
+        try:
+            ff_dict = {}
+            if c.field_form_data:
+                try:
+                    parsed_ff = _json_heal.loads(c.field_form_data)
+                    if isinstance(parsed_ff, dict):
+                        ff_dict = parsed_ff
+                except Exception:
+                    ff_dict = {}
+            if c.loan_amount is None or (0 < c.loan_amount < 50_000):
+                corrected = resolve_effective_loan_amount(c.loan_amount, ff_dict or None)
+                if corrected and corrected != c.loan_amount:
+                    c.loan_amount = corrected
+                    healed_any = True
+            if ff_dict:
+                changed_ff = False
+                if ff_dict.get("neighbour_1") or ff_dict.get("neighbour_2"):
+                    old_n1 = ff_dict.get("neighbour_1") or ""
+                    old_n2 = ff_dict.get("neighbour_2") or ""
+                    norm_n = _expand_and_normalize_references([old_n1, old_n2], default_relation="Neighbour")
+                    new_n1 = norm_n[0] if len(norm_n) > 0 else ""
+                    new_n2 = norm_n[1] if len(norm_n) > 1 else ""
+                    if (new_n1, new_n2) != (old_n1, old_n2):
+                        ff_dict["neighbour_1"] = new_n1
+                        ff_dict["neighbour_2"] = new_n2
+                        if isinstance(ff_dict.get("restore"), dict):
+                            ff_dict["restore"]["neighbors"] = [x for x in (new_n1, new_n2) if x]
+                        changed_ff = True
+                if isinstance(ff_dict.get("family_members"), list) and ff_dict["family_members"]:
+                    old_fam = ff_dict["family_members"]
+                    new_fam = reconcile_family_members_for_applicant(
+                        old_fam,
+                        applicant_name=c.applicant_name,
+                        applicant_age=ff_dict.get("age_community") or ff_dict.get("age"),
+                    )
+                    if new_fam != old_fam:
+                        ff_dict["family_members"] = new_fam
+                        if isinstance(ff_dict.get("restore"), dict):
+                            ff_dict["restore"]["family_members"] = new_fam
+                        changed_ff = True
+                if ff_dict.get("person_met") or ff_dict.get("owner_name"):
+                    old_pm = ff_dict.get("person_met")
+                    old_on = ff_dict.get("owner_name")
+                    enriched_ff = enrich_field_form_defaults(
+                        ff_dict,
+                        applicant_name=c.applicant_name,
+                        target_address=c.target_address if c.target_address != "Pending AI Extraction" else None,
+                        applicant_age=ff_dict.get("age_community") or ff_dict.get("age"),
+                    )
+                    if enriched_ff.get("person_met") != old_pm or enriched_ff.get("owner_name") != old_on:
+                        ff_dict["person_met"] = enriched_ff.get("person_met")
+                        ff_dict["owner_name"] = enriched_ff.get("owner_name")
+                        if isinstance(ff_dict.get("restore"), dict):
+                            ff_dict["restore"]["person_met"] = ff_dict["person_met"]
+                            ff_dict["restore"]["owner_name"] = ff_dict["owner_name"]
+                        changed_ff = True
+                if changed_ff:
+                    c.field_form_data = _json_heal.dumps(ff_dict)
+                    healed_any = True
+        except Exception:
+            pass
     if healed_any:
         await db.commit()
 
