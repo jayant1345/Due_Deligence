@@ -84,7 +84,16 @@ def _inr(amount: Optional[str]) -> Optional[str]:
 def _short_ay(ay: Optional[str]) -> Optional[str]:
     if not ay:
         return None
-    m = re.search(r"\b(?:20)?(\d{2})\s*[-–/]\s*(?:20)?(\d{2})\b", str(ay))
+    s = str(ay).strip()
+    # Normalize full date-range strings (e.g. "01-04-2026 - 31-03-2027" or "01/04/2025 to 31/03/2026")
+    # printed on Form 16 Part A / TDS certificates into standard "YYYY-YY" format so they merge
+    # with the matching Assessment Year instead of creating a duplicate "Rs. NA" row.
+    m_range = re.search(r"0?1[-/.]0?4[-/.](20\d{2})\s*(?:to|[-–])\s*31[-/.]0?3[-/.](20\d{2})", s, re.I)
+    if m_range:
+        y1, y2 = int(m_range.group(1)), int(m_range.group(2))
+        if y2 == y1 + 1:
+            return f"{y1}-{y2 % 100:02d}"
+    m = re.search(r"\b(?:20)?(\d{2})\s*[-–/]\s*(?:20)?(\d{2})\b", s)
     if m:
         y1, y2 = int(m.group(1)), int(m.group(2))
         if 15 <= y1 <= 40 and y2 == (y1 + 1) % 100:
@@ -262,29 +271,13 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
         if row["total_income"]:
             row["status"] = "Income Tax Return / Computation of Income Verified"
 
-    # If an income/assessment document was scanned on record (itr_pages is non-empty) yet every
-    # page lacked a parsed A.Y./income/ack_no, still emit a verified row from the first page so
-    # Annexure C reflects the uploaded document rather than claiming no document is on record.
-    if not itr and itr_pages:
-        first_p = itr_pages[0]
-        ay_fallback = _ay_of(first_p) or "Verified"
-        itr[ay_fallback] = {
-            "ay": ay_fallback,
-            "ack_no": first_p.get("itr_acknowledgement_number") or itr_ack_no or "Verified on Record",
-            "filed_on": first_p.get("document_date") or itr_filing_date or "Verified",
-            "total_income": _inr(first_p.get("annual_taxable_income") or first_p.get("annual_gross_salary")),
-            "status": "Income Tax Return / Form 16 / Assessment Statement Verified",
-        }
-
-    # No Form 16 / ITR Acknowledgement / Computation of Income document was scanned for this
-    # person, but the field agent recorded an acknowledgement no. / filing date on-site (e.g.
-    # the applicant showed the e-filing portal/SMS rather than a printed copy) - that
-    # verification must still appear here rather than the report showing no ITR row at all.
-    if not itr and (itr_ack_no or itr_filing_date):
-        itr["NA"] = {
-            "ay": "NA", "ack_no": itr_ack_no, "filed_on": itr_filing_date, "total_income": None,
-            "status": "Income Tax Return filed - acknowledgement recorded on-site by the field agent (supporting document not scanned)",
-        }
+    # Per explicit CA office instruction: any ITR / Form 16 / Assessment record where the
+    # Total Income / Amount is not available (None / NA / 0) must be omitted from the report
+    # in both PDF and DOCX (never print a row with "Rs. NA").
+    valid_itr_rows = [
+        r for r in sorted(itr.values(), key=lambda r: r["ay"], reverse=True)
+        if r.get("total_income") and str(r.get("total_income")).strip().upper() not in ("", "NA", "N/A", "NONE", "0")
+    ][:3]
 
     # Premises Owner Name is now suggested to the agent in the same "(Name) Relation" format as
     # the residence Owner Name field (e.g. "( Rajesh Patel ) Landlord") - the DOCX template has a
@@ -340,7 +333,7 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
         "father_name": _first(pages, "father_or_spouse_name", ident),
         "qualification": qualification,
         "occupation": form_occupation or ((f"Service — {_title(designation)}" if designation else "Service") if has_salary else None),
-        "itr": sorted(itr.values(), key=lambda r: r["ay"], reverse=True)[:3],
+        "itr": valid_itr_rows,
         "office": {
             "firm_name": form_firm_name or (_title(workplace.split(",")[0]) if workplace else _title(employer)),
             "address": form_address or workplace,

@@ -260,6 +260,13 @@ def _fill_photo_section(doc, title: str, photos: List[str], next_titles: List[st
     first.paragraph_format.space_before = Inches(0.10)
     first.paragraph_format.space_after = Inches(0)
     if not photos:
+        if title == PHOTO_SECTIONS["office"]:
+            # Per explicit CA office instruction: when office photos are not available,
+            # the Office Photos page must not display in the report at all.
+            for p in [pars[start]] + body:
+                if p._p.getparent() is not None:
+                    p._p.getparent().remove(p._p)
+            return
         _set_par_text(first, "No photographs on record for this section.")
         if is_last:
             _page_break_run(first)
@@ -396,15 +403,33 @@ def _fill_office(table, person: Dict[str, Any]) -> None:
 
 
 def _fill_itr(table, rows: List[Dict[str, Any]]) -> None:
-    for i, r in enumerate((1, 3, 5)):
-        has_row = i < len(rows)
-        item = rows[i] if has_row else {}
+    valid_rows = [
+        row for row in (rows or [])
+        if row.get("total_income") and str(row.get("total_income")).strip().upper() not in ("", "NA", "N/A", "NONE", "0")
+    ]
+    slot_indices = (1, 3, 5)
+    rows_to_remove = []
+    for i, r in enumerate(slot_indices):
+        has_row = i < len(valid_rows)
+        if not has_row and len(valid_rows) > 0:
+            # Remove unused ITR row pairs so no blank or "Rs. NA" rows appear in the DOCX report
+            rows_to_remove.extend([r, r + 1])
+            continue
+        if not has_row and i > 0:
+            rows_to_remove.extend([r, r + 1])
+            continue
+        item = valid_rows[i] if has_row else {}
         cells = _ucells(table, r)
-        _set_cell(cells[0], item.get("ay") if has_row else "")
-        _set_cell(cells[1], (item.get("ack_no") or "Verified (Computation on Record)") if has_row else "")
-        _set_cell(cells[2], (item.get("filed_on") or "Verified") if has_row else "")
-        _set_cell(cells[3], ("Rs. " + item["total_income"]) if item.get("total_income") else ("Rs. NA" if has_row else "Rs."))
-        _set_cell(_ucells(table, r + 1)[-1], item.get("status") if has_row else "")
+        _set_cell(cells[0], item.get("ay") if has_row else "NA")
+        _set_cell(cells[1], (item.get("ack_no") or "Verified (Computation on Record)") if has_row else "NA")
+        _set_cell(cells[2], (item.get("filed_on") or "Verified") if has_row else "NA")
+        _set_cell(cells[3], ("Rs. " + item["total_income"]) if has_row else "NA")
+        _set_cell(_ucells(table, r + 1)[-1], item.get("status") if has_row else "No Income Tax Return / Form 16 on record")
+    for idx in sorted(rows_to_remove, reverse=True):
+        if idx < len(table.rows):
+            tr = table.rows[idx]._tr
+            if tr.getparent() is not None:
+                tr.getparent().remove(tr)
 
 
 def _fill_bank(table, bank: Dict[str, Any]) -> None:
@@ -598,12 +623,15 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
     # document order: applicant's first, co-applicant's second (when present).
     bank_holders = [applicant.get("display_name")] + ([co.get("display_name")] if co else [])
     holder_idx = 0
+    itr_holder_idx = 0
     for p in _all_paragraphs(doc):
-        if holder_idx >= len(bank_holders):
-            break
-        if p.text.strip() == "Name: Mr":
+        txt = p.text.strip()
+        if txt == "Name: Mr" and holder_idx < len(bank_holders):
             _set_par_text(p, f"Name: {bank_holders[holder_idx] or 'NA'}")
             holder_idx += 1
+        elif txt in ("Mr", "Mr.", "Mrs", "Ms") and itr_holder_idx < len(bank_holders):
+            _set_par_text(p, bank_holders[itr_holder_idx] or "NA")
+            itr_holder_idx += 1
 
     _replace_token(doc, "[[ITR_NAME_1]]", applicant.get("display_name"))
     _replace_token(doc, "[[BANK_NAME_1]]", applicant.get("display_name"))
@@ -634,6 +662,9 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
         p = next((x for x in doc.paragraphs if title in _deep_text(x)), None)
         if p is not None:
             _start_new_page(p)
+    cert_p = next((x for x in doc.paragraphs if "FINAL CERTIFICATE" in _deep_text(x)), None)
+    if cert_p is not None:
+        _start_new_page(cert_p)
 
     # Final certificate - the template has no [[UDIN]]/[[CERT_DATE]] tokens at all (just the
     # bare "UDIN:" label and a static placeholder "Date: 00/00/2026"), so those _replace_token

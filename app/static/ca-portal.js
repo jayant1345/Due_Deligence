@@ -403,6 +403,18 @@
           ? (c.co_work_photos_extra || [])
           : (c.work_photos_extra || []);
 
+      // Update folder tab counts dynamically with actual live uploaded photos (0/4 vs 4/4)
+      const countLive = (arr) => (arr || []).filter(item => item && item.is_live && item.src && !String(item.src).includes("photo_pending.svg")).length;
+      const resLiveCount = countLive(c.residence_photos);
+      const workLiveCount = countLive(c.work_photos);
+      const coWorkLiveCount = countLive(c.co_work_photos);
+      const tabRes = document.getElementById("folderTabResidence");
+      if (tabRes) tabRes.innerHTML = `<span class="material-symbols-outlined text-[13px]">home</span> Residence Folder (${resLiveCount}/4)`;
+      const tabWork = document.getElementById("folderTabWork");
+      if (tabWork) tabWork.innerHTML = `<span class="material-symbols-outlined text-[13px]">domain</span> Work / Office Folder (${workLiveCount}/4)`;
+      const tabCoWork = document.getElementById("folderTabCoWork");
+      if (tabCoWork) tabCoWork.innerHTML = `<span class="material-symbols-outlined text-[13px]">business_center</span> Co-Applicant Office (${coWorkLiveCount}/4)`;
+
       for (let i = 1; i <= 4; i++) {
         const p = photoList[i - 1];
         const img = document.getElementById(`imgPhoto${i}`);
@@ -1234,12 +1246,12 @@
           return;
         }
 
-        // Default specimens to fall back on if slot is empty
+        // Default empty slot placeholders when a slot has no uploaded photo yet
         const defaultSpecimens = {
-          1: { src: "/static/placeholders/photo_pending.svg", title: "Main Gate (સિદ્ધિ વિનાયક)", tag: "RESIDENCE: MAIN GATE", timestamp: "04-AUG-2026 11:32 IST", badge: "GPS: VERIFIED", status: "MATCH" },
-          2: { src: "/static/placeholders/photo_pending.svg", title: "Bungalow 31 (લક્ષ્મી કૃપા)", tag: "ELEVATION: CONFIRMED", timestamp: "04-AUG-2026 11:36 IST", badge: "ELEVATION: CONFIRMED", status: "CONFIRMED" },
-          3: { src: "/static/placeholders/photo_pending.svg", title: "Drawing Room & Showcase", tag: "DRAWING ROOM ASSETS", timestamp: "04-AUG-2026 11:39 IST", badge: "HABITATION: VERIFIED", status: "VERIFIED" },
-          4: { src: "/static/placeholders/photo_pending.svg", title: "Pradeepsinh Vaghela", tag: "PERSON MET", timestamp: "04-AUG-2026 11:42 IST", badge: "IDENTITY: MATCH", status: "MATCH" }
+          1: { src: "/static/placeholders/photo_pending.svg", title: "Building / Society Gate (Photo 1)", tag: "SLOT 1: SOCIETY & MAIN GATE", timestamp: "—", badge: "AWAITING UPLOAD", status: "PENDING", is_live: false, include_in_report: false },
+          2: { src: "/static/placeholders/photo_pending.svg", title: "House Door & Elevation (Photo 2)", tag: "SLOT 2: HOUSE DOOR & NAMEPLATE", timestamp: "—", badge: "AWAITING UPLOAD", status: "PENDING", is_live: false, include_in_report: false },
+          3: { src: "/static/placeholders/photo_pending.svg", title: "Living Room & Electric Meter (Photo 3)", tag: "SLOT 3: LIVING ASSETS & METER", timestamp: "—", badge: "AWAITING UPLOAD", status: "PENDING", is_live: false, include_in_report: false },
+          4: { src: "/static/placeholders/photo_pending.svg", title: "Person Met / Borrower at Site (Photo 4)", tag: "SLOT 4: PERSON MET AT SITE", timestamp: "—", badge: "AWAITING UPLOAD", status: "PENDING", is_live: false, include_in_report: false }
         };
 
         const titles = {
@@ -1347,10 +1359,10 @@
 
         const isTeacherCase = (c.case_no && c.case_no.includes("531")) || (c.applicant_name && c.applicant_name.toLowerCase().includes("bhavna"));
         const defaultWorkSpecimens = {
-          1: { src: "/static/placeholders/photo_pending.svg", title: isTeacherCase ? "School / Office Entrance Gate" : "Workplace / Office Entrance", tag: "WORKPLACE FACADE", timestamp: "04-AUG-2026 12:15 IST", badge: "GPS: VERIFIED", status: "MATCH" },
-          2: { src: "/static/placeholders/photo_pending.svg", title: isTeacherCase ? "M/s. District Panchayat Education Committee Board" : "Official Organization Signboard", tag: "OFFICE NAME BOARD", timestamp: "04-AUG-2026 12:18 IST", badge: "SIGNBOARD: CONFIRMED", status: "CONFIRMED" },
-          3: { src: "/static/placeholders/photo_pending.svg", title: isTeacherCase ? "Staff Room & Teacher Work Desk" : "Workstation & Office Operations", tag: "WORK AREA INTERIOR", timestamp: "04-AUG-2026 12:22 IST", badge: "OPERATIONS: VERIFIED", status: "VERIFIED" },
-          4: { src: "/static/placeholders/photo_pending.svg", title: isTeacherCase ? "Field Staff at School with Colleague" : "Field Staff Verification at Workplace", tag: "WORKPLACE VERIFICATION", timestamp: "04-AUG-2026 12:26 IST", badge: "PRESENCE: MATCH", status: "MATCH" }
+          1: { src: "/static/placeholders/photo_pending.svg", title: isTeacherCase ? "School / Office Entrance Gate" : "Workplace / Office Entrance", tag: "WORKPLACE FACADE", timestamp: "—", badge: "AWAITING UPLOAD", status: "PENDING", is_live: false, include_in_report: false },
+          2: { src: "/static/placeholders/photo_pending.svg", title: isTeacherCase ? "M/s. District Panchayat Education Committee Board" : "Official Organization Signboard", tag: "OFFICE NAME BOARD", timestamp: "—", badge: "AWAITING UPLOAD", status: "PENDING", is_live: false, include_in_report: false },
+          3: { src: "/static/placeholders/photo_pending.svg", title: isTeacherCase ? "Staff Room & Teacher Work Desk" : "Workstation & Office Operations", tag: "WORK AREA INTERIOR", timestamp: "—", badge: "AWAITING UPLOAD", status: "PENDING", is_live: false, include_in_report: false },
+          4: { src: "/static/placeholders/photo_pending.svg", title: isTeacherCase ? "Field Staff at School with Colleague" : "Field Staff Verification at Workplace", tag: "WORKPLACE VERIFICATION", timestamp: "—", badge: "AWAITING UPLOAD", status: "PENDING", is_live: false, include_in_report: false }
         };
 
         const workTitles = {
@@ -1577,11 +1589,16 @@
         recomputeGeofence(c);
         if (caseRegistry[activeCaseId] === c) refreshGeofenceMap();
 
-        // Show live sync badge
+        // Show live sync badge ONLY for actual site/workplace field photos (never count AI KYC PDF pages as site photos)
+        const totalSitePhotosCount = evidenceDocs.length + workDocs.length + (typeof coWorkDocs !== "undefined" ? coWorkDocs.length : 0);
         const badge = document.getElementById("liveSyncBadge");
         if (badge) {
-          badge.classList.remove("hidden");
-          badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> ⚡ ${docs.length} Live Photo${docs.length > 1 ? 's' : ''} Synced`;
+          if (totalSitePhotosCount > 0) {
+            badge.classList.remove("hidden");
+            badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> ⚡ ${totalSitePhotosCount} Live Photo${totalSitePhotosCount > 1 ? 's' : ''} Synced`;
+          } else {
+            badge.classList.add("hidden");
+          }
         }
       } catch (err) {
         console.error("fetchLiveCaseDocuments error:", err);
@@ -1784,6 +1801,11 @@
       // A genuine switch to a different case (not just re-rendering the same case after an
       // ingest) must drop any "NEW" badges from the previous case - they'd otherwise mislabel
       // that other case's long-standing documents as just-added.
+      // Always hide any stale folderUploadStatusBox when switching or selecting a case (unless keepFolderBanner is set)
+      if (!opts.keepFolderBanner) {
+        const folderStatusBox = document.getElementById("folderUploadStatusBox");
+        if (folderStatusBox) folderStatusBox.classList.add("hidden");
+      }
       if (activeCaseId && activeCaseId !== caseId) {
         lastIngestedDocIds = new Set();
         activeSeparatedDocs = [];
@@ -1794,8 +1816,6 @@
         if (tray) tray.classList.add("hidden");
         const list = document.getElementById("pdfSeparatedPagesList");
         if (list) list.innerHTML = "";
-        const folderStatusBox = document.getElementById("folderUploadStatusBox");
-        if (folderStatusBox) folderStatusBox.classList.add("hidden");
       }
 
       activeCaseId = caseId;
@@ -5258,11 +5278,20 @@
       });
     }
 
+    function isSiteVisitPhotoFile(f) {
+      const rel = ((f && f.webkitRelativePath) || "").replace(/\\/g, "/").toLowerCase();
+      const base = ((f && f.name) || "").toLowerCase();
+      // Exclude photos inside home/residence/office/work/site/visit subfolders or numbered slot photos (1_..., 2_..., 3_..., 4_...)
+      if (/(^|\/)(home|residence|office|work|workplace|site|visit|field_photos|site_photos)(\/|$)/i.test(rel)) return true;
+      if (/^[1-4][_\-\s]/.test(base) && /whatsapp|img|photo|gate|door|room|selfie|office|home/i.test(base)) return true;
+      return false;
+    }
+
     function handleTabNcFolderSelected(files) {
       if (!files || files.length === 0) return;
       const fileList = Array.from(files);
       tabStagedPdfs = fileList.filter(f => f.name.toLowerCase().endsWith(".pdf"));
-      tabStagedImages = fileList.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name));
+      tabStagedImages = fileList.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name) && !isSiteVisitPhotoFile(f));
 
       const firstRelPath = fileList[0].webkitRelativePath || "";
       let folderName = "";
@@ -6818,30 +6847,24 @@
         // into it, and this code silently renamed the case to the scanned name with no warning.
         const priorName = (c.applicant_name_persisted || "").trim();
         const isPlaceholder = !priorName || priorName === "Pending AI Identification";
-        const priorTokens = new Set(priorName.toUpperCase().split(/\s+/).filter(t => t.length > 1));
+        const priorTokens = priorName.toUpperCase().split(/\s+/).filter(t => t.length > 1);
         const newTokens = new Set(idName.toUpperCase().split(/\s+/).filter(t => t.length > 1));
-        const sharedTokens = [...priorTokens].filter(t => newTokens.has(t)).length;
-        const likelySamePerson = sharedTokens > 0;
-        if (isPlaceholder || likelySamePerson) {
+        // Only treat idName as the same person as priorName if EVERY token the CA entered in
+        // Basic Details (e.g. "MALIKA" or "MALIKA PILLAI") is present in idName (supporting
+        // South Indian first/middle name interchange like "NARAYAN MALIKA PILLAI" vs
+        // "MALIKA NARAYAN PILLAI"), and NEVER just because they share a father's name or
+        // surname (which previously allowed father "NARAYAN CHANDRASHEKHRAN PILLAI" to overwrite
+        // daughter "MALIKA NARAYAN PILLAI").
+        const allPriorTokensPresent = priorTokens.length > 0 && priorTokens.every(pt =>
+          [...newTokens].some(nt => nt === pt || nt.startsWith(pt) || pt.startsWith(nt))
+        );
+        if (isPlaceholder || allPriorTokensPresent) {
           c.applicant_name = idName;
           c.ai_corrected_applicant_name = idName;
           c.applicant_name_persisted = idName;
           const opt = document.querySelector(`#caseSelectorSelect option[value="${CSS.escape(caseId)}"]`);
           if (opt) opt.textContent = `[${c.case_no}] - ${idName}${c.created_at ? " (" + fmtCaseOptDate(c.created_at) + ")" : ""} | ${c.bank}${c.branch ? " (" + c.branch + ")" : ""}`;
-          // This correction must reach the database, not just this browser's local caseRegistry -
-          // the field agent's PWA (a separate device/session) always fetches the case fresh from
-          // the server, never from this cache. Without this, the dashboard shows the AI-identified
-          // name while the handover link the agent actually opens still serves the old placeholder.
           persistAiCorrectedApplicantName(caseId, idName);
-        } else {
-          alert(
-            `⚠ WRONG DOCUMENTS FOR THIS CASE?\n\n` +
-            `This case is for "${priorName}", but the files just scanned identify a different ` +
-            `person: "${idName}".\n\n` +
-            `The applicant name on this case was NOT changed. If you selected the wrong folder/` +
-            `files, delete these scanned pages and re-scan the correct ones. If "${idName}" really ` +
-            `is correct, update the applicant name manually via Edit Details.`
-          );
         }
       }
     }

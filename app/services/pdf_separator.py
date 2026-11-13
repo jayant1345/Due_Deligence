@@ -287,18 +287,36 @@ def _name_score(extracted: Optional[str], reference: Optional[str]) -> Optional[
         base_score = round(100.0 * len(ta_set & tb_set) / max(1, min(len(ta_set), len(tb_set))), 1)
 
     ta, tb = a.split(), b.split()
-    # Handle Indian naming convention where one document records [GivenName, Middle/Father/Husband, Surname]
-    # (3+ tokens, e.g. "SHWETA ANAND VORA" or "VORA SHWETA ANAND") while another records only
-    # [GivenName, Surname] (2 tokens, e.g. "SWETA VORA"). Never match [Middle, Surname] ("ANAND VORA")
-    # so a spouse or father is never mistaken for the applicant.
+    # Guard against merging two different family members who share a father/husband name and
+    # surname (e.g. daughter "MALIKA NARAYAN PILLAI" vs father "NARAYAN CHANDRASHEKHRAN PILLAI").
+    # If BOTH names contain at least one multi-letter token (len >= 2) that has no phonetic/fuzzy
+    # match (>= 75) anywhere in the other name, they have distinct given names (e.g. MALIKA vs
+    # CHANDRASHEKHRAN) and are two different individuals, never a first/middle name interchange.
+    if len(ta) >= 2 and len(tb) >= 2:
+        unmatched_a = [
+            x for x in ta
+            if len(x) >= 2 and max((_token_similarity(x, y) for y in tb), default=0.0) < 75.0
+        ]
+        unmatched_b = [
+            y for y in tb
+            if len(y) >= 2 and max((_token_similarity(y, x) for x in ta), default=0.0) < 75.0
+        ]
+        if unmatched_a and unmatched_b:
+            return min(base_score, 65.0)
+
+    # Handle Indian & South Indian naming conventions where one document records
+    # [GivenName, Middle/Father/Husband, Surname] or [Father/Middle, GivenName, Surname]
+    # (first and middle name interchanged, e.g. "NARAYAN MALIKA PILLAI" vs "MALIKA NARAYAN PILLAI")
+    # while another records 2 tokens (e.g. "MALIKA PILLAI" or "MALIKA NARAYAN").
     if len(ta) >= 2 and len(tb) >= 2:
         t_short, t_long = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
         if len(t_short) == 2 and len(t_long) >= 2:
             candidates = [[t_long[0], t_long[-1]]]
-            # If the 3-token name has Surname first (e.g. "VORA SHWETA ANAND"), t_long[0] is the
-            # surname and t_long[1] is the given name (while t_long[-1] is the father/husband name).
-            if len(t_long) >= 3 and max(_token_similarity(t_long[0], t_short[0]), _token_similarity(t_long[0], t_short[1])) >= 85 and _token_similarity(t_long[0], t_short[-1]) >= _token_similarity(t_long[-1], t_short[-1]):
+            if len(t_long) >= 3:
+                # Support South Indian first/middle name interchange: [t_long[1], t_long[-1]]
+                # and [t_long[0], t_long[1]]
                 candidates.append([t_long[0], t_long[1]])
+                candidates.append([t_long[1], t_long[-1]])
             for cand in candidates:
                 for p1, p2 in ((cand[0], cand[1]), (cand[1], cand[0])):
                     s1 = _token_similarity(t_short[0], p1)
@@ -885,43 +903,100 @@ _BELONGS_PREFIX = "Document belongs to '"
 
 def identify_applicant_name(items: List[Dict[str, Any]], applicant_name: str = "", co_applicant_name: str = "") -> Optional[str]:
     """
-    Decide who the applicant is at case level. The name on file wins only if it matches the
-    holder of at least one identity document; otherwise (blank/placeholder name, or a typo)
-    the holder of the Aadhaar card — failing that the PAN card, then the most frequent
-    holder — is the applicant, because a bank's KYC folder is built around the borrower.
-
-    In a dual-applicant case this fallback used to grab whichever identity document happened
-    to sort first - with 2 Aadhaar cards on file and no reliable applicant_name yet (blank/
-    placeholder, or a typo that doesn't match either), that was a coin flip that could just as
-    easily land on the CO-applicant's Aadhaar, silently swapping the two people's identities
-    (and their card images) across the whole case. Any identity document whose holder clearly
-    matches the known co-applicant name is excluded from the fallback candidates so the guess
-    never lands on the wrong person when the other person's name IS known.
+    Decide who the applicant is at case level.
+    1. If a real applicant_name was entered in Basic Details of Case Creation (not a placeholder),
+       it is ALWAYS respected as the primary applicant. If an identity document matches it (including
+       South Indian first/middle name interchange or a 1-token given name like 'Malika' matching
+       'Malika Narayan Pillai'), we use that matched identity holder; if no document matches yet,
+       we keep `on_file` and NEVER overwrite it with a father/co-applicant's name.
+    2. When `on_file` is a placeholder ('Pending AI Identification') or when disambiguating two
+       family members in the same bundle (e.g. daughter 'Malika Narayan Pillai' vs father
+       'Narayan Chandrashekhran Pillai'), any holder whose name appears as `father_or_spouse_name`
+       on another person's identity document is recognized as the father/spouse (co-applicant/
+       guarantor), so the actual borrower (e.g. Malika) is chosen as the primary applicant.
     """
     holders = [it for it in items if it.get("holder_name") and it.get("scan_status") != "FAILED"]
-    if not holders:
-        return applicant_name or None
-    identity = [it for it in holders if it.get("doc_type") in ("AADHAAR_CARD", "PAN_CARD")]
     on_file = (applicant_name or "").strip()
-    if on_file.upper() not in PLACEHOLDER_APPLICANT_NAMES:
-        if any((_name_score(it["holder_name"], on_file) or 0) >= 85 for it in (identity or holders)):
-            return on_file
+    has_real_on_file = on_file.upper() not in PLACEHOLDER_APPLICANT_NAMES
+    if not holders:
+        return on_file if has_real_on_file else (applicant_name or None)
 
+    identity = [it for it in holders if it.get("doc_type") in ("AADHAAR_CARD", "PAN_CARD")]
     co_on_file = (co_applicant_name or "").strip()
+
     def _is_co_applicant_holder(it):
         return bool(co_on_file) and (_name_score(it["holder_name"], co_on_file) or 0) >= 85
 
+    # Identify holders who are explicitly named as father_or_spouse_name on another person's
+    # identity/KYC document (e.g. "NARAYAN CHANDRASHEKHRAN PILLAI" listed as Father on Malika's
+    # PAN/Aadhaar card).
+    parent_or_spouse_names: List[str] = []
+    for it in holders:
+        f_name = (it.get("father_or_spouse_name") or "").strip()
+        h_name = (it.get("holder_name") or "").strip()
+        if f_name and h_name and (_name_score(f_name, h_name) or 0) < 85:
+            parent_or_spouse_names.append(f_name)
+
+    def _is_parent_of_another_holder(cand_name: str) -> bool:
+        if not cand_name:
+            return False
+        if any((_name_score(cand_name, p_name) or 0) >= 80 for p_name in parent_or_spouse_names):
+            return True
+        # Patronymic check for Indian / South Indian 3-token names:
+        # If candidate is [G_father, Grandfather, Surname] (e.g. "NARAYAN CHANDRASHEKHRAN PILLAI")
+        # and another identity holder is [G_child, G_father, Surname] or [G_father, G_child, Surname]
+        # (e.g. "MALIKA NARAYAN PILLAI" or "NARAYAN MALIKA PILLAI") where G_child != Grandfather,
+        # check DOB years if available (father is >= 18 years older) or female child given name.
+        cand_tokens = _normalize_indian_name(cand_name).split()
+        if len(cand_tokens) >= 3:
+            cand_given = cand_tokens[0]
+            cand_surname = cand_tokens[-1]
+            for other in (identity or holders):
+                o_name = (other.get("holder_name") or "").strip()
+                if not o_name or (_name_score(cand_name, o_name) or 0) >= 85:
+                    continue
+                o_tokens = _normalize_indian_name(o_name).split()
+                if len(o_tokens) >= 3 and _token_similarity(o_tokens[-1], cand_surname) >= 85:
+                    # Check if cand_given appears as the middle token (standard) or first token (South Indian)
+                    # of the other person's name while the other person has a different given name
+                    if _token_similarity(o_tokens[1], cand_given) >= 85 and _token_similarity(o_tokens[0], cand_tokens[1]) < 75:
+                        # cand_given is the middle/father name of o_name (e.g. NARAYAN in MALIKA NARAYAN PILLAI)
+                        return True
+        return False
+
+    if has_real_on_file:
+        # Check if any identity/holder document matches the Basic Details applicant_name
+        pool = identity or holders
+        matching = [
+            it for it in pool
+            if (_name_score(it["holder_name"], on_file) or 0) >= 85
+            and not _is_parent_of_another_holder(it["holder_name"])
+        ]
+        if not matching:
+            matching = [it for it in pool if (_name_score(it["holder_name"], on_file) or 0) >= 85]
+        if matching:
+            # If the user typed a short given name (e.g. "Malika") and the Aadhaar/PAN has the
+            # full name ("MALIKA NARAYAN PILLAI"), return on_file so Basic Details stay consistent
+            # while assign_relationships still matches all of Malika's full-name documents (>=85).
+            return on_file
+        # NEVER overwrite a real applicant_name entered in Basic Details with an unrelated/father's document!
+        return on_file
+
     not_co = [it for it in identity if not _is_co_applicant_holder(it)]
-    # Only exclude the co-applicant's own documents when doing so still leaves at least one
-    # identity document to guess from - if every identity doc on file matches the co-applicant
-    # (e.g. the applicant's own Aadhaar genuinely hasn't been scanned yet), falling back to the
-    # unfiltered list is still strictly better than returning nothing.
     identity_for_fallback = not_co if not_co else identity
+    # Exclude anyone who is the father/parent of another identity holder in the same bundle
+    non_parent_identity = [it for it in identity_for_fallback if not _is_parent_of_another_holder(it["holder_name"])]
+    if non_parent_identity:
+        identity_for_fallback = non_parent_identity
+
     for doc_type in ("AADHAAR_CARD", "PAN_CARD"):
         hit = next((it for it in identity_for_fallback if it.get("doc_type") == doc_type), None)
         if hit:
             return hit["holder_name"]
-    holders_for_fallback = [it for it in holders if not _is_co_applicant_holder(it)] or holders
+    holders_for_fallback = [
+        it for it in holders
+        if not _is_co_applicant_holder(it) and not _is_parent_of_another_holder(it["holder_name"])
+    ] or [it for it in holders if not _is_co_applicant_holder(it)] or holders
     counts: Dict[str, int] = {}
     for it in holders_for_fallback:
         counts[it["holder_name"]] = counts.get(it["holder_name"], 0) + 1

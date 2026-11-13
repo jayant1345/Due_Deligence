@@ -539,16 +539,12 @@ def generate_certified_cpv_report(
             row["income"] = row["income"] or _inr(income_val)
             row["ack_no"] = row["ack_no"] or ack_val
             row["filed_on"] = row["filed_on"] or dt_val
-        if not rows and cand_ods:
-            first_od = cand_ods[0]
-            ay_fb = _ay_of(first_od) or "Verified"
-            rows[ay_fb] = {
-                "ay": ay_fb,
-                "income": _inr(first_od.get("annual_taxable_income") or first_od.get("annual_gross_salary")),
-                "ack_no": first_od.get("itr_acknowledgement_number") or "Verified on Record",
-                "filed_on": first_od.get("document_date") or "Verified",
-            }
-        return rows
+        # Per explicit CA office instruction: omit any ITR / Form 16 / Assessment record
+        # where the Total Income / Amount is not available (None / NA / 0).
+        return {
+            ay: r for ay, r in rows.items()
+            if r.get("income") and str(r.get("income")).strip().upper() not in ("", "NA", "N/A", "NONE", "0")
+        }
 
     form16_rows = _build_itr_rows(co_applicant=False)
     form16_ay_list = sorted(form16_rows.keys(), reverse=True)
@@ -1449,13 +1445,8 @@ def generate_certified_cpv_report(
     # The Field Staff Geo-Attendance & Identity Verification selfie card that used to print
     # here is removed per explicit CA office instruction.
 
-    # ================= PAGE 9: OFFICE PREMISES VISIT PHOTOGRAPHS (WHEN WORKING) =================
+    # ================= PAGE 9: OFFICE PREMISES VISIT PHOTOGRAPHS (ONLY WHEN OFFICE PHOTOS EXIST) =================
     if is_working:
-        story.append(PageBreak())
-        add_firm_header(9)
-        story.append(Paragraph("Annexure ‘E’ (Part 3) — Business / Employer Premises visit photographs:", anx_title_style))
-        story.append(Spacer(1, 4))
-
         office_sorted_docs = [d for d in sorted_docs if _is_work_doc(d)]
         off_slot_map = {1: None, 2: None, 3: None, 4: None}
         for d in office_sorted_docs:
@@ -1513,41 +1504,39 @@ def generate_certified_cpv_report(
                 os.path.join(field_photos_dir, f) for f in sorted(os.listdir(field_photos_dir))
                 if f.startswith("page_10_img_") and f.endswith((".jpeg", ".jpg", ".png")) and os.path.getsize(os.path.join(field_photos_dir, f)) > 10000
             ]
-        off_caps = [
-            "1. Office Building Exterior & Nameboard",
-            "2. Staff Desk / Workplace Premises",
-            "3. Office Infrastructure & Facilities",
-            "4. Main Entrance & Commercial Locality",
-        ]
+        off_photos = [p for p in off_photos if is_valid_image(p)]
 
-        def _make_off_cell(idx):
-            if idx < len(off_photos) and is_valid_image(off_photos[idx]):
-                try:
-                    return [Image(off_photos[idx], width=3.3 * inch, height=2.45 * inch)]
-                except Exception:
-                    pass
-            return [Paragraph(off_caps[idx] if idx < len(off_caps) else f"Office Photo {idx+1}", table_cell_style)]
+        # Per explicit CA office instruction: if office photos are not available, do NOT render
+        # the Office Premises Visit Photographs page in the report at all.
+        if off_photos:
+            story.append(PageBreak())
+            add_firm_header(9)
+            story.append(Paragraph("Annexure ‘E’ (Part 3) — Business / Employer Premises visit photographs:", anx_title_style))
+            story.append(Spacer(1, 4))
 
-        off_grid = [
-            [_make_off_cell(0), _make_off_cell(1)],
-            [_make_off_cell(2), _make_off_cell(3)],
-        ]
-        t_off_photos = Table(off_grid, colWidths=[3.75 * inch, 3.75 * inch])
-        t_off_photos.setStyle(TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ]))
-        story.append(t_off_photos)
+            def _make_off_cell(idx):
+                if idx < len(off_photos) and is_valid_image(off_photos[idx]):
+                    try:
+                        return [Image(off_photos[idx], width=3.3 * inch, height=2.45 * inch)]
+                    except Exception:
+                        pass
+                return [Paragraph("", table_cell_style)]
+
+            off_grid = [
+                [_make_off_cell(0), _make_off_cell(1)],
+                [_make_off_cell(2), _make_off_cell(3)],
+            ]
+            t_off_photos = Table(off_grid, colWidths=[3.75 * inch, 3.75 * inch])
+            t_off_photos.setStyle(TableStyle([
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            story.append(t_off_photos)
 
     # ================= CO-APPLICANT OFFICE PREMISES VISIT PHOTOGRAPHS =================
     if co_applicant_name and is_co_working:
-        story.append(PageBreak())
-        add_firm_header("9A")
-        story.append(Paragraph("Annexure ‘E’ (Part 4) — Co-Applicant Business / Employer Premises visit photographs:", anx_title_style))
-        story.append(Spacer(1, 4))
-
         co_office_docs = [d for d in sorted_docs if _is_co_work_doc(d)]
         co_off_slot_map = {1: None, 2: None, 3: None, 4: None}
         co_off_type_to_slot = {
@@ -1579,34 +1568,34 @@ def generate_certified_cpv_report(
                     co_off_slot_map[t_slot] = cand
 
         co_off_slot_map = _apply_report_selection(co_office_docs, co_off_slot_map)
-        co_off_photos = [co_off_slot_map[s] for s in [1, 2, 3, 4] if co_off_slot_map[s]]
-        co_off_caps = [
-            "1. Office Building Exterior & Nameboard",
-            "2. Staff Desk / Workplace Premises",
-            "3. Office Infrastructure & Facilities",
-            "4. Main Entrance & Commercial Locality",
-        ]
+        co_off_photos = [co_off_slot_map[s] for s in [1, 2, 3, 4] if co_off_slot_map[s] and is_valid_image(co_off_slot_map[s])]
 
-        def _make_co_off_cell(idx):
-            if idx < len(co_off_photos) and is_valid_image(co_off_photos[idx]):
-                try:
-                    return [Image(co_off_photos[idx], width=3.3 * inch, height=2.45 * inch)]
-                except Exception:
-                    pass
-            return [Paragraph(co_off_caps[idx] if idx < len(co_off_caps) else f"Office Photo {idx+1}", table_cell_style)]
+        if co_off_photos:
+            story.append(PageBreak())
+            add_firm_header("9A")
+            story.append(Paragraph("Annexure ‘E’ (Part 4) — Co-Applicant Business / Employer Premises visit photographs:", anx_title_style))
+            story.append(Spacer(1, 4))
 
-        co_off_grid = [
-            [_make_co_off_cell(0), _make_co_off_cell(1)],
-            [_make_co_off_cell(2), _make_co_off_cell(3)],
-        ]
-        t_co_off_photos = Table(co_off_grid, colWidths=[3.75 * inch, 3.75 * inch])
-        t_co_off_photos.setStyle(TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ]))
-        story.append(t_co_off_photos)
+            def _make_co_off_cell(idx):
+                if idx < len(co_off_photos) and is_valid_image(co_off_photos[idx]):
+                    try:
+                        return [Image(co_off_photos[idx], width=3.3 * inch, height=2.45 * inch)]
+                    except Exception:
+                        pass
+                return [Paragraph("", table_cell_style)]
+
+            co_off_grid = [
+                [_make_co_off_cell(0), _make_co_off_cell(1)],
+                [_make_co_off_cell(2), _make_co_off_cell(3)],
+            ]
+            t_co_off_photos = Table(co_off_grid, colWidths=[3.75 * inch, 3.75 * inch])
+            t_co_off_photos.setStyle(TableStyle([
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            story.append(t_co_off_photos)
 
     # ================= CO-APPLICANT RESIDENCE PREMISES VISIT PHOTOGRAPHS =================
     # Only printed when the CA office flagged the co-applicant as living at a separate address -

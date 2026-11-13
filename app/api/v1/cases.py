@@ -1008,12 +1008,39 @@ async def _refresh_case_relationships(db: AsyncSession, loan_case: LoanCase) -> 
     """
     After any file of a case is scanned, decide who the applicant is across ALL of the case's
     pages (a multi-file batch may bring the Aadhaar only in a later file) and rewrite each
-    page's SELF / DIFFERENT_PERSON verdict. If the case was created without a name, the
-    applicant's name as printed on the Aadhaar/PAN card is saved to the case.
+    page's SELF / DIFFERENT_PERSON verdict. If the case was created without a name, or if an
+    earlier partial scan mistakenly picked a parent's card before the child/applicant's card
+    was scanned, heal loan_case.applicant_name to the actual applicant.
     """
+    from app.services.pdf_separator import _name_score, identify_applicant_name
+
     result = await db.execute(select(CaseDocument).where(CaseDocument.case_id == loan_case.id))
     docs = [d for d in result.scalars().all() if isinstance(d.ocr_data, dict) and d.ocr_data.get("source") == "pdf_ingest"]
     pages = [dict(d.ocr_data) for d in docs]
+
+    # Auto-heal if loan_case.applicant_name was mistakenly set to the father/parent of another
+    # identity holder on the same case (e.g. "NARAYAN CHANDRASHEKHRAN PILLAI" when the daughter
+    # "MALIKA ..." is the actual applicant).
+    cur_app = (loan_case.applicant_name or "").strip()
+    if cur_app and cur_app.upper() not in PLACEHOLDER_APPLICANT_NAMES and pages:
+        inferred_primary = identify_applicant_name(pages, "", loan_case.co_applicant_name or "")
+        if inferred_primary and (_name_score(inferred_primary, cur_app) or 0) < 85:
+            # Check if cur_app is listed as father_or_spouse_name on another page or is the patronymic parent
+            is_cur_parent = any(
+                (p.get("father_or_spouse_name") and (_name_score(cur_app, p.get("father_or_spouse_name")) or 0) >= 80)
+                for p in pages if p.get("holder_name") and (_name_score(p.get("holder_name"), cur_app) or 0) < 85
+            )
+            if not is_cur_parent:
+                # Also check patronymic middle-name relationship (e.g. NARAYAN CHANDRASHEKHRAN PILLAI vs MALIKA NARAYAN PILLAI)
+                from app.services.pdf_separator import _normalize_indian_name, _token_similarity
+                c_toks = _normalize_indian_name(cur_app).split()
+                i_toks = _normalize_indian_name(inferred_primary).split()
+                if len(c_toks) >= 3 and len(i_toks) >= 3 and _token_similarity(c_toks[-1], i_toks[-1]) >= 85:
+                    if _token_similarity(i_toks[1], c_toks[0]) >= 85 and _token_similarity(i_toks[0], c_toks[1]) < 75:
+                        is_cur_parent = True
+            if is_cur_parent:
+                loan_case.applicant_name = inferred_primary
+
     reference = assign_relationships(pages, loan_case.applicant_name, loan_case.co_applicant_name)
     tag_applicant_slots(pages, {
         1: loan_case.applicant_name,
@@ -1520,9 +1547,12 @@ async def get_separated_case_documents(
     if not loan_case:
         return {"case_id": case_id, "documents": [], "case_summary": None}
 
+    await _refresh_case_relationships(db, loan_case)
+    await db.commit()
     docs = await _ai_ingested_pages(db, loan_case)
     return {
         "case_id": str(loan_case.id),
+        "applicant_name": loan_case.applicant_name,
         "documents": docs,
         "case_summary": reconcile_case_documents(docs, loan_case.applicant_name, loan_case.co_applicant_name) if docs else None,
     }
