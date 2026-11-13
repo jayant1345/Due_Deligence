@@ -669,7 +669,13 @@ def generate_certified_cpv_report(
     fam_grid = [
         [Paragraph("Name", table_hdr_style), Paragraph("Relation", table_hdr_style), Paragraph("Age", table_hdr_style), Paragraph("Earning", table_hdr_style)]
     ]
-    raw_fam = field_form.get("family_members") if isinstance(field_form, dict) else None
+    from app.services.field_form_pdf_ingest import reconcile_family_members_for_applicant
+    raw_fam = reconcile_family_members_for_applicant(
+        field_form.get("family_members") if isinstance(field_form, dict) else None,
+        applicant_name=applicant_name if applicant_name != NOT_CAPTURED else None,
+        applicant_gender=real_gender,
+        applicant_age=real_age,
+    )
     if isinstance(raw_fam, list) and len(raw_fam) > 0:
         for m in raw_fam:
             if isinstance(m, dict):

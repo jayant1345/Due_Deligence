@@ -67,7 +67,7 @@ Return ONLY a JSON object with exactly these keys:
   "co_applicant_contact": "Co-applicant phone number if mentioned, string or null",
   "co_applicant_address": "Co-applicant address if mentioned, string or null",
   "family_members": [
-    {{"name": "person's actual name (never 'APP' or 'HUSBAND')", "age": "string", "relation": "Self | Husband | Wife | Father | Mother | Son | Daughter | Brother | Sister", "earning": "Yes or No"}}
+    {{"name": "person's actual name (never 'APP' or 'HUSBAND')", "age": "string", "relation": "Self | Husband | Wife | Father | Mother | Father-in-law | Mother-in-law | Son | Daughter | Brother | Sister | Brother-in-law | Sister-in-law | Family Member (CRITICAL: relation MUST be relative to the applicant; if the applicant is Female/Mrs./Ms., no member can ever be 'Wife' — her spouse is 'Husband', her own row is 'Self', and a brother-in-law's wife is 'Sister-in-law')", "earning": "Yes or No (MUST be 'No' if written as NO/N/Housewife/Student or if age < 18)"}}
   ],
   "address_visited": "string or null",
   "residence_landmark": "Landmark or locality extracted from address_visited (e.g. 'Near SAL Hospital, Driving Road, Thaltej'), string or null",
@@ -179,6 +179,17 @@ _RELATION_NORMALIZATION = {
     "WIFE": "Wife",
     "FATHER": "Father",
     "MOTHER": "Mother",
+    "FATHER IN LAW": "Father-in-law",
+    "MOTHER IN LAW": "Mother-in-law",
+    "FATHER-IN-LAW": "Father-in-law",
+    "MOTHER-IN-LAW": "Mother-in-law",
+    "BROTHER IN LAW": "Brother-in-law",
+    "SISTER IN LAW": "Sister-in-law",
+    "BROTHER-IN-LAW": "Brother-in-law",
+    "SISTER-IN-LAW": "Sister-in-law",
+    "BHABHI": "Sister-in-law",
+    "JETHANI": "Sister-in-law",
+    "DERANI": "Sister-in-law",
     "SON": "Son",
     "DAUGHTER": "Daughter",
     "BROTHER": "Brother",
@@ -190,6 +201,231 @@ _RELATION_NORMALIZATION = {
     "COLLEAGUE": "Colleague",
     "STAFF": "Staff",
 }
+
+_COMMON_FEMALE_NAMES = {
+    "KOMAL", "KHUSHBU", "KHUSHBOO", "ANANYA", "NITISHA", "MALIKA", "MALLIKA",
+    "SWETA", "SHWETA", "BHAVNA", "BHAVNABEN", "RAJKUNVARBA", "PRIYA", "POOJA",
+    "NEHA", "KAVITA", "SUNITA", "ANITA", "REKHA", "MEENA", "SEEMA", "GEETA",
+    "SITA", "RADHA", "PAYAL", "KAJAL", "SONAL", "HETAL", "KINJAL", "TEJAL",
+    "RUPAL", "MITAL", "SHEETAL", "DIPALI", "DEEPALI", "NIDHI", "RIDDHI",
+    "SIDDHI", "KRUTI", "SHRUTI", "SMRUTI", "DHARTI", "AARTI", "ARTI", "JYOTI",
+    "PREETI", "PRITI", "SWATI", "TWINKLE", "DIMPLE", "RINKU", "PINKY", "ARCHANA",
+    "VANDANA", "SAPNA", "SHILPA", "MANISHA", "VARSHA", "ASHA", "USHA", "NISHA",
+    "DISHA", "RICHA", "SHIKHA", "SNEHA", "MEGA", "MEGHA", "DIVYA", "VIDYA",
+    "KANTA", "SHANTA", "MAMTA", "LATA", "NAMRATA", "AMRUTA", "ANKITA", "NIKITA",
+}
+
+_COMMON_MALE_NAMES = {
+    "NIRAV", "RAHUL", "RAJESH", "RAMESH", "SURESH", "MAHESH", "DINESH", "MUKESH",
+    "RAKESH", "NARESH", "HARESH", "HITESH", "MITESH", "JITESH", "RITESH", "PARESH",
+    "JAYESH", "BHAVESH", "KALPESH", "ALPESH", "DIPESH", "YOGESH", "KAMLESH",
+    "SHAILESH", "VIJAY", "SANJAY", "AJAY", "VINAY", "UDAY", "AKSHAY", "PRADEEP",
+    "SANDEEP", "KULDEEP", "HARDIK", "PRATIK", "KARTIK", "MAULIK", "BHAVIK",
+    "CHIRAG", "PARAG", "MAYUR", "KEYUR", "ANKIT", "AMIT", "SUMIT", "ROHIT",
+    "MOHIT", "LALIT", "HARSH", "PARTH", "YASH", "DEV", "RAJ", "JAY", "NEEL",
+    "MEET", "JEET", "PREET", "ANAND", "VIKRAM", "ASHOK", "KISHOR", "BHARAT",
+    "MANOJ", "VINOD", "PRAMOD", "SUBHASH", "PRAKASH", "VIKAS", "VISHAL", "KRUNAL",
+    "DHAVAL", "TUSHAR", "SACHIN", "NITIN", "VIPIN", "JATIN", "CHETAN", "KETAN",
+    "MANISH", "ASHISH", "GIRISH", "SATISH", "HARISH", "JAGDISH", "NARAYAN",
+}
+
+
+def _infer_gender_from_name_or_hint(name: Optional[str], explicit_gender: Optional[str] = None) -> Optional[str]:
+    if explicit_gender:
+        g = str(explicit_gender).strip().upper()
+        if g in ("FEMALE", "F", "WOMAN", "GIRL"):
+            return "FEMALE"
+        if g in ("MALE", "M", "MAN", "BOY"):
+            return "MALE"
+    if not name:
+        return None
+    s = str(name).strip()
+    upper = s.upper()
+    if re.match(r"^(?:MRS\.?|MS\.?|MISS\.?|SMT\.?|KUM\.?|KUMARI)\b", upper):
+        return "FEMALE"
+    if re.match(r"^(?:MR\.?|SHRI\.?|SHREE\.?|SARDAR)\b", upper):
+        return "MALE"
+    tokens = [re.sub(r"[^A-Z]", "", t) for t in upper.split()]
+    tokens = [t for t in tokens if t and t not in ("MR", "MRS", "MS", "MISS", "SMT", "SHRI", "DR", "CA", "ADV")]
+    if not tokens:
+        return None
+    first = tokens[0]
+    if first in _COMMON_FEMALE_NAMES or any(first.endswith(sfx) for sfx in ("BEN", "BA", "DEVI", "BAI", "KUMARI")):
+        return "FEMALE"
+    if first in _COMMON_MALE_NAMES or any(first.endswith(sfx) for sfx in ("BHAI", "SINH", "KUMAR", "LAL", "DAS", "NATH")):
+        return "MALE"
+    return None
+
+
+def _clean_earning_val(
+    raw_earning: Optional[Any],
+    age_str: Optional[str] = None,
+    occupation_str: Optional[str] = None,
+) -> str:
+    """
+    Normalizes a family member's earning field to 'Yes' or 'No'.
+    Crucially:
+    1. Does NOT pass raw_earning through _clean_val(), because _PLACEHOLDER_STRINGS contains
+       'no' and 'n' (which previously turned 'No' -> None -> 'Yes'!).
+    2. Any minor child (0 < age < 18) is ALWAYS 'No'.
+    3. Non-earning occupations (Housewife, Student, Dependent, Retired) are ALWAYS 'No'.
+    """
+    if age_str:
+        m_age = re.search(r"\b(\d{1,3})\b", str(age_str))
+        if m_age:
+            age_num = int(m_age.group(1))
+            if 0 < age_num < 18:
+                return "No"
+    if occupation_str:
+        occ_low = str(occupation_str).strip().lower()
+        if any(k in occ_low for k in ("house wife", "housewife", "homemaker", "home maker", "student", "dependent", "minor", "unemployed", "none", "nil")):
+            return "No"
+    if raw_earning is not None:
+        s = str(raw_earning).strip().upper()
+        if s in ("NO", "N", "FALSE", "0", "NONE", "NIL", "NA", "N/A", "HOUSEWIFE", "HOUSE WIFE", "STUDENT", "DEPENDENT"):
+            return "No"
+        if s in ("YES", "Y", "TRUE", "1"):
+            return "Yes"
+    return "Yes"
+
+
+def reconcile_family_members_for_applicant(
+    raw_fam: Optional[List[Any]],
+    applicant_name: Optional[str] = None,
+    applicant_gender: Optional[str] = None,
+    applicant_age: Optional[Any] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Cleans, normalizes, and reconciles the family_members array against the primary applicant's
+    identity, gender, and age:
+    - Swaps misordered name/relation (e.g. name='APP', relation='SWETA ARORA').
+    - Fixes impossible spouse relations relative to the applicant's gender:
+      * A Female applicant ('Mrs. Komal Nirav Thakkar', gender='Female') can NEVER have a family
+        member with relation='Wife'. If the row is herself -> 'Self'; if the row is male -> 'Husband';
+        if the row is another female (e.g. 'Khushbu', 45) -> 'Mother-in-law' (if >=16 yrs older)
+        or 'Sister-in-law' (joint-family sister-in-law).
+      * A Male applicant ('Mr. ...', gender='Male') can NEVER have a family member with
+        relation='Husband'. If the row is himself -> 'Self'; if female -> 'Wife'; if another male
+        -> 'Father' (if >=16 yrs older) or 'Brother'.
+    - Ensures any minor child (age < 18, e.g. age 14) has earning='No'.
+    """
+    if not isinstance(raw_fam, list):
+        return []
+
+    app_gender = _infer_gender_from_name_or_hint(applicant_name, applicant_gender)
+    app_age_num: Optional[int] = None
+    if applicant_age is not None:
+        m_a = re.search(r"\b(\d{1,3})\b", str(applicant_age))
+        if m_a:
+            app_age_num = int(m_a.group(1))
+
+    # Extract applicant's middle token (often husband/father name in Gujarati/Indian 3-part names)
+    app_tokens = [
+        re.sub(r"[^A-Za-z]", "", t).upper()
+        for t in (applicant_name or "").split()
+        if re.sub(r"[^A-Za-z]", "", t).upper() not in ("MR", "MRS", "MS", "MISS", "SMT", "SHRI", "DR")
+    ]
+    app_middle_token = app_tokens[1] if len(app_tokens) >= 3 else None
+
+    # Check if this family list has minors (<18) that were previously stored with earning='Yes'
+    # due to the old _clean_val('No') -> None -> 'Yes' bug.
+    had_buggy_all_yes_minors = False
+    for m in raw_fam:
+        if isinstance(m, dict):
+            a_m = re.search(r"\b(\d{1,3})\b", str(m.get("age") or ""))
+            if a_m and 0 < int(a_m.group(1)) < 18 and str(m.get("earning") or "").strip().upper() == "YES":
+                had_buggy_all_yes_minors = True
+                break
+
+    cleaned_fam: List[Dict[str, Any]] = []
+    for m in raw_fam:
+        if not isinstance(m, dict):
+            continue
+        m_name = _clean_val(m.get("name"))
+        m_rel = _clean_val(m.get("relation"))
+        # Detect swapped name/relation like name="APP", relation="SWETA ARORA"
+        if (
+            m_name
+            and m_name.upper().strip(" .,-") in _RELATION_NORMALIZATION
+            and m_rel
+            and m_rel.upper().strip(" .,-") not in _RELATION_NORMALIZATION
+        ):
+            m_name, m_rel = m_rel, _RELATION_NORMALIZATION[m_name.upper().strip(" .,-")]
+        else:
+            m_rel = _normalize_relation_or_title(m_rel)
+
+        if not m_name:
+            continue
+
+        # Strip bilingual suffix from relation if present (e.g. "Wife (પત્ની)" -> "Wife")
+        if m_rel:
+            m_rel = re.sub(r"\s*\([^)]*\)\s*$", "", m_rel).strip()
+            m_rel = _normalize_relation_or_title(m_rel) or m_rel
+
+        age_clean = str(_clean_val(m.get("age")) or "")
+        mem_age_num: Optional[int] = None
+        if age_clean:
+            m_ma = re.search(r"\b(\d{1,3})\b", age_clean)
+            if m_ma:
+                mem_age_num = int(m_ma.group(1))
+
+        # 1. Check if member is actually the applicant themselves
+        if applicant_name and (_name_score(m_name, applicant_name) or 0) >= 80:
+            m_rel = "Self"
+        elif m_rel and m_rel.lower().startswith("self"):
+            m_rel = "Self"
+
+        mem_gender = _infer_gender_from_name_or_hint(m_name)
+        if not mem_gender and app_middle_token and m_name.strip().upper().startswith(app_middle_token):
+            mem_gender = "MALE"
+
+        rel_upper = (m_rel or "").upper()
+
+        # 2. Reconcile impossible spouse relations against applicant's gender
+        if app_gender == "FEMALE" and rel_upper == "WIFE":
+            if applicant_name and (_name_score(m_name, applicant_name) or 0) >= 65:
+                m_rel = "Self"
+            elif mem_gender == "MALE":
+                m_rel = "Husband"
+            else:
+                if app_age_num and mem_age_num and mem_age_num >= app_age_num + 16:
+                    m_rel = "Mother-in-law"
+                else:
+                    m_rel = "Sister-in-law"
+        elif app_gender == "MALE" and rel_upper == "HUSBAND":
+            if applicant_name and (_name_score(m_name, applicant_name) or 0) >= 65:
+                m_rel = "Self"
+            elif mem_gender == "FEMALE":
+                m_rel = "Wife"
+            else:
+                if app_age_num and mem_age_num and mem_age_num >= app_age_num + 16:
+                    m_rel = "Father"
+                else:
+                    m_rel = "Brother"
+        elif rel_upper == "HUSBAND" and mem_gender == "FEMALE":
+            m_rel = "Wife" if app_gender == "MALE" else "Sister-in-law"
+        elif rel_upper == "WIFE" and mem_gender == "MALE":
+            m_rel = "Husband" if app_gender == "FEMALE" else "Brother"
+
+        earning_clean = _clean_earning_val(m.get("earning"), age_str=age_clean, occupation_str=m.get("occupation"))
+        # If this record was saved under the old bug where every 'No' was turned into 'Yes'
+        # (evidenced by minor children having earning='Yes') and no occupation was stored,
+        # repair non-self dependent/homemaker relations that were affected by the same bug.
+        if (
+            had_buggy_all_yes_minors
+            and not m.get("occupation")
+            and m_rel in ("Sister-in-law", "Mother-in-law", "Mother", "Wife", "Grandmother")
+        ):
+            earning_clean = "No"
+
+        cleaned_fam.append({
+            "name": m_name,
+            "relation": m_rel or "Family Member",
+            "age": age_clean,
+            "earning": earning_clean,
+        })
+
+    return cleaned_fam
 
 
 def _clean_val(val: Optional[Any], allow_na: bool = False) -> Optional[str]:
@@ -475,6 +711,8 @@ def enrich_field_form_defaults(
     applicant_name: Optional[str] = None,
     target_address: Optional[str] = None,
     office_address: Optional[str] = None,
+    applicant_gender: Optional[str] = None,
+    applicant_age: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Normalizes and enriches a field_form_data dictionary (whether freshly extracted from a
@@ -487,30 +725,20 @@ def enrich_field_form_defaults(
 
     app_name = _clean_val(applicant_name) or _clean_val(ff.get("applicant_name"))
     res_addr = _clean_val(target_address) or _clean_val(ff.get("address_visited"))
+    app_age = applicant_age or _clean_val(ff.get("age_community")) or _clean_val(ff.get("age"))
 
-    # 1. Clean & normalize family_members (e.g. swap name="APP", relation="SWETA ARORA" if misordered)
+    # 1. Clean, normalize & reconcile family_members against applicant's identity/gender/age
     raw_fam = ff.get("family_members")
-    cleaned_fam: List[Dict[str, Any]] = []
-    if isinstance(raw_fam, list):
-        for m in raw_fam:
-            if not isinstance(m, dict):
-                continue
-            m_name = _clean_val(m.get("name"))
-            m_rel = _clean_val(m.get("relation"))
-            # Detect swapped name/relation like name="APP", relation="SWETA ARORA"
-            if m_name and m_name.upper().strip(" .,-") in _RELATION_NORMALIZATION and m_rel and m_rel.upper().strip(" .,-") not in _RELATION_NORMALIZATION:
-                m_name, m_rel = m_rel, _RELATION_NORMALIZATION[m_name.upper().strip(" .,-")]
-            else:
-                m_rel = _normalize_relation_or_title(m_rel)
-            if m_name:
-                cleaned_fam.append({
-                    "name": m_name,
-                    "relation": m_rel or "Family Member",
-                    "age": str(_clean_val(m.get("age")) or ""),
-                    "earning": _clean_val(m.get("earning")) or "Yes",
-                })
+    cleaned_fam = reconcile_family_members_for_applicant(
+        raw_fam,
+        applicant_name=app_name,
+        applicant_gender=applicant_gender,
+        applicant_age=app_age,
+    )
     if cleaned_fam:
         ff["family_members"] = cleaned_fam
+        if isinstance(ff.get("restore"), dict):
+            ff["restore"]["family_members"] = cleaned_fam
 
     # 2. Clean & split neighbour references (e.g. "BABU RAO - RAJU BHAI" -> two separate Neighbours)
     norm_neighbours = _expand_and_normalize_references(
@@ -678,24 +906,12 @@ def build_field_form_payload(extracted: Dict[str, Any]) -> Dict[str, Any]:
     """
     e = extracted or {}
 
-    family_members = []
-    for m in (e.get("family_members") or []):
-        if isinstance(m, dict) and (_clean_val(m.get("name")) or _clean_val(m.get("relation"))):
-            m_name = _clean_val(m.get("name"))
-            m_rel = _clean_val(m.get("relation"))
-            if m_name and m_name.upper().strip(" .,-") in _RELATION_NORMALIZATION and m_rel and m_rel.upper().strip(" .,-") not in _RELATION_NORMALIZATION:
-                m_name, m_rel = m_rel, _RELATION_NORMALIZATION[m_name.upper().strip(" .,-")]
-            else:
-                m_rel = _normalize_relation_or_title(m_rel)
-            if m_name:
-                family_members.append({
-                    "name": m_name,
-                    "relation": m_rel or "Family Member",
-                    "age": _clean_val(m.get("age")) or "",
-                    "earning": _clean_val(m.get("earning")) or "Yes",
-                })
-
     applicant_name = _clean_val(e.get("name"))
+    family_members = reconcile_family_members_for_applicant(
+        e.get("family_members") or [],
+        applicant_name=applicant_name,
+        applicant_age=e.get("age"),
+    )
     res_owner_name = _clean_val(e.get("residence_owner_name"))
     res_owner_rel = _infer_owner_relation(
         res_owner_name,

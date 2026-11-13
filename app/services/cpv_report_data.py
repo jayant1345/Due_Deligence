@@ -553,12 +553,14 @@ async def assemble_cpv_report_data(
     # Family Members is filled in separately (Module 2) and is already a reliable source of
     # name -> relation - built here, ahead of "Who did you meet" below, so that field can fall
     # back to it instead of requiring the agent to type the same relation twice.
-    family = []
-    fm = form.get("family_members")
-    if isinstance(fm, list):
-        for m in fm:
-            if isinstance(m, dict):
-                family.append({k: m.get(k) for k in ("name", "relation", "age", "earning")})
+    from app.services.field_form_pdf_ingest import reconcile_family_members_for_applicant
+    fm = reconcile_family_members_for_applicant(
+        form.get("family_members"),
+        applicant_name=applicant.get("name") or applicant_name,
+        applicant_gender=applicant.get("gender"),
+        applicant_age=applicant.get("age"),
+    )
+    family = [{k: m.get(k) for k in ("name", "relation", "age", "earning")} for m in fm if isinstance(m, dict)]
 
     # "Who did you meet" is suggested to the field agent as "Name - Phone (Relation)" (e.g.
     # "Rajesh Patel - 9876543210 (Husband)") but was only ever stored/shown as one raw string -

@@ -122,6 +122,7 @@ async def list_cases(
     from app.services.field_form_pdf_ingest import (
         resolve_effective_loan_amount,
         _expand_and_normalize_references,
+        reconcile_family_members_for_applicant,
     )
     healed_any = False
     for c in cases:
@@ -138,17 +139,33 @@ async def list_cases(
             if corrected and corrected != c.loan_amount:
                 c.loan_amount = corrected
                 healed_any = True
-        if ff_dict and (ff_dict.get("neighbour_1") or ff_dict.get("neighbour_2")):
-            old_n1 = ff_dict.get("neighbour_1") or ""
-            old_n2 = ff_dict.get("neighbour_2") or ""
-            norm_n = _expand_and_normalize_references([old_n1, old_n2], default_relation="Neighbour")
-            new_n1 = norm_n[0] if len(norm_n) > 0 else ""
-            new_n2 = norm_n[1] if len(norm_n) > 1 else ""
-            if (new_n1, new_n2) != (old_n1, old_n2):
-                ff_dict["neighbour_1"] = new_n1
-                ff_dict["neighbour_2"] = new_n2
-                if isinstance(ff_dict.get("restore"), dict):
-                    ff_dict["restore"]["neighbors"] = [x for x in (new_n1, new_n2) if x]
+        if ff_dict:
+            changed_ff = False
+            if ff_dict.get("neighbour_1") or ff_dict.get("neighbour_2"):
+                old_n1 = ff_dict.get("neighbour_1") or ""
+                old_n2 = ff_dict.get("neighbour_2") or ""
+                norm_n = _expand_and_normalize_references([old_n1, old_n2], default_relation="Neighbour")
+                new_n1 = norm_n[0] if len(norm_n) > 0 else ""
+                new_n2 = norm_n[1] if len(norm_n) > 1 else ""
+                if (new_n1, new_n2) != (old_n1, old_n2):
+                    ff_dict["neighbour_1"] = new_n1
+                    ff_dict["neighbour_2"] = new_n2
+                    if isinstance(ff_dict.get("restore"), dict):
+                        ff_dict["restore"]["neighbors"] = [x for x in (new_n1, new_n2) if x]
+                    changed_ff = True
+            if isinstance(ff_dict.get("family_members"), list) and ff_dict["family_members"]:
+                old_fam = ff_dict["family_members"]
+                new_fam = reconcile_family_members_for_applicant(
+                    old_fam,
+                    applicant_name=c.applicant_name,
+                    applicant_age=ff_dict.get("age_community") or ff_dict.get("age"),
+                )
+                if new_fam != old_fam:
+                    ff_dict["family_members"] = new_fam
+                    if isinstance(ff_dict.get("restore"), dict):
+                        ff_dict["restore"]["family_members"] = new_fam
+                    changed_ff = True
+            if changed_ff:
                 c.field_form_data = _json_heal.dumps(ff_dict)
                 healed_any = True
     if healed_any:

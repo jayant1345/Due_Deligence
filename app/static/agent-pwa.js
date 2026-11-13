@@ -1497,15 +1497,25 @@
     function updateFamilyMember(idx, field, val) {
       if (familyMembers[idx]) {
         familyMembers[idx][field] = val;
+        if (field === "age") {
+          const ageNum = parseInt(val, 10);
+          if (ageNum > 0 && ageNum < 18 && (familyMembers[idx].occupation || "").startsWith("Job")) {
+            familyMembers[idx].occupation = "Student (વિદ્યાર્થી)";
+            renderFamilyMembers();
+            return;
+          }
+        }
         syncFamilyTextarea();
       }
     }
 
     // The family member UI tracks "Occupation" (what they do), not a separate Yes/No earning
     // toggle - the report's "Earning" column is derived from it rather than left uncaptured.
-    function familyMemberEarningStatus(occupation) {
+    function familyMemberEarningStatus(occupation, age) {
+      const ageNum = parseInt(age, 10);
+      if (!isNaN(ageNum) && ageNum > 0 && ageNum < 18) return "No";
       const o = (occupation || "").toLowerCase();
-      if (o.startsWith("house wife") || o.startsWith("student") || o.startsWith("dependent")) return "No";
+      if (o.startsWith("house wife") || o.startsWith("housewife") || o.startsWith("student") || o.startsWith("dependent") || o.startsWith("no")) return "No";
       return "Yes";
     }
 
@@ -1517,7 +1527,10 @@
         name: m.name || "",
         relation: (m.relation || "").split(" (")[0].trim(),
         age: m.age || "",
-        earning: familyMemberEarningStatus(m.occupation),
+        occupation: m.occupation || "",
+        earning: m.earning && (m.earning === "No" || m.earning === "Yes") && !m.occupation
+          ? familyMemberEarningStatus(m.earning, m.age)
+          : familyMemberEarningStatus(m.occupation, m.age),
       }));
     }
 
