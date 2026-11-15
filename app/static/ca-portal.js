@@ -3367,6 +3367,59 @@
       }
     }
 
+    // Automatically rename selected photos in memory to 1_xxxxx, 2_xxxxx, 3_xxxxx, 4_xxxxx
+    // (preserving any explicit 1_..4_ prefix if already present, otherwise assigning 1..4 in order)
+    function autoRenameSitePhotosForSlots(imageFiles) {
+      const slotMap = matchFilesToPhotoSlots(imageFiles);
+      const renamedForSlots = {};
+      Object.entries(slotMap).forEach(([slotStr, file]) => {
+        if (!file) return;
+        const s = parseInt(slotStr, 10);
+        const origName = (file.name || `photo_${s}.jpg`).split(/[\\/]/).pop();
+        const strippedName = origName.replace(/^0*[1-9][_\-\.\s]+/, "");
+        const newName = `${s}_${strippedName}`;
+        try {
+          renamedForSlots[s] = new File([file], newName, {
+            type: file.type || "image/jpeg",
+            lastModified: file.lastModified || Date.now(),
+          });
+        } catch (e) {
+          renamedForSlots[s] = file;
+        }
+      });
+      return renamedForSlots;
+    }
+
+    // Extra Add-On Facility: Select 1–4 photos directly for Home ('residence') or Office ('work')
+    // without creating a folder on PC and without manually renaming files to 1_xxxxx..4_xxxxx.
+    async function handleDirectMultiPhotoSelect(targetFolder, inputEl) {
+      const rawFiles = Array.from((inputEl && inputEl.files) ? inputEl.files : []);
+      if (inputEl && typeof inputEl.value === "string") {
+        try { inputEl.value = ""; } catch (e) {}
+      }
+      if (rawFiles.length === 0) return;
+      if (!activeCaseId) {
+        alert("Please select an active case first.");
+        return;
+      }
+
+      const btnId = targetFolder === "residence" ? "btnSelectHomePhotosMulti" : "btnSelectOfficePhotosMulti";
+      const btn = document.getElementById(btnId);
+      const origHtml = btn ? btn.innerHTML : null;
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-outlined text-[14px] animate-spin">progress_activity</span><span>Placing 1–4...</span>`;
+      }
+      try {
+        await handleDedicatedFolderUpload(targetFolder, rawFiles);
+      } finally {
+        if (btn && origHtml !== null) {
+          btn.disabled = false;
+          btn.innerHTML = origHtml;
+        }
+      }
+    }
+
     // Dedicated Folder Upload for Home ('residence') or Office ('work') with 1_xxxx..4_xxxx auto-placement
     async function handleDedicatedFolderUpload(targetFolder, inputOrFileList) {
       // Clone File objects BEFORE resetting input.value so the browser never clears the live FileList
@@ -3389,14 +3442,14 @@
         return (f.type && f.type.startsWith("image/")) || /\.(jpe?g|png|webp|bmp|gif|heic|jfif|tif|tiff)$/i.test(base);
       });
       if (images.length === 0) {
-        alert("No valid image files (.jpg, .jpeg, .png, .webp) found in the selected folder.");
+        alert("No valid image files (.jpg, .jpeg, .png, .webp) found in the selection.");
         return;
       }
 
       // Switch view to the target folder so operator sees all 4 slots populate live
       switchPhotoFolder(targetFolder);
 
-      const slotMap = matchFilesToPhotoSlots(images);
+      const slotMap = autoRenameSitePhotosForSlots(images);
       const assignedSlots = Object.entries(slotMap).filter(([, f]) => Boolean(f));
       if (assignedSlots.length === 0) return;
 
@@ -5316,11 +5369,76 @@
       return false;
     }
 
+    let tabStagedHomePhotos = [];
+    let tabStagedOfficePhotos = [];
+
+    function updateTabNcSitePhotosBadges() {
+      const row = document.getElementById("tabNcSitePhotosSummaryRow");
+      const homeBadge = document.getElementById("tabNcHomePhotosBadge");
+      const officeBadge = document.getElementById("tabNcOfficePhotosBadge");
+      if (!row) return;
+      const hasHome = tabStagedHomePhotos.length > 0;
+      const hasOffice = tabStagedOfficePhotos.length > 0;
+      row.classList.toggle("hidden", !hasHome && !hasOffice);
+      if (homeBadge) {
+        homeBadge.classList.toggle("hidden", !hasHome);
+        if (hasHome) {
+          homeBadge.textContent = `🏠 ${tabStagedHomePhotos.length} Home Photo(s) Auto-Named (${tabStagedHomePhotos.map((_, i) => (i + 1) + "_xxxx").join(", ")})`;
+        }
+      }
+      if (officeBadge) {
+        officeBadge.classList.toggle("hidden", !hasOffice);
+        if (hasOffice) {
+          officeBadge.textContent = `🏢 ${tabStagedOfficePhotos.length} Office Photo(s) Auto-Named (${tabStagedOfficePhotos.map((_, i) => (i + 1) + "_xxxx").join(", ")})`;
+        }
+      }
+    }
+
+    function handleTabNcSitePhotosSelected(targetFolder, inputEl) {
+      const rawFiles = Array.from((inputEl && inputEl.files) ? inputEl.files : []);
+      if (inputEl && typeof inputEl.value === "string") {
+        try { inputEl.value = ""; } catch (e) {}
+      }
+      const images = rawFiles.filter(f => {
+        const base = (f.name || "").split(/[\\/]/).pop();
+        if (!base || base.startsWith(".")) return false;
+        return (f.type && f.type.startsWith("image/")) || /\.(jpe?g|png|webp|bmp|gif|heic|jfif|tif|tiff)$/i.test(base);
+      });
+      if (images.length === 0) return;
+      const slotMap = autoRenameSitePhotosForSlots(images);
+      const ordered = [1, 2, 3, 4].map(s => slotMap[s]).filter(Boolean);
+      if (targetFolder === "residence") {
+        tabStagedHomePhotos = ordered;
+      } else {
+        tabStagedOfficePhotos = ordered;
+      }
+      updateTabNcSitePhotosBadges();
+    }
+
     function handleTabNcFolderSelected(files) {
       if (!files || files.length === 0) return;
       const fileList = Array.from(files);
       tabStagedPdfs = fileList.filter(f => f.name.toLowerCase().endsWith(".pdf"));
       tabStagedImages = fileList.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name) && !isSiteVisitPhotoFile(f));
+
+      // Also auto-detect any home/ or office/ subfolder photos inside the selected bank case folder
+      const homeSubImgs = fileList.filter(f => {
+        const rel = ((f && f.webkitRelativePath) || "").replace(/\\/g, "/").toLowerCase();
+        return /\.(jpe?g|png|webp)$/i.test(f.name || "") && /(^|\/)(home|residence)(\/|$)/i.test(rel);
+      });
+      const officeSubImgs = fileList.filter(f => {
+        const rel = ((f && f.webkitRelativePath) || "").replace(/\\/g, "/").toLowerCase();
+        return /\.(jpe?g|png|webp)$/i.test(f.name || "") && /(^|\/)(office|work|workplace)(\/|$)/i.test(rel);
+      });
+      if (homeSubImgs.length > 0) {
+        const hm = autoRenameSitePhotosForSlots(homeSubImgs);
+        tabStagedHomePhotos = [1, 2, 3, 4].map(s => hm[s]).filter(Boolean);
+      }
+      if (officeSubImgs.length > 0) {
+        const om = autoRenameSitePhotosForSlots(officeSubImgs);
+        tabStagedOfficePhotos = [1, 2, 3, 4].map(s => om[s]).filter(Boolean);
+      }
+      updateTabNcSitePhotosBadges();
 
       const firstRelPath = fileList[0].webkitRelativePath || "";
       let folderName = "";
@@ -5704,6 +5822,24 @@
         document.getElementById("tabShelfPropertyCount").textContent = "Ready";
       }
 
+      // If Home Photos (1–4) or Office Photos (1–4) were staged in Step 2, auto-place & upload them now
+      if (tabStagedHomePhotos.length > 0) {
+        if (statusDetail) statusDetail.textContent = `Placing ${tabStagedHomePhotos.length} Home photo(s) (1_xxxx..4_xxxx) into Residence Slots 1–4...`;
+        try {
+          await handleDedicatedFolderUpload("residence", tabStagedHomePhotos);
+        } catch (e) {
+          console.warn("Home photo auto-placement notice:", e);
+        }
+      }
+      if (tabStagedOfficePhotos.length > 0) {
+        if (statusDetail) statusDetail.textContent = `Placing ${tabStagedOfficePhotos.length} Office photo(s) (1_xxxx..4_xxxx) into Office Slots 1–4...`;
+        try {
+          await handleDedicatedFolderUpload("work", tabStagedOfficePhotos);
+        } catch (e) {
+          console.warn("Office photo auto-placement notice:", e);
+        }
+      }
+
       if (progressBar) progressBar.style.width = "100%";
       if (statusDetail) statusDetail.textContent = `✓ Ingestion complete! Case ${caseNo} is created with all documents arranged. Status: PENDING (Manual Handover).`;
       stopElapsedTimer("tabNcScanElapsedText");
@@ -5731,6 +5867,9 @@
     function resetNewCaseIntakeForm() {
       tabStagedPdfs = [];
       tabStagedImages = [];
+      tabStagedHomePhotos = [];
+      tabStagedOfficePhotos = [];
+      updateTabNcSitePhotosBadges();
       tabNcStagedFieldFormData = null;
       const fStatus = document.getElementById("tabNcFieldFormPdfStatus");
       if (fStatus) fStatus.classList.add("hidden");

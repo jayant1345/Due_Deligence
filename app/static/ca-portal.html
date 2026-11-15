@@ -1012,12 +1012,24 @@
             </div>
           </div>
 
-          <!-- Backlog Fast Folder Upload Buttons (1_xxxx, 2_xxxx, 3_xxxx, 4_xxxx auto-placement) -->
+          <!-- Backlog Fast Folder & Direct Multi-Photo Select Buttons (auto-renames 1_xxxx, 2_xxxx, 3_xxxx, 4_xxxx & places in slots) -->
           <div class="flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-outline-variant/60">
             <span class="font-mono text-[10px] text-on-surface-variant">
-              Auto-place by filename: <code class="font-bold text-primary-container">1_xxxx</code>, <code class="font-bold text-primary-container">2_xxxx</code>, <code class="font-bold text-primary-container">3_xxxx</code>, <code class="font-bold text-primary-container">4_xxxx</code>
+              Auto-rename &amp; place: <code class="font-bold text-primary-container">1_xxxx</code>, <code class="font-bold text-primary-container">2_xxxx</code>, <code class="font-bold text-primary-container">3_xxxx</code>, <code class="font-bold text-primary-container">4_xxxx</code>
             </span>
             <div class="flex flex-wrap items-center gap-1.5">
+              <input type="file" id="homePhotosMultiInput" accept="image/*" multiple class="hidden" onchange="handleDirectMultiPhotoSelect('residence', this)"/>
+              <button type="button" id="btnSelectHomePhotosMulti" onclick="document.getElementById('homePhotosMultiInput').click()" title="Select 1–4 Home photos directly (no folder or manual file renaming required — auto-renames 1_xxxx..4_xxxx &amp; places in Home Slots 1–4)" class="px-2.5 py-1 rounded border border-emerald-500 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-xs transition-all active:scale-95">
+                <span class="material-symbols-outlined text-[14px]">add_photo_alternate</span>
+                <span>📸 Select Home Photos (1–4)</span>
+              </button>
+
+              <input type="file" id="officePhotosMultiInput" accept="image/*" multiple class="hidden" onchange="handleDirectMultiPhotoSelect('work', this)"/>
+              <button type="button" id="btnSelectOfficePhotosMulti" onclick="document.getElementById('officePhotosMultiInput').click()" title="Select 1–4 Office photos directly (no folder or manual file renaming required — auto-renames 1_xxxx..4_xxxx &amp; places in Office Slots 1–4)" class="px-2.5 py-1 rounded border border-indigo-500 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-xs transition-all active:scale-95">
+                <span class="material-symbols-outlined text-[14px]">add_a_photo</span>
+                <span>🏢 Select Office Photos (1–4)</span>
+              </button>
+
               <input type="file" id="homeFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleDedicatedFolderUpload('residence', this)"/>
               <button type="button" id="btnUploadHomeFolder" onclick="document.getElementById('homeFolderInput').click()" title="Select Home/Residence photo folder (auto-places 1_xxxx, 2_xxxx, 3_xxxx, 4_xxxx into Slots 1–4)" class="px-2.5 py-1 rounded border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-900 text-[10px] font-bold flex items-center gap-1 shadow-xs transition-all">
                 <span class="material-symbols-outlined text-[14px]">home_work</span>
@@ -2040,6 +2052,22 @@
               <span class="material-symbols-outlined text-[18px]">upload_file</span>
               <span>📄 Select PDF Files...</span>
             </button>
+
+            <input type="file" id="tabNcHomePhotosInput" multiple accept="image/*" class="hidden" onchange="handleTabNcSitePhotosSelected('residence', this)"/>
+            <button type="button" onclick="document.getElementById('tabNcHomePhotosInput').click()" title="Select 1–4 Home photos directly — auto-renames to 1_xxxx..4_xxxx and places into Home Slots 1–4 on case creation" class="px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-headline font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95">
+              <span class="material-symbols-outlined text-[16px]">home</span>
+              <span>📸 Select Home Photos (1–4)</span>
+            </button>
+
+            <input type="file" id="tabNcOfficePhotosInput" multiple accept="image/*" class="hidden" onchange="handleTabNcSitePhotosSelected('work', this)"/>
+            <button type="button" onclick="document.getElementById('tabNcOfficePhotosInput').click()" title="Select 1–4 Office photos directly — auto-renames to 1_xxxx..4_xxxx and places into Office Slots 1–4 on case creation" class="px-3 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-headline font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95">
+              <span class="material-symbols-outlined text-[16px]">apartment</span>
+              <span>🏢 Select Office Photos (1–4)</span>
+            </button>
+          </div>
+          <div id="tabNcSitePhotosSummaryRow" class="hidden flex items-center gap-2 flex-wrap pt-1 font-mono text-[10px]">
+            <span id="tabNcHomePhotosBadge" class="hidden px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-300 text-blue-900 font-bold"></span>
+            <span id="tabNcOfficePhotosBadge" class="hidden px-2.5 py-1 rounded-lg bg-purple-50 border border-purple-300 text-purple-900 font-bold"></span>
           </div>
 
           <!-- Staged Files Preview Tray -->
@@ -2344,7 +2372,7 @@
     </div>
   </div>
 
-  <script src="/static/ca-portal.js?v=33"></script>
+  <script src="/static/ca-portal.js?v=34"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
