@@ -488,14 +488,17 @@ def generate_certified_cpv_report(
         experience = f"{experience} years"
     experience = experience or NOT_CAPTURED
 
-    occupation_val = field_form.get("occupation") or NOT_CAPTURED
+    occupation_val = field_form.get("occupation") or ("Student" if "education" in str(loan_type or "").lower() else NOT_CAPTURED)
     # Must match the Annexure B is_working check below exactly (same occupation field, not
     # firm_name) - an applicant whose occupation is e.g. "Business" but who has no office_details
     # captured yet (office fields genuinely not filled in by the field agent) was printing "is a
     # Housewife / Homemaker" here while Annexure B, two pages later, correctly showed an Office
     # Verification section for the same applicant - a contradiction within the same certified
     # report caused by this earlier is_working check keying off firm_name instead of occupation.
-    is_working = field_form.get("occupation") not in ("Housewife", "House Wife", None)
+    is_student = str(occupation_val or "").strip().lower() in ("student", "unemployed", "none") or (
+        "education" in str(loan_type or "").lower() and not firm_name
+    )
+    is_working = field_form.get("occupation") not in ("Housewife", "House Wife", "Student", "Unemployed", None) and not is_student
 
     # Co-applicant's own office, submitted separately in the PWA questionnaire since the
     # co-applicant's workplace is frequently a different premises from the applicant's.
@@ -566,6 +569,8 @@ def generate_certified_cpv_report(
     form16_ay_str = ", ".join(f"A.Y.{ay}" for ay in form16_ay_list) if form16_ay_list else NOT_CAPTURED
 
     form16_rows_co = _build_itr_rows(co_applicant=True)
+    form16_ay_list_co = sorted(form16_rows_co.keys(), reverse=True)
+    form16_ay_str_co = ", ".join(f"A.Y.{ay}" for ay in form16_ay_list_co) if form16_ay_list_co else NOT_CAPTURED
 
     work_bullet = ""
     if is_working:
@@ -574,6 +579,11 @@ def generate_certified_cpv_report(
      The applicant, <b>{applicant_name}</b>, is employed with/ has a business named <b>{firm_name or NOT_CAPTURED}</b>, located at, <b>{office_addr or NOT_CAPTURED}</b>. A physical verification was conducted on {rep_date}.<br/><br/>
      During the verification, the applicant's employment details/ business details was confirmed, the applicant is working as a <b>{position}</b>. The applicant has been associated with the organization for <b>{experience}</b>.<br/><br/>
      Based on the verification conducted, the employment details of the applicant are genuine.<br/><br/>
+        """
+    elif is_student:
+        work_bullet = f"""
+    <b>Working Details:</b><br/><br/>
+     The applicant, <b>{applicant_name}</b>, is a Student. Workplace physical verification for the primary applicant is not applicable.<br/><br/>
         """
     else:
         work_bullet = f"""
@@ -602,6 +612,13 @@ def generate_certified_cpv_report(
     if co_applicant_name:
         kyc_line += f"<br/>The co-applicant, <b>{co_applicant_name}</b>, has submitted the KYC documents."
 
+    if form16_ay_list:
+        itr_p2_line = f"The applicant has submitted Income Tax Return(s) / Form No. 16 for the Assessment year(s) <b>{form16_ay_str}</b> as proof of income, provided for our verification."
+    elif form16_ay_list_co:
+        itr_p2_line = f"The co-applicant has submitted Income Tax Return(s) / Form No. 16 for the Assessment year(s) <b>{form16_ay_str_co}</b> as proof of income, provided for our verification."
+    else:
+        itr_p2_line = "No Income Tax Returns or Form No. 16 were provided for our verification."
+
     p2_content = f"""
     <b>Residential Details:</b><br/><br/>
      A residence verification was conducted for the applicant, <b>{applicant_name}</b>, at the following address Viz: <b>{target_address}</b>, on {rep_date}.<br/><br/>
@@ -611,7 +628,7 @@ def generate_certified_cpv_report(
     {work_bullet}
     {co_work_bullet}
     <b>ITR:</b><br/><br/>
-     {("The applicant has submitted Income Tax Return(s) / Form No. 16 for the Assessment year(s) <b>" + form16_ay_str + "</b> as proof of income, provided for our verification.") if form16_ay_list else "No Income Tax Returns or Form No. 16 were provided for our verification."}<br/><br/>
+     {itr_p2_line}<br/><br/>
     <b>KYC:</b><br/><br/>
      {kyc_line}
     """
@@ -629,9 +646,22 @@ def generate_certified_cpv_report(
         return re.sub(r"\s*\([^)]*\)\s*$", "", val).strip() if val else val
 
     from app.services.cpv_report_data import _age
+    from app.services.field_form_pdf_ingest import infer_applicant_co_relation_by_age
     from datetime import date as _date_cls
     real_age = _age(real_dob, _date_cls.today())
-    marital_val = _strip_regional_suffix(field_form.get("marital_status")) or NOT_CAPTURED
+    real_age_co = _age(real_dob_co, _date_cls.today()) if co_applicant_name else None
+    _rel_info = infer_applicant_co_relation_by_age(
+        applicant_name=applicant_name,
+        applicant_age=real_age or field_form.get("age"),
+        applicant_gender=real_gender,
+        co_applicant_name=co_applicant_name,
+        co_applicant_age=real_age_co or office_co.get("age"),
+        co_applicant_gender=real_gender_co,
+        explicit_relation=field_form.get("co_applicant_relation") or office_co.get("relation_to_applicant"),
+    )
+    marital_val = _strip_regional_suffix(field_form.get("marital_status")) or _rel_info.get("applicant_marital_status") or NOT_CAPTURED
+    if _rel_info.get("applicant_marital_status") == "Unmarried" and (real_age and int(str(real_age)) <= 23):
+        marital_val = "Unmarried"
     community_val = field_form.get("community") or NOT_CAPTURED
     qual_val = field_form.get("qualification") or NOT_CAPTURED
     dob_age_gender_val = " / ".join(filter(None, [real_dob, real_age, real_gender])) or NOT_CAPTURED
@@ -656,14 +686,15 @@ def generate_certified_cpv_report(
     story.append(Spacer(1, 8))
 
     if co_applicant_name:
-        real_age_co = _age(real_dob_co, _date_cls.today())
         dob_age_gender_val_co = " / ".join(filter(None, [real_dob_co, real_age_co, real_gender_co])) or NOT_CAPTURED
+        co_marital_val = _strip_regional_suffix(office_co.get("marital_status")) or _rel_info.get("co_marital_status") or NOT_CAPTURED
+        co_rel_to_app = office_co.get("relation_to_applicant") or _rel_info.get("co_relation_to_applicant") or NOT_CAPTURED
         anxA_p3_co = [
             [Paragraph("<b>Name of Co-Applicant</b>", table_cell_bold), Paragraph(co_applicant_name, table_cell_style), Paragraph("<b>Contact Number</b>", table_cell_bold), Paragraph(co_applicant_phone or NOT_CAPTURED, table_cell_style)],
-            [Paragraph("<b>DOB / Age / Gender</b>", table_cell_bold), Paragraph(dob_age_gender_val_co, table_cell_style), Paragraph("<b>Marital Status</b>", table_cell_bold), Paragraph(_strip_regional_suffix(office_co.get("marital_status")) or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>DOB / Age / Gender</b>", table_cell_bold), Paragraph(dob_age_gender_val_co, table_cell_style), Paragraph("<b>Marital Status</b>", table_cell_bold), Paragraph(co_marital_val, table_cell_style)],
             [Paragraph("<b>Community</b>", table_cell_bold), Paragraph(office_co.get("community") or NOT_CAPTURED, table_cell_style), Paragraph("<b>KYC PAN No.</b>", table_cell_bold), Paragraph(real_pan_co or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Aadhar Card No.</b>", table_cell_bold), Paragraph(real_aadhaar_co or NOT_CAPTURED, table_cell_style), Paragraph("<b>Qualification</b>", table_cell_bold), Paragraph(office_co.get("qualification") or NOT_CAPTURED, table_cell_style)],
-            [Paragraph("<b>Occupation</b>", table_cell_bold), Paragraph(co_occupation_val, table_cell_style), Paragraph("<b>Relation to Applicant</b>", table_cell_bold), Paragraph(office_co.get("relation_to_applicant") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Occupation</b>", table_cell_bold), Paragraph(co_occupation_val, table_cell_style), Paragraph("<b>Relation to Applicant</b>", table_cell_bold), Paragraph(co_rel_to_app, table_cell_style)],
         ]
         t_anxA_p3_co = Table(anxA_p3_co, colWidths=[1.8 * inch, 2.0 * inch, 1.8 * inch, 1.9 * inch])
         t_anxA_p3_co.setStyle(TableStyle([
@@ -886,7 +917,7 @@ def generate_certified_cpv_report(
     story.append(PageBreak())
     add_firm_header(5)
     
-    is_working = isinstance(field_form, dict) and field_form.get("occupation") not in ("Housewife", "House Wife", None)
+    is_working = isinstance(field_form, dict) and field_form.get("occupation") not in ("Housewife", "House Wife", "Student", "Unemployed", None) and not is_student
     is_business = str(field_form.get("occupation") or "").strip().lower() == "business"
     if is_working:
         anx_b_title = "Office Verification (Business Premises)" if is_business else "Office Verification (Salaried / Employer Premises)"
@@ -918,7 +949,8 @@ def generate_certified_cpv_report(
             [Paragraph("<b>Who meet?</b>", table_cell_bold), Paragraph(office.get("who_meet") or NOT_CAPTURED, table_cell_style)],
         ]
     else:
-        story.append(Paragraph("__________Annexure ‘B’__________<br/>Office Verification (Housewife)", anx_title_style))
+        non_work_label = "Student" if is_student else "Housewife"
+        story.append(Paragraph(f"__________Annexure ‘B’__________<br/>Office Verification ({non_work_label})", anx_title_style))
         story.append(Spacer(1, 4))
         b_rows = [
             "Firm Name", "Premises Address", "Landmark", "Firm Type", "Premises Ownership",
@@ -927,7 +959,7 @@ def generate_certified_cpv_report(
             "Assets Visible", "Reference", "Overall Assessment", "Who meet?"
         ]
         p5_grid = [
-            [Paragraph(f"<b>{r}</b>", table_cell_bold), Paragraph("Not Applicable (Applicant is a Housewife / Co-Applicant)", table_cell_style)]
+            [Paragraph(f"<b>{r}</b>", table_cell_bold), Paragraph(f"Not Applicable (Applicant is a {non_work_label})", table_cell_style)]
             for r in b_rows
         ]
 

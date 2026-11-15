@@ -471,27 +471,36 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
     office = applicant.get("office") or {}
     firm_name = office.get("firm_name") or ""
     office_addr = office.get("address") or ""
-    # These used to fall back to specimen sample text ("Teacher / Job", "10 years") instead of
-    # blank whenever Office Details wasn't filled in - harmless while is_working could only be
-    # True alongside a real firm_name, but once is_working is decided from occupation alone (see
-    # above), a working applicant with Office Details not yet captured would otherwise get a
-    # fabricated position/experience printed into a certified bank document as if verified.
     position = office.get("position") or ""
     experience = office.get("experience") or office.get("period_of_stay") or ""
     if experience and not str(experience).lower().endswith("years") and not str(experience).lower().endswith("yrs"):
         experience = f"{experience} years"
-    
-    # Whether the applicant is "working" (prints the office/business narrative + Annexure B)
-    # must be decided from the stated occupation itself, not from whether a firm name happened
-    # to be captured - gating on firm_name meant any case where the agent simply hadn't filled
-    # in Office Details yet (firm_name blank) was reported as "Housewife / Homemaker, Workplace
-    # physical verification is not applicable" even when the real occupation was e.g. "Business",
-    # falsely certifying an unverified, fabricated employment status on a bank-facing document.
+
     occupation_str = (applicant.get("occupation") or "").lower()
-    NOT_WORKING_OCCUPATIONS = ("housewife", "house wife", "home maker", "homemaker", "retired")
+    NOT_WORKING_OCCUPATIONS = ("housewife", "house wife", "home maker", "homemaker", "retired", "student", "--")
     is_working = not any(kw in occupation_str for kw in NOT_WORKING_OCCUPATIONS) if occupation_str else bool(firm_name and firm_name != "NA")
 
+    # If the primary applicant is a non-working student/child and the co-applicant is the working
+    # earner (e.g. Father's business on an Education Loan), narrate the Co-Applicant's working details!
+    work_role_label = "applicant"
+    work_person_name = a_name
+    co_office = (co.get("office") or {}) if co else {}
+    if not is_working and not firm_name and co and (co_office.get("firm_name") or co_office.get("address")):
+        is_working = True
+        work_role_label = "co-applicant"
+        work_person_name = co.get("display_name") or co.get("name") or "the co-applicant"
+        firm_name = co_office.get("firm_name") or ""
+        office_addr = co_office.get("address") or ""
+        position = co_office.get("position") or ""
+        experience = co_office.get("experience") or co_office.get("period_of_stay") or ""
+        if experience and not str(experience).lower().endswith("years") and not str(experience).lower().endswith("yrs"):
+            experience = f"{experience} years"
+
     itr_list = applicant.get("itr") or []
+    itr_role_label = "applicant"
+    if not itr_list and co and (co.get("itr") or []):
+        itr_list = co.get("itr") or []
+        itr_role_label = "co-applicant"
     ays = [r.get("ay") for r in itr_list if r.get("ay") and r.get("ay") != "NA"]
     if len(ays) >= 2:
         itr_ay_str = ", ".join(ays[:-1]) + " and " + ays[-1]
@@ -501,6 +510,13 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
         itr_ay_str = ""
 
     form16_ay_str = ", ".join(f"A.Y.{ay}" if not str(ay).startswith("A.Y.") else str(ay) for ay in ays) if ays else ""
+    is_student_or_unmarried = (
+        "student" in occupation_str
+        or occupation_str == "--"
+        or "education" in str(data.get("loan_type") or "").lower()
+        or str(applicant.get("marital_status") or "").lower() in ("unmarried", "single")
+        or str(a_name).startswith("Miss.")
+    )
 
     for p in doc.paragraphs:
         t = p.text.strip()
@@ -515,29 +531,28 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
             _set_par_text(p, f"The property is a {bldg_type} and is classified as {ownership}. The surrounding area is residential in nature, and the locality was observed to be developed with adequate infrastructure.")
         elif "employed with/ has a business named" in t or "is employed with" in t:
             if is_working and firm_name:
-                _set_par_text(p, f"The applicant, {a_name}, is employed with/ has a business named {firm_name}, located at, {office_addr}. A physical verification was conducted on {rep_date}.")
+                _set_par_text(p, f"The {work_role_label}, {work_person_name}, is employed with/ has a business named {firm_name}, located at, {office_addr}. A physical verification was conducted on {rep_date}.")
             elif is_working:
-                # Occupation is known and not a non-working status, but Office Details was never
-                # filled in on-site - say so honestly instead of either fabricating a firm name
-                # or falsely claiming the applicant is a Housewife/Homemaker.
-                _set_par_text(p, f"The applicant, {a_name}, is stated to be engaged in {occupation_str or 'employment/business'}; office/business premises verification was not available at the time of this report.")
+                _set_par_text(p, f"The {work_role_label}, {work_person_name}, is stated to be engaged in {occupation_str or 'employment/business'}; office/business premises verification was not available at the time of this report.")
+            elif is_student_or_unmarried:
+                _set_par_text(p, f"The applicant, {a_name}, is a Student. Workplace physical verification for the student applicant is not applicable.")
             else:
                 _set_par_text(p, f"The applicant, {a_name}, is a Housewife / Homemaker. Workplace physical verification is not applicable.")
         elif "employment details/ business details was confirmed" in t:
             if is_working and position:
-                _set_par_text(p, f"During the verification, the applicant's employment details/ business details was confirmed, the applicant is working as a {position}. The applicant has been associated with the organization for {experience}.")
+                _set_par_text(p, f"During the verification, the {work_role_label}'s employment details/ business details was confirmed, the {work_role_label} is working as a {position}. The {work_role_label} has been associated with the organization for {experience}.")
             elif is_working:
-                _set_par_text(p, "The applicant's employment/business details could not be independently confirmed, as office/business premises verification was not available at the time of this report.")
+                _set_par_text(p, f"The {work_role_label}'s employment/business details could not be independently confirmed, as office/business premises verification was not available at the time of this report.")
             else:
                 _set_par_text(p, "During the verification, it was confirmed that the applicant is not engaged in external commercial employment.")
         elif "employment details of the applicant are genuine" in t:
             if is_working:
-                _set_par_text(p, "Based on the verification conducted, the employment details of the applicant are genuine.")
+                _set_par_text(p, f"Based on the verification conducted, the employment details of the {work_role_label} are genuine.")
             else:
                 _set_par_text(p, "Based on the verification conducted, the applicant's profile details are genuine.")
         elif "submitted Income Tax Returns" in t and "Assessment years" in t:
             if itr_ay_str:
-                _set_par_text(p, f"The applicant has submitted Income Tax Return(s) / Form No. 16 for the Assessment year(s) {itr_ay_str} as proof of income, provided for our verification.")
+                _set_par_text(p, f"The {itr_role_label} has submitted Income Tax Return(s) / Form No. 16 for the Assessment year(s) {itr_ay_str} as proof of income, provided for our verification.")
             else:
                 _set_par_text(p, "No Income Tax Returns or Form No. 16 were provided for our verification.")
         elif "Form No: 16" in t and "Was Provided for Our Verification" in t:
@@ -601,14 +616,35 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
             _replace_token(doc, f"[[{key}_{i + 1}]]", lines[i] if i < len(lines) else None, drop_if_empty=True)
 
     # Annexure A / B / C / D
+    itr_holders = [applicant.get("display_name")] + ([co.get("display_name")] if co else [])
+    tables_to_remove = []
     if co:
         _fill_identity(T[3], applicant)
         _fill_identity(T[4], co)
         family_t, prem_t, det_t = T[5], T[6], T[7]
-        _fill_office(T[8], applicant)
-        _fill_office(T[9], co)
-        _fill_itr(T[10], applicant.get("itr") or [])
-        _fill_itr(T[11], co.get("itr") or [])
+        app_has_off = bool((applicant.get("office") or {}).get("firm_name") or (applicant.get("office") or {}).get("address"))
+        co_has_off = bool((co.get("office") or {}).get("firm_name") or (co.get("office") or {}).get("address"))
+        if not app_has_off and co_has_off:
+            # Student / non-working 1st applicant with working 2nd applicant: print only Co-applicant's office table
+            _fill_office(T[8], co)
+            tables_to_remove.append(T[9])
+            offices_pars = [x for x in doc.paragraphs if x.text.strip().startswith("Office Verification (Business/ Employer)")]
+            if len(offices_pars) > 1 and offices_pars[1]._p.getparent() is not None:
+                offices_pars[1]._p.getparent().remove(offices_pars[1]._p)
+        else:
+            _fill_office(T[8], applicant)
+            _fill_office(T[9], co)
+
+        app_has_itr = bool(applicant.get("itr"))
+        co_has_itr = bool(co.get("itr"))
+        if not app_has_itr and co_has_itr:
+            _fill_itr(T[10], co.get("itr") or [])
+            tables_to_remove.append(T[11])
+            itr_holders = [co.get("display_name"), ""]
+        else:
+            _fill_itr(T[10], applicant.get("itr") or [])
+            _fill_itr(T[11], co.get("itr") or [])
+
         _fill_bank(T[12], applicant.get("bank") or {})
         _fill_bank(T[13], co.get("bank") or {})
     else:
@@ -620,10 +656,10 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
     _fill_family(family_t, data.get("family") or [])
     _fill_residence(prem_t, det_t, data.get("residence") or {})
 
-    # Annexure D's "Name: Mr" heading (the account holder's name, above the bank details table)
-    # is a bare static paragraph outside any table - none of the _fill_* calls above touch it,
-    # so it printed literally as "Name: Mr" with the real name missing. Fill the occurrences in
-    # document order: applicant's first, co-applicant's second (when present).
+    for tbl in tables_to_remove:
+        if tbl._tbl.getparent() is not None:
+            tbl._tbl.getparent().remove(tbl._tbl)
+
     bank_holders = [applicant.get("display_name")] + ([co.get("display_name")] if co else [])
     holder_idx = 0
     itr_holder_idx = 0
@@ -632,8 +668,13 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
         if txt == "Name: Mr" and holder_idx < len(bank_holders):
             _set_par_text(p, f"Name: {bank_holders[holder_idx] or 'NA'}")
             holder_idx += 1
-        elif txt in ("Mr", "Mr.", "Mrs", "Ms") and itr_holder_idx < len(bank_holders):
-            _set_par_text(p, bank_holders[itr_holder_idx] or "NA")
+        elif txt in ("Mr", "Mr.", "Mrs", "Ms") and itr_holder_idx < len(itr_holders):
+            val_h = itr_holders[itr_holder_idx]
+            if val_h == "":
+                if p._p.getparent() is not None:
+                    p._p.getparent().remove(p._p)
+            else:
+                _set_par_text(p, val_h or "NA")
             itr_holder_idx += 1
 
     _replace_token(doc, "[[ITR_NAME_1]]", applicant.get("display_name"))

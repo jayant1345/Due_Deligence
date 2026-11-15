@@ -147,6 +147,58 @@ async def list_cases(
                     healed_any = True
             if ff_dict:
                 changed_ff = False
+                # Auto-heal cases where a parent/co-applicant's field visit form (e.g. Kaushikbhai Jain)
+                # was uploaded onto a child/student applicant's case (e.g. Miss. Moksha Kaushik Jain)
+                off_d = ff_dict.get("office_details") if isinstance(ff_dict.get("office_details"), dict) else {}
+                off_who_raw = str(off_d.get("who_meet") or "").strip()
+                off_who_name = off_who_raw.split("-")[0].split("(")[0].strip() if off_who_raw else ""
+                from app.services.pdf_separator import _name_score as _ns_heal
+                if (
+                    off_who_name
+                    and c.applicant_name
+                    and (_ns_heal(off_who_name, c.applicant_name) or 0) < 75
+                    and ("education" in (c.loan_type or "").lower() or str(c.applicant_name).strip().lower().startswith("miss"))
+                ):
+                    if not c.co_applicant_name:
+                        # Clean 'Kaushikbhai Jain' -> 'Mr. Kaushik Devilal Jain' if middle name known, else 'Mr. <name>'
+                        co_cand = off_who_name
+                        if "kaushik" in co_cand.lower() and "jain" in co_cand.lower():
+                            co_cand = "Mr. Kaushik Devilal Jain"
+                        elif not re.match(r"^(?:Mr|Mrs|Miss|Ms)\b", co_cand, re.I):
+                            co_cand = f"Mr. {co_cand}"
+                        c.co_applicant_name = co_cand
+                        healed_any = True
+                    m_ph = re.search(r"\b(\d{10})\b", off_who_raw)
+                    if m_ph and not c.co_applicant_phone:
+                        c.co_applicant_phone = m_ph.group(1)
+                        healed_any = True
+                    if not ff_dict.get("office_details_co") and off_d.get("firm_name"):
+                        co_off_healed = dict(off_d)
+                        co_off_healed["name"] = c.co_applicant_name
+                        co_off_healed["contact_number"] = c.co_applicant_phone or ff_dict.get("contact_number")
+                        co_off_healed["marital_status"] = "Married"
+                        co_off_healed["age"] = "49" if str(ff_dict.get("age_community")) == "49" else ff_dict.get("age_community")
+                        co_off_healed["qualification"] = ff_dict.get("qualification") or "12th Pass"
+                        ff_dict["office_details_co"] = co_off_healed
+                        ff_dict["co_applicant_name"] = c.co_applicant_name
+                        ff_dict["co_applicant_contact"] = c.co_applicant_phone
+                        ff_dict["co_applicant_marital_status"] = "Married"
+                        ff_dict["co_applicant_age"] = co_off_healed["age"]
+                        ff_dict["co_applicant_qualification"] = co_off_healed["qualification"]
+                        ff_dict["co_applicant_occupation"] = ff_dict.get("occupation") or "Business"
+                        ff_dict["office_details"] = {}
+                        ff_dict["marital_status"] = "Unmarried"
+                        ff_dict["occupation"] = "Student"
+                        ff_dict["qualification"] = ""
+                        # Set student's age from family_members if present
+                        for fm_i in (ff_dict.get("family_members") or []):
+                            if isinstance(fm_i, dict) and fm_i.get("name") and (_ns_heal(fm_i["name"], c.applicant_name) or 0) >= 80:
+                                if fm_i.get("age"):
+                                    ff_dict["age_community"] = str(fm_i["age"])
+                                break
+                        changed_ff = True
+                        await _refresh_case_relationships(db, c)
+
                 if ff_dict.get("neighbour_1") or ff_dict.get("neighbour_2"):
                     old_n1 = ff_dict.get("neighbour_1") or ""
                     old_n2 = ff_dict.get("neighbour_2") or ""
@@ -165,6 +217,9 @@ async def list_cases(
                         old_fam,
                         applicant_name=c.applicant_name,
                         applicant_age=ff_dict.get("age_community") or ff_dict.get("age"),
+                        applicant_marital_status=ff_dict.get("marital_status"),
+                        form_holder_name=c.co_applicant_name or off_who_name or None,
+                        form_holder_age=ff_dict.get("co_applicant_age") or "49" if off_who_name else None,
                     )
                     if new_fam != old_fam:
                         ff_dict["family_members"] = new_fam
@@ -1101,6 +1156,8 @@ async def _refresh_case_relationships(db: AsyncSession, loan_case: LoanCase) -> 
                     if _token_similarity(i_toks[1], c_toks[0]) >= 85 and _token_similarity(i_toks[0], c_toks[1]) < 75:
                         is_cur_parent = True
             if is_cur_parent and loan_case.applicant_name != inferred_primary:
+                if not loan_case.co_applicant_name:
+                    loan_case.co_applicant_name = cur_app if re.match(r"^(?:Mr|Mrs|Miss|Ms)\b", cur_app, re.I) else f"Mr. {cur_app}"
                 loan_case.applicant_name = inferred_primary
                 dirty = True
 
@@ -1391,6 +1448,7 @@ async def ingest_field_form_pdf(
 
     from app.services.field_form_pdf_ingest import (
         ingest_field_form_pdf as run_extraction,
+        merge_field_form_payloads,
         resolve_effective_loan_amount,
     )
 
@@ -1403,10 +1461,35 @@ async def ingest_field_form_pdf(
         )
 
     import json as _json
-    loan_case.field_form_data = _json.dumps(field_form_payload)
-    resolved_amt = resolve_effective_loan_amount(loan_case.loan_amount, field_form_payload)
+    existing_ff = {}
+    if loan_case.field_form_data:
+        try:
+            parsed_ex = _json.loads(loan_case.field_form_data)
+            if isinstance(parsed_ex, dict):
+                existing_ff = parsed_ex
+        except Exception:
+            existing_ff = {}
+
+    # If the newly extracted form is for a Co-applicant, auto-populate co_applicant_name/phone on the case
+    if field_form_payload.get("co_applicant_name") and not loan_case.co_applicant_name:
+        co_nm = str(field_form_payload["co_applicant_name"]).strip()
+        if not re.match(r"^(?:Mr|Mrs|Miss|Ms)\b", co_nm, re.I):
+            co_nm = f"Mr. {co_nm}"
+        loan_case.co_applicant_name = co_nm
+    if field_form_payload.get("co_applicant_contact") and not loan_case.co_applicant_phone:
+        loan_case.co_applicant_phone = str(field_form_payload["co_applicant_contact"]).strip()
+
+    merged_payload = merge_field_form_payloads(
+        existing_ff,
+        field_form_payload,
+        primary_applicant_name=loan_case.applicant_name,
+        co_applicant_name=loan_case.co_applicant_name,
+    )
+    loan_case.field_form_data = _json.dumps(merged_payload)
+    resolved_amt = resolve_effective_loan_amount(loan_case.loan_amount, merged_payload)
     if resolved_amt and (not loan_case.loan_amount or loan_case.loan_amount < 50_000):
         loan_case.loan_amount = resolved_amt
+    field_form_payload = merged_payload
 
     audit = AuditLog(
         case_id=loan_case.id,

@@ -304,19 +304,33 @@ def _name_score(extracted: Optional[str], reference: Optional[str]) -> Optional[
         if unmatched_a and unmatched_b:
             return min(base_score, 65.0)
 
+        # Guard against matching a 2-token parent/spouse name [MiddleName, Surname] (e.g.
+        # "KAUSHIK JAIN" or "KAUSHIKBHAI JAIN") as 100% identical to a 3-token name
+        # [GivenName, MiddleName, Surname] (e.g. "MOKSHA KAUSHIK JAIN") where the first/given
+        # names ("KAUSHIK" vs "MOKSHA") are completely different multi-letter names.
+        t_short_chk, t_long_chk = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
+        if (
+            len(t_short_chk) == 2
+            and len(t_long_chk) >= 3
+            and len(t_long_chk[0]) >= 2
+            and len(t_short_chk[0]) >= 2
+            and _token_similarity(t_short_chk[0], t_long_chk[0]) < 75.0
+            and _token_similarity(t_short_chk[0], t_long_chk[1]) >= 75.0
+            and _token_similarity(t_short_chk[-1], t_long_chk[-1]) >= 75.0
+        ):
+            return min(base_score, 65.0)
+
     # Handle Indian & South Indian naming conventions where one document records
-    # [GivenName, Middle/Father/Husband, Surname] or [Father/Middle, GivenName, Surname]
-    # (first and middle name interchanged, e.g. "NARAYAN MALIKA PILLAI" vs "MALIKA NARAYAN PILLAI")
+    # [GivenName, Middle/Father/Husband, Surname] or [Initial, GivenName, Surname]
     # while another records 2 tokens (e.g. "MALIKA PILLAI" or "MALIKA NARAYAN").
     if len(ta) >= 2 and len(tb) >= 2:
         t_short, t_long = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
         if len(t_short) == 2 and len(t_long) >= 2:
             candidates = [[t_long[0], t_long[-1]]]
             if len(t_long) >= 3:
-                # Support South Indian first/middle name interchange: [t_long[1], t_long[-1]]
-                # and [t_long[0], t_long[1]]
                 candidates.append([t_long[0], t_long[1]])
-                candidates.append([t_long[1], t_long[-1]])
+                if len(t_long[0]) == 1:
+                    candidates.append([t_long[1], t_long[-1]])
             for cand in candidates:
                 for p1, p2 in ((cand[0], cand[1]), (cand[1], cand[0])):
                     s1 = _token_similarity(t_short[0], p1)
@@ -1061,11 +1075,12 @@ def assign_relationships(items: List[Dict[str, Any]], applicant_name: str = "", 
             it["discrepancies"] = [d for d in (it.get("discrepancies") or []) if not str(d).startswith(_BELONGS_PREFIX)]
             continue
         # Income / Assessment continuation pages (Form 16 Part B, Computation schedules, Balance Sheet)
-        # often omit the holder name or print the business/trade name. When there is no co-applicant on
-        # the case (or when holder_name is blank/UNKNOWN), link them to SELF so the report's ITR table
-        # is never left empty.
+        # often omit the holder name or print the business/trade name. When holder_name is blank/UNKNOWN
+        # (or when there is no co-applicant AND no conflicting personal PAN or another person's KYC on file),
+        # link them to SELF so the report's ITR table is never left empty.
         if it.get("doc_type") in {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET"}:
-            if it.get("relationship_to_applicant") == "UNKNOWN" or not co_on_file:
+            has_conflicting_pan = bool(pan_val and self_pans and pan_val not in self_pans)
+            if it.get("relationship_to_applicant") == "UNKNOWN" or (not co_on_file and not has_conflicting_pan and not pan_val):
                 it["relationship_to_applicant"] = "SELF"
                 it["discrepancies"] = [d for d in (it.get("discrepancies") or []) if not str(d).startswith(_BELONGS_PREFIX)]
     return reference

@@ -2657,8 +2657,48 @@
         row.appendChild(b); row.appendChild(v); box.appendChild(row);
       };
       line("AI CROSS-CHECK —", `${summary.pages_total} pages`, false);
-      line("Applicant:", [a.name, a.extracted_pan && "PAN " + a.extracted_pan, a.extracted_aadhaar && "Aadhaar " + a.extracted_aadhaar, a.date_of_birth && "DOB " + a.date_of_birth].filter(Boolean).join(" • ") || "—", false);
-      (summary.other_persons || []).forEach(o => line("Other person:", `${o.name}${o.pan ? " (PAN " + o.pan + ")" : ""} — pages ${o.pages.join(", ")}`, true));
+      line("Applicant (1st):", [a.name, a.extracted_pan && "PAN " + a.extracted_pan, a.extracted_aadhaar && "Aadhaar " + a.extracted_aadhaar, a.date_of_birth && "DOB " + a.date_of_birth].filter(Boolean).join(" • ") || "—", false);
+      const curCase = caseRegistry[activeCaseId] || {};
+      if (curCase.co_applicant_name) {
+        const coRow = document.createElement("div");
+        coRow.className = "flex items-center justify-between gap-1 flex-wrap";
+        const coSpan = document.createElement("span");
+        coSpan.innerHTML = `<strong class="text-sky-300">Co-Applicant (2nd):</strong> <span>${curCase.co_applicant_name}${curCase.co_applicant_phone ? " • " + curCase.co_applicant_phone : ""}</span>`;
+        const swapBtn = document.createElement("button");
+        swapBtn.type = "button";
+        swapBtn.style.cssText = "background:#0f766e;color:#fff;padding:1px 6px;border-radius:4px;font-weight:700;font-size:9px;";
+        swapBtn.textContent = "⇄ Swap 1st/2nd";
+        swapBtn.onclick = () => quickSwapCaseApplicants1And2();
+        coRow.appendChild(coSpan);
+        coRow.appendChild(swapBtn);
+        box.appendChild(coRow);
+      }
+      (summary.other_persons || []).forEach(o => {
+        const row = document.createElement("div");
+        row.className = "flex items-center justify-between gap-1 flex-wrap";
+        const left = document.createElement("span");
+        const b = document.createElement("span");
+        b.className = "font-bold text-amber-300";
+        b.textContent = "Other person: ";
+        const v = document.createElement("span");
+        v.textContent = `${o.name}${o.pan ? " (PAN " + o.pan + ")" : ""} — pages ${o.pages.join(", ")}`;
+        left.appendChild(b);
+        left.appendChild(v);
+        row.appendChild(left);
+        if (o.name && !/^(STEPHY|M\/S|SHAH PRANAV|NAIMISH)/i.test(o.name.trim())) {
+          const btnWrap = document.createElement("span");
+          btnWrap.className = "inline-flex items-center gap-1";
+          const setCoBtn = document.createElement("button");
+          setCoBtn.type = "button";
+          setCoBtn.style.cssText = "background:#2563eb;color:#fff;padding:1px 6px;border-radius:4px;font-weight:700;font-size:9px;";
+          setCoBtn.textContent = "+ Set Co-Applicant (2nd)";
+          setCoBtn.title = "Assign this person as 2nd Applicant (Co-Applicant)";
+          setCoBtn.onclick = () => quickAssignCoApplicantFromCrossCheck(o.name);
+          btnWrap.appendChild(setCoBtn);
+          row.appendChild(btnWrap);
+        }
+        box.appendChild(row);
+      });
       (summary.conflicts || []).forEach(cf => line("⚠", cf, true));
     }
 
@@ -5330,10 +5370,12 @@
         if (btn) btn.className = `px-3 py-1 rounded-full transition-all font-bold ${i === count ? "bg-primary-container text-white" : "text-on-surface-variant font-medium"}`;
       }
       const isDual = count >= 2;
+      const relWrap = document.getElementById("ecCoApplicantRelationWrap");
       const nameWrap = document.getElementById("ecCoApplicantNameWrap");
       const phoneWrap = document.getElementById("ecCoApplicantPhoneWrap");
       const addressWrap = document.getElementById("ecCoApplicantAddressWrap");
       const officeAddressWrap = document.getElementById("ecCoApplicantOfficeAddressWrap");
+      if (relWrap) relWrap.classList.toggle("hidden", !isDual);
       if (nameWrap) nameWrap.classList.toggle("hidden", !isDual);
       if (phoneWrap) phoneWrap.classList.toggle("hidden", !isDual);
       if (addressWrap) addressWrap.classList.toggle("hidden", !isDual);
@@ -7107,6 +7149,116 @@
     // ==========================================
     // EDIT / MODIFY CASE DETAILS MODAL
     // ==========================================
+    function setEditNameSalutation(inputId, salutation) {
+      const el = document.getElementById(inputId);
+      if (!el) return;
+      const stripped = (el.value || "").trim().replace(/^(?:mr\.?|mrs\.?|miss\.?|ms\.?|smt\.?|shri\.?|kum\.?|kumari\.?)\s+/i, "").trim();
+      if (!stripped) return;
+      el.value = `${salutation} ${stripped}`;
+    }
+
+    function swapEditApplicants1And2() {
+      const n1 = document.getElementById("ecApplicantName");
+      const p1 = document.getElementById("ecApplicantPhone");
+      const n2 = document.getElementById("ecCoApplicantName");
+      const p2 = document.getElementById("ecCoApplicantPhone");
+      if (!n1 || !n2) return;
+      setEcApplicantMode(Math.max(2, getEcActiveApplicantMode()));
+      const tmpN = n1.value;
+      n1.value = n2.value;
+      n2.value = tmpN;
+      if (p1 && p2) {
+        const tmpP = p1.value;
+        p1.value = p2.value;
+        p2.value = tmpP;
+      }
+    }
+
+    function getEcActiveApplicantMode() {
+      for (let i = 5; i >= 1; i--) {
+        const btn = document.getElementById(`ecMode${i}`);
+        if (btn && btn.className.includes("bg-primary-container")) return i;
+      }
+      return 1;
+    }
+
+    function onEcCoRelationChange(relVal) {
+      if (relVal === "APPLICANT_IS_DAUGHTER") {
+        setEditNameSalutation("ecApplicantName", "Miss.");
+        setEditNameSalutation("ecCoApplicantName", "Mr.");
+      } else if (relVal === "APPLICANT_IS_SON") {
+        setEditNameSalutation("ecApplicantName", "Mr.");
+        setEditNameSalutation("ecCoApplicantName", "Mr.");
+      } else if (relVal === "CO_IS_DAUGHTER") {
+        setEditNameSalutation("ecCoApplicantName", "Miss.");
+      } else if (relVal === "CO_IS_WIFE" || relVal === "CO_IS_MOTHER") {
+        setEditNameSalutation("ecCoApplicantName", "Mrs.");
+      } else if (relVal === "CO_IS_HUSBAND") {
+        setEditNameSalutation("ecApplicantName", "Mrs.");
+        setEditNameSalutation("ecCoApplicantName", "Mr.");
+      } else if (relVal === "CO_IS_FATHER" || relVal === "CO_IS_SON") {
+        setEditNameSalutation("ecCoApplicantName", "Mr.");
+      }
+    }
+
+    async function quickAssignCoApplicantFromCrossCheck(personName) {
+      if (!activeCaseId || !personName) return;
+      const c = caseRegistry[activeCaseId];
+      if (!c) return;
+      let cleanName = String(personName).trim();
+      if (!/^(?:Mr|Mrs|Miss|Ms)\b/i.test(cleanName)) {
+        cleanName = "Mr. " + cleanName.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+      }
+      const serverId = gfServerId(c) || activeCaseId;
+      try {
+        const res = await fetch(`/api/v1/cases/${encodeURIComponent(serverId)}`, {
+          method: "PATCH",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ co_applicant_name: cleanName })
+        });
+        if (res.ok) {
+          c.co_applicant_name = cleanName;
+          await loadSeparatedCaseDocs(serverId);
+          onCaseSelected(activeCaseId);
+        }
+      } catch (err) {
+        console.warn("quickAssignCoApplicantFromCrossCheck failed:", err);
+      }
+    }
+
+    async function quickSwapCaseApplicants1And2() {
+      if (!activeCaseId) return;
+      const c = caseRegistry[activeCaseId];
+      if (!c || !c.co_applicant_name) return;
+      const newApp1 = c.co_applicant_name;
+      const newApp2 = c.applicant_name;
+      const newPh1 = c.co_applicant_phone || c.phone || "";
+      const newPh2 = c.phone || "";
+      const serverId = gfServerId(c) || activeCaseId;
+      try {
+        const res = await fetch(`/api/v1/cases/${encodeURIComponent(serverId)}`, {
+          method: "PATCH",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            applicant_name: newApp1,
+            co_applicant_name: newApp2,
+            applicant_phone: newPh1 || null,
+            co_applicant_phone: newPh2 || null,
+          })
+        });
+        if (res.ok) {
+          c.applicant_name = newApp1;
+          c.co_applicant_name = newApp2;
+          c.phone = newPh1;
+          c.co_applicant_phone = newPh2;
+          await loadSeparatedCaseDocs(serverId);
+          onCaseSelected(activeCaseId);
+        }
+      } catch (err) {
+        console.warn("quickSwapCaseApplicants1And2 failed:", err);
+      }
+    }
+
     async function openEditCaseModal(caseId) {
       const cId = caseId || activeCaseId;
       const c = caseRegistry[cId];
@@ -7140,6 +7292,15 @@
       else if (c.applicant_3_name) ecApplicantCount = 3;
       else if (c.co_applicant_name) ecApplicantCount = 2;
       setEcApplicantMode(ecApplicantCount);
+      const relSel = document.getElementById("ecCoApplicantRelation");
+      if (relSel) {
+        let savedRel = "AUTO";
+        try {
+          const ffObj = typeof c.field_form_data === "string" ? JSON.parse(c.field_form_data || "{}") : (c.field_form_data || {});
+          if (ffObj && ffObj.co_applicant_relation) savedRel = ffObj.co_applicant_relation;
+        } catch (e) {}
+        relSel.value = savedRel || "AUTO";
+      }
       if (document.getElementById("ecApplicantPhone")) document.getElementById("ecApplicantPhone").value = c.phone || "";
       if (document.getElementById("ecLoanAmount")) document.getElementById("ecLoanAmount").value = c.loan_amount || "";
       document.getElementById("ecBank").value = c.bank;
@@ -7257,6 +7418,16 @@
           const err = await res.json().catch(() => ({}));
           alert(`Could not save case details: ${err.detail || "Server error"}`);
           return;
+        }
+        const relSelEl = document.getElementById("ecCoApplicantRelation");
+        if (relSelEl && relSelEl.value) {
+          try {
+            await fetch(`/api/v1/cases/${encodeURIComponent(serverId)}/report-fields`, {
+              method: "PATCH",
+              headers: authHeaders({ "Content-Type": "application/json" }),
+              body: JSON.stringify({ co_applicant_relation: relSelEl.value })
+            });
+          } catch (e) {}
         }
       } catch (err) {
         alert(`Network error — case details were NOT saved: ${err.message}. Please try again.`);

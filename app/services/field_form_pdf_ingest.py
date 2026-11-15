@@ -212,7 +212,8 @@ _COMMON_FEMALE_NAMES = {
     "PREETI", "PRITI", "SWATI", "TWINKLE", "DIMPLE", "RINKU", "PINKY", "ARCHANA",
     "VANDANA", "SAPNA", "SHILPA", "MANISHA", "VARSHA", "ASHA", "USHA", "NISHA",
     "DISHA", "RICHA", "SHIKHA", "SNEHA", "MEGA", "MEGHA", "DIVYA", "VIDYA",
-    "KANTA", "SHANTA", "MAMTA", "LATA", "NAMRATA", "AMRUTA", "ANKITA", "NIKITA",
+    "KANTA", "SHANTA", "MAMTA", "MAMTABEN", "LATA", "NAMRATA", "AMRUTA", "ANKITA", "NIKITA",
+    "MOKSHA", "KUMUD",
 }
 
 _COMMON_MALE_NAMES = {
@@ -227,6 +228,7 @@ _COMMON_MALE_NAMES = {
     "MANOJ", "VINOD", "PRAMOD", "SUBHASH", "PRAKASH", "VIKAS", "VISHAL", "KRUNAL",
     "DHAVAL", "TUSHAR", "SACHIN", "NITIN", "VIPIN", "JATIN", "CHETAN", "KETAN",
     "MANISH", "ASHISH", "GIRISH", "SATISH", "HARISH", "JAGDISH", "NARAYAN",
+    "KAUSHIK", "KAUSHIKBHAI", "ANSH", "DEVILAL", "KAMAL", "NAIMISH", "PRANAV", "TANMAY", "HIMMATLAL",
 }
 
 
@@ -289,35 +291,253 @@ def _clean_earning_val(
     return "Yes"
 
 
+def _parse_age_int(val: Optional[Any]) -> Optional[int]:
+    """Extract an integer age (1..110) from an age string ('20', '20 Years', '48 / Hindu') or DD/MM/YYYY DOB."""
+    if val is None:
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
+    # Check DD/MM/YYYY or YYYY-MM-DD DOB first
+    m_dob = re.search(r"\b(\d{1,2})[/\-.](\d{1,2})[/\-.]((?:19|20)\d{2})\b", s)
+    if m_dob:
+        from datetime import date
+        try:
+            d, mo, yr = int(m_dob.group(1)), int(m_dob.group(2)), int(m_dob.group(3))
+            today = date.today()
+            age = today.year - yr - ((today.month, today.day) < (mo, d))
+            if 1 <= age <= 110:
+                return age
+        except Exception:
+            pass
+    m_age = re.search(r"\b(\d{1,3})\b", s)
+    if m_age:
+        n = int(m_age.group(1))
+        if 1 <= n <= 110:
+            return n
+    return None
+
+
+def infer_applicant_co_relation_by_age(
+    applicant_name: Optional[str],
+    applicant_gender: Optional[str] = None,
+    applicant_age_or_dob: Optional[Any] = None,
+    applicant_marital: Optional[str] = None,
+    co_applicant_name: Optional[str] = None,
+    co_applicant_gender: Optional[str] = None,
+    co_applicant_age_or_dob: Optional[Any] = None,
+    co_applicant_marital: Optional[str] = None,
+    explicit_relation: Optional[str] = None,
+    loan_type: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Auto-decides (or honors manual override `explicit_relation`) whether two applicants on a case
+    are Parent & Child (e.g. Daughter 'Miss.' + Father 'Mr.') vs Husband & Wife ('Mrs.' + 'Mr.')
+    using their ages/DOBs, explicit salutations, middle-name patro/matronymic tokens, and loan type.
+    """
+    app_g = _infer_gender_from_name_or_hint(applicant_name, applicant_gender)
+    co_g = _infer_gender_from_name_or_hint(co_applicant_name, co_applicant_gender)
+    app_age = _parse_age_int(applicant_age_or_dob)
+    co_age = _parse_age_int(co_applicant_age_or_dob)
+
+    app_upper = (applicant_name or "").strip().upper()
+    co_upper = (co_applicant_name or "").strip().upper()
+    app_has_miss = bool(re.match(r"^(?:MISS\.?|KUM\.?|KUMARI)\b", app_upper))
+    app_has_mrs = bool(re.match(r"^(?:MRS\.?|SMT\.?)\b", app_upper))
+    co_has_miss = bool(re.match(r"^(?:MISS\.?|KUM\.?|KUMARI)\b", co_upper))
+    co_has_mrs = bool(re.match(r"^(?:MRS\.?|SMT\.?)\b", co_upper))
+    is_edu_loan = "education" in (loan_type or "").lower()
+
+    exp = (explicit_relation or "").strip().upper()
+
+    app_rel_to_co: Optional[str] = None
+    co_rel_to_app: Optional[str] = None
+    app_sal: Optional[str] = None
+    co_sal: Optional[str] = None
+    app_mar: Optional[str] = _clean_val(applicant_marital)
+    co_mar: Optional[str] = _clean_val(co_applicant_marital)
+    is_parent_child = False
+
+    # 1. Explicit manual override from UI / field_form_data
+    if exp in ("APPLICANT_IS_DAUGHTER", "DAUGHTER_FATHER", "1ST_DAUGHTER"):
+        is_parent_child = True
+        app_rel_to_co = "Daughter"
+        co_rel_to_app = "Mother" if co_g == "FEMALE" else "Father"
+        app_sal = "Miss."
+        app_mar = "Unmarried"
+        co_sal = "Mrs." if co_g == "FEMALE" else "Mr."
+        co_mar = co_mar or "Married"
+    elif exp in ("APPLICANT_IS_SON", "SON_FATHER", "1ST_SON"):
+        is_parent_child = True
+        app_rel_to_co = "Son"
+        co_rel_to_app = "Mother" if co_g == "FEMALE" else "Father"
+        app_sal = "Mr."
+        app_mar = app_mar or "Unmarried"
+        co_sal = "Mrs." if co_g == "FEMALE" else "Mr."
+        co_mar = co_mar or "Married"
+    elif exp in ("CO_IS_DAUGHTER", "DAUGHTER", "2ND_DAUGHTER"):
+        # If applicant is younger female (< co_age - 15), applicant is actually the daughter;
+        # otherwise co-applicant is the daughter.
+        if app_age and co_age and co_age >= app_age + 15 and app_g == "FEMALE":
+            is_parent_child = True
+            app_rel_to_co = "Daughter"
+            co_rel_to_app = "Mother" if co_g == "FEMALE" else "Father"
+            app_sal = "Miss."
+            app_mar = "Unmarried"
+            co_sal = "Mrs." if co_g == "FEMALE" else "Mr."
+            co_mar = co_mar or "Married"
+        else:
+            is_parent_child = True
+            co_rel_to_app = "Daughter"
+            app_rel_to_co = "Mother" if app_g == "FEMALE" else "Father"
+            co_sal = "Miss."
+            co_mar = "Unmarried"
+            app_sal = "Mrs." if app_g == "FEMALE" else "Mr."
+            app_mar = app_mar or "Married"
+    elif exp in ("CO_IS_WIFE", "WIFE", "2ND_WIFE"):
+        co_rel_to_app = "Wife"
+        app_rel_to_co = "Husband"
+        co_sal = "Mrs."
+        co_mar = "Married"
+        app_sal = "Mr."
+        app_mar = "Married"
+    elif exp in ("CO_IS_HUSBAND", "HUSBAND", "2ND_HUSBAND"):
+        co_rel_to_app = "Husband"
+        app_rel_to_co = "Wife"
+        co_sal = "Mr."
+        co_mar = "Married"
+        app_sal = "Mrs."
+        app_mar = "Married"
+    elif exp in ("CO_IS_FATHER", "FATHER", "2ND_FATHER"):
+        is_parent_child = True
+        co_rel_to_app = "Father"
+        app_rel_to_co = "Daughter" if app_g == "FEMALE" else "Son"
+        co_sal = "Mr."
+        co_mar = co_mar or "Married"
+        if app_g == "FEMALE" and not app_has_mrs:
+            app_sal = "Miss."
+            app_mar = "Unmarried"
+    elif exp in ("CO_IS_MOTHER", "MOTHER", "2ND_MOTHER"):
+        is_parent_child = True
+        co_rel_to_app = "Mother"
+        app_rel_to_co = "Daughter" if app_g == "FEMALE" else "Son"
+        co_sal = "Mrs."
+        co_mar = co_mar or "Married"
+        if app_g == "FEMALE" and not app_has_mrs:
+            app_sal = "Miss."
+            app_mar = "Unmarried"
+    elif exp in ("CO_IS_SON", "SON", "2ND_SON"):
+        is_parent_child = True
+        co_rel_to_app = "Son"
+        app_rel_to_co = "Mother" if app_g == "FEMALE" else "Father"
+        co_sal = "Mr."
+
+    # 2. Automatic Age-based & Title-based inference when not already decided
+    if not co_rel_to_app and app_age is not None and co_age is not None:
+        if co_age >= app_age + 16:
+            # Co-applicant is at least 16 years older -> Parent of Primary Applicant!
+            is_parent_child = True
+            co_rel_to_app = "Mother" if co_g == "FEMALE" else "Father"
+            app_rel_to_co = "Daughter" if app_g == "FEMALE" else "Son"
+            co_mar = co_mar or "Married"
+            if app_g == "FEMALE" and (app_age <= 25 or app_has_miss or is_edu_loan or not app_has_mrs):
+                app_sal = "Miss."
+                app_mar = "Unmarried"
+        elif app_age >= co_age + 16:
+            # Primary applicant is at least 16 years older -> Co-applicant is Child!
+            is_parent_child = True
+            co_rel_to_app = "Daughter" if co_g == "FEMALE" else "Son"
+            app_rel_to_co = "Mother" if app_g == "FEMALE" else "Father"
+            app_mar = app_mar or "Married"
+            if co_g == "FEMALE" and (co_age <= 25 or co_has_miss or is_edu_loan or not co_has_mrs):
+                co_sal = "Miss."
+                co_mar = "Unmarried"
+        elif abs(app_age - co_age) <= 14 and app_g and co_g and app_g != co_g:
+            # Similar age Male & Female -> Husband & Wife
+            if app_g == "FEMALE":
+                app_rel_to_co = "Wife"
+                co_rel_to_app = "Husband"
+                app_sal = "Mrs."
+                app_mar = "Married"
+                co_sal = "Mr."
+                co_mar = "Married"
+            else:
+                app_rel_to_co = "Husband"
+                co_rel_to_app = "Wife"
+                app_sal = "Mr."
+                app_mar = "Married"
+                co_sal = "Mrs."
+                co_mar = "Married"
+
+    # 3. Single-person / fallback salutation & marital resolution for Female Applicant / Co-Applicant
+    if app_g == "FEMALE" and not app_sal:
+        if app_has_miss or (app_mar and app_mar.lower() in ("unmarried", "single")) or (app_age is not None and app_age <= 22 and not app_has_mrs) or (is_edu_loan and not app_has_mrs and (app_age is None or app_age <= 26)):
+            app_sal = "Miss."
+            app_mar = "Unmarried"
+        elif app_has_mrs or (app_mar and app_mar.lower() == "married"):
+            app_sal = "Mrs."
+            app_mar = app_mar or "Married"
+        else:
+            app_sal = "Mrs." if (app_age and app_age >= 24) else "Miss."
+    elif app_g == "MALE" and not app_sal:
+        app_sal = "Mr."
+        if app_age is not None and app_age <= 22 and not app_mar:
+            app_mar = "Unmarried"
+
+    if co_g == "FEMALE" and not co_sal:
+        if co_has_miss or (co_mar and co_mar.lower() in ("unmarried", "single")) or (co_age is not None and co_age <= 22 and not co_has_mrs):
+            co_sal = "Miss."
+            co_mar = "Unmarried"
+            if not co_rel_to_app and app_age and co_age and app_age >= co_age + 15:
+                co_rel_to_app = "Daughter"
+        else:
+            co_sal = "Mrs."
+            co_mar = co_mar or "Married"
+            if not co_rel_to_app and app_g == "MALE":
+                co_rel_to_app = "Wife"
+    elif co_g == "MALE" and not co_sal:
+        co_sal = "Mr."
+
+    return {
+        "applicant_relation_to_co": app_rel_to_co,
+        "co_relation_to_applicant": co_rel_to_app,
+        "applicant_salutation": app_sal,
+        "co_salutation": co_sal,
+        "applicant_marital_status": app_mar,
+        "co_marital_status": co_mar,
+        "is_parent_child": is_parent_child,
+        "applicant_age": app_age,
+        "co_applicant_age": co_age,
+    }
+
+
 def reconcile_family_members_for_applicant(
     raw_fam: Optional[List[Any]],
     applicant_name: Optional[str] = None,
     applicant_gender: Optional[str] = None,
     applicant_age: Optional[Any] = None,
+    applicant_marital_status: Optional[str] = None,
+    form_holder_name: Optional[str] = None,
+    form_holder_age: Optional[Any] = None,
 ) -> List[Dict[str, Any]]:
     """
     Cleans, normalizes, and reconciles the family_members array against the primary applicant's
-    identity, gender, and age:
+    identity, gender, marital status, and age:
     - Swaps misordered name/relation (e.g. name='APP', relation='SWETA ARORA').
-    - Fixes impossible spouse relations relative to the applicant's gender:
-      * A Female applicant ('Mrs. Komal Nirav Thakkar', gender='Female') can NEVER have a family
-        member with relation='Wife'. If the row is herself -> 'Self'; if the row is male -> 'Husband';
-        if the row is another female (e.g. 'Khushbu', 45) -> 'Mother-in-law' (if >=16 yrs older)
-        or 'Sister-in-law' (joint-family sister-in-law).
-      * A Male applicant ('Mr. ...', gender='Male') can NEVER have a family member with
-        relation='Husband'. If the row is himself -> 'Self'; if female -> 'Wife'; if another male
-        -> 'Father' (if >=16 yrs older) or 'Brother'.
-    - Ensures any minor child (age < 18, e.g. age 14) has earning='No'.
+    - Detects when the applicant is an unmarried child / student (e.g. 'Miss. Moksha Kaushik Jain',
+      age 20, or listed as 'Daughter'/'Son' in a parent's visit form) and translates parent-perspective
+      relations into the child applicant's perspective:
+      * Father ('Kaushikbhai', 49) -> 'Father' (earning='Yes')
+      * Mother ('Mamtaben', 47, labeled 'Wife' on Father's form) -> 'Mother' (earning='No'), NEVER 'Mother-in-law'
+      * Sibling ('Ansh', 18, labeled 'Son' on Father's form) -> 'Brother' (earning='No'), NEVER 'Son'
+    - Fixes impossible spouse relations relative to a married applicant's gender.
+    - Ensures any minor child (age < 18) or student has earning='No'.
     """
     if not isinstance(raw_fam, list):
         return []
 
     app_gender = _infer_gender_from_name_or_hint(applicant_name, applicant_gender)
-    app_age_num: Optional[int] = None
-    if applicant_age is not None:
-        m_a = re.search(r"\b(\d{1,3})\b", str(applicant_age))
-        if m_a:
-            app_age_num = int(m_a.group(1))
+    app_age_num: Optional[int] = _parse_age_int(applicant_age)
 
     # Extract applicant's middle token (often husband/father name in Gujarati/Indian 3-part names)
     app_tokens = [
@@ -326,6 +546,28 @@ def reconcile_family_members_for_applicant(
         if re.sub(r"[^A-Za-z]", "", t).upper() not in ("MR", "MRS", "MS", "MISS", "SMT", "SHRI", "DR")
     ]
     app_middle_token = app_tokens[1] if len(app_tokens) >= 3 else None
+
+    # Check if the applicant herself/himself appears in raw_fam with relation 'Daughter' or 'Son'
+    # (which happens when a parent filled out the form) and extract the applicant's true age if needed
+    applicant_was_listed_as_child = False
+    for m in raw_fam:
+        if isinstance(m, dict):
+            mn = _clean_val(m.get("name"))
+            mr = (_clean_val(m.get("relation")) or "").upper().strip()
+            if mn and applicant_name and (_name_score(mn, applicant_name) or 0) >= 80:
+                m_age_parsed = _parse_age_int(m.get("age"))
+                if m_age_parsed and (app_age_num is None or app_age_num > 30 and m_age_parsed <= 25):
+                    app_age_num = m_age_parsed
+                if mr in ("DAUGHTER", "SON"):
+                    applicant_was_listed_as_child = True
+
+    app_upper = (applicant_name or "").strip().upper()
+    app_is_unmarried_or_child = bool(
+        applicant_was_listed_as_child
+        or re.match(r"^(?:MISS\.?|KUM\.?|KUMARI)\b", app_upper)
+        or (applicant_marital_status and str(applicant_marital_status).strip().lower() in ("unmarried", "single"))
+        or (app_age_num is not None and app_age_num <= 23 and not re.match(r"^(?:MRS\.?|SMT\.?)\b", app_upper))
+    )
 
     # Check if this family list has minors (<18) that were previously stored with earning='Yes'
     # due to the old _clean_val('No') -> None -> 'Yes' bug.
@@ -363,17 +605,17 @@ def reconcile_family_members_for_applicant(
             m_rel = _normalize_relation_or_title(m_rel) or m_rel
 
         age_clean = str(_clean_val(m.get("age")) or "")
-        mem_age_num: Optional[int] = None
-        if age_clean:
-            m_ma = re.search(r"\b(\d{1,3})\b", age_clean)
-            if m_ma:
-                mem_age_num = int(m_ma.group(1))
+        mem_age_num: Optional[int] = _parse_age_int(age_clean)
 
         # 1. Check if member is actually the applicant themselves
         if applicant_name and (_name_score(m_name, applicant_name) or 0) >= 80:
             m_rel = "Self"
         elif m_rel and m_rel.lower().startswith("self"):
-            m_rel = "Self"
+            # Only keep "Self" if it's not a parent's row on a parent-submitted form
+            if app_is_unmarried_or_child and mem_age_num and app_age_num and mem_age_num >= app_age_num + 15:
+                m_rel = "Mother" if _infer_gender_from_name_or_hint(m_name) == "FEMALE" else "Father"
+            else:
+                m_rel = "Self"
 
         mem_gender = _infer_gender_from_name_or_hint(m_name)
         if not mem_gender and app_middle_token and m_name.strip().upper().startswith(app_middle_token):
@@ -381,7 +623,30 @@ def reconcile_family_members_for_applicant(
 
         rel_upper = (m_rel or "").upper()
 
-        # 2. Reconcile impossible spouse relations against applicant's gender
+        # 2. If applicant is an unmarried child/student (or form was filled by parent), translate
+        # parent-perspective relations ('Wife' -> 'Mother', 'Son' -> 'Brother', 'Daughter' -> 'Sister')
+        if m_rel != "Self" and app_is_unmarried_or_child:
+            if rel_upper in ("WIFE", "MOTHER-IN-LAW", "SISTER-IN-LAW") and mem_gender != "MALE":
+                if not app_age_num or not mem_age_num or mem_age_num >= app_age_num + 15:
+                    m_rel = "Mother"
+                    rel_upper = "MOTHER"
+            elif rel_upper in ("HUSBAND", "FATHER-IN-LAW") and mem_gender == "MALE":
+                if not app_age_num or not mem_age_num or mem_age_num >= app_age_num + 15:
+                    m_rel = "Father"
+                    rel_upper = "FATHER"
+            elif rel_upper in ("SON", "DAUGHTER"):
+                if not app_age_num or not mem_age_num or mem_age_num > app_age_num - 15:
+                    m_rel = "Brother" if (rel_upper == "SON" or mem_gender == "MALE") else "Sister"
+                    rel_upper = m_rel.upper()
+
+        # Also for ANY applicant of known age: a person whose age is not at least 15 years younger
+        # than the applicant can never be their 'Son' or 'Daughter' (they are 'Brother' or 'Sister')
+        if m_rel != "Self" and rel_upper in ("SON", "DAUGHTER") and app_age_num and mem_age_num:
+            if mem_age_num > app_age_num - 15:
+                m_rel = "Brother" if (rel_upper == "SON" or mem_gender == "MALE") else "Sister"
+                rel_upper = m_rel.upper()
+
+        # 3. Reconcile impossible spouse relations against applicant's gender
         if app_gender == "FEMALE" and rel_upper == "WIFE":
             if applicant_name and (_name_score(m_name, applicant_name) or 0) >= 65:
                 m_rel = "Self"
@@ -389,9 +654,9 @@ def reconcile_family_members_for_applicant(
                 m_rel = "Husband"
             else:
                 if app_age_num and mem_age_num and mem_age_num >= app_age_num + 16:
-                    m_rel = "Mother-in-law"
+                    m_rel = "Mother" if app_is_unmarried_or_child else "Mother-in-law"
                 else:
-                    m_rel = "Sister-in-law"
+                    m_rel = "Sister" if app_is_unmarried_or_child else "Sister-in-law"
         elif app_gender == "MALE" and rel_upper == "HUSBAND":
             if applicant_name and (_name_score(m_name, applicant_name) or 0) >= 65:
                 m_rel = "Self"
@@ -403,20 +668,20 @@ def reconcile_family_members_for_applicant(
                 else:
                     m_rel = "Brother"
         elif rel_upper == "HUSBAND" and mem_gender == "FEMALE":
-            m_rel = "Wife" if app_gender == "MALE" else "Sister-in-law"
+            m_rel = "Wife" if app_gender == "MALE" else ("Mother" if app_is_unmarried_or_child else "Sister-in-law")
         elif rel_upper == "WIFE" and mem_gender == "MALE":
             m_rel = "Husband" if app_gender == "FEMALE" else "Brother"
 
         earning_clean = _clean_earning_val(m.get("earning"), age_str=age_clean, occupation_str=m.get("occupation"))
-        # If this record was saved under the old bug where every 'No' was turned into 'Yes'
-        # (evidenced by minor children having earning='Yes') and no occupation was stored,
-        # repair non-self dependent/homemaker relations that were affected by the same bug.
         if (
             had_buggy_all_yes_minors
             and not m.get("occupation")
             and m_rel in ("Sister-in-law", "Mother-in-law", "Mother", "Wife", "Grandmother")
         ):
             earning_clean = "No"
+        if app_is_unmarried_or_child and m_rel in ("Self", "Brother", "Sister") and (not mem_age_num or mem_age_num <= 22):
+            if not m.get("occupation") and str(m.get("earning") or "").strip().upper() not in ("YES", "Y"):
+                earning_clean = "No"
 
         cleaned_fam.append({
             "name": m_name,
@@ -424,6 +689,32 @@ def reconcile_family_members_for_applicant(
             "age": age_clean,
             "earning": earning_clean,
         })
+
+    # If the form was filled by a parent (e.g. 'Kaushikbhai Jain', age 49) who wasn't listed inside
+    # family_members because they were the form respondent, include them as Father/Mother!
+    holder_clean = _clean_val(form_holder_name)
+    if holder_clean and applicant_name and (_name_score(holder_clean, applicant_name) or 0) < 75:
+        already_in_fam = any((_name_score(holder_clean, x.get("name")) or 0) >= 75 for x in cleaned_fam)
+        if not already_in_fam:
+            h_age_num = _parse_age_int(form_holder_age)
+            h_gender = _infer_gender_from_name_or_hint(holder_clean)
+            if (h_age_num and app_age_num and h_age_num >= app_age_num + 15) or app_is_unmarried_or_child:
+                h_rel = "Mother" if h_gender == "FEMALE" else "Father"
+            elif h_gender == "MALE" and app_gender == "FEMALE":
+                h_rel = "Husband"
+            elif h_gender == "FEMALE" and app_gender == "MALE":
+                h_rel = "Wife"
+            else:
+                h_rel = "Co-Applicant"
+            cleaned_fam.insert(
+                0,
+                {
+                    "name": holder_clean,
+                    "relation": h_rel,
+                    "age": str(h_age_num) if h_age_num else str(_clean_val(form_holder_age) or ""),
+                    "earning": "Yes",
+                },
+            )
 
     return cleaned_fam
 
@@ -674,11 +965,26 @@ def reconcile_person_relation(
 
     if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 80:
         return "Self"
-    if rel and rel.lower().startswith("self"):
-        return "Self"
+
+    app_gender = _infer_gender_from_name_or_hint(applicant_name, applicant_gender)
+    app_age_num: Optional[int] = _parse_age_int(applicant_age)
+    mem_age_num: Optional[int] = _parse_age_int(person_age)
+
+    app_tokens = [
+        re.sub(r"[^A-Za-z]", "", t).upper()
+        for t in (applicant_name or "").split()
+        if re.sub(r"[^A-Za-z]", "", t).upper() not in ("MR", "MRS", "MS", "MISS", "SMT", "SHRI", "DR")
+    ]
+    app_middle_token = app_tokens[1] if len(app_tokens) >= 3 else None
+
+    app_upper = (applicant_name or "").strip().upper()
+    app_is_unmarried_or_child = bool(
+        re.match(r"^(?:MISS\.?|KUM\.?|KUMARI)\b", app_upper)
+        or (app_age_num is not None and app_age_num <= 23 and not re.match(r"^(?:MRS\.?|SMT\.?)\b", app_upper))
+    )
 
     # When the person matches a reconciled family member, that member's relation to the applicant
-    # is authoritative whenever raw_relation is missing OR is an impossible spouse relation.
+    # is authoritative whenever raw_relation is missing, 'Self' (from a parent's form), or an impossible relation.
     fm_rel = None
     if p_name and family_members:
         fm = next(
@@ -687,28 +993,16 @@ def reconcile_person_relation(
         )
         if fm and fm.get("relation"):
             fm_rel = _normalize_relation_or_title(fm.get("relation")) or fm.get("relation")
-            if not person_age and fm.get("age"):
-                person_age = fm.get("age")
+            if not mem_age_num and fm.get("age"):
+                mem_age_num = _parse_age_int(fm.get("age"))
 
-    app_gender = _infer_gender_from_name_or_hint(applicant_name, applicant_gender)
-    app_age_num: Optional[int] = None
-    if applicant_age is not None:
-        m_a = re.search(r"\b(\d{1,3})\b", str(applicant_age))
-        if m_a:
-            app_age_num = int(m_a.group(1))
-
-    mem_age_num: Optional[int] = None
-    if person_age is not None:
-        m_ma = re.search(r"\b(\d{1,3})\b", str(person_age))
-        if m_ma:
-            mem_age_num = int(m_ma.group(1))
-
-    app_tokens = [
-        re.sub(r"[^A-Za-z]", "", t).upper()
-        for t in (applicant_name or "").split()
-        if re.sub(r"[^A-Za-z]", "", t).upper() not in ("MR", "MRS", "MS", "MISS", "SMT", "SHRI", "DR")
-    ]
-    app_middle_token = app_tokens[1] if len(app_tokens) >= 3 else None
+    if rel and rel.lower().startswith("self"):
+        if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) < 75:
+            if fm_rel and fm_rel != "Self":
+                return fm_rel
+            if app_middle_token and p_name.strip().upper().startswith(app_middle_token):
+                return "Father" if app_is_unmarried_or_child else "Husband"
+        return "Self"
 
     mem_gender = _infer_gender_from_name_or_hint(p_name)
     if not mem_gender and p_name and app_middle_token and p_name.strip().upper().startswith(app_middle_token):
@@ -719,29 +1013,38 @@ def reconcile_person_relation(
     if fm_rel and not (applicant_name and p_name and (_name_score(p_name, applicant_name) or 0) >= 80):
         return fm_rel
 
+    if rel_upper in ("SON", "DAUGHTER") and app_age_num and mem_age_num and mem_age_num > app_age_num - 15:
+        return "Brother" if (rel_upper == "SON" or mem_gender == "MALE") else "Sister"
+
+    if app_is_unmarried_or_child and rel_upper in ("SON", "DAUGHTER"):
+        return "Brother" if (rel_upper == "SON" or mem_gender == "MALE") else "Sister"
+
     if app_gender == "FEMALE" and rel_upper == "WIFE":
         if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 65:
             return "Self"
         if mem_gender == "MALE":
-            return "Husband"
+            return "Father" if app_is_unmarried_or_child else "Husband"
         if app_age_num and mem_age_num and mem_age_num >= app_age_num + 16:
-            return "Mother-in-law"
-        return "Sister-in-law"
+            return "Mother" if app_is_unmarried_or_child else "Mother-in-law"
+        return "Sister" if app_is_unmarried_or_child else "Sister-in-law"
 
     if app_gender == "MALE" and rel_upper == "HUSBAND":
         if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 65:
             return "Self"
         if mem_gender == "FEMALE":
-            return "Wife"
+            return "Mother" if app_is_unmarried_or_child else "Wife"
         if app_age_num and mem_age_num and mem_age_num >= app_age_num + 16:
             return "Father"
         return "Brother"
 
     if rel_upper == "HUSBAND" and mem_gender == "FEMALE":
-        return "Wife" if app_gender == "MALE" else "Sister-in-law"
+        return "Wife" if app_gender == "MALE" else ("Mother" if app_is_unmarried_or_child else "Sister-in-law")
 
     if rel_upper == "WIFE" and mem_gender == "MALE":
         return "Husband" if app_gender == "FEMALE" else "Brother"
+
+    if not rel and p_name and app_middle_token and p_name.strip().upper().startswith(app_middle_token):
+        return "Father" if app_is_unmarried_or_child else ("Father" if app_gender == "MALE" else "Husband")
 
     return rel or fm_rel
 
@@ -840,11 +1143,30 @@ def enrich_field_form_defaults(
 
     # 1. Clean, normalize & reconcile family_members against applicant's identity/gender/age
     raw_fam = ff.get("family_members")
+    form_person = _clean_val(ff.get("form_person_name")) or _clean_val(ff.get("co_applicant_name"))
+    form_person_age = _clean_val(ff.get("co_applicant_age")) or (
+        _clean_val(ff.get("age_community"))
+        if form_person and app_name and (_name_score(form_person, app_name) or 0) < 75
+        else None
+    )
+    # If app_age stored on ff was actually the parent/co-applicant's age (e.g. 49) while the
+    # primary applicant (e.g. Moksha, 20) is listed in raw_fam with her real age, prefer her real age!
+    if isinstance(raw_fam, list) and app_name:
+        for m in raw_fam:
+            if isinstance(m, dict) and m.get("name") and (_name_score(m.get("name"), app_name) or 0) >= 80:
+                m_age_val = _clean_val(m.get("age"))
+                if m_age_val:
+                    app_age = m_age_val
+                break
+
     cleaned_fam = reconcile_family_members_for_applicant(
         raw_fam,
         applicant_name=app_name,
         applicant_gender=applicant_gender,
         applicant_age=app_age,
+        applicant_marital_status=_clean_val(ff.get("marital_status")),
+        form_holder_name=form_person,
+        form_holder_age=form_person_age,
     )
     if cleaned_fam:
         ff["family_members"] = cleaned_fam
@@ -1014,10 +1336,51 @@ def enrich_field_form_defaults(
             off["assessment"] = "POSITIVE"
 
     ff["office_details"] = off
+
+    # Also enrich office_details_co if present
+    if isinstance(ff.get("office_details_co"), dict):
+        off_co = dict(ff["office_details_co"])
+        occ_co = _clean_val(off_co.get("occupation")) or _clean_val(ff.get("co_applicant_occupation")) or ""
+        if occ_co and not _clean_val(off_co.get("occupation")):
+            off_co["occupation"] = occ_co
+        if occ_co and "house" not in occ_co.lower():
+            off_co_addr = _clean_val(off_co.get("address")) or _clean_val(office_address)
+            if off_co_addr and not _clean_val(off_co.get("address")):
+                off_co["address"] = off_co_addr
+            pos_co = _normalize_relation_or_title(off_co.get("position") or off_co.get("designation"))
+            if pos_co:
+                off_co["position"] = pos_co
+                off_co["designation"] = pos_co
+            norm_co_refs = _expand_and_normalize_references(
+                [off_co.get("reference_1") or off_co.get("reference"), off_co.get("reference_2")],
+                default_relation="Colleague",
+            )
+            if norm_co_refs:
+                off_co["reference_1"] = norm_co_refs[0]
+                off_co["reference_2"] = norm_co_refs[1] if len(norm_co_refs) > 1 else None
+            if not _clean_val(off_co.get("landmark")) and off_co_addr:
+                off_co["landmark"] = _extract_landmark_from_address(off_co_addr) or "Main Commercial Road"
+            if not _clean_val(off_co.get("location")):
+                wfh_co = str(off_co.get("work_from_home") or "").lower()
+                off_co["location"] = "Residential" if wfh_co == "yes" else "Commercial"
+            est_co = _clean_val(off_co.get("established_since")) or _clean_val(off_co.get("period_of_stay")) or _clean_val(off_co.get("experience"))
+            if est_co:
+                off_co["established_since"] = off_co.get("established_since") or est_co
+                off_co["period_of_stay"] = off_co.get("period_of_stay") or est_co
+                off_co["experience"] = off_co.get("experience") or est_co
+            if not _clean_val(off_co.get("area")):
+                infra_co = _clean_val(off_co.get("infrastructure")) or "Office"
+                off_co["area"] = f"Standard {infra_co} Premises"
+            if not _clean_val(off_co.get("reg_no")):
+                off_co["reg_no"] = "Verified at Site"
+            if not _clean_val(off_co.get("assessment")):
+                off_co["assessment"] = "POSITIVE"
+        ff["office_details_co"] = off_co
+
     return ff
 
 
-def build_field_form_payload(extracted: Dict[str, Any]) -> Dict[str, Any]:
+def build_field_form_payload(extracted: Dict[str, Any], case_applicant_name: Optional[str] = None) -> Dict[str, Any]:
     """
     Maps the Gemini-extracted intermediate schema into exactly the field_form_data shape the
     PWA's submitDueDiligenceForm() already produces - the same keys, same conventions - so every
@@ -1026,17 +1389,37 @@ def build_field_form_payload(extracted: Dict[str, Any]) -> Dict[str, Any]:
     """
     e = extracted or {}
 
-    applicant_name = _clean_val(e.get("name"))
+    raw_app_type = (_clean_val(e.get("applicant_type")) or "Applicant").strip()
+    is_co_form = raw_app_type.lower().replace("-", " ").startswith("co")
+    form_person_name = _clean_val(e.get("name"))
+    effective_primary_name = _clean_val(case_applicant_name) or form_person_name
+
+    # If this form is explicitly marked 'Co-applicant' and no case_applicant_name was passed,
+    # check if the primary applicant is an unmarried/education-loan child in family_members
+    if is_co_form and not _clean_val(case_applicant_name):
+        loan_t = (_clean_val(e.get("loan_type")) or "").lower()
+        if "education" in loan_t and isinstance(e.get("family_members"), list):
+            for fm_item in e.get("family_members"):
+                if isinstance(fm_item, dict):
+                    fm_r = (_clean_val(fm_item.get("relation")) or "").upper()
+                    fm_a = _parse_age_int(fm_item.get("age"))
+                    if fm_r in ("DAUGHTER", "SON") and (fm_a is None or 16 <= fm_a <= 28):
+                        effective_primary_name = _clean_val(fm_item.get("name")) or effective_primary_name
+                        break
+
     family_members = reconcile_family_members_for_applicant(
         e.get("family_members") or [],
-        applicant_name=applicant_name,
-        applicant_age=e.get("age"),
+        applicant_name=effective_primary_name,
+        applicant_age=e.get("age") if not is_co_form else None,
+        applicant_marital_status=e.get("marital_status") if not is_co_form else None,
+        form_holder_name=form_person_name if is_co_form else None,
+        form_holder_age=e.get("age") if is_co_form else None,
     )
     res_owner_name = _clean_val(e.get("residence_owner_name"))
     res_owner_rel = _infer_owner_relation(
         res_owner_name,
         e.get("residence_owner_relation"),
-        applicant_name,
+        effective_primary_name,
         e.get("residence_ownership"),
         family_members,
     )
@@ -1107,16 +1490,70 @@ def build_field_form_payload(extracted: Dict[str, Any]) -> Dict[str, Any]:
         "date": _clean_val(e.get("dealership_date")) or "NA",
     }
 
+    # If the form was filled out for the Co-applicant, preserve the Co-applicant's office and
+    # personal attributes in `office_details_co` and `co_applicant_*` keys so they don't overwrite
+    # a student/child Primary Applicant's marital status, age, or occupation.
+    office_details_co = None
+    co_name_val = _clean_val(e.get("co_applicant_name"))
+    co_contact_val = _clean_val(e.get("co_applicant_contact"))
+    co_marital_val = None
+    co_age_val = None
+    co_qual_val = None
+    co_occ_val = None
+
+    primary_marital = _clean_val(e.get("marital_status")) or ""
+    primary_age = _clean_val(e.get("age")) or ""
+    primary_qual = _clean_val(e.get("qualification")) or ""
+    primary_occ = _clean_val(e.get("occupation")) or ""
+    primary_contact = _clean_val(e.get("contact_number")) or ""
+
+    if is_co_form:
+        co_name_val = form_person_name or co_name_val
+        co_contact_val = _clean_val(e.get("contact_number")) or co_contact_val
+        co_marital_val = _clean_val(e.get("marital_status"))
+        co_age_val = _clean_val(e.get("age"))
+        co_qual_val = _clean_val(e.get("qualification"))
+        co_occ_val = _clean_val(e.get("occupation"))
+        office_details_co = dict(office_details)
+        office_details_co["name"] = co_name_val
+        office_details_co["contact_number"] = co_contact_val
+        office_details_co["marital_status"] = co_marital_val
+        office_details_co["age"] = co_age_val
+        office_details_co["community"] = _clean_val(e.get("community"))
+        office_details_co["qualification"] = co_qual_val
+
+        # If the primary applicant is a different person (e.g. Moksha in family_members),
+        # derive primary_age and primary_marital from family_members / age relation
+        if effective_primary_name and form_person_name and (_name_score(effective_primary_name, form_person_name) or 0) < 75:
+            self_fm = next((m for m in family_members if m.get("relation") == "Self"), None)
+            if self_fm and self_fm.get("age"):
+                primary_age = str(self_fm["age"])
+            rel_info = infer_applicant_co_relation_by_age(
+                applicant_name=effective_primary_name,
+                applicant_age_or_dob=primary_age,
+                co_applicant_name=co_name_val,
+                co_applicant_age_or_dob=co_age_val,
+                co_applicant_marital=co_marital_val,
+                loan_type=e.get("loan_type"),
+            )
+            if rel_info.get("applicant_marital_status"):
+                primary_marital = rel_info["applicant_marital_status"]
+            if "education" in (_clean_val(e.get("loan_type")) or "").lower():
+                primary_occ = "Student"
+                primary_qual = ""
+
     payload = {
         "executive": _clean_val(e.get("executive_name")) or "",
-        "persona": "Applicant",
+        "persona": "Co-applicant" if is_co_form else "Applicant",
+        "form_applicant_type": "Co-applicant" if is_co_form else "Applicant",
+        "form_person_name": form_person_name or "",
         "agent_selfie": None,
         "agent_selfie_captured_at": None,
-        "contact_number": _clean_val(e.get("contact_number")) or "",
-        "marital_status": _clean_val(e.get("marital_status")) or "",
-        "age_community": _clean_val(e.get("age")) or "",
+        "contact_number": primary_contact,
+        "marital_status": primary_marital,
+        "age_community": primary_age,
         "community": _clean_val(e.get("community")) or "",
-        "qualification": _clean_val(e.get("qualification")) or "",
+        "qualification": primary_qual,
         "family_members": family_members,
         "building_type": building_type_combined,
         "ownership": _clean_val(e.get("residence_ownership")) or "",
@@ -1133,26 +1570,32 @@ def build_field_form_payload(extracted: Dict[str, Any]) -> Dict[str, Any]:
         "locality": "",
         "surroundings": "",
         "residence_evidence_obtained": "",
-        "occupation": _clean_val(e.get("occupation")) or "",
+        "occupation": primary_occ,
         "itr_acknowledgement_no": "",
         "itr_filing_date": "",
         "bank_account_status": "Active / Regular",
-        "bank_account_status_co": "",
-        "office_details": office_details,
+        "bank_account_status_co": "Active / Regular" if is_co_form else "",
+        "office_details": {} if (is_co_form and primary_occ == "Student") else office_details,
         "previous_loan": previous_loan,
-        "office_details_co": None,
+        "office_details_co": office_details_co,
         "residence_details_co": None,
+        "co_applicant_name": co_name_val,
+        "co_applicant_contact": co_contact_val,
+        "co_applicant_marital_status": co_marital_val,
+        "co_applicant_age": co_age_val,
+        "co_applicant_qualification": co_qual_val,
+        "co_applicant_occupation": co_occ_val,
         "restore": {
             "bhk": bhk or None,
             "building_type_only": bldg_type or None,
             "ownership": _clean_val(e.get("residence_ownership")),
             "period_of_stay": _clean_val(e.get("duration_of_stay")),
             "owner_name": residence_owner,
-            "marital_status": _clean_val(e.get("marital_status")),
-            "age_community": _clean_val(e.get("age")),
+            "marital_status": primary_marital or None,
+            "age_community": primary_age or None,
             "community": _clean_val(e.get("community")),
-            "qualification": _clean_val(e.get("qualification")),
-            "contact_number": _clean_val(e.get("contact_number")),
+            "qualification": primary_qual or None,
+            "contact_number": primary_contact or None,
             "landmark": res_landmark or None,
             "person_met": person_met,
             "neighbors": [n for n in (neighbour_1, neighbour_2) if n],
@@ -1161,10 +1604,95 @@ def build_field_form_payload(extracted: Dict[str, Any]) -> Dict[str, Any]:
             "itr_acknowledgement_no": None,
             "itr_filing_date": None,
             "bank_account_status": "Active / Regular",
-            "bank_account_status_co": None,
+            "bank_account_status_co": "Active / Regular" if is_co_form else None,
         },
     }
-    return enrich_field_form_defaults(payload, applicant_name=applicant_name, target_address=res_addr, office_address=off_addr)
+    return enrich_field_form_defaults(payload, applicant_name=effective_primary_name, target_address=res_addr, office_address=off_addr)
+
+
+def merge_field_form_payloads(
+    existing_ff: Optional[Dict[str, Any]],
+    new_ff: Dict[str, Any],
+    primary_applicant_name: Optional[str] = None,
+    co_applicant_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Intelligently merges an existing field_form_data dict and a newly extracted field_form_data dict
+    when a case has two Due Diligence Visit Forms (one for Applicant, e.g. Moksha Jain, and one for
+    Co-applicant, e.g. Kaushikbhai Jain), so neither overwrites the other's personal/office details.
+    """
+    if not isinstance(existing_ff, dict) or not existing_ff:
+        return enrich_field_form_defaults(new_ff, applicant_name=primary_applicant_name)
+    if not isinstance(new_ff, dict) or not new_ff:
+        return enrich_field_form_defaults(existing_ff, applicant_name=primary_applicant_name)
+
+    ex_type = str(existing_ff.get("form_applicant_type") or existing_ff.get("persona") or "").lower()
+    nw_type = str(new_ff.get("form_applicant_type") or new_ff.get("persona") or "").lower()
+    ex_person = _clean_val(existing_ff.get("form_person_name"))
+    nw_person = _clean_val(new_ff.get("form_person_name"))
+
+    # Determine if one form belongs to the Primary Applicant and the other belongs to the Co-applicant
+    ex_is_co = ex_type.startswith("co") or (
+        co_applicant_name and ex_person and (_name_score(ex_person, co_applicant_name) or 0) >= 80
+    )
+    nw_is_co = nw_type.startswith("co") or (
+        co_applicant_name and nw_person and (_name_score(nw_person, co_applicant_name) or 0) >= 80
+    )
+
+    if ex_is_co and not nw_is_co:
+        app_ff, co_ff = dict(new_ff), dict(existing_ff)
+    elif nw_is_co and not ex_is_co:
+        app_ff, co_ff = dict(existing_ff), dict(new_ff)
+    else:
+        # Both are for the same role; new_ff takes precedence while preserving non-empty office_details_co
+        merged = dict(existing_ff)
+        merged.update({k: v for k, v in new_ff.items() if v not in (None, "", [], {})})
+        if existing_ff.get("office_details_co") and not new_ff.get("office_details_co"):
+            merged["office_details_co"] = existing_ff["office_details_co"]
+        return enrich_field_form_defaults(merged, applicant_name=primary_applicant_name)
+
+    # Combine Applicant form (app_ff) as base with Co-applicant form (co_ff) office & co-applicant metadata
+    merged = dict(app_ff)
+    co_off = co_ff.get("office_details_co") or co_ff.get("office_details")
+    if isinstance(co_off, dict) and any(_clean_val(v) for v in co_off.values()):
+        co_off_copy = dict(co_off)
+        co_off_copy["name"] = _clean_val(co_ff.get("co_applicant_name")) or _clean_val(co_ff.get("form_person_name")) or co_applicant_name
+        co_off_copy["contact_number"] = _clean_val(co_ff.get("co_applicant_contact")) or _clean_val(co_ff.get("contact_number"))
+        co_off_copy["marital_status"] = _clean_val(co_ff.get("co_applicant_marital_status")) or _clean_val(co_ff.get("marital_status"))
+        co_off_copy["age"] = _clean_val(co_ff.get("co_applicant_age")) or _clean_val(co_ff.get("age_community"))
+        co_off_copy["community"] = _clean_val(co_ff.get("community")) or _clean_val(app_ff.get("community"))
+        co_off_copy["qualification"] = _clean_val(co_ff.get("co_applicant_qualification")) or _clean_val(co_ff.get("qualification"))
+        merged["office_details_co"] = co_off_copy
+
+    for k in ("co_applicant_name", "co_applicant_contact", "co_applicant_marital_status", "co_applicant_age", "co_applicant_qualification", "co_applicant_occupation"):
+        if _clean_val(co_ff.get(k)):
+            merged[k] = co_ff.get(k)
+
+    # Fill any blank residence/previous_loan fields in app_ff from co_ff
+    for rk in ("executive", "building_type", "ownership", "period_of_stay", "owner_name", "neighbour_1", "neighbour_2", "landmark", "person_met", "assets_observed", "nameboard_visible"):
+        if not _clean_val(merged.get(rk)) and _clean_val(co_ff.get(rk)):
+            merged[rk] = co_ff.get(rk)
+
+    # Merge family_members so all unique family members (including Father/Mother/Brother/Self) are preserved
+    combined_fam = list(app_ff.get("family_members") or [])
+    for cm in (co_ff.get("family_members") or []):
+        if isinstance(cm, dict) and cm.get("name"):
+            if not any((_name_score(cm["name"], em.get("name")) or 0) >= 80 for em in combined_fam if isinstance(em, dict)):
+                combined_fam.append(cm)
+    merged["family_members"] = combined_fam
+
+    # Merge previous_loan if app_ff had NA
+    app_pl = merged.get("previous_loan") if isinstance(merged.get("previous_loan"), dict) else {}
+    co_pl = co_ff.get("previous_loan") if isinstance(co_ff.get("previous_loan"), dict) else {}
+    if co_pl:
+        merged["previous_loan"] = {
+            "loan_type": _clean_val(app_pl.get("loan_type")) or _clean_val(co_pl.get("loan_type")) or "NA",
+            "amount": _clean_val(app_pl.get("amount")) or _clean_val(co_pl.get("amount")) or "NA",
+            "bank": _clean_val(app_pl.get("bank")) or _clean_val(co_pl.get("bank")) or "NA",
+            "date": _clean_val(app_pl.get("date")) or _clean_val(co_pl.get("date")) or "NA",
+        }
+
+    return enrich_field_form_defaults(merged, applicant_name=primary_applicant_name or _clean_val(app_ff.get("form_person_name")))
 
 
 def ingest_field_form_pdf(pdf_path: str, applicant_name: str) -> Dict[str, Any]:
@@ -1195,7 +1723,7 @@ def ingest_field_form_pdf(pdf_path: str, applicant_name: str) -> Dict[str, Any]:
         extracted = _call_gemini_extraction(image_paths, applicant_name)
         if applicant_name and not _clean_val(extracted.get("name")):
             extracted["name"] = applicant_name
-        return build_field_form_payload(extracted)
+        return build_field_form_payload(extracted, case_applicant_name=applicant_name)
     finally:
         for p in image_paths:
             try:
@@ -1313,7 +1841,7 @@ def extract_field_form_pdf_for_intake(pdf_path: str, applicant_name: str = "") -
         extracted = _call_gemini_extraction(image_paths, applicant_name)
         if applicant_name and not _clean_val(extracted.get("name")):
             extracted["name"] = applicant_name
-        field_form_payload = build_field_form_payload(extracted)
+        field_form_payload = build_field_form_payload(extracted, case_applicant_name=applicant_name)
 
         # Normalize bank name to standard empanelled bank names if possible
         raw_bank = (extracted.get("bank_name") or "").strip()
@@ -1371,9 +1899,46 @@ def extract_field_form_pdf_for_intake(pdf_path: str, applicant_name: str = "") -
             else (str(raw_loan_amt).strip() if raw_loan_amt else None)
         )
 
+        raw_app_type = (_clean_val(extracted.get("applicant_type")) or "Applicant").strip()
+        is_co_form = raw_app_type.lower().replace("-", " ").startswith("co")
+        extracted_person_name = _clean_val(extracted.get("name"))
+        extracted_co_name = _clean_val(extracted.get("co_applicant_name"))
+        extracted_co_contact = _clean_val(extracted.get("co_applicant_contact"))
+        primary_app_name = extracted_person_name
+        primary_app_contact = _clean_val(extracted.get("contact_number"))
+
+        if is_co_form:
+            # This form is for the Co-applicant (2nd Applicant)!
+            extracted_co_name = extracted_person_name or extracted_co_name
+            extracted_co_contact = primary_app_contact or extracted_co_contact
+            # Check if the 1st Applicant (e.g. Daughter/Son in an Education Loan) is in family_members
+            inferred_child_name = None
+            if isinstance(extracted.get("family_members"), list):
+                for fm_item in extracted.get("family_members"):
+                    if isinstance(fm_item, dict):
+                        fm_r = (_clean_val(fm_item.get("relation")) or "").upper()
+                        fm_a = _parse_age_int(fm_item.get("age"))
+                        if fm_r in ("DAUGHTER", "SON") and (normalized_loan == "Education Loan" or (fm_a and 17 <= fm_a <= 26)):
+                            raw_child = _clean_val(fm_item.get("name"))
+                            if raw_child:
+                                prefix = "Miss. " if fm_r == "DAUGHTER" else "Mr. "
+                                # If child name is a single token (e.g. "Moksha") and parent is "Kaushikbhai Jain",
+                                # construct full name "Miss. Moksha Kaushik Jain"
+                                c_tokens = raw_child.split()
+                                p_tokens = (extracted_person_name or "").split()
+                                if len(c_tokens) == 1 and len(p_tokens) >= 2:
+                                    father_first = re.sub(r"(?i)(?:bhai|kumar|lal)$", "", p_tokens[0]).strip() or p_tokens[0]
+                                    surname = p_tokens[-1]
+                                    inferred_child_name = f"{prefix}{c_tokens[0]} {father_first} {surname}"
+                                else:
+                                    inferred_child_name = raw_child if re.match(r"^(?:Mr|Mrs|Miss|Ms)\b", raw_child, re.I) else f"{prefix}{raw_child}"
+                                break
+            primary_app_name = _clean_val(applicant_name) or inferred_child_name or extracted_person_name
+
         case_data = {
-            "applicant_name": extracted.get("name"),
-            "contact_number": extracted.get("contact_number"),
+            "applicant_type": "Co-applicant" if is_co_form else "Applicant",
+            "applicant_name": primary_app_name,
+            "contact_number": primary_app_contact,
             "address_visited": extracted.get("address_visited"),
             "office_address": extracted.get("office_address"),
             "bank_name": normalized_bank,
@@ -1382,12 +1947,12 @@ def extract_field_form_pdf_for_intake(pdf_path: str, applicant_name: str = "") -
             "loan_amount": resolved_loan_amt_str,
             "loan_amount_raw": raw_loan_amt,
             "executive_name": extracted.get("executive_name"),
-            "co_applicant_name": extracted.get("co_applicant_name"),
-            "co_applicant_contact": extracted.get("co_applicant_contact"),
-            "co_applicant_address": extracted.get("co_applicant_address"),
+            "co_applicant_name": extracted_co_name,
+            "co_applicant_contact": extracted_co_contact,
+            "co_applicant_address": extracted.get("co_applicant_address") or (extracted.get("address_visited") if is_co_form else None),
             "visit_date": extracted.get("visit_date"),
-            "marital_status": extracted.get("marital_status"),
-            "occupation": extracted.get("occupation"),
+            "marital_status": field_form_payload.get("marital_status") or extracted.get("marital_status"),
+            "occupation": field_form_payload.get("occupation") or extracted.get("occupation"),
             "firm_name": extracted.get("firm_name"),
         }
 

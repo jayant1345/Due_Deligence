@@ -1019,15 +1019,15 @@
             </span>
             <div class="flex flex-wrap items-center gap-1.5">
               <input type="file" id="homePhotosMultiInput" accept="image/*" multiple class="hidden" onchange="handleDirectMultiPhotoSelect('residence', this)"/>
-              <button type="button" id="btnSelectHomePhotosMulti" onclick="document.getElementById('homePhotosMultiInput').click()" title="Select 1–4 Home photos directly (no folder or manual file renaming required — auto-renames 1_xxxx..4_xxxx &amp; places in Home Slots 1–4)" class="px-2.5 py-1 rounded border border-emerald-500 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-xs transition-all active:scale-95">
-                <span class="material-symbols-outlined text-[14px]">add_photo_alternate</span>
-                <span>📸 Select Home Photos (1–4)</span>
+              <button type="button" id="btnSelectHomePhotosMulti" onclick="document.getElementById('homePhotosMultiInput').click()" title="Select 1–4 Home photos directly (no folder or manual file renaming required — auto-renames 1_xxxx..4_xxxx &amp; places in Home Slots 1–4)" style="background:linear-gradient(135deg,#059669,#047857);color:#ffffff;border:1px solid #047857;" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-xs transition-all active:scale-95">
+                <span class="material-symbols-outlined text-[14px]" style="color:#ffffff;">add_photo_alternate</span>
+                <span style="color:#ffffff;">📸 Select Home Photos (1–4)</span>
               </button>
 
               <input type="file" id="officePhotosMultiInput" accept="image/*" multiple class="hidden" onchange="handleDirectMultiPhotoSelect('work', this)"/>
-              <button type="button" id="btnSelectOfficePhotosMulti" onclick="document.getElementById('officePhotosMultiInput').click()" title="Select 1–4 Office photos directly (no folder or manual file renaming required — auto-renames 1_xxxx..4_xxxx &amp; places in Office Slots 1–4)" class="px-2.5 py-1 rounded border border-indigo-500 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-xs transition-all active:scale-95">
-                <span class="material-symbols-outlined text-[14px]">add_a_photo</span>
-                <span>🏢 Select Office Photos (1–4)</span>
+              <button type="button" id="btnSelectOfficePhotosMulti" onclick="document.getElementById('officePhotosMultiInput').click()" title="Select 1–4 Office photos directly (no folder or manual file renaming required — auto-renames 1_xxxx..4_xxxx &amp; places in Office Slots 1–4)" style="background:linear-gradient(135deg,#4f46e5,#3730a3);color:#ffffff;border:1px solid #3730a3;" class="px-2.5 py-1 rounded bg-blue-700 hover:bg-blue-800 text-white text-[10px] font-bold flex items-center gap-1 shadow-xs transition-all active:scale-95">
+                <span class="material-symbols-outlined text-[14px]" style="color:#ffffff;">add_a_photo</span>
+                <span style="color:#ffffff;">🏢 Select Office Photos (1–4)</span>
               </button>
 
               <input type="file" id="homeFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleDedicatedFolderUpload('residence', this)"/>
@@ -3317,11 +3317,23 @@
             <input id="ecCaseNo" type="text" class="w-full text-xs font-mono font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2" readonly/>
           </div>
           <div>
-            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Applicant Name</label>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase">1st Applicant Name</label>
+              <div class="flex items-center gap-0.5 font-mono text-[9px]">
+                <button type="button" onclick="setEditNameSalutation('ecApplicantName','Miss.')" class="px-1.5 py-0.5 rounded bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-300 font-bold" title="Set Miss. (Daughter / Unmarried)">Miss.</button>
+                <button type="button" onclick="setEditNameSalutation('ecApplicantName','Mrs.')" class="px-1.5 py-0.5 rounded bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-300 font-bold" title="Set Mrs. (Wife / Married)">Mrs.</button>
+                <button type="button" onclick="setEditNameSalutation('ecApplicantName','Mr.')" class="px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold" title="Set Mr.">Mr.</button>
+              </div>
+            </div>
             <input id="ecApplicantName" type="text" required class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
           <div class="col-span-2">
-            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Case Type</label>
+            <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase">Case Type &amp; Applicant Order</label>
+              <button type="button" onclick="swapEditApplicants1And2()" style="background:linear-gradient(135deg,#0f766e,#115e59);color:#ffffff;" class="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1 shadow-xs hover:opacity-95 transition-all" title="Swap 1st Applicant and 2nd Co-Applicant (Name &amp; Phone)">
+                <span>⇄ Swap 1st &amp; 2nd Applicant</span>
+              </button>
+            </div>
             <div class="flex items-center gap-0.5 bg-surface-container-high p-0.5 rounded-full border border-outline-variant font-mono text-[10px] w-fit">
               <button type="button" id="ecMode1" onclick="setEcApplicantMode(1)" class="px-3 py-1 rounded-full transition-all font-bold">1 Applicant</button>
               <button type="button" id="ecMode2" onclick="setEcApplicantMode(2)" class="px-3 py-1 rounded-full transition-all font-medium">2 Applicants</button>
@@ -3330,8 +3342,29 @@
               <button type="button" id="ecMode5" onclick="setEcApplicantMode(5)" class="px-3 py-1 rounded-full transition-all font-medium">5 Applicants</button>
             </div>
           </div>
+          <div id="ecCoApplicantRelationWrap" class="col-span-2">
+            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Daughter vs Wife / Relationship Decision <span class="font-normal normal-case text-outline">(Auto-decides by age or choose manually)</span></label>
+            <select id="ecCoApplicantRelation" onchange="onEcCoRelationChange(this.value)" class="w-full text-xs font-semibold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+              <option value="AUTO">✨ Auto-Decide by Age (Age gap ≥16 yrs → Daughter Miss. &amp; Father Mr. | Gap &lt;15 yrs → Wife Mrs. &amp; Husband Mr.)</option>
+              <option value="APPLICANT_IS_DAUGHTER">👧 1st Applicant is Daughter (Miss. / Unmarried) • 2nd Co-Applicant is Father (Mr.) / Mother</option>
+              <option value="APPLICANT_IS_SON">👦 1st Applicant is Son (Mr. / Unmarried) • 2nd Co-Applicant is Father (Mr.) / Mother</option>
+              <option value="CO_IS_DAUGHTER">👧 2nd Co-Applicant is Daughter (Miss. / Unmarried) of 1st Applicant</option>
+              <option value="CO_IS_WIFE">👩 2nd Co-Applicant is Wife (Mrs. / Married) of 1st Applicant</option>
+              <option value="CO_IS_HUSBAND">👨 2nd Co-Applicant is Husband (Mr. / Married) of 1st Applicant (Mrs.)</option>
+              <option value="CO_IS_FATHER">👨 2nd Co-Applicant is Father (Mr.) of 1st Applicant</option>
+              <option value="CO_IS_MOTHER">👩 2nd Co-Applicant is Mother (Mrs.) of 1st Applicant</option>
+              <option value="CO_IS_SON">👦 2nd Co-Applicant is Son (Mr.) of 1st Applicant</option>
+            </select>
+          </div>
           <div id="ecCoApplicantNameWrap">
-            <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Co-Applicant Name</label>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block font-mono text-[10px] font-bold text-on-surface uppercase">2nd (Co-Applicant) Name</label>
+              <div class="flex items-center gap-0.5 font-mono text-[9px]">
+                <button type="button" onclick="setEditNameSalutation('ecCoApplicantName','Mr.')" class="px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold" title="Set Mr.">Mr.</button>
+                <button type="button" onclick="setEditNameSalutation('ecCoApplicantName','Mrs.')" class="px-1.5 py-0.5 rounded bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-300 font-bold" title="Set Mrs. (Wife / Mother)">Mrs.</button>
+                <button type="button" onclick="setEditNameSalutation('ecCoApplicantName','Miss.')" class="px-1.5 py-0.5 rounded bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-300 font-bold" title="Set Miss. (Daughter)">Miss.</button>
+              </div>
+            </div>
             <input id="ecCoApplicantName" type="text" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
           <div id="ecCoApplicantPhoneWrap">
