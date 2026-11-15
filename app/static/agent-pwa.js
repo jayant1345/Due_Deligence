@@ -479,9 +479,13 @@
     }
 
     function updateGeofenceUI(lat, lon, accuracy) {
-      const dist = calculateDistanceMeters(TARGET_LAT, TARGET_LON, lat, lon);
+      const safeTargetLat = (TARGET_LAT != null && !isNaN(Number(TARGET_LAT))) ? Number(TARGET_LAT) : 23.0225;
+      const safeTargetLon = (TARGET_LON != null && !isNaN(Number(TARGET_LON))) ? Number(TARGET_LON) : 72.5714;
+      const safeLat = (lat != null && !isNaN(Number(lat))) ? Number(lat) : safeTargetLat;
+      const safeLon = (lon != null && !isNaN(Number(lon))) ? Number(lon) : safeTargetLon;
+      const dist = calculateDistanceMeters(safeTargetLat, safeTargetLon, safeLat, safeLon);
       document.getElementById("proximityDistanceText").textContent = `${dist} meters`;
-      document.getElementById("deviceLatLonText").textContent = `${lat.toFixed(4)}° N`;
+      document.getElementById("deviceLatLonText").textContent = `${safeLat.toFixed(4)}° N`;
       
       const isCompliant = dist <= 150;
       const badge = document.getElementById("geofenceBadge");
@@ -507,9 +511,9 @@
       // Update Watermark string preview
       const nowStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + " " + new Date().toLocaleTimeString('en-GB') + " IST";
       document.getElementById("watermarkBannerText").textContent =
-        `CASE: ${activeCaseKey} | AGENT: FA-7701/7702 | ${nowStr} | ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E | ACC: ${accuracy ? accuracy.toFixed(1) : '3.2'}m | GEOFENCE: ${isCompliant ? 'VALID' : 'BREACH'}`;
+        `CASE: ${activeCaseKey} | AGENT: FA-7701/7702 | ${nowStr} | ${safeLat.toFixed(4)}°N, ${safeLon.toFixed(4)}°E | ACC: ${accuracy ? accuracy.toFixed(1) : '3.2'}m | GEOFENCE: ${isCompliant ? 'VALID' : 'BREACH'}`;
 
-      refreshPwaGeofenceMap(lat, lon, dist);
+      refreshPwaGeofenceMap(safeLat, safeLon, dist);
     }
 
     // Applicant-shared location (WhatsApp link pasted or shared into the PWA). Self-declared:
@@ -1435,11 +1439,18 @@
 
       container.innerHTML = "";
       familyMembers.forEach((m, idx) => {
+        if (!m || typeof m !== "object") return;
+        const relStr = String(m.relation || "Relative / Other (અન્ય)");
+        const occStr = String(m.occupation || (m.earning === "No" ? "Dependent (આધારિત)" : "Job / Salaried (નોકરી)"));
+        if (!m.relation) m.relation = relStr;
+        if (!m.occupation) m.occupation = occStr;
+        const relWord = relStr.split(" ")[0] || "Relative";
+        const occWord = occStr.split(" ")[0] || "Job";
         const row = document.createElement("div");
         row.className = "p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant shadow-2xs space-y-2";
         
-        let relOptions = familyRelations.map(r => `<option value="${r}" ${r.startsWith(m.relation.split(' ')[0]) || m.relation === r ? 'selected' : ''}>${r}</option>`).join("");
-        let occOptions = familyOccupations.map(o => `<option value="${o}" ${o.startsWith(m.occupation.split(' ')[0]) || m.occupation === o ? 'selected' : ''}>${o}</option>`).join("");
+        let relOptions = familyRelations.map(r => `<option value="${r}" ${r.startsWith(relWord) || relStr === r ? 'selected' : ''}>${r}</option>`).join("");
+        let occOptions = familyOccupations.map(o => `<option value="${o}" ${o.startsWith(occWord) || occStr === o ? 'selected' : ''}>${o}</option>`).join("");
 
         row.innerHTML = `
           <div class="flex items-center justify-between pb-1 border-b border-outline-variant/60">
@@ -1451,7 +1462,7 @@
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
             <div>
               <label class="font-mono text-[9px] text-outline block mb-0.5">Full Name (પૂરું નામ)*</label>
-              <input type="text" value="${m.name}" oninput="updateFamilyMember(${idx}, 'name', this.value)" placeholder="Name" class="w-full text-xs font-semibold rounded border border-outline-variant bg-white p-1.5 text-on-surface"/>
+              <input type="text" value="${(m.name || '').replace(/"/g, '&quot;')}" oninput="updateFamilyMember(${idx}, 'name', this.value)" placeholder="Name" class="w-full text-xs font-semibold rounded border border-outline-variant bg-white p-1.5 text-on-surface"/>
             </div>
             <div>
               <label class="font-mono text-[9px] text-outline block mb-0.5">Relation (સંબંધ)*</label>
@@ -1461,7 +1472,7 @@
             </div>
             <div>
               <label class="font-mono text-[9px] text-outline block mb-0.5">Age (ઉંમર)*</label>
-              <input type="number" value="${m.age}" oninput="updateFamilyMember(${idx}, 'age', this.value)" placeholder="Age" class="w-full text-xs font-mono font-semibold rounded border border-outline-variant bg-white p-1.5 text-on-surface"/>
+              <input type="number" value="${m.age || ''}" oninput="updateFamilyMember(${idx}, 'age', this.value)" placeholder="Age" class="w-full text-xs font-mono font-semibold rounded border border-outline-variant bg-white p-1.5 text-on-surface"/>
             </div>
             <div>
               <label class="font-mono text-[9px] text-outline block mb-0.5">Occupation (વ્યવસાય)*</label>
@@ -2279,16 +2290,18 @@
 
       activeCaseKey = key;
       sampleCaseId = c.id; // undefined only when actually switching to an uncached case - safer than silently keeping the PREVIOUS case's real id while this screen shows blank/loading data
-      TARGET_LAT = c.lat;
-      TARGET_LON = c.lon;
-      currentDeviceLat = c.dev_lat;
-      currentDeviceLon = c.dev_lon;
+      const safeLat = (c.lat != null && !isNaN(Number(c.lat))) ? Number(c.lat) : (TARGET_LAT || 23.0225);
+      const safeLon = (c.lon != null && !isNaN(Number(c.lon))) ? Number(c.lon) : (TARGET_LON || 72.5714);
+      TARGET_LAT = safeLat;
+      TARGET_LON = safeLon;
+      currentDeviceLat = (c.dev_lat != null && !isNaN(Number(c.dev_lat))) ? Number(c.dev_lat) : safeLat;
+      currentDeviceLon = (c.dev_lon != null && !isNaN(Number(c.dev_lon))) ? Number(c.dev_lon) : safeLon;
 
-      document.getElementById("caseNoDisplay").textContent = `CASE: ${c.case_no}`;
-      document.getElementById("applicantNameDisplay").textContent = c.applicant;
-      document.getElementById("loanAmountDisplay").textContent = c.amount;
-      document.getElementById("targetAddressDisplay").textContent = c.address;
-      document.getElementById("targetLatLonText").textContent = `${c.lat.toFixed(4)}° N`;
+      document.getElementById("caseNoDisplay").textContent = `CASE: ${c.case_no || key}`;
+      document.getElementById("applicantNameDisplay").textContent = c.applicant || "—";
+      document.getElementById("loanAmountDisplay").textContent = c.amount || "";
+      document.getElementById("targetAddressDisplay").textContent = c.address || "";
+      document.getElementById("targetLatLonText").textContent = `${safeLat.toFixed(4)}° N`;
       refreshPwaGeofenceMap(currentDeviceLat, currentDeviceLon,
         (currentDeviceLat && currentDeviceLon && TARGET_LAT && TARGET_LON) ? calculateDistanceMeters(TARGET_LAT, TARGET_LON, currentDeviceLat, currentDeviceLon) : null, true);
       loadApplicantLocation();
@@ -2301,12 +2314,12 @@
 
       // Dynamically update CA-provided documents for this case
       if (document.getElementById("pwaDocAadhaarName")) {
-        document.getElementById("pwaDocAadhaarName").textContent = c.applicant;
+        document.getElementById("pwaDocAadhaarName").textContent = c.applicant || "—";
         document.getElementById("pwaDocAadhaarNo").textContent = c.aadhaar_no || "Aadhaar: Pending AI scan";
         document.getElementById("pwaDocAadhaarDob").textContent = `DOB: ${c.dob || "Pending AI scan"}`;
       }
       if (document.getElementById("pwaDocPanName")) {
-        document.getElementById("pwaDocPanName").textContent = c.applicant.toUpperCase();
+        document.getElementById("pwaDocPanName").textContent = (c.applicant || "—").toUpperCase();
         document.getElementById("pwaDocPanNo").textContent = `PAN: ${c.pan_no || "Pending AI scan"}`;
         document.getElementById("pwaDocPanWard").textContent = (c.father_name ? `Father: ${c.father_name}` : (c.ward ? `WARD: ${c.ward}` : ""));
       }
@@ -2795,28 +2808,79 @@
     // them (GET /api/v1/cases already filters to just their own, newest-created first) - not
     // just the one the current link happens to point to.
     // ==========================================
-    async function populatePwaCaseSelector(token, currentKey, currentCaseNo, currentApplicantName, currentBranch) {
-      const selector = document.getElementById("pwaCaseSelector");
-      if (!selector) return;
-      let myCases = null;
+    function getEffectivePwaAgentId(explicitAgentId) {
+      let loggedUserId = null;
+      try {
+        const u = JSON.parse(localStorage.getItem("pwa_user") || "{}") || {};
+        if (u.user_id && (!u.role || u.role === "FIELD_AGENT")) {
+          loggedUserId = u.user_id;
+        }
+      } catch (e) {}
+      return explicitAgentId || loggedUserId || localStorage.getItem("pwa_assigned_agent_id") || null;
+    }
+
+    async function fetchMyAgentCases(token, explicitAgentId) {
+      const myAgentId = getEffectivePwaAgentId(explicitAgentId);
+      if (myAgentId) {
+        try {
+          const pubRes = await fetch(`/api/v1/cases/public-agent/${encodeURIComponent(myAgentId)}`);
+          if (pubRes.ok) {
+            const pubCases = await pubRes.json();
+            if (Array.isArray(pubCases)) {
+              return pubCases.filter(c => c.assigned_agent_id === myAgentId);
+            }
+          }
+        } catch (e) {}
+      }
       if (token && token !== "demo-pwa-token") {
         try {
           const res = await fetch("/api/v1/cases", { headers: { "Authorization": `Bearer ${token}` } });
           if (res.ok) {
-            const cases = await res.json();
-            if (Array.isArray(cases) && cases.length > 0) myCases = cases;
+            const allCases = await res.json();
+            if (Array.isArray(allCases)) {
+              return myAgentId ? allCases.filter(c => c.assigned_agent_id === myAgentId) : allCases;
+            }
           }
         } catch (e) {}
       }
+      return [];
+    }
+
+    async function populatePwaCaseSelector(token, currentKey, currentCaseNo, currentApplicantName, currentBranch, assignedAgentId) {
+      const selector = document.getElementById("pwaCaseSelector");
+      if (!selector) return;
+      let myCases = await fetchMyAgentCases(token, assignedAgentId);
+      if (Array.isArray(myCases) && myCases.length > 0) {
+        myCases.sort((a, b) => {
+          const aDone = CASE_DONE_STATUSES.has(a.status) ? 1 : 0;
+          const bDone = CASE_DONE_STATUSES.has(b.status) ? 1 : 0;
+          if (aDone !== bDone) return aDone - bDone;
+          return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0);
+        });
+      }
 
       selector.innerHTML = "";
-      const list = (myCases && myCases.length > 0) ? myCases : [{
-        case_no: currentCaseNo, applicant_name: currentApplicantName, branch: currentBranch,
-      }];
+      const list = (myCases && myCases.length > 0) ? [...myCases] : [];
+      if (currentCaseNo && !list.some(c => c.case_no === currentCaseNo)) {
+        list.unshift({
+          case_no: currentCaseNo,
+          applicant_name: currentApplicantName || "Current Case",
+          branch: currentBranch || "",
+        });
+      }
+      if (list.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "No cases allotted to your mobile yet";
+        selector.appendChild(opt);
+        return;
+      }
       list.forEach(c => {
         const opt = document.createElement("option");
         opt.value = c.case_no;
-        opt.textContent = `[${c.case_no}] - ${c.applicant_name}${c.branch ? " (" + c.branch + ")" : ""}`;
+        const isDone = c.status && CASE_DONE_STATUSES.has(c.status);
+        const statusTag = c.status ? (isDone ? " • ✓ Completed" : " • Allotted") : "";
+        opt.textContent = `[${c.case_no}] - ${c.applicant_name}${c.branch ? " (" + c.branch + ")" : ""}${statusTag}`;
         if (c.case_no === currentKey) opt.selected = true;
         selector.appendChild(opt);
       });
@@ -2841,7 +2905,8 @@
     }
 
     async function loadAssignedCaseForAgent(token, paramCase) {
-      const caseLookup = paramCase || activeCaseKey || localStorage.getItem("pwa_active_case_key") || "UBI-HL-2026-531";
+      const caseLookup = paramCase || activeCaseKey || localStorage.getItem("pwa_active_case_key");
+      if (!caseLookup) return false;
       try {
         let target = null;
         // 1. Try public single-case endpoint first (instant, zero auth restriction, not
@@ -2886,6 +2951,9 @@
         }
 
         if (target) {
+          const existingErrModal = document.getElementById("pwaCaseLoadError");
+          if (existingErrModal) existingErrModal.remove();
+
           // Show the REAL agent this case is assigned to on the server, not whoever happens to
           // be logged into this particular phone/browser right now - the two can drift apart
           // (a shared/demo login left over from earlier testing, a device handed to a different
@@ -2893,6 +2961,9 @@
           // what the agent's own screen says. This is best-effort: a lookup failure silently
           // leaves whatever name is already showing in place.
           if (target.assigned_agent_id) {
+            try {
+              localStorage.setItem("pwa_assigned_agent_id", target.assigned_agent_id);
+            } catch (e) {}
             try {
               const agentsRes = await fetch("/api/v1/agents");
               if (agentsRes.ok) {
@@ -3002,10 +3073,10 @@
             bank: target.bank_name,
             address: target.target_address,
             ward: target.branch || "",
-            lat: target.target_lat,
-            lon: target.target_lon,
-            dev_lat: target.target_lat,
-            dev_lon: target.target_lon,
+            lat: target.target_lat != null ? Number(target.target_lat) : (TARGET_LAT || 23.0225),
+            lon: target.target_lon != null ? Number(target.target_lon) : (TARGET_LON || 72.5714),
+            dev_lat: target.target_lat != null ? Number(target.target_lat) : (currentDeviceLat || 23.0225),
+            dev_lon: target.target_lon != null ? Number(target.target_lon) : (currentDeviceLon || 72.5714),
             occupation: occ,
             firm_name: firm,
             position: pos,
@@ -3116,10 +3187,18 @@
             localStorage.setItem("pwa_active_case_id", sampleCaseId);
           } catch(e) {}
 
-          await populatePwaCaseSelector(token, key, target.case_no, target.applicant_name, target.branch);
+          await populatePwaCaseSelector(token, key, target.case_no, target.applicant_name, target.branch, target.assigned_agent_id);
 
-          switchPwaCase(key);
-          await loadCaseDocumentsIntoPwa(target.id);
+          try {
+            switchPwaCase(key);
+          } catch (switchErr) {
+            console.warn("Non-fatal UI render warning in switchPwaCase:", switchErr);
+          }
+          try {
+            await loadCaseDocumentsIntoPwa(target.id);
+          } catch (docErr) {
+            console.warn("Non-fatal document load warning:", docErr);
+          }
           return true;
         }
         // No match anywhere: do NOT fall back to whatever case happened to be loaded
@@ -3178,61 +3257,43 @@
     }
 
     // Agent's own visit history, pulled live from the server (not any locally-cached copy) so it
-    // always reflects every case actually allotted to this login, across devices and over time.
+    // always reflects every case actually allotted to or completed by this agent.
     async function openMyRecords() {
       const modal = document.getElementById("pwaMyRecordsModal");
       const body = document.getElementById("pwaMyRecordsBody");
       if (!modal || !body) return;
       modal.classList.remove("hidden");
-      body.innerHTML = `<div class="text-center text-xs text-on-surface-variant py-8 font-mono">Loading your records...</div>`;
+      body.innerHTML = `<div class="text-center text-xs text-on-surface-variant py-8 font-mono">Loading your allotted & completed cases...</div>`;
 
       const token = localStorage.getItem("pwa_token");
-      if (!token || token === "demo-pwa-token") {
+      const myAgentId = getEffectivePwaAgentId();
+      if ((!token || token === "demo-pwa-token") && !myAgentId) {
         body.innerHTML = `<div class="text-center text-xs text-on-surface-variant py-8 px-4 font-mono">
-          Log in with your real agent account (not the demo link) to see your personal case records here.
+          Log in with your field agent account to see your allotted & completed case records here.
         </div>`;
         return;
       }
 
       try {
-        const res = await fetch("/api/v1/cases", { headers: { "Authorization": `Bearer ${token}` } });
-        if (res.status === 401) {
-          // The account behind this token was deactivated (or the token expired) since login.
-          // Clear the stale session instead of leaving the agent looking "logged in" while every
-          // API call silently fails.
-          localStorage.removeItem("pwa_token");
-          localStorage.removeItem("pwa_user");
-          body.innerHTML = `<div class="text-center text-xs text-rose-700 py-8 px-4 font-mono">
-            Your session is no longer valid (account deactivated or login expired).
-            Please close this and log in again.
-          </div>`;
-          return;
-        }
-        if (!res.ok) throw new Error("fetch failed");
-        const allCases = await res.json();
-        // GET /api/v1/cases returns every case in the firm (the same endpoint the CA dashboard
-        // uses) — this view's own heading promises "All cases ever assigned to you", so it must
-        // be scoped to this agent's own assigned_agent_id, not shown unfiltered.
-        let myUserId = null;
-        try { myUserId = (JSON.parse(localStorage.getItem("pwa_user") || "{}") || {}).user_id || null; } catch (e) {}
-        const cases = myUserId
-          ? (Array.isArray(allCases) ? allCases.filter(c => c.assigned_agent_id === myUserId) : [])
-          : allCases;
+        const cases = await fetchMyAgentCases(token, myAgentId);
         if (!Array.isArray(cases) || cases.length === 0) {
           let dbgUser = {};
           try { dbgUser = JSON.parse(localStorage.getItem("pwa_user") || "{}") || {}; } catch (e) {}
           body.innerHTML = `<div class="text-center text-xs text-on-surface-variant py-8 px-4 font-mono">
-            No cases have been assigned to you yet.
+            No cases have been allotted to your mobile yet.
             <div class="mt-4 text-[9px] text-outline border-t border-outline-variant pt-3 break-all">
-              Logged in as: ${(dbgUser.full_name || "unknown").replace(/</g, "&lt;")}<br/>
-              Account ID: ${myUserId || "none"}<br/>
-              Role: ${(dbgUser.role || "unknown")}<br/>
-              Total cases visible to this account: ${Array.isArray(allCases) ? allCases.length : 0}
+              Agent: ${(dbgUser.full_name || document.getElementById("agentNameDisplay")?.textContent || "Field Officer").replace(/</g, "&lt;")}<br/>
+              Account ID: ${myAgentId || "none"}
             </div>
           </div>`;
           return;
         }
-        cases.sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+        cases.sort((a, b) => {
+          const aDone = CASE_DONE_STATUSES.has(a.status) ? 1 : 0;
+          const bDone = CASE_DONE_STATUSES.has(b.status) ? 1 : 0;
+          if (aDone !== bDone) return aDone - bDone;
+          return new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at);
+        });
 
         const rows = cases.map(c => {
           const meta = CASE_STATUS_LABELS[c.status] || { label: c.status || "Unknown", cls: "bg-slate-200 text-slate-700" };
@@ -3241,26 +3302,30 @@
           const safeApplicant = (c.applicant_name || "—").replace(/</g, "&lt;");
           const safeAddress = (c.target_address || "—").replace(/</g, "&lt;");
           const safeCaseNo = (c.case_no || "—").replace(/</g, "&lt;");
+          const safeCaseNoAttr = (c.case_no || "").replace(/'/g, "\\'");
           const safeBank = (c.bank_name || "—").replace(/</g, "&lt;");
+          const isCurrent = c.case_no === activeCaseKey;
           return `
-            <div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-3 mb-2.5 shadow-sm">
+            <div onclick="closeMyRecords(); handlePwaCaseDropdownChange('${safeCaseNoAttr}')" class="bg-surface-container-lowest border ${isCurrent ? 'border-primary ring-1 ring-primary/30' : 'border-outline-variant'} rounded-lg p-3 mb-2.5 shadow-sm cursor-pointer active:scale-[0.99] transition-all">
               <div class="flex items-start justify-between gap-2 mb-1.5">
-                <span class="font-mono text-[11px] font-bold text-primary">${safeCaseNo}</span>
+                <span class="font-mono text-[11px] font-bold text-primary">${safeCaseNo} ${isCurrent ? '• ACTIVE VIEW' : ''}</span>
                 <span class="font-mono text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${meta.cls}">${meta.label}</span>
               </div>
               <div class="text-xs font-semibold text-on-surface mb-0.5">${safeApplicant}</div>
               <div class="text-[10px] text-on-surface-variant leading-snug mb-1.5">${safeAddress}</div>
               <div class="flex items-center justify-between text-[10px] font-mono text-on-surface-variant border-t border-outline-variant pt-1.5">
                 <span>${safeBank}</span>
-                <span>${isDone ? "Completed: " + completionDate : "Assigned: " + fmtRecordDate(c.created_at)}</span>
+                <span>${isDone ? "Completed: " + completionDate : "Allotted: " + fmtRecordDate(c.created_at)}</span>
               </div>
             </div>`;
         }).join("");
 
         const doneCount = cases.filter(c => CASE_DONE_STATUSES.has(c.status)).length;
+        const allottedCount = cases.length - doneCount;
         body.innerHTML = `
-          <div class="text-[10px] font-mono text-on-surface-variant mb-3 px-1">
-            ${cases.length} case(s) total · ${doneCount} completed by you
+          <div class="text-[10px] font-mono text-on-surface-variant mb-3 px-1 flex items-center justify-between">
+            <span>${allottedCount} Allotted · ${doneCount} Completed · ${cases.length} Total</span>
+            <span class="text-primary font-bold">Tap any case to open</span>
           </div>
           ${rows}`;
       } catch (e) {
@@ -4001,13 +4066,10 @@
     // current_user.id) and orders newest-created first; prefer one that's still active work
     // over one already CERTIFIED, since that's the agent's actual current task.
     async function resolveCurrentAgentCaseNo(token) {
-      if (!token || token === "demo-pwa-token") return null;
       try {
-        const res = await fetch("/api/v1/cases", { headers: { "Authorization": `Bearer ${token}` } });
-        if (!res.ok) return null;
-        const cases = await res.json();
+        const cases = await fetchMyAgentCases(token);
         if (!Array.isArray(cases) || cases.length === 0) return null;
-        const active = cases.find(c => c.status && c.status !== "CERTIFIED");
+        const active = cases.find(c => c.status && !CASE_DONE_STATUSES.has(c.status));
         return (active || cases[0]).case_no || null;
       } catch (e) {
         return null;
@@ -4017,8 +4079,6 @@
     async function checkAgentAuth() {
       const urlParams = new URLSearchParams(window.location.search);
       const explicitCase = urlParams.get("case") || urlParams.get("case_id");
-      let paramCase = explicitCase || localStorage.getItem("pwa_active_case_key") || "UBI-HL-2026-531";
-
       const token = localStorage.getItem("pwa_token");
       const modal = document.getElementById("agentLoginModal");
 
@@ -4026,6 +4086,9 @@
       if (userJson) {
         try {
           const u = JSON.parse(userJson);
+          if (u.user_id && (!u.role || u.role === "FIELD_AGENT")) {
+            localStorage.setItem("pwa_assigned_agent_id", u.user_id);
+          }
           if (u.full_name && document.getElementById("agentNameDisplay")) {
             document.getElementById("agentNameDisplay").textContent = u.full_name;
           }
@@ -4037,35 +4100,34 @@
         } catch(e){}
       }
 
-      // Step 1: Immediately render the active case and restore from localStorage (instant display, zero blank screen)
-      switchPwaCase(paramCase);
+      let paramCase = explicitCase || null;
 
       // No case-specific dispatch link was opened - the agent just hit their bare /pwa
-      // bookmark, so whatever is cached in localStorage could be a stale prior assignment.
-      // Ask the server which case is actually allotted to this agent right now and prefer
-      // that over the cache before loading anything further.
+      // bookmark, so resolve ONLY from the cases actually allotted to or completed by this agent.
       if (!explicitCase) {
         const currentAssigned = await resolveCurrentAgentCaseNo(token);
-        if (currentAssigned && currentAssigned !== paramCase) {
+        if (currentAssigned) {
           paramCase = currentAssigned;
-          switchPwaCase(paramCase);
+        } else {
+          await populatePwaCaseSelector(token, null, null, null, null);
+          document.getElementById("caseNoDisplay").textContent = "CASE: NO ACTIVE TASK";
+          document.getElementById("applicantNameDisplay").textContent = "No cases allotted to your mobile yet";
+          document.getElementById("loanAmountDisplay").textContent = "";
+          document.getElementById("targetAddressDisplay").textContent = "Once the CA Office allots a case to your login, it will appear in MY TASK above.";
         }
       }
 
-      // Step 2: Try fetching updated case dossier from Railway server
-      let caseResolved = false;
-      try {
-        caseResolved = await loadAssignedCaseForAgent(token, paramCase);
-      } catch(e) {}
+      if (paramCase) {
+        switchPwaCase(paramCase);
+        let caseResolved = false;
+        try {
+          caseResolved = await loadAssignedCaseForAgent(token, paramCase);
+        } catch(e) {}
 
-      // Step 3: Guarantee all documents and photo slots are restored from Railway server & saved to local storage.
-      // Only do this when the case was actually resolved this run, OR the agent opened the
-      // bare /pwa link with no explicit case (a legitimate "resume whatever I had open last"
-      // case) - never after a dispatch link's case lookup failed, which would otherwise show
-      // documents belonging to a DIFFERENT, previously-open case under the new link.
-      const hasExplicitCaseParam = !!(urlParams.get("case") || urlParams.get("case_id"));
-      if (caseResolved || !hasExplicitCaseParam) {
-        await loadCaseDocumentsIntoPwa(sampleCaseId);
+        const hasExplicitCaseParam = !!(urlParams.get("case") || urlParams.get("case_id"));
+        if (caseResolved || !hasExplicitCaseParam) {
+          await loadCaseDocumentsIntoPwa(sampleCaseId);
+        }
       }
 
       // Show login modal only if agent is not authenticated and has no explicit dispatch link
@@ -4100,6 +4162,11 @@
           const data = await res.json();
           localStorage.setItem("pwa_token", data.access_token);
           localStorage.setItem("pwa_user", JSON.stringify(data));
+          if (data.user_id) {
+            localStorage.setItem("pwa_assigned_agent_id", data.user_id);
+          }
+          localStorage.removeItem("pwa_active_case_key");
+          localStorage.removeItem("pwa_active_case_id");
           document.getElementById("agentLoginModal").classList.add("hidden");
           if (document.getElementById("agentNameDisplay") && data.full_name) {
             document.getElementById("agentNameDisplay").textContent = data.full_name;
@@ -4137,6 +4204,9 @@
       if (confirm("Sign out of the Field Verification PWA?")) {
         localStorage.removeItem("pwa_token");
         localStorage.removeItem("pwa_user");
+        localStorage.removeItem("pwa_assigned_agent_id");
+        localStorage.removeItem("pwa_active_case_key");
+        localStorage.removeItem("pwa_active_case_id");
         document.getElementById("agentLoginModal").classList.remove("hidden");
       }
     }

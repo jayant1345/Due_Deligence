@@ -112,7 +112,7 @@
            (GET /api/v1/cases, already filtered to just their own) via populatePwaCaseSelector(),
            not a hardcoded demo option. -->
       <select id="pwaCaseSelector" onchange="handlePwaCaseDropdownChange(this.value)" class="text-xs bg-surface-container-low border border-outline-variant rounded-lg font-semibold text-on-surface py-1.5 px-2 w-full truncate cursor-pointer">
-        <option value="UBI-HL-2026-20L" selected>[UBI-HL-2026-20L] - Mrs. Rajkunvarba Vaghela (Gandhinagar)</option>
+        <option value="" selected>Loading your allotted cases...</option>
       </select>
     </div>
 
@@ -2253,7 +2253,7 @@
   </nav>
 
   <!-- Interactive JavaScript Engine -->
-  <script src="/static/agent-pwa.js?v=6"></script>
+  <script src="/static/agent-pwa.js?v=7"></script>
 
   <!-- FIELD AGENT AUTHENTICATION MODAL -->
   <div id="agentLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">

@@ -4732,6 +4732,7 @@
     async function copyHandoverMessage() {
       const text = generateHandoverMessage();
       const btnText = document.getElementById("btnCopyText");
+      markCaseAsAssigned();
       try {
         await navigator.clipboard.writeText(text);
         if (btnText) {

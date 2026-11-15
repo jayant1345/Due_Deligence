@@ -674,6 +674,24 @@ async def assign_case_to_agent(
 
 
 
+@router.get("/public-agent/{agent_id}", response_model=List[CaseResponse])
+async def get_public_agent_cases(
+    agent_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Return only the cases allotted to or completed by a specific field agent UUID.
+    Used by the Field Agent Mobile PWA so the agent's phone only ever lists their own
+    allotted and completed cases in MY TASK and My Records.
+    """
+    res = await db.execute(
+        select(LoanCase)
+        .where(LoanCase.assigned_agent_id == agent_id)
+        .order_by(desc(LoanCase.updated_at), desc(LoanCase.created_at))
+    )
+    return res.scalars().all()
+
+
 @router.get("/public/{case_id}", response_model=CaseResponse)
 async def get_public_case_detail(
     case_id: str,
