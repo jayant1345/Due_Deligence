@@ -201,6 +201,32 @@ def generate_certified_cpv_report(
     real_aadhaar_co = _ocr_first("extracted_aadhaar", {"AADHAAR_CARD"}, co_applicant=True)
     real_dob_co = _ocr_first("date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"}, co_applicant=True) or _ocr_first("date_of_birth", co_applicant=True)
     real_gender_co = _ocr_first("gender", {"AADHAAR_CARD", "PAN_CARD"}, co_applicant=True) or _ocr_first("gender", co_applicant=True)
+    real_age_co_early = _calc_age_pdf(real_dob_co, _date_cls_pdf.today()) if co_applicant_name else None
+
+    # Ensure applicant_name and co_applicant_name carry the right salutation (e.g. 'Miss.' vs 'Mrs.')
+    # right from Page 1 onwards based on age/relationship.
+    from app.services.field_form_pdf_ingest import infer_applicant_co_relation_by_age as _infer_rel_pdf
+    _early_office_co = (field_form.get("office_details_co") or {}) if isinstance(field_form, dict) else {}
+    _early_rel = _infer_rel_pdf(
+        applicant_name=applicant_name if applicant_name != NOT_CAPTURED else None,
+        applicant_gender=real_gender,
+        applicant_age_or_dob=real_age or (field_form.get("age") if isinstance(field_form, dict) else None),
+        applicant_marital=field_form.get("marital_status") if isinstance(field_form, dict) else None,
+        co_applicant_name=co_applicant_name,
+        co_applicant_gender=real_gender_co,
+        co_applicant_age_or_dob=real_age_co_early or _early_office_co.get("age"),
+        co_applicant_marital=_early_office_co.get("marital_status"),
+        explicit_relation=(field_form.get("co_applicant_relation") if isinstance(field_form, dict) else None) or _early_office_co.get("relation_to_applicant"),
+        loan_type=loan_type if loan_type != NOT_CAPTURED else None,
+    )
+    if applicant_name and applicant_name != NOT_CAPTURED and _early_rel.get("applicant_salutation"):
+        _bare_app = re.sub(r"^\s*(?:Mr\.?|Mrs\.?|Miss\.?|Ms\.?|Shri\.?|Smt\.?|Kum\.?|Kumari|Dr\.?)\s+", "", applicant_name, flags=re.IGNORECASE).strip()
+        if _bare_app:
+            applicant_name = f"{_early_rel['applicant_salutation']} {_bare_app}"
+    if co_applicant_name and _early_rel.get("co_salutation"):
+        _bare_co = re.sub(r"^\s*(?:Mr\.?|Mrs\.?|Miss\.?|Ms\.?|Shri\.?|Smt\.?|Kum\.?|Kumari|Dr\.?)\s+", "", co_applicant_name, flags=re.IGNORECASE).strip()
+        if _bare_co:
+            co_applicant_name = f"{_early_rel['co_salutation']} {_bare_co}"
 
     doc = SimpleDocTemplate(
         output_pdf_path,
@@ -652,12 +678,13 @@ def generate_certified_cpv_report(
     real_age_co = _age(real_dob_co, _date_cls.today()) if co_applicant_name else None
     _rel_info = infer_applicant_co_relation_by_age(
         applicant_name=applicant_name,
-        applicant_age=real_age or field_form.get("age"),
+        applicant_age_or_dob=real_age or field_form.get("age"),
         applicant_gender=real_gender,
         co_applicant_name=co_applicant_name,
-        co_applicant_age=real_age_co or office_co.get("age"),
+        co_applicant_age_or_dob=real_age_co or office_co.get("age"),
         co_applicant_gender=real_gender_co,
         explicit_relation=field_form.get("co_applicant_relation") or office_co.get("relation_to_applicant"),
+        loan_type=loan_type if loan_type != NOT_CAPTURED else None,
     )
     marital_val = _strip_regional_suffix(field_form.get("marital_status")) or _rel_info.get("applicant_marital_status") or NOT_CAPTURED
     if _rel_info.get("applicant_marital_status") == "Unmarried" and (real_age and int(str(real_age)) <= 23):

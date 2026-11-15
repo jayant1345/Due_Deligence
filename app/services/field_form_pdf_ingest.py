@@ -319,7 +319,7 @@ def _parse_age_int(val: Optional[Any]) -> Optional[int]:
 
 
 def infer_applicant_co_relation_by_age(
-    applicant_name: Optional[str],
+    applicant_name: Optional[str] = None,
     applicant_gender: Optional[str] = None,
     applicant_age_or_dob: Optional[Any] = None,
     applicant_marital: Optional[str] = None,
@@ -329,6 +329,9 @@ def infer_applicant_co_relation_by_age(
     co_applicant_marital: Optional[str] = None,
     explicit_relation: Optional[str] = None,
     loan_type: Optional[str] = None,
+    applicant_age: Optional[Any] = None,
+    co_applicant_age: Optional[Any] = None,
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     """
     Auto-decides (or honors manual override `explicit_relation`) whether two applicants on a case
@@ -337,8 +340,8 @@ def infer_applicant_co_relation_by_age(
     """
     app_g = _infer_gender_from_name_or_hint(applicant_name, applicant_gender)
     co_g = _infer_gender_from_name_or_hint(co_applicant_name, co_applicant_gender)
-    app_age = _parse_age_int(applicant_age_or_dob)
-    co_age = _parse_age_int(co_applicant_age_or_dob)
+    app_age = _parse_age_int(applicant_age_or_dob if applicant_age_or_dob is not None else applicant_age)
+    co_age = _parse_age_int(co_applicant_age_or_dob if co_applicant_age_or_dob is not None else co_applicant_age)
 
     app_upper = (applicant_name or "").strip().upper()
     co_upper = (co_applicant_name or "").strip().upper()
@@ -359,7 +362,7 @@ def infer_applicant_co_relation_by_age(
     is_parent_child = False
 
     # 1. Explicit manual override from UI / field_form_data
-    if exp in ("APPLICANT_IS_DAUGHTER", "DAUGHTER_FATHER", "1ST_DAUGHTER"):
+    if exp in ("APPLICANT_IS_DAUGHTER", "DAUGHTER_FATHER", "FATHER_DAUGHTER", "1ST_DAUGHTER"):
         is_parent_child = True
         app_rel_to_co = "Daughter"
         co_rel_to_app = "Mother" if co_g == "FEMALE" else "Father"
