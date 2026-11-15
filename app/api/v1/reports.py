@@ -27,7 +27,7 @@ DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingm
 def get_applicant_report_filename(loan_case: Optional[LoanCase], fallback_path: str, ext: str) -> str:
     """Format downloadable report filename as per applicant name: e.g. Bhavnaben_Pargi_Report.pdf"""
     if loan_case and loan_case.applicant_name:
-        clean = re.sub(r'^(mr|mrs|ms|dr|shri|smt)\.?\s+', '', loan_case.applicant_name.strip(), flags=re.IGNORECASE)
+        clean = re.sub(r'^(mr|mrs|miss|ms|dr|shri|smt|kum|kumari)\.?\s+', '', loan_case.applicant_name.strip(), flags=re.IGNORECASE)
         clean = re.sub(r'[^a-zA-Z0-9]+', '_', clean).strip('_')
         if clean:
             return f"{clean}_Report.{ext}"
@@ -175,6 +175,19 @@ async def download_report_pdf(
             if os.path.exists(cand):
                 resolved_pdf = cand
 
+    if report and not resolved_pdf and loan_case:
+        from app.workers.celery_tasks import async_generate_report_pdf
+        gen_res = await async_generate_report_pdf(
+            session=db,
+            case_id_str=str(loan_case.id),
+            ca_remarks="Verified & Certified",
+            user_id_str=str(report.generated_by_id) if report.generated_by_id else None,
+            udin=report.udin,
+            report_date=report.report_date,
+        )
+        if gen_res.get("status") == "success" and os.path.exists(gen_res.get("report_url", "")):
+            resolved_pdf = gen_res["report_url"]
+
     if report and resolved_pdf:
         filename = get_applicant_report_filename(loan_case, resolved_pdf, "pdf")
         return FileResponse(
@@ -221,27 +234,6 @@ async def download_report_pdf(
                 headers={"Content-Disposition": f'attachment; filename="{filename}"'},
             )
 
-    # Fallback 3: auto-generate report for active case if none exists yet
-    case_res = await db.execute(select(LoanCase).where(LoanCase.applicant_name.ilike("%bhavna%")).limit(1))
-    pargi_case = case_res.scalar_one_or_none()
-    if pargi_case:
-        from app.workers.celery_tasks import async_generate_report_pdf
-        gen_res = await async_generate_report_pdf(
-            session=db,
-            case_id_str=str(pargi_case.id),
-            ca_remarks="Verified & Certified",
-            user_id_str=str(uuid.uuid4()),
-            udin="26033747AAAAAA1234",
-        )
-        if gen_res.get("status") == "success" and os.path.exists(gen_res.get("report_url", "")):
-            filename = get_applicant_report_filename(pargi_case, gen_res["report_url"], "pdf")
-            return FileResponse(
-                path=gen_res["report_url"],
-                media_type="application/pdf",
-                filename=filename,
-                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-            )
-
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="Report not found or its file is no longer on the server — regenerate it.",
@@ -279,6 +271,33 @@ async def download_report_docx(
             if os.path.exists(cand):
                 resolved_docx = cand
 
+    # On-the-fly regeneration if the DOCX file is missing on disk (e.g. after a container restart)
+    if report and not resolved_docx and loan_case:
+        from app.api.v1.cases import _ai_ingested_pages
+        from datetime import date as _date_cls
+        pages = await _ai_ingested_pages(db, loan_case)
+        rep_dt = None
+        if report.report_date:
+            try:
+                rep_dt = datetime.strptime(str(report.report_date)[:10], "%Y-%m-%d").date()
+            except ValueError:
+                rep_dt = None
+        cpv_data = await assemble_cpv_report_data(
+            db,
+            loan_case,
+            pages,
+            udin=report.udin,
+            overall_status="POSITIVE",
+            report_date=rep_dt,
+        )
+        pv_dir = os.path.join("storage_uploads", "reports_generated")
+        os.makedirs(pv_dir, exist_ok=True)
+        dl_name = get_applicant_report_filename(loan_case, report.docx_url or "", "docx")
+        out_docx = os.path.join(pv_dir, dl_name)
+        await run_in_threadpool(build_cpv_report, cpv_data, out_docx)
+        if os.path.exists(out_docx):
+            resolved_docx = out_docx
+
     if report and resolved_docx:
         filename = get_applicant_report_filename(loan_case, resolved_docx, "docx")
         return FileResponse(
@@ -312,27 +331,6 @@ async def download_report_docx(
             filename = os.path.basename(latest_docx)
             return FileResponse(
                 path=latest_docx,
-                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                filename=filename,
-                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-            )
-
-    # Fallback 3: auto-generate report for active case if none exists yet
-    case_res = await db.execute(select(LoanCase).where(LoanCase.applicant_name.ilike("%bhavna%")).limit(1))
-    pargi_case = case_res.scalar_one_or_none()
-    if pargi_case:
-        from app.workers.celery_tasks import async_generate_report_pdf
-        gen_res = await async_generate_report_pdf(
-            session=db,
-            case_id_str=str(pargi_case.id),
-            ca_remarks="Verified & Certified",
-            user_id_str=str(uuid.uuid4()),
-            udin="26033747AAAAAA1234",
-        )
-        if gen_res.get("status") == "success" and os.path.exists(gen_res.get("docx_url", "")):
-            filename = get_applicant_report_filename(pargi_case, gen_res["docx_url"], "docx")
-            return FileResponse(
-                path=gen_res["docx_url"],
                 media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 filename=filename,
                 headers={"Content-Disposition": f'attachment; filename="{filename}"'},

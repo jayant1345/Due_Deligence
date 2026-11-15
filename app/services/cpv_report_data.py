@@ -184,12 +184,17 @@ def _title(name: Optional[str]) -> Optional[str]:
 def _salutation(
     gender: Optional[str],
     marital: Optional[str],
-    age: Optional[int] = None,
+    age: Optional[Any] = None,
     fallback_name: Optional[str] = None,
     explicit_salutation: Optional[str] = None,
 ) -> str:
     if explicit_salutation:
         return explicit_salutation
+    age_int: Optional[int] = None
+    if age is not None:
+        m_age = re.search(r"\b(\d{1,3})\b", str(age))
+        if m_age:
+            age_int = int(m_age.group(1))
     prefix_from_name = _extract_title_prefix(fallback_name)
     g = (gender or "").upper()
     if not g and prefix_from_name:
@@ -205,13 +210,13 @@ def _salutation(
             return "Miss."
         if prefix_from_name == "Mrs.":
             return "Mrs."
-        if age is not None and age <= 22 and "married" not in mar_low:
+        if age_int is not None and age_int <= 22 and "married" not in mar_low:
             return "Miss."
         if "married" in mar_low and "un" not in mar_low:
             return "Mrs."
         if prefix_from_name:
             return prefix_from_name
-        return "Miss." if (age is not None and age <= 23) else "Ms."
+        return "Miss." if (age_int is not None and age_int <= 23) else "Ms."
     return prefix_from_name or ""
 
 
@@ -373,9 +378,14 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     if computed_age is None and office_form.get("age"):
         m_a = re.search(r"\b(\d{1,3})\b", str(office_form.get("age")))
         if m_a:
-            computed_age = int(m_a.group(1))
+            computed_age = f"{int(m_a.group(1))} Years"
+    computed_age_int: Optional[int] = None
+    if computed_age is not None:
+        m_ca = re.search(r"\b(\d{1,3})\b", str(computed_age))
+        if m_ca:
+            computed_age_int = int(m_ca.group(1))
     effective_marital = _strip_regional_suffix(marital or office_form.get("marital_status"))
-    if computed_age is not None and computed_age <= 22 and not _extract_title_prefix(fallback_name) == "Mrs.":
+    if computed_age_int is not None and computed_age_int <= 22 and _extract_title_prefix(fallback_name) != "Mrs.":
         if not effective_marital or effective_marital.lower() == "married":
             # Guard against a parent's 'Married' status bleeding onto an unmarried <=22 student/child
             if _extract_title_prefix(fallback_name) == "Miss.":
@@ -384,7 +394,7 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     sal = _salutation(
         gender,
         effective_marital,
-        age=computed_age,
+        age=computed_age_int,
         fallback_name=fallback_name or name,
         explicit_salutation=explicit_salutation,
     )

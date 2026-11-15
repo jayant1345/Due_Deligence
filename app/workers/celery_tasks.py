@@ -203,6 +203,11 @@ async def async_generate_report_pdf(
     if user_id_str:
         user_res = await session.execute(select(User).where(User.id == user_uuid))
         ca_user = user_res.scalar_one_or_none()
+    if not ca_user:
+        fallback_user_res = await session.execute(select(User).limit(1))
+        ca_user = fallback_user_res.scalar_one_or_none()
+        if ca_user:
+            user_uuid = ca_user.id
 
     assigned_agent = None
     if loan_case.assigned_agent_id:

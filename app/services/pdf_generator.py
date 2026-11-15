@@ -687,7 +687,9 @@ def generate_certified_cpv_report(
         loan_type=loan_type if loan_type != NOT_CAPTURED else None,
     )
     marital_val = _strip_regional_suffix(field_form.get("marital_status")) or _rel_info.get("applicant_marital_status") or NOT_CAPTURED
-    if _rel_info.get("applicant_marital_status") == "Unmarried" and (real_age and int(str(real_age)) <= 23):
+    if _rel_info.get("applicant_marital_status") == "Unmarried" and (
+        _rel_info.get("is_parent_child") or (_rel_info.get("applicant_age") is not None and _rel_info.get("applicant_age") <= 23)
+    ):
         marital_val = "Unmarried"
     community_val = field_form.get("community") or NOT_CAPTURED
     qual_val = field_form.get("qualification") or NOT_CAPTURED
