@@ -405,6 +405,15 @@ def generate_certified_cpv_report(
     loan_persons_text = f"Applicant: <b>{applicant_name}</b>"
     if co_applicant_name:
         loan_persons_text += f"<br/>Co-Applicant: <b>{co_applicant_name}</b>"
+    extra_cos_pdf = (field_form.get("extra_co_applicants") if isinstance(field_form, dict) and isinstance(field_form.get("extra_co_applicants"), list) else [])
+    for slot_i in (3, 4, 5):
+        s_nm = case_data.get(f"applicant_{slot_i}_name") or (field_form.get(f"applicant_{slot_i}_name") if isinstance(field_form, dict) else None)
+        if not s_nm:
+            ec_match = next((x for x in extra_cos_pdf if isinstance(x, dict) and x.get("slot") == slot_i), None)
+            if ec_match:
+                s_nm = ec_match.get("name")
+        if s_nm and str(s_nm).strip():
+            loan_persons_text += f"<br/>Co-Applicant {slot_i - 1}: <b>{str(s_nm).strip()}</b>"
     verifier_name = (
         field_form.get("verifier_agent_name")
         or field_form.get("executive")
@@ -775,6 +784,42 @@ def generate_certified_cpv_report(
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
         ]))
         story.append(t_anxA_p3_co)
+        story.append(Spacer(1, 8))
+
+    # Render Annexure A Identity table for any additional Co-Applicants (Applicants 3, 4, 5)
+    for slot_i in (3, 4, 5):
+        ec_item = next((x for x in extra_cos_pdf if isinstance(x, dict) and x.get("slot") == slot_i), None)
+        if not ec_item and (slot_i - 3) < len(extra_cos_pdf) and isinstance(extra_cos_pdf[slot_i - 3], dict):
+            ec_item = extra_cos_pdf[slot_i - 3]
+        ec_name = case_data.get(f"applicant_{slot_i}_name") or (ec_item.get("name") if ec_item else None) or (field_form.get(f"applicant_{slot_i}_name") if isinstance(field_form, dict) else None)
+        if not ec_name or not str(ec_name).strip():
+            continue
+        ec_phone = case_data.get(f"applicant_{slot_i}_phone") or (ec_item.get("contact_number") if ec_item else None) or (field_form.get(f"applicant_{slot_i}_phone") if isinstance(field_form, dict) else None) or NOT_CAPTURED
+        ec_age_str = f"{ec_item.get('age')} Years" if (ec_item and ec_item.get("age") and "year" not in str(ec_item.get("age")).lower()) else (str(ec_item.get("age")) if ec_item and ec_item.get("age") else None)
+        ec_gen_str = ec_item.get("gender") if ec_item else None
+        ec_dob_age_gen = " / ".join(filter(None, [ec_age_str, ec_gen_str])) or NOT_CAPTURED
+        ec_mar = _strip_regional_suffix(ec_item.get("marital_status") if ec_item else None) or NOT_CAPTURED
+        ec_comm = (ec_item.get("community") if ec_item else None) or (field_form.get("community") if isinstance(field_form, dict) else None) or NOT_CAPTURED
+        ec_qual = _strip_regional_suffix(ec_item.get("qualification") if ec_item else None) or NOT_CAPTURED
+        ec_occ = _strip_regional_suffix(ec_item.get("occupation") if ec_item else None) or NOT_CAPTURED
+        ec_rel = (ec_item.get("relation_to_applicant") if ec_item else None) or NOT_CAPTURED
+        anxA_ec = [
+            [Paragraph(f"<b>Name of Co-Applicant {slot_i - 1}</b>", table_cell_bold), Paragraph(str(ec_name).strip(), table_cell_style), Paragraph("<b>Contact Number</b>", table_cell_bold), Paragraph(str(ec_phone), table_cell_style)],
+            [Paragraph("<b>DOB / Age / Gender</b>", table_cell_bold), Paragraph(ec_dob_age_gen, table_cell_style), Paragraph("<b>Marital Status</b>", table_cell_bold), Paragraph(ec_mar, table_cell_style)],
+            [Paragraph("<b>Community</b>", table_cell_bold), Paragraph(ec_comm, table_cell_style), Paragraph("<b>KYC PAN No.</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Aadhar Card No.</b>", table_cell_bold), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph("<b>Qualification</b>", table_cell_bold), Paragraph(ec_qual, table_cell_style)],
+            [Paragraph("<b>Occupation</b>", table_cell_bold), Paragraph(ec_occ, table_cell_style), Paragraph("<b>Relation to Applicant</b>", table_cell_bold), Paragraph(ec_rel, table_cell_style)],
+        ]
+        t_anxA_ec = Table(anxA_ec, colWidths=[1.8 * inch, 2.0 * inch, 1.8 * inch, 1.9 * inch])
+        t_anxA_ec.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8FAFC")),
+            ("BACKGROUND", (2, 0), (2, -1), colors.HexColor("#F8FAFC")),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(t_anxA_ec)
         story.append(Spacer(1, 8))
 
     # Family background table

@@ -1029,6 +1029,44 @@ async def assemble_cpv_report_data(
         or (f"{loan_case.bank_name}, {loan_case.branch}" if loan_case.branch else loan_case.bank_name)
     )
 
+    # Build extra_co_applicants (Applicants 3, 4, 5) if present in field_form_data or LoanCase
+    extra_co_applicants: List[Dict[str, Any]] = []
+    raw_extra_cos = form.get("extra_co_applicants") if isinstance(form.get("extra_co_applicants"), list) else []
+    for slot_idx in (3, 4, 5):
+        ec_dict = next((x for x in raw_extra_cos if isinstance(x, dict) and x.get("slot") == slot_idx), None)
+        if not ec_dict and (slot_idx - 3) < len(raw_extra_cos) and isinstance(raw_extra_cos[slot_idx - 3], dict):
+            ec_dict = raw_extra_cos[slot_idx - 3]
+        slot_name = getattr(loan_case, f"applicant_{slot_idx}_name", None) or (ec_dict.get("name") if ec_dict else None) or form.get(f"applicant_{slot_idx}_name")
+        if not slot_name or not str(slot_name).strip():
+            continue
+        slot_phone = getattr(loan_case, f"applicant_{slot_idx}_phone", None) or (ec_dict.get("contact_number") if ec_dict else None) or form.get(f"applicant_{slot_idx}_phone")
+        ec_age = (ec_dict.get("age") if ec_dict else None) or None
+        ec_gender = (ec_dict.get("gender") if ec_dict else None) or None
+        ec_marital = (ec_dict.get("marital_status") if ec_dict else None) or None
+        ec_comm = (ec_dict.get("community") if ec_dict else None) or form.get("community") or None
+        ec_qual = (ec_dict.get("qualification") if ec_dict else None) or None
+        ec_occ = (ec_dict.get("occupation") if ec_dict else None) or None
+        ec_rel = (ec_dict.get("relation_to_applicant") if ec_dict else None) or None
+        clean_ec_name = _title(re.sub(r"^\s*(?:Mr\.?|Mrs\.?|Miss\.?|Ms\.?|Shri\.?|Smt\.?)\s+", "", str(slot_name), flags=re.I).strip())
+        ec_sal = _salutation(ec_gender, ec_marital, age=ec_age, fallback_name=str(slot_name))
+        ec_disp = f"{ec_sal} {clean_ec_name}".strip() if ec_sal else str(slot_name).strip()
+        extra_co_applicants.append({
+            "slot": slot_idx,
+            "name": clean_ec_name,
+            "display_name": ec_disp,
+            "contact": slot_phone,
+            "dob": None,
+            "age": str(ec_age) if ec_age else None,
+            "gender": ec_gender,
+            "marital_status": ec_marital,
+            "community": ec_comm,
+            "pan": None,
+            "aadhaar": None,
+            "qualification": ec_qual,
+            "occupation": ec_occ,
+            "relation_to_applicant": ec_rel,
+        })
+
     return {
         "loan_type": loan_type,
         "bank_branch": f"{loan_case.bank_name}, {loan_case.branch}" if loan_case.branch else loan_case.bank_name,
@@ -1036,6 +1074,7 @@ async def assemble_cpv_report_data(
         "certificate_date": on.strftime("%d/%m/%Y"),
         "applicant": applicant,
         "co_applicant": co,
+        "extra_co_applicants": extra_co_applicants,
         "verifier_names": resolved_verifiers,
         "file_allotted_by": resolved_allotted_by,
         "overall_status": overall_status or "POSITIVE",

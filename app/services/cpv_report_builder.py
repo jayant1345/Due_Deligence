@@ -600,8 +600,13 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
     _set_or_na(T[0], 1, 1, data.get("report_date"))
     _set_cell_or_na(_ucells(T[0], 2)[-1], applicant.get("display_name"))
     row = 3
+    extra_cos = data.get("extra_co_applicants") or []
     if co:
-        _set_cell_or_na(_ucells(T[0], 3)[-1], co.get("display_name"))
+        co_names_list = [co.get("display_name") or co.get("name")] + [
+            ec.get("display_name") or ec.get("name") for ec in extra_cos if isinstance(ec, dict)
+        ]
+        co_names_str = ", ".join([x for x in co_names_list if x])
+        _set_cell_or_na(_ucells(T[0], 3)[-1], co_names_str)
         row = 4
     verifiers = (data.get("verifier_names") or []) + ["", ""]
     _set_cell(_ucells(T[0], row)[-1], verifiers[0])
@@ -626,6 +631,17 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
     if co:
         _fill_identity(T[3], applicant)
         _fill_identity(T[4], co)
+        if extra_cos:
+            import copy
+            from docx.table import Table as _DocxTable
+            anchor_tbl = T[4]._tbl
+            for ec in extra_cos:
+                if isinstance(ec, dict) and (ec.get("display_name") or ec.get("name")):
+                    cloned_tbl_el = copy.deepcopy(T[4]._tbl)
+                    anchor_tbl.addnext(cloned_tbl_el)
+                    cloned_table = _DocxTable(cloned_tbl_el, doc)
+                    _fill_identity(cloned_table, ec)
+                    anchor_tbl = cloned_tbl_el
         family_t, prem_t, det_t = T[5], T[6], T[7]
         app_has_off = bool((applicant.get("office") or {}).get("firm_name") or (applicant.get("office") or {}).get("address"))
         co_has_off = bool((co.get("office") or {}).get("firm_name") or (co.get("office") or {}).get("address"))

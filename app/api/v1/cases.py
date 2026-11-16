@@ -332,36 +332,50 @@ async def create_case(
 
 @router.post("/extract-field-form-pdf")
 async def extract_field_form_pdf_endpoint(
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    files: Optional[List[UploadFile]] = File(None),
     applicant_name: Optional[str] = Form(None),
     current_user: Optional[User] = Depends(get_optional_current_user),
 ) -> Dict[str, Any]:
     """
-    Extract a backlog field visit questionnaire (Google Form exported to PDF) at case creation time.
+    Extract 1 or multiple backlog field visit questionnaires (Google Forms exported to PDF) at case creation time.
+    Also automatically splits a single PDF that contains multiple concatenated field visit forms.
     Returns:
-    1. case_data: prefill information (applicant name, phone, addresses, bank, branch, loan type, amount, co-applicant details, etc.)
+    1. case_data: prefill information (applicant name, phone, addresses, bank, branch, loan type, amount, co-applicant 1..4 details, etc.)
     2. field_form_data: full PWA questionnaire payload ready to attach to the new case.
     """
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
+    upload_list: List[UploadFile] = []
+    if files:
+        upload_list.extend([f for f in files if f and f.filename])
+    if file and file.filename and file not in upload_list:
+        upload_list.append(file)
+
+    pdf_uploads = [f for f in upload_list if f.filename and f.filename.lower().endswith(".pdf")]
+    if not pdf_uploads:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Please upload the field visit form as a PDF.",
+            detail="Please upload at least one field visit form as a PDF.",
         )
 
     temp_dir = os.path.join("storage_uploads", "temp_field_forms")
     os.makedirs(temp_dir, exist_ok=True)
-    clean_base = os.path.basename(file.filename.replace("\\", "/"))
-    temp_filename = f"{uuid.uuid4().hex}_{clean_base}"
-    saved_pdf_path = os.path.join(temp_dir, temp_filename)
+    saved_pdf_paths: List[str] = []
     try:
-        with open(saved_pdf_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        for up_f in pdf_uploads:
+            clean_base = os.path.basename(up_f.filename.replace("\\", "/"))
+            temp_filename = f"{uuid.uuid4().hex}_{clean_base}"
+            sp = os.path.join(temp_dir, temp_filename)
+            with open(sp, "wb") as buffer:
+                shutil.copyfileobj(up_f.file, buffer)
+            saved_pdf_paths.append(sp)
 
-        from app.services.field_form_pdf_ingest import extract_field_form_pdf_for_intake
-        result = await run_in_threadpool(extract_field_form_pdf_for_intake, saved_pdf_path, applicant_name or "")
+        from app.services.field_form_pdf_ingest import extract_multiple_field_form_pdfs_for_intake
+        result = await run_in_threadpool(extract_multiple_field_form_pdfs_for_intake, saved_pdf_paths, applicant_name or "")
         import json as _json_module
         return {
             "status": "success",
+            "files_uploaded": len(saved_pdf_paths),
+            "forms_extracted_count": result.get("forms_extracted_count", len(saved_pdf_paths)),
             "case_data": result.get("case_data", {}),
             "field_form_data": result.get("field_form_data", {}),
             "field_form_data_json": _json_module.dumps(result.get("field_form_data", {})),
@@ -373,11 +387,12 @@ async def extract_field_form_pdf_endpoint(
             detail=f"Failed to extract the field visit form with Gemini: {str(e)}",
         )
     finally:
-        if os.path.exists(saved_pdf_path):
-            try:
-                os.remove(saved_pdf_path)
-            except OSError:
-                pass
+        for sp in saved_pdf_paths:
+            if os.path.exists(sp):
+                try:
+                    os.remove(sp)
+                except OSError:
+                    pass
 
 
 @router.get("/stats")
@@ -1425,46 +1440,43 @@ async def ingest_and_separate_case_pdf(
 @router.post("/{case_id}/ingest-field-form-pdf")
 async def ingest_field_form_pdf(
     case_id: str,
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    files: Optional[List[UploadFile]] = File(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_ca_user),
 ) -> Dict[str, Any]:
     """
     For a backlog case whose field visit is already complete - captured on the CA office's old
     Google Form (exported to PDF) before this system had its own PWA questionnaire, photos
-    handled separately - extract that PDF with Gemini and save it as this case's
-    field_form_data, in exactly the shape the PWA's own form submission already produces. Skips
-    the need to manually retype a visit that already happened; does not touch KYC documents or
-    photos, which already have their own working ingestion paths.
+    handled separately - extract 1 or multiple PDFs (and split any multi-form PDF) with Gemini
+    and save as this case's field_form_data. Also populates Co-Applicant 1..4 slots on the case.
     """
     loan_case = await resolve_loan_case(db, case_id)
     if not loan_case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
 
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please upload the field visit form as a PDF.")
+    upload_list: List[UploadFile] = []
+    if files:
+        upload_list.extend([f for f in files if f and f.filename])
+    if file and file.filename and file not in upload_list:
+        upload_list.append(file)
+
+    pdf_uploads = [f for f in upload_list if f.filename and f.filename.lower().endswith(".pdf")]
+    if not pdf_uploads:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please upload at least one field visit form as a PDF.")
 
     real_case_id = str(loan_case.id)
     upload_dir = os.path.join("storage_uploads", "field_form_pdfs", real_case_id)
     os.makedirs(upload_dir, exist_ok=True)
-    clean_filename = os.path.basename(file.filename.replace("\\", "/"))
-    saved_pdf_path = os.path.join(upload_dir, clean_filename)
-    with open(saved_pdf_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    from app.services.field_form_pdf_ingest import (
-        ingest_field_form_pdf as run_extraction,
-        merge_field_form_payloads,
-        resolve_effective_loan_amount,
-    )
-
-    try:
-        field_form_payload = await run_in_threadpool(run_extraction, saved_pdf_path, loan_case.applicant_name)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to extract the field visit form with Gemini: {str(e)}",
-        )
+    saved_pdf_paths: List[str] = []
+    saved_filenames: List[str] = []
+    for up_f in pdf_uploads:
+        clean_filename = os.path.basename(up_f.filename.replace("\\", "/"))
+        saved_pdf_path = os.path.join(upload_dir, clean_filename)
+        with open(saved_pdf_path, "wb") as buffer:
+            shutil.copyfileobj(up_f.file, buffer)
+        saved_pdf_paths.append(saved_pdf_path)
+        saved_filenames.append(clean_filename)
 
     import json as _json
     existing_ff = {}
@@ -1476,21 +1488,41 @@ async def ingest_field_form_pdf(
         except Exception:
             existing_ff = {}
 
-    # If the newly extracted form is for a Co-applicant, auto-populate co_applicant_name/phone on the case
-    if field_form_payload.get("co_applicant_name") and not loan_case.co_applicant_name:
-        co_nm = str(field_form_payload["co_applicant_name"]).strip()
+    from app.services.field_form_pdf_ingest import (
+        ingest_multiple_field_form_pdfs,
+        resolve_effective_loan_amount,
+    )
+
+    try:
+        merged_payload = await run_in_threadpool(
+            ingest_multiple_field_form_pdfs,
+            saved_pdf_paths,
+            loan_case.applicant_name,
+            existing_ff,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to extract the field visit form with Gemini: {str(e)}",
+        )
+
+    # Auto-populate Co-Applicant (Slot 2) and Extra Co-Applicants (Slots 3-5) on the case
+    if merged_payload.get("co_applicant_name") and not loan_case.co_applicant_name:
+        co_nm = str(merged_payload["co_applicant_name"]).strip()
         if not re.match(r"^(?:Mr|Mrs|Miss|Ms)\b", co_nm, re.I):
             co_nm = f"Mr. {co_nm}"
         loan_case.co_applicant_name = co_nm
-    if field_form_payload.get("co_applicant_contact") and not loan_case.co_applicant_phone:
-        loan_case.co_applicant_phone = str(field_form_payload["co_applicant_contact"]).strip()
+    if merged_payload.get("co_applicant_contact") and not loan_case.co_applicant_phone:
+        loan_case.co_applicant_phone = str(merged_payload["co_applicant_contact"]).strip()
 
-    merged_payload = merge_field_form_payloads(
-        existing_ff,
-        field_form_payload,
-        primary_applicant_name=loan_case.applicant_name,
-        co_applicant_name=loan_case.co_applicant_name,
-    )
+    for slot_idx in (3, 4, 5):
+        s_name = merged_payload.get(f"applicant_{slot_idx}_name")
+        s_phone = merged_payload.get(f"applicant_{slot_idx}_phone")
+        if s_name and not getattr(loan_case, f"applicant_{slot_idx}_name", None):
+            setattr(loan_case, f"applicant_{slot_idx}_name", str(s_name).strip())
+        if s_phone and not getattr(loan_case, f"applicant_{slot_idx}_phone", None):
+            setattr(loan_case, f"applicant_{slot_idx}_phone", str(s_phone).strip())
+
     loan_case.field_form_data = _json.dumps(merged_payload)
     resolved_amt = resolve_effective_loan_amount(loan_case.loan_amount, merged_payload)
     if resolved_amt and (not loan_case.loan_amount or loan_case.loan_amount < 50_000):
@@ -1501,7 +1533,7 @@ async def ingest_field_form_pdf(
         case_id=loan_case.id,
         user_id=current_user.id,
         action="FIELD_FORM_PDF_INGESTED",
-        extra_metadata={"source_pdf": clean_filename},
+        extra_metadata={"source_pdfs": saved_filenames},
     )
     db.add(audit)
     await db.commit()
@@ -1510,8 +1542,17 @@ async def ingest_field_form_pdf(
         "status": "success",
         "case_id": real_case_id,
         "case_no": loan_case.case_no,
+        "files_ingested": len(saved_filenames),
+        "co_applicant_name": loan_case.co_applicant_name,
+        "co_applicant_phone": loan_case.co_applicant_phone,
+        "applicant_3_name": loan_case.applicant_3_name,
+        "applicant_3_phone": loan_case.applicant_3_phone,
+        "applicant_4_name": loan_case.applicant_4_name,
+        "applicant_4_phone": loan_case.applicant_4_phone,
+        "applicant_5_name": loan_case.applicant_5_name,
+        "applicant_5_phone": loan_case.applicant_5_phone,
         "field_form_data": field_form_payload,
-        "message": "Field visit form extracted and saved. Review the Residential/Office Details tab, then generate the report.",
+        "message": "Field visit form(s) extracted and saved. Review the Residential/Office Details tab, then generate the report.",
     }
 
 

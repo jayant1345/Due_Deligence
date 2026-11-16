@@ -5992,12 +5992,15 @@
     // produces, so report generation needs no special-casing for an imported case.
     async function handleFieldFormPdfSelected(files) {
       if (!files || files.length === 0 || !activeCaseId) return;
-      const file = files[0];
+      const fileList = Array.from(files);
       const c = caseRegistry[activeCaseId];
       if (!c) return;
       const serverId = gfServerId(c) || activeCaseId;
 
-      const confirmMsg = `Extract "${file.name}" with AI and fill in the Residential/Office Details questionnaire for ${c.applicant_name}?\n\nThis replaces any Residential/Office Details already saved for this case.`;
+      const namesLabel = fileList.length === 1
+        ? `"${fileList[0].name}"`
+        : `${fileList.length} Field Visit PDFs (${fileList.map(f => f.name).join(", ")})`;
+      const confirmMsg = `Extract ${namesLabel} with AI and fill/merge the Residential/Office Details & Multi-Applicant questionnaire for ${c.applicant_name}?`;
       if (!confirm(confirmMsg)) {
         document.getElementById("fieldFormPdfInput").value = "";
         return;
@@ -6008,13 +6011,16 @@
       const statusPercent = document.getElementById("pdfBurstStatusPercent");
       const progressBar = document.getElementById("pdfBurstProgressBar");
       if (statusBox) statusBox.classList.remove("hidden");
-      if (statusText) statusText.textContent = `Reading "${file.name}" with Gemini AI - this can take a minute for a multi-page form...`;
+      if (statusText) statusText.textContent = `Reading ${namesLabel} with Gemini AI - this can take a minute for multi-page / multi-applicant forms...`;
       if (statusPercent) statusPercent.textContent = "50%";
       if (progressBar) progressBar.style.width = "50%";
 
       try {
         const formData = new FormData();
-        formData.append("file", file, file.name);
+        formData.append("file", fileList[0], fileList[0].name);
+        for (const f of fileList) {
+          formData.append("files", f, f.name);
+        }
         const token = localStorage.getItem("ca_token");
         const headers = {};
         if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
@@ -6029,10 +6035,19 @@
           const data = await res.json();
           if (statusPercent) statusPercent.textContent = "100%";
           if (progressBar) progressBar.style.width = "100%";
-          if (statusText) statusText.textContent = "✓ Field visit form extracted and saved!";
+          if (statusText) statusText.textContent = "✓ Field visit form(s) extracted and saved!";
+          if (data.co_applicant_name) c.co_applicant_name = data.co_applicant_name;
+          if (data.co_applicant_phone) c.co_applicant_phone = data.co_applicant_phone;
+          if (data.applicant_3_name) c.applicant_3_name = data.applicant_3_name;
+          if (data.applicant_3_phone) c.applicant_3_phone = data.applicant_3_phone;
+          if (data.applicant_4_name) c.applicant_4_name = data.applicant_4_name;
+          if (data.applicant_4_phone) c.applicant_4_phone = data.applicant_4_phone;
+          if (data.applicant_5_name) c.applicant_5_name = data.applicant_5_name;
+          if (data.applicant_5_phone) c.applicant_5_phone = data.applicant_5_phone;
           applyFieldFormDataToEntry(c, data.field_form_data);
           onCaseSelected(activeCaseId);
-          alert(`[✓] Field visit form imported for ${c.applicant_name}.\n\nOpen this case in the Field Agent PWA (or just generate the report) to review what AI extracted before certifying - it can occasionally misread handwriting or a checkbox.`);
+          const coSummary = [c.co_applicant_name, c.applicant_3_name, c.applicant_4_name, c.applicant_5_name].filter(Boolean).join(", ");
+          alert(`[✓] Field visit form(s) imported for ${c.applicant_name}${coSummary ? ' (Co-Applicants: ' + coSummary + ')' : ''}.\n\nOpen this case in the Field Agent PWA (or just generate the report) to review what AI extracted before certifying.`);
           setTimeout(() => { if (statusBox) statusBox.classList.add("hidden"); }, 2000);
         } else {
           const err = await res.json().catch(() => ({}));
@@ -6056,17 +6071,23 @@
 
     async function handleIntakeFieldFormPdfSelected(files) {
       if (!files || files.length === 0) return;
-      const file = files[0];
+      const fileList = Array.from(files);
       const progress = document.getElementById("tabNcFieldFormProgress");
       const progressText = document.getElementById("tabNcFieldFormProgressText");
       const statusEl = document.getElementById("tabNcFieldFormPdfStatus");
       if (progress) progress.classList.remove("hidden");
       if (statusEl) statusEl.classList.add("hidden");
-      if (progressText) progressText.textContent = `Reading "${file.name}" with Gemini AI... (can take ~20-30s)`;
+      const namesLabel = fileList.length === 1
+        ? `"${fileList[0].name}"`
+        : `${fileList.length} Google Form PDFs (${fileList.map(f => f.name).join(", ")})`;
+      if (progressText) progressText.textContent = `Reading ${namesLabel} with Gemini AI... (can take ~20-45s)`;
 
       try {
         const formData = new FormData();
-        formData.append("file", file, file.name);
+        formData.append("file", fileList[0], fileList[0].name);
+        for (const f of fileList) {
+          formData.append("files", f, f.name);
+        }
         const existingName = (document.getElementById("tabNcApplicantName") ? document.getElementById("tabNcApplicantName").value.trim() : "");
         if (existingName) formData.append("applicant_name", existingName);
 
@@ -6129,9 +6150,17 @@
           document.getElementById("tabNcLoanAmount").value = cd.loan_amount;
         }
 
-        // Co-applicant info if found in the Google Form
+        // Determine total applicants mode (1..5) and populate Co-Applicant slots 2..5
+        let detectedMode = 1;
+        if (cd.co_applicant_name) detectedMode = 2;
+        if (cd.applicant_3_name) detectedMode = 3;
+        if (cd.applicant_4_name) detectedMode = 4;
+        if (cd.applicant_5_name) detectedMode = 5;
+        if (detectedMode >= 2 && typeof setTabNcApplicantMode === "function") {
+          setTabNcApplicantMode(detectedMode);
+        }
+
         if (cd.co_applicant_name) {
-          if (typeof setTabNcApplicantMode === "function") setTabNcApplicantMode(2);
           if (document.getElementById("tabNcCoApplicantName")) {
             document.getElementById("tabNcCoApplicantName").value = cd.co_applicant_name;
           }
@@ -6142,18 +6171,34 @@
             document.getElementById("tabNcCoApplicantAddress").value = cd.co_applicant_address;
           }
         }
+        if (cd.applicant_3_name) {
+          if (document.getElementById("tabNcSlot3Name")) document.getElementById("tabNcSlot3Name").value = cd.applicant_3_name;
+          if (cd.applicant_3_phone && document.getElementById("tabNcSlot3Phone")) document.getElementById("tabNcSlot3Phone").value = cd.applicant_3_phone;
+          if (document.getElementById("tabNcSlot3Shares")) document.getElementById("tabNcSlot3Shares").value = "1";
+        }
+        if (cd.applicant_4_name) {
+          if (document.getElementById("tabNcSlot4Name")) document.getElementById("tabNcSlot4Name").value = cd.applicant_4_name;
+          if (cd.applicant_4_phone && document.getElementById("tabNcSlot4Phone")) document.getElementById("tabNcSlot4Phone").value = cd.applicant_4_phone;
+          if (document.getElementById("tabNcSlot4Shares")) document.getElementById("tabNcSlot4Shares").value = "1";
+        }
+        if (cd.applicant_5_name) {
+          if (document.getElementById("tabNcSlot5Name")) document.getElementById("tabNcSlot5Name").value = cd.applicant_5_name;
+          if (cd.applicant_5_phone && document.getElementById("tabNcSlot5Phone")) document.getElementById("tabNcSlot5Phone").value = cd.applicant_5_phone;
+          if (document.getElementById("tabNcSlot5Shares")) document.getElementById("tabNcSlot5Shares").value = "1";
+        }
 
         // Auto-generate fresh sequential case number
         if (typeof autoGenTabCaseNo === "function") {
           autoGenTabCaseNo(true);
         }
 
+        const coListSummary = [cd.co_applicant_name, cd.applicant_3_name, cd.applicant_4_name, cd.applicant_5_name].filter(Boolean);
         if (statusEl) {
-          statusEl.innerHTML = `<span class="material-symbols-outlined text-[15px]">check_circle</span> <span>Extracted: <b>${cd.applicant_name || 'Applicant'}</b> • ${cd.bank_name || ''}</span>`;
+          statusEl.innerHTML = `<span class="material-symbols-outlined text-[15px]">check_circle</span> <span>Extracted (${data.forms_extracted_count || fileList.length} Form${(data.forms_extracted_count || fileList.length) > 1 ? 's' : ''}): <b>${cd.applicant_name || 'Applicant'}</b>${coListSummary.length ? ' + ' + coListSummary.join(', ') : ''} • ${cd.bank_name || ''}</span>`;
           statusEl.classList.remove("hidden");
         }
 
-        alert(`[✓] Google Form PDF extracted successfully!\n\n• Applicant: ${cd.applicant_name || 'N/A'}\n• Phone: ${cd.contact_number || 'N/A'}\n• Bank: ${cd.bank_name || 'N/A'}\n• Loan: ${cd.loan_type || 'N/A'} - ₹${cd.loan_amount || 'N/A'}\n• Property: ${cd.address_visited || 'N/A'}\n\nAll case profile fields have been auto-populated, and the full field questionnaire has been staged. When you create this case, everything will be saved together!`);
+        alert(`[✓] Google Form PDF(s) extracted successfully (${data.forms_extracted_count || fileList.length} form(s))!\n\n• 1st Applicant: ${cd.applicant_name || 'N/A'} (${cd.contact_number || 'N/A'})${coListSummary.length ? '\n• Co-Applicant(s): ' + coListSummary.join(' | ') : ''}\n• Bank: ${cd.bank_name || 'N/A'}\n• Loan: ${cd.loan_type || 'N/A'} - ₹${cd.loan_amount || 'N/A'}\n• Property: ${cd.address_visited || 'N/A'}\n\nAll case profile fields have been auto-populated, and the full field questionnaire has been staged!`);
       } catch (err) {
         console.error("Intake field form PDF error:", err);
         alert("Error reading Google Form PDF: " + err.message);
@@ -6166,7 +6211,7 @@
 
     async function handleModalFieldFormPdfSelected(files) {
       if (!files || files.length === 0) return;
-      const file = files[0];
+      const fileList = Array.from(files);
       const progress = document.getElementById("modalNcFieldFormProgress");
       const statusEl = document.getElementById("modalNcFieldFormPdfStatus");
       if (progress) progress.classList.remove("hidden");
@@ -6174,7 +6219,10 @@
 
       try {
         const formData = new FormData();
-        formData.append("file", file, file.name);
+        formData.append("file", fileList[0], fileList[0].name);
+        for (const f of fileList) {
+          formData.append("files", f, f.name);
+        }
         const existingName = (document.getElementById("ncApplicantName") ? document.getElementById("ncApplicantName").value.trim() : "");
         if (existingName) formData.append("applicant_name", existingName);
 

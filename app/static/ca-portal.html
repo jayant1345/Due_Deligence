@@ -388,11 +388,11 @@
             <span>📁 Select Folder from PC...</span>
           </button>
 
-          <!-- 3. Backlog Field Visit Form (old Google Form PDF export) -->
-          <input type="file" id="fieldFormPdfInput" accept="application/pdf" class="hidden" onchange="handleFieldFormPdfSelected(this.files)"/>
-          <button type="button" onclick="document.getElementById('fieldFormPdfInput').click()" class="py-1.5 px-3.5 bg-purple-200 hover:bg-purple-300 text-purple-950 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all" title="For a case whose field visit is already done on the old Google Form (PDF export) - extract it with AI and fill in the Residential/Office Details questionnaire, instead of retyping it by hand">
+          <!-- 3. Backlog Field Visit Form (old Google Form PDF export - supports 1 or multiple PDFs, or 1 PDF with multiple forms) -->
+          <input type="file" id="fieldFormPdfInput" accept="application/pdf,.pdf" multiple class="hidden" onchange="handleFieldFormPdfSelected(this.files)"/>
+          <button type="button" onclick="document.getElementById('fieldFormPdfInput').click()" class="py-1.5 px-3.5 bg-purple-200 hover:bg-purple-300 text-purple-950 font-headline font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all" title="For a backlog case whose field visit is already done on Google Forms (PDF export) - select 1 or multiple PDFs (Applicant + Co-Applicants) or 1 combined PDF with multiple forms">
             <span class="material-symbols-outlined text-[16px]">forms_add_on</span>
-            <span>📝 Import Backlog Field Visit Form (PDF)...</span>
+            <span>📝 Import Backlog Field Visit Form PDF(s)...</span>
           </button>
 
           <!-- 3. Multiple Loose Files Selection -->
@@ -1798,13 +1798,13 @@
             <span class="font-mono text-[9px] bg-amber-200/80 text-amber-900 px-1.5 py-0.5 rounded font-bold">Auto-Fill All Details</span>
           </div>
           <p class="text-[11px] text-amber-900/80 leading-relaxed">
-            Upload the field visit Google Form PDF (exported from Google Forms). Gemini AI extracts applicant info, contact, addresses, bank, branch, loan details & the full survey questionnaire to automatically populate this form.
+            Upload 1 or multiple field visit Google Form PDFs (e.g. Applicant + Co-Applicant 1 + Co-Applicant 2, or 1 combined PDF with multiple forms). Gemini AI extracts all applicants, contacts, addresses, bank, branch, loan details &amp; the full survey questionnaire automatically.
           </p>
           <div class="flex items-center gap-2 pt-1 flex-wrap">
-            <input type="file" id="tabNcFieldFormPdfInput" accept=".pdf" style="display: none !important;" onchange="handleIntakeFieldFormPdfSelected(this.files)"/>
+            <input type="file" id="tabNcFieldFormPdfInput" accept=".pdf,application/pdf" multiple style="display: none !important;" onchange="handleIntakeFieldFormPdfSelected(this.files)"/>
             <button type="button" onclick="document.getElementById('tabNcFieldFormPdfInput').click()" style="background-color: #b45309; color: #ffffff;" class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer">
               <span class="material-symbols-outlined text-[16px]">upload_file</span>
-              <span>📋 Upload Field Visit Google Form PDF...</span>
+              <span>📋 Upload Field Visit Google Form PDF(s)...</span>
             </button>
             <span id="tabNcFieldFormPdfStatus" class="hidden text-xs font-mono font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded border border-emerald-300">
               <span class="material-symbols-outlined text-[15px]">check_circle</span>
@@ -3045,13 +3045,13 @@
             <span class="font-mono text-[9px] bg-amber-200/80 text-amber-900 px-1.5 py-0.5 rounded font-bold">Auto-Extract Case Data</span>
           </div>
           <p class="text-[11px] text-amber-900/80 leading-relaxed">
-            Upload the field visit Google Form PDF export. Gemini AI will auto-fill all case details below and attach the full field questionnaire.
+            Upload 1 or multiple field visit Google Form PDF exports (or 1 PDF containing multiple forms). Gemini AI will auto-fill all case details below and attach the full field questionnaire.
           </p>
           <div class="flex items-center gap-2 pt-1 flex-wrap">
-            <input type="file" id="modalNcFieldFormPdfInput" accept=".pdf" style="display: none !important;" onchange="handleModalFieldFormPdfSelected(this.files)"/>
+            <input type="file" id="modalNcFieldFormPdfInput" accept=".pdf,application/pdf" multiple style="display: none !important;" onchange="handleModalFieldFormPdfSelected(this.files)"/>
             <button type="button" onclick="document.getElementById('modalNcFieldFormPdfInput').click()" style="background-color: #b45309; color: #ffffff;" class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer">
               <span class="material-symbols-outlined text-[16px]">upload_file</span>
-              <span>📋 Upload Field Visit Google Form PDF...</span>
+              <span>📋 Upload Field Visit Google Form PDF(s)...</span>
             </button>
             <span id="modalNcFieldFormPdfStatus" class="hidden text-xs font-mono font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded border border-emerald-300">
               <span class="material-symbols-outlined text-[15px]">check_circle</span>
