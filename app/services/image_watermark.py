@@ -167,39 +167,29 @@ def stamp_hard_watermark(
         max_text_width = width - 44
 
         # Safe defaults
-        c_no = case_no or "CASE-PENDING"
-        app_name = (applicant_name or "LOAN APPLICANT").upper()
         v_type = (visit_type or "SITE VISIT").upper()
         lat_val = lat if lat is not None else 23.049864
         lon_val = lon if lon is not None else 72.602944
-        ag_str = f"{agent_name} ({agent_id})" if agent_id else (agent_name or "Field Officer")
-        firm_str = "N.N. SHAH & CO. CHARTERED ACCOUNTANTS"
 
-        # Prepare Content Lines
-        # Line 1: Case ID & Applicant Name & Visit Type
-        line1_raw = f"CASE: {c_no}  |  APPLICANT: {app_name}  |  VISIT: [{v_type}]"
-        line1_lines = _wrap_text_lines(line1_raw, font_bold, max_text_width, draw_temp)
-
-        # Line 2: Home / Office Verified Address
+        # Per CA Office requirement: ONLY include two items in the bottom watermark tag:
+        # 1. Office / Home Address
+        # 2. GPS Latitude and Longitude
         if address:
-            addr_prefix = f"HOME ADDRESS" if "RESIDENCE" in v_type or "HOME" in v_type else ("OFFICE ADDRESS" if "WORK" in v_type or "OFFICE" in v_type else "VERIFIED ADDRESS")
-            line2_raw = f"{addr_prefix}: {address}"
-            line2_lines = _wrap_text_lines(line2_raw, font_reg, max_text_width, draw_temp)
+            addr_prefix = "HOME ADDRESS" if "RESIDENCE" in v_type or "HOME" in v_type else ("OFFICE ADDRESS" if "WORK" in v_type or "OFFICE" in v_type else "ADDRESS")
+            line_addr_raw = f"{addr_prefix}: {address}"
+            addr_lines = _wrap_text_lines(line_addr_raw, font_reg, max_text_width, draw_temp)
         else:
-            line2_lines = []
+            addr_lines = []
 
-        # Line 3: GPS Telemetry, Timestamp, Agent, and N.N. SHAH & CO. Certification
-        line3_raw = f"GPS: {lat_val:.6f}°N, {lon_val:.6f}°E (±{accuracy:.1f}m)  |  {ist_time_str}  |  AGENT: {ag_str}  |  {firm_str}"
-        line3_lines = _wrap_text_lines(line3_raw, font_sm, max_text_width, draw_temp)
+        line_gps_raw = f"GPS: {lat_val:.6f}°N, {lon_val:.6f}°E"
+        gps_lines = _wrap_text_lines(line_gps_raw, font_sm, max_text_width, draw_temp)
 
         # Build list of rendered items: (text, font, color)
         rendered_items = []
-        for l in line1_lines:
-            rendered_items.append((l, font_bold, (254, 240, 138)))  # Crisp Light Gold
-        for l in line2_lines:
+        for l in addr_lines:
             rendered_items.append((l, font_reg, (255, 255, 255)))   # Crisp White
-        for l in line3_lines:
-            rendered_items.append((l, font_sm, (203, 213, 225)))    # Slate Mint
+        for l in gps_lines:
+            rendered_items.append((l, font_sm, (254, 240, 138)))    # Crisp Light Gold
 
         line_height = int(font_size * 1.45)
         top_padding = int(font_size * 0.75)
@@ -244,3 +234,93 @@ def generate_thumbnail(
         img.thumbnail(size, Image.Resampling.LANCZOS)
         img.save(output_thumb_path, format="JPEG", quality=80)
     return output_thumb_path
+
+
+def restamp_document_clean_watermark(
+    doc,
+    loan_case,
+    office_address: Optional[str] = None,
+    co_office_address: Optional[str] = None,
+) -> Optional[str]:
+    """
+    Re-stamps a previously uploaded site/office photo from its clean original file (doc.storage_url)
+    into doc.watermarked_url using the 2-item CA watermark (Home/Office Address + GPS Lat/Long only).
+    Safe no-op if the original file is missing or not a site/office photo.
+    """
+    try:
+        dt = (doc.doc_type.value if hasattr(doc.doc_type, "value") else str(doc.doc_type)).upper()
+        if not any(k in dt for k in ("PHOTO", "EXTERIOR", "FACADE", "NAMEBOARD", "METER", "NEIGHBOR", "INTERIOR", "SELFIE", "WORK", "OFFICE")):
+            return getattr(doc, "watermarked_url", None)
+
+        raw_url = getattr(doc, "storage_url", None) or getattr(doc, "watermarked_url", None) or ""
+        norm_url = str(raw_url).replace("\\", "/").strip()
+        if not norm_url:
+            return getattr(doc, "watermarked_url", None)
+
+        candidates = [norm_url]
+        if "storage_uploads/" in norm_url:
+            rel_f = norm_url.split("storage_uploads/")[-1]
+            candidates.append(os.path.join("storage_uploads", rel_f))
+            candidates.append(os.path.join("/app/storage_uploads", rel_f))
+        elif norm_url.startswith("/storage/"):
+            rel_f = norm_url[len("/storage/"):]
+            candidates.append(os.path.join("storage_uploads", rel_f))
+            candidates.append(os.path.join("/app/storage_uploads", rel_f))
+
+        file_path = next((p for p in candidates if os.path.exists(p)), None)
+        if not file_path:
+            return getattr(doc, "watermarked_url", None)
+
+        dir_name = os.path.dirname(file_path)
+        base_name = os.path.basename(file_path)
+        input_path = file_path
+        if base_name.startswith("wm_"):
+            raw_cand = os.path.join(dir_name, base_name[3:])
+            if os.path.exists(raw_cand):
+                input_path = raw_cand
+        elif "_watermarked" in base_name:
+            raw_cand = os.path.join(dir_name, base_name.replace("_watermarked", ""))
+            if os.path.exists(raw_cand):
+                input_path = raw_cand
+
+        # If input_path is the exact same file as the already-watermarked file (no separate raw original exists),
+        # do not stamp a second banner on top of an existing banner!
+        clean_base = os.path.basename(input_path)
+        if clean_base.startswith("wm_") or "_watermarked" in clean_base:
+            return getattr(doc, "watermarked_url", None)
+
+        output_path = os.path.join(dir_name, f"wm_{clean_base}")
+
+        ocr_d = getattr(doc, "ocr_data", None) or {}
+        folder_str = str(ocr_d.get("folder") or "").lower() if isinstance(ocr_d, dict) else ""
+        is_co_work = (folder_str == "co_work") or ("CO_OFFICE" in dt)
+        is_work = is_co_work or (folder_str == "work") or any(w in dt for w in ("OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"))
+        is_co_res = (folder_str == "co_residence")
+
+        if is_work:
+            v_type = "WORKPLACE / OFFICE"
+            active_addr = (co_office_address if is_co_work else office_address) or getattr(loan_case, "office_address", None) or getattr(loan_case, "target_address", None)
+        elif is_co_res:
+            v_type = "RESIDENCE / HOME"
+            active_addr = getattr(loan_case, "co_applicant_address", None) or getattr(loan_case, "target_address", None)
+        else:
+            v_type = "RESIDENCE / HOME"
+            active_addr = getattr(loan_case, "target_address", None)
+
+        stamp_hard_watermark(
+            input_image_path=input_path,
+            output_image_path=output_path,
+            case_no=getattr(loan_case, "case_no", "") or "",
+            agent_name="",
+            agent_id="",
+            lat=getattr(doc, "latitude", None) or getattr(loan_case, "target_lat", None),
+            lon=getattr(doc, "longitude", None) or getattr(loan_case, "target_lon", None),
+            geofence_status="COMPLIANT" if getattr(doc, "is_geofence_valid", True) is not False else "BREACH",
+            applicant_name=getattr(loan_case, "applicant_name", None),
+            address=active_addr,
+            visit_type=v_type,
+        )
+        doc.watermarked_url = output_path
+        return output_path
+    except Exception:
+        return getattr(doc, "watermarked_url", None)

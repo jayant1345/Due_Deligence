@@ -300,6 +300,13 @@ async def async_generate_report_pdf(
             "start_lon": visit.start_lon,
         }
 
+    from app.services.image_watermark import restamp_document_clean_watermark
+    _ff_dict = case_dict.get("field_form") if isinstance(case_dict.get("field_form"), dict) else {}
+    _off_addr = (_ff_dict.get("office_details") or {}).get("address") if isinstance(_ff_dict.get("office_details"), dict) else None
+    _co_off_addr = (_ff_dict.get("office_details_co") or {}).get("address") if isinstance(_ff_dict.get("office_details_co"), dict) else None
+    for _doc_obj in docs:
+        restamp_document_clean_watermark(_doc_obj, loan_case, office_address=_off_addr, co_office_address=_co_off_addr)
+
     doc_items = [
         {
             "id": str(d.id),

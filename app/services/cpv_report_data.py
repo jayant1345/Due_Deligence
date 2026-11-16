@@ -906,12 +906,17 @@ async def assemble_cpv_report_data(
 
     kyc = [_kyc("applicant", applicant)] + ([_kyc("co-applicant", co)] if co else [])
 
+    from app.services.image_watermark import restamp_document_clean_watermark
+    _eff_off_addr = (applicant.get("office") or {}).get("address") or getattr(loan_case, "office_address", None)
+    _eff_co_off_addr = (co.get("office") or {}).get("address") if co else None
+
     site_docs = (await db.execute(
         select(CaseDocument).where(CaseDocument.case_id == loan_case.id, CaseDocument.doc_type.in_(SITE_PHOTO_TYPES))
         .order_by(CaseDocument.created_at)
     )).scalars().all()
     residence_photos = []
     for d in _resolve_slot_photos(site_docs):
+        restamp_document_clean_watermark(d, loan_case, office_address=_eff_off_addr, co_office_address=_eff_co_off_addr)
         resolved = _resolve_local_image_path(d.watermarked_url or d.storage_url)
         if resolved and resolved not in residence_photos:
             residence_photos.append(resolved)
@@ -941,6 +946,7 @@ async def assemble_cpv_report_data(
     )).scalars().all()
     office_photos = []
     for d in _resolve_slot_photos(office_site_docs):
+        restamp_document_clean_watermark(d, loan_case, office_address=_eff_off_addr, co_office_address=_eff_co_off_addr)
         resolved = _resolve_local_image_path(d.watermarked_url or d.storage_url)
         if resolved and resolved not in office_photos:
             office_photos.append(resolved)
