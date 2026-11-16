@@ -335,6 +335,7 @@ async def extract_field_form_pdf_endpoint(
     file: Optional[UploadFile] = File(None),
     files: Optional[List[UploadFile]] = File(None),
     applicant_name: Optional[str] = Form(None),
+    existing_field_form_json: Optional[str] = Form(None),
     current_user: Optional[User] = Depends(get_optional_current_user),
 ) -> Dict[str, Any]:
     """
@@ -347,7 +348,7 @@ async def extract_field_form_pdf_endpoint(
     upload_list: List[UploadFile] = []
     if files:
         upload_list.extend([f for f in files if f and f.filename])
-    if file and file.filename and file not in upload_list:
+    if not upload_list and file and file.filename:
         upload_list.append(file)
 
     pdf_uploads = [f for f in upload_list if f.filename and f.filename.lower().endswith(".pdf")]
@@ -369,9 +370,18 @@ async def extract_field_form_pdf_endpoint(
                 shutil.copyfileobj(up_f.file, buffer)
             saved_pdf_paths.append(sp)
 
-        from app.services.field_form_pdf_ingest import extract_multiple_field_form_pdfs_for_intake
-        result = await run_in_threadpool(extract_multiple_field_form_pdfs_for_intake, saved_pdf_paths, applicant_name or "")
         import json as _json_module
+        existing_ff = None
+        if existing_field_form_json:
+            try:
+                parsed_ex = _json_module.loads(existing_field_form_json)
+                if isinstance(parsed_ex, dict) and parsed_ex:
+                    existing_ff = parsed_ex
+            except Exception:
+                existing_ff = None
+
+        from app.services.field_form_pdf_ingest import extract_multiple_field_form_pdfs_for_intake
+        result = await run_in_threadpool(extract_multiple_field_form_pdfs_for_intake, saved_pdf_paths, applicant_name or "", existing_ff)
         return {
             "status": "success",
             "files_uploaded": len(saved_pdf_paths),
@@ -1458,7 +1468,7 @@ async def ingest_field_form_pdf(
     upload_list: List[UploadFile] = []
     if files:
         upload_list.extend([f for f in files if f and f.filename])
-    if file and file.filename and file not in upload_list:
+    if not upload_list and file and file.filename:
         upload_list.append(file)
 
     pdf_uploads = [f for f in upload_list if f.filename and f.filename.lower().endswith(".pdf")]

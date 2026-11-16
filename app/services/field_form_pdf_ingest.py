@@ -9,10 +9,12 @@ Deliberately does NOT touch KYC documents or photos - those already have their o
 ingestion paths (AI Ingest Bank Folder/PDF, Manual Upload, the PWA's own photo capture). This is
 scoped to the Residential/Office/Family/Previous-Loan questionnaire data only.
 """
+import concurrent.futures
 import difflib
 import logging
 import os
 import re
+import uuid
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -2104,27 +2106,31 @@ def _extract_raw_forms_from_pdf(pdf_path: str, applicant_name: str = "") -> List
     if fitz is None:
         raise RuntimeError("PyMuPDF (fitz) is not installed.")
 
-    tmp_dir = f"{pdf_path}_{os.getpid()}_pages"
+    tmp_dir = f"{pdf_path}_{uuid.uuid4().hex[:8]}_pages"
     os.makedirs(tmp_dir, exist_ok=True)
     image_paths: List[str] = []
     try:
         doc = fitz.open(pdf_path)
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
-            pix = page.get_pixmap(dpi=200)
+            pix = page.get_pixmap(dpi=160)
             img_path = os.path.join(tmp_dir, f"page_{page_num + 1}.jpg")
-            pix.save(img_path, jpg_quality=90)
+            pix.save(img_path, jpg_quality=85)
             image_paths.append(img_path)
         page_groups = _split_pdf_into_form_page_groups(doc, image_paths)
         doc.close()
 
-        extracted_list: List[Dict[str, Any]] = []
-        for idx, grp_paths in enumerate(page_groups):
-            hint_name = applicant_name if len(page_groups) == 1 else ""
-            ext = _call_gemini_extraction(grp_paths, hint_name)
-            if len(page_groups) == 1 and applicant_name and not _clean_val(ext.get("name")):
+        if len(page_groups) == 1:
+            ext = _call_gemini_extraction(page_groups[0], applicant_name)
+            if applicant_name and not _clean_val(ext.get("name")):
                 ext["name"] = applicant_name
-            extracted_list.append(ext)
+            return [ext]
+
+        def _extract_group(grp_paths: List[str]) -> Dict[str, Any]:
+            return _call_gemini_extraction(grp_paths, "")
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(page_groups), 4)) as pool:
+            extracted_list = list(pool.map(_extract_group, page_groups))
         return extracted_list
     finally:
         for p in image_paths:
@@ -2190,18 +2196,32 @@ def ingest_field_form_pdf(pdf_path: str, applicant_name: str) -> Dict[str, Any]:
     return _order_and_merge_extracted_forms(raw_forms, case_applicant_name=applicant_name)
 
 
+def _extract_all_pdfs_parallel(pdf_paths: List[str], applicant_name: str = "") -> List[Dict[str, Any]]:
+    if not pdf_paths:
+        return []
+    if len(pdf_paths) == 1:
+        return _extract_raw_forms_from_pdf(pdf_paths[0], applicant_name=applicant_name)
+
+    def _run_one(p: str) -> List[Dict[str, Any]]:
+        return _extract_raw_forms_from_pdf(p, applicant_name="")
+
+    all_raw_forms: List[Dict[str, Any]] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(pdf_paths), 4)) as pool:
+        for res_list in pool.map(_run_one, pdf_paths):
+            all_raw_forms.extend(res_list)
+    return all_raw_forms
+
+
 def ingest_multiple_field_form_pdfs(
     pdf_paths: List[str],
     applicant_name: str = "",
     existing_ff: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
-    Extracts Due Diligence Visit Forms across 1 or multiple uploaded PDF files (each of which
-    may itself contain 1 or multiple forms) and merges them into a single unified field_form_data.
+    Extracts Due Diligence Visit Forms across 1 or multiple uploaded PDF files in parallel
+    (each of which may itself contain 1 or multiple forms) and merges them into a single unified field_form_data.
     """
-    all_raw_forms: List[Dict[str, Any]] = []
-    for p in pdf_paths:
-        all_raw_forms.extend(_extract_raw_forms_from_pdf(p, applicant_name=applicant_name if len(pdf_paths) == 1 else ""))
+    all_raw_forms = _extract_all_pdfs_parallel(pdf_paths, applicant_name=applicant_name)
     return _order_and_merge_extracted_forms(all_raw_forms, case_applicant_name=applicant_name, existing_ff=existing_ff)
 
 
@@ -2335,21 +2355,27 @@ def _normalize_loan_type(raw_loan: Optional[str]) -> Optional[str]:
     return rl
 
 
-def extract_multiple_field_form_pdfs_for_intake(pdf_paths: List[str], applicant_name: str = "") -> Dict[str, Any]:
+def extract_multiple_field_form_pdfs_for_intake(
+    pdf_paths: List[str],
+    applicant_name: str = "",
+    existing_ff: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """
-    Extracts 1 or multiple Google Form PDFs (and splits any multi-form PDF) for Case Intake,
+    Extracts 1 or multiple Google Form PDFs in parallel (and splits any multi-form PDF) for Case Intake,
     returning both:
     1. case_data: Applicant 1, Applicant 2 (Co-Applicant), Applicant 3/4/5, bank, branch, loan type, amount, addresses
-    2. field_form_data: merged PWA questionnaire payload across all forms
+    2. field_form_data: merged PWA questionnaire payload across all forms (including any previously staged existing_ff)
     """
-    all_raw_forms: List[Dict[str, Any]] = []
-    for p in pdf_paths:
-        all_raw_forms.extend(_extract_raw_forms_from_pdf(p, applicant_name=applicant_name if len(pdf_paths) == 1 else ""))
+    all_raw_forms = _extract_all_pdfs_parallel(pdf_paths, applicant_name=applicant_name)
 
     if not all_raw_forms:
-        return {"case_data": {}, "field_form_data": {}}
+        return {"case_data": {}, "field_form_data": existing_ff or {}}
 
-    field_form_payload = _order_and_merge_extracted_forms(all_raw_forms, case_applicant_name=applicant_name)
+    field_form_payload = _order_and_merge_extracted_forms(
+        all_raw_forms,
+        case_applicant_name=applicant_name,
+        existing_ff=existing_ff,
+    )
 
     def _form_sort_key(ext: Dict[str, Any]) -> tuple:
         app_t = (_clean_val(ext.get("applicant_type")) or "Applicant").strip().lower()
@@ -2401,8 +2427,13 @@ def extract_multiple_field_form_pdfs_for_intake(pdf_paths: List[str], applicant_
     )
 
     raw_app_type = (_clean_val(primary_ext.get("applicant_type")) or "Applicant").strip()
-    is_co_only = raw_app_type.lower().replace("-", " ").startswith("co") and len(ordered) == 1
-    extracted_person_name = _clean_val(primary_ext.get("name"))
+    has_existing_primary = bool(isinstance(existing_ff, dict) and _clean_val(existing_ff.get("form_person_name")) and not str(existing_ff.get("form_applicant_type") or "").lower().startswith("co"))
+    is_co_only = raw_app_type.lower().replace("-", " ").startswith("co") and len(ordered) == 1 and not has_existing_primary
+    extracted_person_name = (
+        _clean_val(field_form_payload.get("form_person_name"))
+        if has_existing_primary
+        else _clean_val(primary_ext.get("name"))
+    )
     extracted_co_name = _clean_val(field_form_payload.get("co_applicant_name")) or _clean_val(primary_ext.get("co_applicant_name"))
     extracted_co_contact = _clean_val(field_form_payload.get("co_applicant_contact")) or _clean_val(primary_ext.get("co_applicant_contact"))
     primary_app_name = _format_person_name_with_salutation(

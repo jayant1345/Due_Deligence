@@ -6017,7 +6017,9 @@
 
       try {
         const formData = new FormData();
-        formData.append("file", fileList[0], fileList[0].name);
+        if (fileList.length === 1) {
+          formData.append("file", fileList[0], fileList[0].name);
+        }
         for (const f of fileList) {
           formData.append("files", f, f.name);
         }
@@ -6084,26 +6086,40 @@
 
       try {
         const formData = new FormData();
-        formData.append("file", fileList[0], fileList[0].name);
+        if (fileList.length === 1) {
+          formData.append("file", fileList[0], fileList[0].name);
+        }
         for (const f of fileList) {
           formData.append("files", f, f.name);
         }
         const existingName = (document.getElementById("tabNcApplicantName") ? document.getElementById("tabNcApplicantName").value.trim() : "");
         if (existingName) formData.append("applicant_name", existingName);
+        if (tabNcStagedFieldFormData) {
+          formData.append("existing_field_form_json", typeof tabNcStagedFieldFormData === "string" ? tabNcStagedFieldFormData : JSON.stringify(tabNcStagedFieldFormData));
+        }
 
         const token = localStorage.getItem("ca_token");
         const headers = {};
         if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
 
-        const res = await fetch("/api/v1/cases/extract-field-form-pdf", {
+        let res = await fetch("/api/v1/cases/extract-field-form-pdf", {
           method: "POST",
           headers: headers,
           body: formData,
         });
+        if ([502, 503, 504].includes(res.status)) {
+          await new Promise(r => setTimeout(r, 1500));
+          res = await fetch("/api/v1/cases/extract-field-form-pdf", {
+            method: "POST",
+            headers: headers,
+            body: formData,
+          });
+        }
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          alert("Could not extract the field visit form: " + (err.detail || res.statusText));
+          const detailStr = typeof err.detail === "string" ? err.detail : (err.detail ? JSON.stringify(err.detail) : "");
+          alert("Could not extract the field visit form: " + (detailStr || res.statusText || `Server returned HTTP ${res.status} (please retry in a few seconds)`));
           return;
         }
 
@@ -6207,6 +6223,8 @@
         alert("Error reading Google Form PDF: " + err.message);
       } finally {
         if (progress) progress.classList.add("hidden");
+        const inp = document.getElementById("tabNcFieldFormPdfInput");
+        if (inp) inp.value = "";
       }
     }
     window.handleIntakeFieldFormPdfSelected = handleIntakeFieldFormPdfSelected;
@@ -6222,7 +6240,9 @@
 
       try {
         const formData = new FormData();
-        formData.append("file", fileList[0], fileList[0].name);
+        if (fileList.length === 1) {
+          formData.append("file", fileList[0], fileList[0].name);
+        }
         for (const f of fileList) {
           formData.append("files", f, f.name);
         }
@@ -6233,15 +6253,24 @@
         const headers = {};
         if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
 
-        const res = await fetch("/api/v1/cases/extract-field-form-pdf", {
+        let res = await fetch("/api/v1/cases/extract-field-form-pdf", {
           method: "POST",
           headers: headers,
           body: formData,
         });
+        if ([502, 503, 504].includes(res.status)) {
+          await new Promise(r => setTimeout(r, 1500));
+          res = await fetch("/api/v1/cases/extract-field-form-pdf", {
+            method: "POST",
+            headers: headers,
+            body: formData,
+          });
+        }
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          alert("Could not extract the field visit form: " + (err.detail || res.statusText));
+          const detailStr = typeof err.detail === "string" ? err.detail : (err.detail ? JSON.stringify(err.detail) : "");
+          alert("Could not extract the field visit form: " + (detailStr || res.statusText || `Server returned HTTP ${res.status} (please retry in a few seconds)`));
           return;
         }
 
@@ -6307,6 +6336,8 @@
         alert("Error reading Google Form PDF: " + err.message);
       } finally {
         if (progress) progress.classList.add("hidden");
+        const inp = document.getElementById("tabNcFieldFormPdfInput");
+        if (inp) inp.value = "";
       }
     }
     window.handleIntakeFieldFormPdfSelected = handleIntakeFieldFormPdfSelected;
