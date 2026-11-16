@@ -2460,6 +2460,7 @@ def extract_multiple_field_form_pdfs_for_intake(pdf_paths: List[str], applicant_
         "co_applicant_name": extracted_co_name,
         "co_applicant_contact": extracted_co_contact,
         "co_applicant_address": primary_ext.get("co_applicant_address") or (address_visited if is_co_only else None),
+        "co_applicant_office_address": (field_form_payload.get("office_details_co") or {}).get("address") if isinstance(field_form_payload.get("office_details_co"), dict) else None,
         "applicant_3_name": field_form_payload.get("applicant_3_name"),
         "applicant_3_phone": field_form_payload.get("applicant_3_phone"),
         "applicant_4_name": field_form_payload.get("applicant_4_name"),

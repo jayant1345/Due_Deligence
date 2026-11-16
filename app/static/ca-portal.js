@@ -6170,6 +6170,9 @@
           if (cd.co_applicant_address && document.getElementById("tabNcCoApplicantAddress")) {
             document.getElementById("tabNcCoApplicantAddress").value = cd.co_applicant_address;
           }
+          if (cd.co_applicant_office_address && document.getElementById("tabNcCoApplicantOfficeAddress")) {
+            document.getElementById("tabNcCoApplicantOfficeAddress").value = cd.co_applicant_office_address;
+          }
         }
         if (cd.applicant_3_name) {
           if (document.getElementById("tabNcSlot3Name")) document.getElementById("tabNcSlot3Name").value = cd.applicant_3_name;
