@@ -665,7 +665,13 @@ def _normalize_extraction(raw: Dict[str, Any], applicant_name: str, target_addre
         # so it was silently dropped before ever reaching the DB - every ITR_ACKNOWLEDGEMENT
         # page showed "acknowledgement number not scanned" in the report regardless of whether
         # Gemini had successfully read it off the document.
-        "itr_acknowledgement_number": r.get("itr_acknowledgement_number"),
+        "itr_acknowledgement_number": (
+            re.sub(r"[\s\-]", "", str(r.get("itr_acknowledgement_number")).strip())
+            if doc_type != "FORM_16"
+            and r.get("itr_acknowledgement_number")
+            and re.fullmatch(r"\d{10,18}", re.sub(r"[\s\-]", "", str(r.get("itr_acknowledgement_number")).strip()))
+            else None
+        ),
         "bank_name": r.get("bank_name"),
         "account_number": r.get("account_number"),
         "ifsc_code": _validate_ifsc(r.get("ifsc_code")),

@@ -558,6 +558,17 @@ def generate_certified_cpv_report(
     # to other DocumentType enum values in the DB column, so the real page type must come from
     # ocr_data, the same way _ocr_first() above resolves doc types for OCR lookups.
     ITR_INCOME_DOC_TYPES = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET"}
+    ITR_RETURN_DOC_TYPES = {"ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET"}
+
+    def _valid_itr_ack_no_pdf(val: Any, doc_type_str: Optional[str] = None) -> Optional[str]:
+        if not val:
+            return None
+        if (doc_type_str or "").upper() == "FORM_16":
+            return None
+        s = re.sub(r"[\s\-]", "", str(val).strip())
+        if re.fullmatch(r"\d{10,18}", s):
+            return s
+        return None
 
     def _is_itr_income_doc(d):
         od = d.get("ocr_data") or {}
@@ -569,7 +580,8 @@ def generate_certified_cpv_report(
         for d in document_items:
             if not _is_itr_income_doc(d):
                 continue
-            od = d.get("ocr_data") or {}
+            od = dict(d.get("ocr_data") or {})
+            od["_resolved_doc_type"] = (od.get("llm_doc_type") or od.get("doc_type") or d.get("doc_type") or "").upper()
             is_co_doc = od.get("relationship_to_applicant") == "DIFFERENT_PERSON"
             if co_applicant != is_co_doc:
                 continue
@@ -577,17 +589,34 @@ def generate_certified_cpv_report(
         known_ays = [_ay_of(od) for od in cand_ods if _ay_of(od)]
         default_ay = known_ays[0] if len(set(known_ays)) == 1 else None
         for od in cand_ods:
+            p_dt = od.get("_resolved_doc_type") or ""
             ay = _ay_of(od) or default_ay
             income_val = od.get("annual_taxable_income") or od.get("annual_gross_salary")
-            ack_val = od.get("itr_acknowledgement_number")
+            ack_val = _valid_itr_ack_no_pdf(od.get("itr_acknowledgement_number"), p_dt)
             dt_val = od.get("document_date")
             if not ay and not income_val and not ack_val:
                 continue
             ay = ay or "Verified"
-            row = rows.setdefault(ay, {"ay": ay, "income": None, "ack_no": None, "filed_on": None})
+            row = rows.setdefault(ay, {
+                "ay": ay,
+                "income": None,
+                "ack_no": None,
+                "filed_on": None,
+                "has_itr_return_doc": False,
+                "has_form16_doc": False,
+                "only_form16": False,
+            })
+            if p_dt in ITR_RETURN_DOC_TYPES:
+                row["has_itr_return_doc"] = True
+            elif p_dt == "FORM_16":
+                row["has_form16_doc"] = True
             row["income"] = row["income"] or _inr(income_val)
             row["ack_no"] = row["ack_no"] or ack_val
             row["filed_on"] = row["filed_on"] or dt_val
+        for r in rows.values():
+            if not r["has_itr_return_doc"] and r["has_form16_doc"] and not r["ack_no"]:
+                r["only_form16"] = True
+                r["ack_no"] = "No ITR Return Found (Only Form 16 Found)"
         # Per explicit CA office instruction: omit any ITR / Form 16 / Assessment record
         # where the Total Income / Amount is not available (None / NA / 0).
         return {
@@ -643,8 +672,14 @@ def generate_certified_cpv_report(
     if co_applicant_name:
         kyc_line += f"<br/>The co-applicant, <b>{co_applicant_name}</b>, has submitted the KYC documents."
 
-    if form16_ay_list:
+    all_only_form16_app = bool(form16_ay_list) and all(bool(form16_rows[ay].get("only_form16")) for ay in form16_ay_list)
+    all_only_form16_co = bool(form16_ay_list_co) and all(bool(form16_rows_co[ay].get("only_form16")) for ay in form16_ay_list_co)
+    if form16_ay_list and all_only_form16_app:
+        itr_p2_line = f"No Income Tax Return (ITR) documents were found for the applicant; only Form No. 16 for the Assessment year(s) <b>{form16_ay_str}</b> was provided for our verification as proof of income."
+    elif form16_ay_list:
         itr_p2_line = f"The applicant has submitted Income Tax Return(s) / Form No. 16 for the Assessment year(s) <b>{form16_ay_str}</b> as proof of income, provided for our verification."
+    elif form16_ay_list_co and all_only_form16_co:
+        itr_p2_line = f"No Income Tax Return (ITR) documents were found for the co-applicant; only Form No. 16 for the Assessment year(s) <b>{form16_ay_str_co}</b> was provided for our verification as proof of income."
     elif form16_ay_list_co:
         itr_p2_line = f"The co-applicant has submitted Income Tax Return(s) / Form No. 16 for the Assessment year(s) <b>{form16_ay_str_co}</b> as proof of income, provided for our verification."
     else:
@@ -1076,16 +1111,19 @@ def generate_certified_cpv_report(
 
     # Manually-entered fallback (CA office knows it but it wasn't scanned) - only used for a
     # row the OCR itself didn't supply an ack no / filing date for.
-    manual_itr_ack_no = field_form.get("itr_acknowledgement_no") or None
+    manual_itr_ack_no = _valid_itr_ack_no_pdf(field_form.get("itr_acknowledgement_no")) or None
     manual_itr_filing_date = field_form.get("itr_filing_date") or None
     if form16_ay_list:
         itr_grid = [[Paragraph("A.Y.", table_hdr_style), Paragraph("Acknowledgement No", table_hdr_style), Paragraph("Date of Filing", table_hdr_style), Paragraph("Total Income / Status", table_hdr_style)]]
         for ay in form16_ay_list:
             row = form16_rows[ay]
             income = row["income"]
-            ack_no = row["ack_no"] or manual_itr_ack_no or "Verified (Computation on Record)"
+            ack_no = row["ack_no"] or manual_itr_ack_no or "No ITR Ack. Copy (Computation of Income Only)"
             filed_on = row["filed_on"] or manual_itr_filing_date or "Verified"
-            status = f"Rs. {income} (Income Tax Return / Computation of Income Verified)" if income else "Income Tax Return provided (total income not on record)"
+            if row.get("only_form16"):
+                status = f"Rs. {income} (No Income Tax Return documents found; only Form No. 16 found and verified)"
+            else:
+                status = f"Rs. {income} (Income Tax Return / Computation of Income Verified)" if income else "Income Tax Return provided (total income not on record)"
             itr_grid.append([Paragraph(ay, table_cell_style), Paragraph(ack_no, table_cell_style), Paragraph(filed_on, table_cell_style), Paragraph(status, table_cell_style)])
     elif manual_itr_ack_no or manual_itr_filing_date:
         # No Form 16 / ITR Acknowledgement / Computation of Income document was scanned for

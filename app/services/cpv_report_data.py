@@ -304,6 +304,23 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     # COMPUTATION_OF_INCOME (Return Assessment Statement / Computation of Total Income), and/or
     # PROFIT_LOSS_BALANCE_SHEET, scanned as their own doc types.
     ITR_INCOME_DOC_TYPES = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET"}
+    ITR_RETURN_DOC_TYPES = {"ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET"}
+
+    def _valid_itr_ack_number(val: Any, page_doc_type: Optional[str] = None) -> Optional[str]:
+        """
+        A genuine Income Tax Return (ITR-V) Acknowledgement Number is a numeric string (10-18 digits,
+        e.g. '297979921271025'). Form 16 TRACES certificate codes (e.g. 'AUBJIPA', 'ASZNQOA') or
+        10-character PAN/TAN strings contain letters and are NEVER ITR Acknowledgement Numbers.
+        """
+        if not val:
+            return None
+        if (page_doc_type or "").upper() == "FORM_16":
+            return None
+        s = re.sub(r"[\s\-]", "", str(val).strip())
+        if re.fullmatch(r"\d{10,18}", s):
+            return s
+        return None
+
     itr: Dict[str, Dict[str, Any]] = {}
     itr_pages = sorted(
         (p for p in pages if p.get("doc_type") in ITR_INCOME_DOC_TYPES),
@@ -311,22 +328,46 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     )
     known_ays = [_ay_of(p) for p in itr_pages if _ay_of(p)]
     default_ay = known_ays[0] if len(set(known_ays)) == 1 else None
+    valid_manual_ack = _valid_itr_ack_number(itr_ack_no)
     for p in itr_pages:
+        p_dt = (p.get("doc_type") or "").upper()
         ay = _ay_of(p) or default_ay
         inc_val = _inr(p.get("annual_taxable_income") or p.get("annual_gross_salary"))
-        ack_val = p.get("itr_acknowledgement_number")
+        ack_val = _valid_itr_ack_number(p.get("itr_acknowledgement_number"), p_dt)
         dt_val = p.get("document_date")
         if not ay and not inc_val and not ack_val:
             # Continuation/schedule page with no A.Y., no total income, and no ack number
             continue
         ay = ay or "Verified"
-        row = itr.setdefault(ay, {"ay": ay, "ack_no": None, "filed_on": None, "total_income": None,
-                                  "status": "Income Tax Return / Form 16 / Assessment Statement Verified"})
+        row = itr.setdefault(ay, {
+            "ay": ay,
+            "ack_no": None,
+            "filed_on": None,
+            "total_income": None,
+            "has_itr_return_doc": False,
+            "has_form16_doc": False,
+            "only_form16": False,
+            "status": "Income Tax Return / Form 16 / Assessment Statement Verified",
+        })
+        if p_dt in ITR_RETURN_DOC_TYPES:
+            row["has_itr_return_doc"] = True
+        elif p_dt == "FORM_16":
+            row["has_form16_doc"] = True
         row["total_income"] = row["total_income"] or inc_val
-        row["ack_no"] = row["ack_no"] or ack_val or itr_ack_no
+        row["ack_no"] = row["ack_no"] or ack_val or valid_manual_ack
         row["filed_on"] = row["filed_on"] or dt_val or itr_filing_date
-        if row["total_income"]:
-            row["status"] = "Income Tax Return / Computation of Income Verified"
+
+    for r in itr.values():
+        if not r["has_itr_return_doc"] and r["has_form16_doc"] and not r["ack_no"]:
+            r["only_form16"] = True
+            r["ack_no"] = "No ITR Return Found (Only Form 16 Found)"
+            r["status"] = "No Income Tax Return (ITR) documents found; only Form No. 16 found and verified"
+        else:
+            r["only_form16"] = False
+            if not r["ack_no"]:
+                r["ack_no"] = "No ITR Ack. Copy (Computation of Income Only)"
+            if r["total_income"]:
+                r["status"] = "Income Tax Return / Computation of Income Verified"
 
     # Per explicit CA office instruction: any ITR / Form 16 / Assessment record where the
     # Total Income / Amount is not available (None / NA / 0) must be omitted from the report

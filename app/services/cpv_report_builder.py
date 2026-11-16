@@ -501,6 +501,7 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
     if not itr_list and co and (co.get("itr") or []):
         itr_list = co.get("itr") or []
         itr_role_label = "co-applicant"
+    all_only_form16 = bool(itr_list) and all(bool(r.get("only_form16")) for r in itr_list)
     ays = [r.get("ay") for r in itr_list if r.get("ay") and r.get("ay") != "NA"]
     if len(ays) >= 2:
         itr_ay_str = ", ".join(ays[:-1]) + " and " + ays[-1]
@@ -551,12 +552,16 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
             else:
                 _set_par_text(p, "Based on the verification conducted, the applicant's profile details are genuine.")
         elif "submitted Income Tax Returns" in t and "Assessment years" in t:
-            if itr_ay_str:
+            if itr_ay_str and all_only_form16:
+                _set_par_text(p, f"No Income Tax Return (ITR) documents were found for the {itr_role_label}; only Form No. 16 for the Assessment year(s) {itr_ay_str} was provided for our verification as proof of income.")
+            elif itr_ay_str:
                 _set_par_text(p, f"The {itr_role_label} has submitted Income Tax Return(s) / Form No. 16 for the Assessment year(s) {itr_ay_str} as proof of income, provided for our verification.")
             else:
                 _set_par_text(p, "No Income Tax Returns or Form No. 16 were provided for our verification.")
         elif "Form No: 16" in t and "Was Provided for Our Verification" in t:
-            if form16_ay_str:
+            if form16_ay_str and all_only_form16:
+                _set_par_text(p, f"Only Form No. 16 ({form16_ay_str}) was found and verified from the records provided (Income Tax Return Acknowledgement not submitted).")
+            elif form16_ay_str:
                 _set_par_text(p, f"Income Tax Return / Computation of Income ({form16_ay_str}) was verified from the records provided.")
             else:
                 _set_par_text(p, "")
