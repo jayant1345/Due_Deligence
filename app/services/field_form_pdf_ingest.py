@@ -650,8 +650,20 @@ def reconcile_family_members_for_applicant(
         if applicant_name and (_name_score(m_name, applicant_name) or 0) >= 80:
             m_rel = "Self"
         elif m_rel and m_rel.lower().startswith("self"):
-            # Only keep "Self" if it's not a parent's row on a parent-submitted form
-            if app_is_unmarried_or_child and mem_age_num and app_age_num and mem_age_num >= app_age_num + 15:
+            # Only keep "Self" if it actually matches applicant_name (or applicant_name is unknown);
+            # if a co-applicant's form had marked the co-applicant as 'Self', re-classify relative to the Primary Applicant!
+            if applicant_name and (_name_score(m_name, applicant_name) or 0) < 75:
+                if mem_age_num and app_age_num and mem_age_num >= app_age_num + 15:
+                    m_rel = "Mother" if _infer_gender_from_name_or_hint(m_name) == "FEMALE" else "Father"
+                elif mem_age_num and app_age_num and mem_age_num <= app_age_num - 15:
+                    m_rel = "Daughter" if _infer_gender_from_name_or_hint(m_name) == "FEMALE" else "Son"
+                else:
+                    m_gen = _infer_gender_from_name_or_hint(m_name)
+                    if m_gen and app_gender and m_gen != app_gender:
+                        m_rel = "Wife" if m_gen == "FEMALE" else "Husband"
+                    else:
+                        m_rel = "Sister" if m_gen == "FEMALE" else "Brother"
+            elif app_is_unmarried_or_child and mem_age_num and app_age_num and mem_age_num >= app_age_num + 15:
                 m_rel = "Mother" if _infer_gender_from_name_or_hint(m_name) == "FEMALE" else "Father"
             else:
                 m_rel = "Self"
@@ -1589,15 +1601,17 @@ def build_field_form_payload(extracted: Dict[str, Any], case_applicant_name: Opt
     effective_primary_name = _clean_val(case_applicant_name) or form_person_name
 
     # If this form is explicitly marked 'Co-applicant' and no case_applicant_name was passed,
-    # check if the primary applicant is an unmarried/education-loan child in family_members
+    # check if the primary applicant is listed in family_members (e.g. adult Son/Daughter or 'app'/'applicant')
     if is_co_form and not _clean_val(case_applicant_name):
-        loan_t = (_clean_val(e.get("loan_type")) or "").lower()
-        if "education" in loan_t and isinstance(e.get("family_members"), list):
+        if isinstance(e.get("family_members"), list):
             for fm_item in e.get("family_members"):
                 if isinstance(fm_item, dict):
-                    fm_r = (_clean_val(fm_item.get("relation")) or "").upper()
+                    fm_r = (_clean_val(fm_item.get("relation")) or "").upper().strip()
                     fm_a = _parse_age_int(fm_item.get("age"))
-                    if fm_r in ("DAUGHTER", "SON") and (fm_a is None or 16 <= fm_a <= 28):
+                    if fm_r in ("APP", "APPLICANT", "SELF") and _clean_val(fm_item.get("name")) and (_name_score(fm_item.get("name"), form_person_name) or 0) < 75:
+                        effective_primary_name = _clean_val(fm_item.get("name"))
+                        break
+                    if fm_r in ("DAUGHTER", "SON") and (fm_a is None or fm_a >= 17):
                         effective_primary_name = _clean_val(fm_item.get("name")) or effective_primary_name
                         break
 
@@ -2419,6 +2433,21 @@ def extract_multiple_field_form_pdfs_for_intake(
         if not firm_name and _clean_val(ext.get("firm_name")):
             firm_name = _clean_val(ext.get("firm_name"))
 
+    # Also preserve fields from the merged field_form_payload (when combining Form 1 -> Form 2 -> Form 3 sequentially)
+    merged_off = field_form_payload.get("office_details") if isinstance(field_form_payload.get("office_details"), dict) else {}
+    merged_pl = field_form_payload.get("previous_loan") if isinstance(field_form_payload.get("previous_loan"), dict) else {}
+    if _clean_val(merged_off.get("address")):
+        office_address = _clean_val(merged_off.get("address"))
+    if _clean_val(merged_off.get("firm_name")):
+        firm_name = _clean_val(merged_off.get("firm_name"))
+    if not executive_name and _clean_val(field_form_payload.get("executive")):
+        executive_name = _clean_val(field_form_payload.get("executive"))
+    cand_merged_lt = _normalize_loan_type(merged_pl.get("loan_type"))
+    if cand_merged_lt and (not normalized_loan or normalized_loan.lower() in ("other", "others")):
+        normalized_loan = cand_merged_lt
+    if not raw_loan_amt and _clean_val(merged_pl.get("amount")):
+        raw_loan_amt = _clean_val(merged_pl.get("amount"))
+
     parsed_loan_amt = parse_inr_loan_amount(raw_loan_amt)
     resolved_loan_amt_str = (
         str(int(round(parsed_loan_amt)))
@@ -2428,7 +2457,11 @@ def extract_multiple_field_form_pdfs_for_intake(
 
     raw_app_type = (_clean_val(primary_ext.get("applicant_type")) or "Applicant").strip()
     has_existing_primary = bool(isinstance(existing_ff, dict) and _clean_val(existing_ff.get("form_person_name")) and not str(existing_ff.get("form_applicant_type") or "").lower().startswith("co"))
-    is_co_only = raw_app_type.lower().replace("-", " ").startswith("co") and len(ordered) == 1 and not has_existing_primary
+    all_uploaded_are_co = all(
+        (_clean_val(x.get("applicant_type")) or "Applicant").strip().lower().replace("-", " ").startswith(("co", "g"))
+        for x in ordered
+    )
+    is_co_only = all_uploaded_are_co and not has_existing_primary
     extracted_person_name = (
         _clean_val(field_form_payload.get("form_person_name"))
         if has_existing_primary
@@ -2445,21 +2478,22 @@ def extract_multiple_field_form_pdfs_for_intake(
 
     if is_co_only:
         extracted_co_name = _format_person_name_with_salutation(
-            extracted_person_name or extracted_co_name,
-            marital_status=primary_ext.get("marital_status"),
-            age_val=primary_ext.get("age"),
+            extracted_co_name or extracted_person_name,
+            marital_status=field_form_payload.get("co_applicant_marital_status") or primary_ext.get("marital_status"),
+            age_val=field_form_payload.get("co_applicant_age") or primary_ext.get("age"),
         )
-        extracted_co_contact = primary_app_contact or extracted_co_contact
+        extracted_co_contact = _clean_val(field_form_payload.get("co_applicant_contact")) or primary_app_contact or extracted_co_contact
         inferred_child_name = None
         if isinstance(primary_ext.get("family_members"), list):
             for fm_item in primary_ext.get("family_members"):
                 if isinstance(fm_item, dict):
-                    fm_r = (_clean_val(fm_item.get("relation")) or "").upper()
+                    fm_r = (_clean_val(fm_item.get("relation")) or "").upper().strip()
                     fm_a = _parse_age_int(fm_item.get("age"))
-                    if fm_r in ("DAUGHTER", "SON") and (normalized_loan == "Education Loan" or (fm_a and 17 <= fm_a <= 26)):
+                    if fm_r in ("DAUGHTER", "SON", "APP", "APPLICANT") and (fm_a is None or fm_a >= 17):
                         raw_child = _clean_val(fm_item.get("name"))
-                        if raw_child:
-                            prefix = "Miss. " if fm_r == "DAUGHTER" else "Mr. "
+                        if raw_child and (_name_score(raw_child, extracted_person_name) or 0) < 75:
+                            c_gen = _infer_gender_from_name_or_hint(raw_child)
+                            prefix = "Miss. " if (fm_r == "DAUGHTER" or c_gen == "FEMALE") else "Mr. "
                             c_tokens = raw_child.split()
                             p_tokens = (extracted_person_name or "").split()
                             if len(c_tokens) == 1 and len(p_tokens) >= 2:
@@ -2467,15 +2501,21 @@ def extract_multiple_field_form_pdfs_for_intake(
                                 surname = p_tokens[-1]
                                 inferred_child_name = f"{prefix}{c_tokens[0]} {father_first} {surname}"
                             else:
-                                inferred_child_name = raw_child if re.match(r"^(?:Mr|Mrs|Miss|Ms)\b", raw_child, re.I) else f"{prefix}{raw_child}"
+                                clean_rc = " ".join(w.capitalize() for w in raw_child.split())
+                                inferred_child_name = clean_rc if re.match(r"^(?:Mr|Mrs|Miss|Ms)\b", clean_rc, re.I) else f"{prefix}{clean_rc}"
                             break
-        primary_app_name = _clean_val(applicant_name) or inferred_child_name or primary_app_name
+        cand_app = _clean_val(applicant_name)
+        if cand_app and extracted_co_name and (_name_score(cand_app, extracted_co_name) or 0) >= 75:
+            cand_app = None
+        primary_app_name = cand_app or inferred_child_name
 
     extra_cos = field_form_payload.get("extra_co_applicants") or []
-    applicant_count = 1 + (1 if extracted_co_name else 0) + len(extra_cos)
+    applicant_count = (1 if (primary_app_name or not is_co_only) else 1) + (1 if extracted_co_name else 0) + len(extra_cos)
+    total_forms = int((existing_ff or {}).get("_forms_merged_count", 0)) + len(ordered) if isinstance(existing_ff, dict) and existing_ff else len(ordered)
+    field_form_payload["_forms_merged_count"] = total_forms
 
     case_data = {
-        "forms_extracted_count": len(ordered),
+        "forms_extracted_count": total_forms,
         "applicant_count": min(applicant_count, 5),
         "applicant_type": "Co-applicant" if is_co_only else "Applicant",
         "applicant_name": primary_app_name,
@@ -2508,7 +2548,7 @@ def extract_multiple_field_form_pdfs_for_intake(
     return {
         "case_data": case_data,
         "field_form_data": field_form_payload,
-        "forms_extracted_count": len(ordered),
+        "forms_extracted_count": total_forms,
     }
 
 

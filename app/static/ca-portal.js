@@ -6071,140 +6071,160 @@
     let tabNcStagedFieldFormData = null;
     let modalNcStagedFieldFormData = null;
 
+    window.clearStagedIntakeFieldForm = function () {
+      tabNcStagedFieldFormData = null;
+      const statusEl = document.getElementById("tabNcFieldFormPdfStatus");
+      if (statusEl) {
+        statusEl.innerHTML = "";
+        statusEl.classList.add("hidden");
+      }
+    };
+
     async function handleIntakeFieldFormPdfSelected(files) {
       if (!files || files.length === 0) return;
-      const fileList = Array.from(files);
+      // Sort so primary 'app details.pdf' / 'applicant' form is ingested first, followed by co-applicants
+      const fileList = Array.from(files).sort((a, b) => {
+        const na = (a.name || "").toLowerCase();
+        const nb = (b.name || "").toLowerCase();
+        const aIsApp = /\bapp(?:licant)?\b/.test(na) && !/\bco\b/.test(na) ? 0 : 1;
+        const bIsApp = /\bapp(?:licant)?\b/.test(nb) && !/\bco\b/.test(nb) ? 0 : 1;
+        return aIsApp - bIsApp;
+      });
       const progress = document.getElementById("tabNcFieldFormProgress");
       const progressText = document.getElementById("tabNcFieldFormProgressText");
       const statusEl = document.getElementById("tabNcFieldFormPdfStatus");
       if (progress) progress.classList.remove("hidden");
       if (statusEl) statusEl.classList.add("hidden");
-      const namesLabel = fileList.length === 1
-        ? `"${fileList[0].name}"`
-        : `${fileList.length} Google Form PDFs (${fileList.map(f => f.name).join(", ")})`;
-      if (progressText) progressText.textContent = `Reading ${namesLabel} with Gemini AI... (can take ~20-45s)`;
 
       try {
-        const formData = new FormData();
-        if (fileList.length === 1) {
-          formData.append("file", fileList[0], fileList[0].name);
-        }
-        for (const f of fileList) {
-          formData.append("files", f, f.name);
-        }
-        const existingName = (document.getElementById("tabNcApplicantName") ? document.getElementById("tabNcApplicantName").value.trim() : "");
-        if (existingName) formData.append("applicant_name", existingName);
-        if (tabNcStagedFieldFormData) {
-          formData.append("existing_field_form_json", typeof tabNcStagedFieldFormData === "string" ? tabNcStagedFieldFormData : JSON.stringify(tabNcStagedFieldFormData));
-        }
-
         const token = localStorage.getItem("ca_token");
         const headers = {};
         if (token && token !== "demo-ca-token") headers["Authorization"] = `Bearer ${token}`;
 
-        let res = await fetch("/api/v1/cases/extract-field-form-pdf", {
-          method: "POST",
-          headers: headers,
-          body: formData,
-        });
-        if ([502, 503, 504].includes(res.status)) {
-          await new Promise(r => setTimeout(r, 1500));
-          res = await fetch("/api/v1/cases/extract-field-form-pdf", {
+        let lastData = null;
+        for (let idx = 0; idx < fileList.length; idx++) {
+          const singleFile = fileList[idx];
+          if (progressText) {
+            progressText.textContent = fileList.length > 1
+              ? `Step ${idx + 1} of ${fileList.length}: Reading "${singleFile.name}" with Gemini AI & combining...`
+              : `Reading "${singleFile.name}" with Gemini AI... (can take ~15-25s)`;
+          }
+
+          const formData = new FormData();
+          formData.append("file", singleFile, singleFile.name);
+          formData.append("files", singleFile, singleFile.name);
+          if (tabNcStagedFieldFormData) {
+            formData.append("existing_field_form_json", typeof tabNcStagedFieldFormData === "string" ? tabNcStagedFieldFormData : JSON.stringify(tabNcStagedFieldFormData));
+          }
+
+          let res = await fetch("/api/v1/cases/extract-field-form-pdf", {
             method: "POST",
             headers: headers,
             body: formData,
           });
-        }
+          if ([502, 503, 504].includes(res.status)) {
+            await new Promise(r => setTimeout(r, 1500));
+            res = await fetch("/api/v1/cases/extract-field-form-pdf", {
+              method: "POST",
+              headers: headers,
+              body: formData,
+            });
+          }
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          const detailStr = typeof err.detail === "string" ? err.detail : (err.detail ? JSON.stringify(err.detail) : "");
-          alert("Could not extract the field visit form: " + (detailStr || res.statusText || `Server returned HTTP ${res.status} (please retry in a few seconds)`));
-          return;
-        }
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const detailStr = typeof err.detail === "string" ? err.detail : (err.detail ? JSON.stringify(err.detail) : "");
+            alert(`Could not extract "${singleFile.name}": ` + (detailStr || res.statusText || `Server returned HTTP ${res.status} (please retry in a few seconds)`));
+            return;
+          }
 
-        const data = await res.json();
-        const cd = data.case_data || {};
-        tabNcStagedFieldFormData = data.field_form_data_json || JSON.stringify(data.field_form_data || {});
+          const data = await res.json();
+          lastData = data;
+          const cd = data.case_data || {};
+          tabNcStagedFieldFormData = data.field_form_data_json || JSON.stringify(data.field_form_data || {});
 
-        // Auto-fill Case Profile fields
-        if (cd.applicant_name && document.getElementById("tabNcApplicantName")) {
-          document.getElementById("tabNcApplicantName").value = cd.applicant_name;
-        }
-        if (cd.contact_number && document.getElementById("tabNcPhone")) {
-          document.getElementById("tabNcPhone").value = cd.contact_number;
-        }
-        if (cd.address_visited && document.getElementById("tabNcAddress")) {
-          document.getElementById("tabNcAddress").value = cd.address_visited;
-        }
-        if (cd.office_address && document.getElementById("tabNcOfficeAddress")) {
-          document.getElementById("tabNcOfficeAddress").value = cd.office_address;
-        }
-        if (cd.bank_name && document.getElementById("tabNcBankName")) {
-          const bSelect = document.getElementById("tabNcBankName");
-          for (let i = 0; i < bSelect.options.length; i++) {
-            if (bSelect.options[i].value.toLowerCase().includes(cd.bank_name.toLowerCase()) || cd.bank_name.toLowerCase().includes(bSelect.options[i].value.toLowerCase())) {
-              bSelect.selectedIndex = i;
-              break;
+          // Auto-fill Case Profile fields on left pane after each form
+          if (cd.applicant_name && document.getElementById("tabNcApplicantName")) {
+            document.getElementById("tabNcApplicantName").value = cd.applicant_name;
+          }
+          if (cd.contact_number && document.getElementById("tabNcPhone")) {
+            document.getElementById("tabNcPhone").value = cd.contact_number;
+          }
+          if (cd.address_visited && document.getElementById("tabNcAddress")) {
+            document.getElementById("tabNcAddress").value = cd.address_visited;
+          }
+          if (cd.office_address && document.getElementById("tabNcOfficeAddress")) {
+            document.getElementById("tabNcOfficeAddress").value = cd.office_address;
+          }
+          if (cd.bank_name && document.getElementById("tabNcBankName")) {
+            const bSelect = document.getElementById("tabNcBankName");
+            for (let i = 0; i < bSelect.options.length; i++) {
+              if (bSelect.options[i].value.toLowerCase().includes(cd.bank_name.toLowerCase()) || cd.bank_name.toLowerCase().includes(bSelect.options[i].value.toLowerCase())) {
+                bSelect.selectedIndex = i;
+                break;
+              }
+            }
+            if (typeof syncTabNcCaseNoPrefix === "function") syncTabNcCaseNoPrefix();
+          }
+          if (cd.branch_name && document.getElementById("tabNcBranch")) {
+            document.getElementById("tabNcBranch").value = cd.branch_name;
+          }
+          if (cd.loan_type && document.getElementById("tabNcLoanType")) {
+            const ltSelect = document.getElementById("tabNcLoanType");
+            for (let i = 0; i < ltSelect.options.length; i++) {
+              if (ltSelect.options[i].value.toLowerCase().includes(cd.loan_type.toLowerCase()) || cd.loan_type.toLowerCase().includes(ltSelect.options[i].value.toLowerCase())) {
+                ltSelect.selectedIndex = i;
+                break;
+              }
             }
           }
-          if (typeof syncTabNcCaseNoPrefix === "function") syncTabNcCaseNoPrefix();
-        }
-        if (cd.branch_name && document.getElementById("tabNcBranch")) {
-          document.getElementById("tabNcBranch").value = cd.branch_name;
-        }
-        if (cd.loan_type && document.getElementById("tabNcLoanType")) {
-          const ltSelect = document.getElementById("tabNcLoanType");
-          for (let i = 0; i < ltSelect.options.length; i++) {
-            if (ltSelect.options[i].value.toLowerCase().includes(cd.loan_type.toLowerCase()) || cd.loan_type.toLowerCase().includes(ltSelect.options[i].value.toLowerCase())) {
-              ltSelect.selectedIndex = i;
-              break;
+          if (cd.loan_amount && document.getElementById("tabNcLoanAmount")) {
+            document.getElementById("tabNcLoanAmount").value = cd.loan_amount;
+          }
+
+          // Determine total applicants mode (1..5) and populate Co-Applicant slots 2..5
+          let detectedMode = 1;
+          if (cd.co_applicant_name) detectedMode = 2;
+          if (cd.applicant_3_name) detectedMode = 3;
+          if (cd.applicant_4_name) detectedMode = 4;
+          if (cd.applicant_5_name) detectedMode = 5;
+          if (detectedMode >= 2 && typeof setTabNcApplicantMode === "function") {
+            setTabNcApplicantMode(detectedMode);
+          }
+
+          if (cd.co_applicant_name) {
+            if (document.getElementById("tabNcCoApplicantName")) {
+              document.getElementById("tabNcCoApplicantName").value = cd.co_applicant_name;
+            }
+            if (cd.co_applicant_contact && document.getElementById("tabNcCoApplicantPhone")) {
+              document.getElementById("tabNcCoApplicantPhone").value = cd.co_applicant_contact;
+            }
+            if (cd.co_applicant_address && document.getElementById("tabNcCoApplicantAddress")) {
+              document.getElementById("tabNcCoApplicantAddress").value = cd.co_applicant_address;
+            }
+            if (cd.co_applicant_office_address && document.getElementById("tabNcCoApplicantOfficeAddress")) {
+              document.getElementById("tabNcCoApplicantOfficeAddress").value = cd.co_applicant_office_address;
             }
           }
-        }
-        if (cd.loan_amount && document.getElementById("tabNcLoanAmount")) {
-          document.getElementById("tabNcLoanAmount").value = cd.loan_amount;
+          if (cd.applicant_3_name) {
+            if (document.getElementById("tabNcSlot3Name")) document.getElementById("tabNcSlot3Name").value = cd.applicant_3_name;
+            if (cd.applicant_3_phone && document.getElementById("tabNcSlot3Phone")) document.getElementById("tabNcSlot3Phone").value = cd.applicant_3_phone;
+            if (document.getElementById("tabNcSlot3Shares")) document.getElementById("tabNcSlot3Shares").value = "1";
+          }
+          if (cd.applicant_4_name) {
+            if (document.getElementById("tabNcSlot4Name")) document.getElementById("tabNcSlot4Name").value = cd.applicant_4_name;
+            if (cd.applicant_4_phone && document.getElementById("tabNcSlot4Phone")) document.getElementById("tabNcSlot4Phone").value = cd.applicant_4_phone;
+            if (document.getElementById("tabNcSlot4Shares")) document.getElementById("tabNcSlot4Shares").value = "1";
+          }
+          if (cd.applicant_5_name) {
+            if (document.getElementById("tabNcSlot5Name")) document.getElementById("tabNcSlot5Name").value = cd.applicant_5_name;
+            if (cd.applicant_5_phone && document.getElementById("tabNcSlot5Phone")) document.getElementById("tabNcSlot5Phone").value = cd.applicant_5_phone;
+            if (document.getElementById("tabNcSlot5Shares")) document.getElementById("tabNcSlot5Shares").value = "1";
+          }
         }
 
-        // Determine total applicants mode (1..5) and populate Co-Applicant slots 2..5
-        let detectedMode = 1;
-        if (cd.co_applicant_name) detectedMode = 2;
-        if (cd.applicant_3_name) detectedMode = 3;
-        if (cd.applicant_4_name) detectedMode = 4;
-        if (cd.applicant_5_name) detectedMode = 5;
-        if (detectedMode >= 2 && typeof setTabNcApplicantMode === "function") {
-          setTabNcApplicantMode(detectedMode);
-        }
-
-        if (cd.co_applicant_name) {
-          if (document.getElementById("tabNcCoApplicantName")) {
-            document.getElementById("tabNcCoApplicantName").value = cd.co_applicant_name;
-          }
-          if (cd.co_applicant_contact && document.getElementById("tabNcCoApplicantPhone")) {
-            document.getElementById("tabNcCoApplicantPhone").value = cd.co_applicant_contact;
-          }
-          if (cd.co_applicant_address && document.getElementById("tabNcCoApplicantAddress")) {
-            document.getElementById("tabNcCoApplicantAddress").value = cd.co_applicant_address;
-          }
-          if (cd.co_applicant_office_address && document.getElementById("tabNcCoApplicantOfficeAddress")) {
-            document.getElementById("tabNcCoApplicantOfficeAddress").value = cd.co_applicant_office_address;
-          }
-        }
-        if (cd.applicant_3_name) {
-          if (document.getElementById("tabNcSlot3Name")) document.getElementById("tabNcSlot3Name").value = cd.applicant_3_name;
-          if (cd.applicant_3_phone && document.getElementById("tabNcSlot3Phone")) document.getElementById("tabNcSlot3Phone").value = cd.applicant_3_phone;
-          if (document.getElementById("tabNcSlot3Shares")) document.getElementById("tabNcSlot3Shares").value = "1";
-        }
-        if (cd.applicant_4_name) {
-          if (document.getElementById("tabNcSlot4Name")) document.getElementById("tabNcSlot4Name").value = cd.applicant_4_name;
-          if (cd.applicant_4_phone && document.getElementById("tabNcSlot4Phone")) document.getElementById("tabNcSlot4Phone").value = cd.applicant_4_phone;
-          if (document.getElementById("tabNcSlot4Shares")) document.getElementById("tabNcSlot4Shares").value = "1";
-        }
-        if (cd.applicant_5_name) {
-          if (document.getElementById("tabNcSlot5Name")) document.getElementById("tabNcSlot5Name").value = cd.applicant_5_name;
-          if (cd.applicant_5_phone && document.getElementById("tabNcSlot5Phone")) document.getElementById("tabNcSlot5Phone").value = cd.applicant_5_phone;
-          if (document.getElementById("tabNcSlot5Shares")) document.getElementById("tabNcSlot5Shares").value = "1";
-        }
+        if (!lastData) return;
+        const cd = lastData.case_data || {};
 
         // Auto-generate fresh sequential case number
         if (typeof autoGenTabCaseNo === "function") {
@@ -6213,11 +6233,11 @@
 
         const coListSummary = [cd.co_applicant_name, cd.applicant_3_name, cd.applicant_4_name, cd.applicant_5_name].filter(Boolean);
         if (statusEl) {
-          statusEl.innerHTML = `<span class="material-symbols-outlined text-[15px]">check_circle</span> <span>Extracted (${data.forms_extracted_count || fileList.length} Form${(data.forms_extracted_count || fileList.length) > 1 ? 's' : ''}): <b>${cd.applicant_name || 'Applicant'}</b>${coListSummary.length ? ' + ' + coListSummary.join(', ') : ''} • ${cd.bank_name || ''}</span>`;
+          statusEl.innerHTML = `<span class="material-symbols-outlined text-[15px]">check_circle</span> <span>Combined (${lastData.forms_extracted_count || fileList.length} Form${(lastData.forms_extracted_count || fileList.length) > 1 ? 's' : ''}): <b>1st: ${cd.applicant_name || 'Pending'}</b>${coListSummary.length ? ' • Co-App: ' + coListSummary.join(' | ') : ''} • ${cd.bank_name || ''}</span> <button type="button" onclick="window.clearStagedIntakeFieldForm()" class="ml-2 px-1.5 py-0.5 rounded bg-rose-100 hover:bg-rose-200 text-rose-800 text-[10px] font-bold cursor-pointer">✕ Reset</button>`;
           statusEl.classList.remove("hidden");
         }
 
-        alert(`[✓] Google Form PDF(s) extracted successfully (${data.forms_extracted_count || fileList.length} form(s))!\n\n• 1st Applicant: ${cd.applicant_name || 'N/A'} (${cd.contact_number || 'N/A'})${coListSummary.length ? '\n• Co-Applicant(s): ' + coListSummary.join(' | ') : ''}\n• Bank: ${cd.bank_name || 'N/A'}\n• Loan: ${cd.loan_type || 'N/A'} - ₹${cd.loan_amount || 'N/A'}\n• Property: ${cd.address_visited || 'N/A'}\n\nAll case profile fields have been auto-populated, and the full field questionnaire has been staged!`);
+        alert(`[✓] Google Form PDF(s) extracted & combined (${lastData.forms_extracted_count || fileList.length} form(s))!\n\n• 1st Applicant: ${cd.applicant_name || 'N/A'} (${cd.contact_number || 'N/A'})${coListSummary.length ? '\n• Co-Applicant(s): ' + coListSummary.join(' | ') : ''}\n• Bank: ${cd.bank_name || 'N/A'}\n• Loan: ${cd.loan_type || 'N/A'} - ₹${cd.loan_amount || 'N/A'}\n• Property: ${cd.address_visited || 'N/A'}\n\nYou can upload additional Co-Applicant PDFs one by one (they will combine automatically), or click Create New Case!`);
       } catch (err) {
         console.error("Intake field form PDF error:", err);
         alert("Error reading Google Form PDF: " + err.message);
