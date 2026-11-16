@@ -67,7 +67,7 @@ Return ONLY a JSON object with exactly these keys:
   "co_applicant_contact": "Co-applicant phone number if mentioned, string or null",
   "co_applicant_address": "Co-applicant address if mentioned, string or null",
   "family_members": [
-    {{"name": "person's actual name (never 'APP' or 'HUSBAND')", "age": "string", "relation": "Self | Husband | Wife | Father | Mother | Grandfather | Grandmother | Father-in-law | Mother-in-law | Son | Daughter | Brother | Sister | Brother-in-law | Sister-in-law | Family Member (CRITICAL: relation MUST be relative to the applicant; if both Father and Grandfather are listed, e.g. age ~50 and age ~75-85, use 'Father' for the father and 'Grandfather' for the grandfather — NEVER label both as 'Father'; if the applicant is Female/Mrs./Ms., no member can ever be 'Wife' — her spouse is 'Husband', her own row is 'Self', and a brother-in-law's wife is 'Sister-in-law')", "earning": "Yes or No (MUST be 'No' if written as NO/N/Housewife/Student or if age < 18)"}}
+    {{"name": "exact person's name as written in the Google Form (or null ONLY if no name was written on that line — NEVER copy another family member's name onto a line that had no name)", "age": "string", "relation": "exact relation as written in the Google Form: Self | Husband | Wife | Father | Mother | Grandfather | Grandmother | Father-in-law | Mother-in-law | Son | Daughter | Brother | Sister | Brother-in-law | Sister-in-law | Uncle | Aunt | Family Member (Follow the Google Form details first; only infer relation when the form line is ambiguous)", "earning": "Yes or No as written in the Google Form (MUST be 'No' if written as NO/N/Housewife/Student or if age < 18)"}}
   ],
   "address_visited": "string or null",
   "residence_landmark": "Landmark or locality extracted from address_visited (e.g. 'Near SAL Hospital, Driving Road, Thaltej'), string or null",
@@ -612,16 +612,33 @@ def reconcile_family_members_for_applicant(
             and m_rel.upper().strip(" .,-") not in _RELATION_NORMALIZATION
         ):
             m_name, m_rel = m_rel, _RELATION_NORMALIZATION[m_name.upper().strip(" .,-")]
+        elif m_name and m_name.upper().strip(" .,-") in _RELATION_NORMALIZATION and not m_rel:
+            m_rel = _RELATION_NORMALIZATION[m_name.upper().strip(" .,-")]
+            m_name = None
         else:
             m_rel = _normalize_relation_or_title(m_rel)
-
-        if not m_name:
-            continue
 
         # Strip bilingual suffix from relation if present (e.g. "Wife (પત્ની)" -> "Wife")
         if m_rel:
             m_rel = re.sub(r"\s*\([^)]*\)\s*$", "", m_rel).strip()
             m_rel = _normalize_relation_or_title(m_rel) or m_rel
+
+        # Fallback ONLY when the Google Form PDF omitted the person's name on that line
+        if (not m_name or m_name.upper().strip(" .,-") in _RELATION_NORMALIZATION) and m_rel:
+            if m_rel == "Self" and applicant_name:
+                m_name = re.sub(r"^\s*(?:mr\.?|mrs\.?|miss\.?|ms\.?|smt\.?|shri\.?|dr\.?)\s+", "", str(applicant_name).strip(), flags=re.IGNORECASE).strip() or str(applicant_name).strip()
+            elif m_rel == "Father":
+                inferred_f = _clean_val(applicant_father_name)
+                if inferred_f:
+                    m_name = " ".join(w.capitalize() for w in inferred_f.split())
+                elif len(app_tokens) >= 3 and (app_gender == "MALE" or app_is_unmarried_or_child):
+                    if app_tokens[-1].endswith(("BHAI", "LAL", "KUMAR", "SINH", "DAS")) and not app_tokens[1].endswith(("BHAI", "LAL", "KUMAR", "SINH", "DAS")):
+                        m_name = f"{app_tokens[-1].capitalize()} {app_tokens[0].capitalize()}"
+                    else:
+                        m_name = f"{app_tokens[1].capitalize()} {app_tokens[-1].capitalize()}"
+
+        if not m_name:
+            continue
 
         age_clean = str(_clean_val(m.get("age")) or "")
         mem_age_num: Optional[int] = _parse_age_int(age_clean)
