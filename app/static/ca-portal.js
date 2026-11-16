@@ -7723,6 +7723,26 @@
       });
     }, 45000);
 
+    // Cutoff for Actual Live Work: 16 Nov 2026 00:00:00 IST (2026-11-15T18:30:00Z)
+    const ACTUAL_WORK_CUTOFF_MS = new Date("2026-11-16T00:00:00+05:30").getTime();
+
+    function isActualWorkCaseSince16Nov(c) {
+      if (!c || !c.created_at) return false;
+      const t = new Date(c.created_at).getTime();
+      return !isNaN(t) && t >= ACTUAL_WORK_CUTOFF_MS;
+    }
+
+    function isTodayCaseIst(c) {
+      if (!c || !c.created_at) return false;
+      try {
+        const caseDayIst = new Date(c.created_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+        const todayIst = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+        return caseDayIst === todayIst;
+      } catch (e) {
+        return false;
+      }
+    }
+
     function updateGlobalCaseCounters() {
       const cases = getUniqueCasesList();
       const count = cases.length;
@@ -7732,6 +7752,55 @@
       if (elBadge) elBadge.textContent = count;
       const elKpi = document.getElementById("mgmtKpiTotal");
       if (elKpi) elKpi.textContent = count;
+
+      const actualCount = cases.filter(isActualWorkCaseSince16Nov).length;
+      const todayCount = cases.filter(isTodayCaseIst).length;
+      const elActualTop = document.getElementById("actualWorkCaseCount");
+      if (elActualTop) elActualTop.textContent = actualCount;
+      const elTodayTop = document.getElementById("todayWorkCaseCount");
+      if (elTodayTop) elTodayTop.textContent = todayCount;
+
+      if (typeof loadManagementStats === "function") {
+        loadManagementStats().then(stats => {
+          if (!stats) return;
+          if (stats.actual_total !== undefined && elActualTop) elActualTop.textContent = stats.actual_total;
+          if (stats.today_total !== undefined && elTodayTop) elTodayTop.textContent = stats.today_total;
+        }).catch(() => {});
+      }
+    }
+
+    function openActualWorkBreakdownFromTop() {
+      switchMainPortalView("management");
+      setTimeout(() => {
+        const sel = document.getElementById("mgmtFilterMonth");
+        if (sel) {
+          sel.value = "ACTUAL_FROM_16_NOV";
+          updateActualFilterBtnState();
+          applyManagementFilters();
+        }
+      }, 150);
+    }
+
+    function updateActualFilterBtnState() {
+      const sel = document.getElementById("mgmtFilterMonth");
+      const txtEl = document.getElementById("btnToggleActualWorkFilterText");
+      const btnEl = document.getElementById("btnToggleActualWorkFilter");
+      if (!sel || !txtEl || !btnEl) return;
+      if (sel.value === "ACTUAL_FROM_16_NOV") {
+        txtEl.textContent = "✓ Showing Only Actual Work (From 16 Nov) — Click to Show All";
+        btnEl.className = "px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-headline font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer";
+      } else {
+        txtEl.textContent = "🎯 Filter Table: Only Actual Work (From 16 Nov)";
+        btnEl.className = "px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-headline font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer";
+      }
+    }
+
+    function toggleActualWorkOnlyFilter() {
+      const sel = document.getElementById("mgmtFilterMonth");
+      if (!sel) return;
+      sel.value = sel.value === "ACTUAL_FROM_16_NOV" ? "ALL" : "ACTUAL_FROM_16_NOV";
+      updateActualFilterBtnState();
+      applyManagementFilters();
     }
 
     // Management Portal's own data, independent of the global caseRegistry (used by the case
@@ -7820,13 +7889,18 @@
       allOpt.value = "ALL";
       allOpt.textContent = "All Months (બધા મહિના)";
       sel.appendChild(allOpt);
+      const actualOpt = document.createElement("option");
+      actualOpt.value = "ACTUAL_FROM_16_NOV";
+      actualOpt.textContent = "⭐ Actual Work (From 16 Nov 2026 Onwards)";
+      sel.appendChild(actualOpt);
       months.forEach(m => {
         const opt = document.createElement("option");
         opt.value = m;
         opt.textContent = m;
         sel.appendChild(opt);
       });
-      sel.value = months.includes(prevValue) || prevValue === "ALL" ? prevValue : "ALL";
+      sel.value = (months.includes(prevValue) || prevValue === "ALL" || prevValue === "ACTUAL_FROM_16_NOV") ? prevValue : "ALL";
+      updateActualFilterBtnState();
     }
 
     async function loadManagementStats() {
@@ -7942,6 +8016,40 @@
         if (kpiAllotted) kpiAllotted.textContent = allottedCases;
         if (kpiCompleted) kpiCompleted.textContent = completedCases;
         if (kpiCertified) kpiCertified.textContent = stats.certified;
+
+        // Populate Actual Live Work (From 16 Nov 2026 onwards) KPIs & top ribbon
+        if (stats.actual_total !== undefined) {
+          const actByStatus = stats.actual_by_status || {};
+          const actCompleted = ["PENDING_CA_REVIEW", "APPROVED", "CERTIFIED", "FLAGGED", "REJECTED"]
+            .reduce((sum, s) => sum + (actByStatus[s] || 0), 0);
+          const elActTotal = document.getElementById("mgmtActualKpiTotal");
+          if (elActTotal) elActTotal.textContent = stats.actual_total;
+          const elActToday = document.getElementById("mgmtActualKpiToday");
+          if (elActToday) elActToday.textContent = stats.today_total ?? 0;
+          const elActComp = document.getElementById("mgmtActualKpiCompleted");
+          if (elActComp) elActComp.textContent = actCompleted;
+          const elActCert = document.getElementById("mgmtActualKpiCertified");
+          if (elActCert) elActCert.textContent = stats.actual_certified ?? 0;
+          const elTestExcl = document.getElementById("mgmtTestCasesExcludedCount");
+          if (elTestExcl) elTestExcl.textContent = stats.test_cases_before_16_nov ?? 0;
+          const elActualTop = document.getElementById("actualWorkCaseCount");
+          if (elActualTop) elActualTop.textContent = stats.actual_total;
+          const elTodayTop = document.getElementById("todayWorkCaseCount");
+          if (elTodayTop) elTodayTop.textContent = stats.today_total ?? 0;
+          const elTodayDateLbl = document.getElementById("mgmtActualTodayDateLabel");
+          if (elTodayDateLbl) {
+            try {
+              elTodayDateLbl.textContent = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+            } catch (e) {}
+          }
+          const pillsEl = document.getElementById("mgmtActualBankPills");
+          if (pillsEl && stats.actual_by_bank) {
+            const entries = Object.entries(stats.actual_by_bank).sort((a, b) => b[1] - a[1]);
+            pillsEl.innerHTML = entries.length > 0
+              ? entries.map(([bn, cnt]) => `<span class="px-2 py-0.5 rounded bg-white text-emerald-950 border border-emerald-300 font-bold text-[11px]">${bn}: <strong>${cnt}</strong></span>`).join("")
+              : `<span class="text-outline text-[11px]">No cases since 16 Nov 2026 yet</span>`;
+          }
+        }
       }
 
       const btnCompleted = document.getElementById("mgmtTabCompleted");
@@ -7967,7 +8075,10 @@
 
       let filtered = mgmtViewMode === "completed" ? (mgmtCompletedCases || []) : mgmtActiveCases;
 
-      if (monthFilter !== "ALL") {
+      updateActualFilterBtnState();
+      if (monthFilter === "ACTUAL_FROM_16_NOV") {
+        filtered = filtered.filter(isActualWorkCaseSince16Nov);
+      } else if (monthFilter !== "ALL") {
         filtered = filtered.filter(c => (c.month || "").toLowerCase().includes(monthFilter.toLowerCase()));
       }
       if (bankFilter !== "ALL") {

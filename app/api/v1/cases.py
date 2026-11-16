@@ -414,16 +414,60 @@ async def get_case_stats(
     Cheap per-status case counts (one GROUP BY query, no case rows returned) - lets the
     Management Portal show accurate KPI totals (including how many completed/certified cases
     exist) without having to fetch every case's full data just to count them.
+    Also provides a separate count of Actual Live Work from 16th Nov 2026 IST onwards
+    (excluding earlier testing cases).
     """
+    from datetime import timedelta
     query = select(LoanCase.status, func.count(LoanCase.id)).group_by(LoanCase.status)
     if current_user.role == UserRole.FIELD_AGENT:
         query = query.where(LoanCase.assigned_agent_id == current_user.id)
     result = await db.execute(query)
     counts = {row[0].value: row[1] for row in result.all()}
+    total_all = sum(counts.values())
+
+    # Actual Live Work cutoff: 16 Nov 2026 00:00:00 IST (2026-11-15 18:30:00 UTC)
+    ist_offset = timedelta(hours=5, minutes=30)
+    cutoff_16_nov_utc = datetime(2026, 11, 15, 18, 30, 0, tzinfo=timezone.utc)
+    now_ist = datetime.now(timezone.utc) + ist_offset
+    today_start_ist_as_utc = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=timezone.utc) - ist_offset
+
+    actual_status_q = (
+        select(LoanCase.status, func.count(LoanCase.id))
+        .where(LoanCase.created_at >= cutoff_16_nov_utc)
+        .group_by(LoanCase.status)
+    )
+    actual_bank_q = (
+        select(LoanCase.bank_name, func.count(LoanCase.id))
+        .where(LoanCase.created_at >= cutoff_16_nov_utc)
+        .group_by(LoanCase.bank_name)
+    )
+    today_q = select(func.count(LoanCase.id)).where(LoanCase.created_at >= today_start_ist_as_utc)
+    if current_user.role == UserRole.FIELD_AGENT:
+        actual_status_q = actual_status_q.where(LoanCase.assigned_agent_id == current_user.id)
+        actual_bank_q = actual_bank_q.where(LoanCase.assigned_agent_id == current_user.id)
+        today_q = today_q.where(LoanCase.assigned_agent_id == current_user.id)
+
+    actual_status_res = await db.execute(actual_status_q)
+    actual_by_status = {row[0].value: row[1] for row in actual_status_res.all()}
+    actual_total = sum(actual_by_status.values())
+
+    actual_bank_res = await db.execute(actual_bank_q)
+    actual_by_bank = {str(row[0] or "Other"): row[1] for row in actual_bank_res.all()}
+
+    today_res = await db.execute(today_q)
+    today_total = int(today_res.scalar() or 0)
+
     return {
         "by_status": counts,
-        "total": sum(counts.values()),
+        "total": total_all,
         "certified": counts.get("CERTIFIED", 0),
+        "actual_cutoff_date": "16 Nov 2026",
+        "actual_total": actual_total,
+        "actual_by_status": actual_by_status,
+        "actual_certified": actual_by_status.get("CERTIFIED", 0),
+        "actual_by_bank": actual_by_bank,
+        "today_total": today_total,
+        "test_cases_before_16_nov": max(0, total_all - actual_total),
     }
 
 

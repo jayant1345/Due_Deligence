@@ -233,6 +233,11 @@
           <span class="text-on-surface-variant bg-surface-container-lowest px-2 py-1 rounded border border-outline-variant">
             Total Cases: <strong id="totalCaseCount" class="text-primary-container">6</strong> Active
           </span>
+          <button type="button" onclick="openActualWorkBreakdownFromTop()" class="px-2.5 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-mono text-[11px] flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer" title="Separate count of Actual Live Cases created from 16th Nov 2026 onwards (excluding earlier test cases). Click to view & filter in Management Portal.">
+            <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+            <span>Actual Work (From 16 Nov): <strong id="actualWorkCaseCount" class="text-emerald-800 font-bold">0</strong></span>
+            <span class="text-emerald-700/80">| Today: <strong id="todayWorkCaseCount" class="text-emerald-900 font-bold">0</strong></span>
+          </button>
           <button id="btnRefreshCases" onclick="manualRefreshCases()" class="px-2 py-1 bg-surface-container-lowest hover:bg-surface-container-high border border-outline-variant text-on-surface-variant rounded font-mono text-[11px] flex items-center gap-1 transition-all" title="Fetch the latest case list and documents from the server now — other CA staff or field agents may have added or changed data since this page loaded">
             <span id="btnRefreshCasesIcon" class="material-symbols-outlined text-[14px]">sync</span>
             <span id="dataAsOfText">Data as of: loading…</span>
@@ -1455,7 +1460,76 @@
       </div>
     </div>
 
-    <!-- KPI SUMMARY CARDS -->
+    <!-- ADD-ON: ACTUAL LIVE WORK COUNTER & BREAKDOWN (FROM 16TH NOV 2026 ONWARDS — EXCLUDING EARLIER TEST CASES) -->
+    <div class="bg-gradient-to-r from-emerald-50 via-teal-50/70 to-surface-container-lowest p-4 rounded-2xl border-2 border-emerald-400/70 shadow-xs space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+            <span class="material-symbols-outlined text-[20px]">analytics</span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="font-headline font-bold text-sm text-emerald-950">Actual Live Work Counter (From 16th Nov 2026 Onwards)</h2>
+              <span class="px-2 py-0.5 rounded-full bg-emerald-600 text-white font-mono text-[9px] font-bold uppercase">Live Production Work Only</span>
+            </div>
+            <p class="font-mono text-[11px] text-emerald-800">
+              Separates actual CA office cases done from <strong>16 Nov 2026</strong> onwards from earlier pre-16 Nov testing cases (<span id="mgmtTestCasesExcludedCount">0</span> test cases excluded).
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button type="button" id="btnToggleActualWorkFilter" onclick="toggleActualWorkOnlyFilter()" class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-headline font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-[16px]">filter_alt</span>
+            <span id="btnToggleActualWorkFilterText">🎯 Filter Table: Only Actual Work (From 16 Nov)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-white/90 p-3 rounded-xl border border-emerald-200 flex items-center justify-between">
+          <div>
+            <p class="font-mono text-[10px] font-bold text-emerald-800 uppercase">Actual Cases (Since 16 Nov)</p>
+            <h3 id="mgmtActualKpiTotal" class="font-headline font-bold text-2xl text-emerald-900 mt-0.5">0</h3>
+            <p class="font-mono text-[10px] text-emerald-700">Live Work Count</p>
+          </div>
+          <span class="material-symbols-outlined text-emerald-600 text-[24px]">folder_check</span>
+        </div>
+
+        <div class="bg-white/90 p-3 rounded-xl border border-emerald-200 flex items-center justify-between">
+          <div>
+            <p class="font-mono text-[10px] font-bold text-teal-800 uppercase">Today's Cases (આજના કેસ)</p>
+            <h3 id="mgmtActualKpiToday" class="font-headline font-bold text-2xl text-teal-900 mt-0.5">0</h3>
+            <p id="mgmtActualTodayDateLabel" class="font-mono text-[10px] text-teal-700">16 Nov 2026</p>
+          </div>
+          <span class="material-symbols-outlined text-teal-600 text-[24px]">today</span>
+        </div>
+
+        <div class="bg-white/90 p-3 rounded-xl border border-emerald-200 flex items-center justify-between">
+          <div>
+            <p class="font-mono text-[10px] font-bold text-blue-800 uppercase">Actual Work Completed</p>
+            <h3 id="mgmtActualKpiCompleted" class="font-headline font-bold text-2xl text-blue-900 mt-0.5">0</h3>
+            <p class="font-mono text-[10px] text-blue-700">In Review / Approved / Certified</p>
+          </div>
+          <span class="material-symbols-outlined text-blue-600 text-[24px]">task_alt</span>
+        </div>
+
+        <div class="bg-white/90 p-3 rounded-xl border border-emerald-200 flex items-center justify-between">
+          <div>
+            <p class="font-mono text-[10px] font-bold text-indigo-800 uppercase">Actual Certified (UDIN)</p>
+            <h3 id="mgmtActualKpiCertified" class="font-headline font-bold text-2xl text-indigo-900 mt-0.5">0</h3>
+            <p class="font-mono text-[10px] text-indigo-700">Final Reports Issued (Since 16 Nov)</p>
+          </div>
+          <span class="material-symbols-outlined text-indigo-600 text-[24px]">verified</span>
+        </div>
+      </div>
+
+      <div id="mgmtActualBankBreakdownRow" class="flex flex-wrap items-center gap-2 pt-1 text-xs font-mono">
+        <span class="text-[10px] font-bold text-emerald-900 uppercase">Bank-wise Actual Work (From 16 Nov):</span>
+        <div id="mgmtActualBankPills" class="flex flex-wrap items-center gap-1.5"></div>
+      </div>
+    </div>
+
+    <!-- KPI SUMMARY CARDS (ALL PORTFOLIO INCLUDING EARLIER TEST CASES) -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
       <!-- Card 1: Total Received Cases -->
       <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-xs flex items-center justify-between">
