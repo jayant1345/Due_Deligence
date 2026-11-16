@@ -3517,6 +3517,27 @@
           </div>
         </div>
 
+        <div class="p-2.5 rounded-lg bg-indigo-50/70 border border-indigo-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-[10px] font-bold text-indigo-900 uppercase">📄 Report Cover Page — Verifier Executive &amp; File Allotted By</span>
+            <span class="font-mono text-[9px] text-indigo-700">Printed on Page 1 of DOCX &amp; PDF</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2.5">
+            <div>
+              <label class="block font-mono text-[9px] font-bold text-indigo-900 uppercase mb-1">1. Verifier Name (Field Agent)</label>
+              <input id="ecVerifierAgentName" type="text" placeholder="e.g. Kamal" class="w-full text-xs font-semibold bg-white border border-indigo-200 rounded-lg p-1.5 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[9px] font-bold text-indigo-900 uppercase mb-1">2. Executive Name (CA Dealing Clerk)</label>
+              <input id="ecCaDealingClerk" type="text" placeholder="CA Office Dealing Clerk Name" class="w-full text-xs font-semibold bg-white border border-indigo-200 rounded-lg p-1.5 focus:ring-primary-container"/>
+            </div>
+            <div>
+              <label class="block font-mono text-[9px] font-bold text-indigo-900 uppercase mb-1">3. File Allotted By (Bank Person / Branch)</label>
+              <input id="ecFileAllottedBy" type="text" placeholder="Bank Person or Branch Name" class="w-full text-xs font-semibold bg-white border border-indigo-200 rounded-lg p-1.5 focus:ring-primary-container"/>
+            </div>
+          </div>
+        </div>
+
         <div class="pt-2 flex items-center justify-between gap-2 border-t border-outline-variant">
           <button type="button" onclick="const ecId = document.getElementById('ecCaseId').value; closeEditCaseModal(); triggerAiFolderIngestForCase(ecId);" class="px-3.5 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 font-headline font-bold text-xs flex items-center gap-1" title="Switch to Scrutiny Desk for this case and add more documents via AI Scan">
             <span class="material-symbols-outlined text-[16px]">bolt</span>

@@ -980,7 +980,7 @@
     }
 
     // Document types that are KYC/financial proof, never site or workplace evidence.
-    const NON_EVIDENCE_DOC_TYPES = ["AADHAAR_CARD", "PAN_CARD", "UTILITY_BILL", "SALARY_SLIP", "PROPERTY_TITLE_DEED", "FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET", "OTHER"];
+    const NON_EVIDENCE_DOC_TYPES = ["AADHAAR_CARD", "PAN_CARD", "PAN_VERIFICATION_REPORT", "UTILITY_BILL", "SALARY_SLIP", "PROPERTY_TITLE_DEED", "FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET", "BANK_STATEMENT", "EMPLOYEE_ID_CARD", "SANCTION_LETTER", "OTHER"];
 
     // Shared by mergeExtractedDocsIntoCase() (AI scans) and applyFieldCapturedKycFallback()
     // (manual uploads): whichever candidate for a given card field is NEWER wins, tracked via a
@@ -1200,10 +1200,10 @@
             }));
         };
 
-        // Assign to slots by slot_number or doc_type
-        evidenceDocs.forEach((d, idx) => {
+        // Assign to slots by explicit slot_number or doc_type first (fallbackIndex=0)
+        evidenceDocs.forEach((d) => {
           if (isExplicitExtra(d)) return;
-          const slot = getDocSlot(d, idx + 1);
+          const slot = getDocSlot(d, 0);
           if (slot >= 1 && slot <= 4 && !slotMap[slot]) {
             slotMap[slot] = d;
           }
@@ -7293,13 +7293,26 @@
       else if (c.co_applicant_name) ecApplicantCount = 2;
       setEcApplicantMode(ecApplicantCount);
       const relSel = document.getElementById("ecCoApplicantRelation");
+      let ffObj = {};
+      try {
+        ffObj = typeof c.field_form_data === "string" ? JSON.parse(c.field_form_data || "{}") : (c.field_form_data || {});
+      } catch (e) { ffObj = {}; }
       if (relSel) {
-        let savedRel = "AUTO";
-        try {
-          const ffObj = typeof c.field_form_data === "string" ? JSON.parse(c.field_form_data || "{}") : (c.field_form_data || {});
-          if (ffObj && ffObj.co_applicant_relation) savedRel = ffObj.co_applicant_relation;
-        } catch (e) {}
-        relSel.value = savedRel || "AUTO";
+        relSel.value = (ffObj && ffObj.co_applicant_relation) ? ffObj.co_applicant_relation : "AUTO";
+      }
+      const verAgEl = document.getElementById("ecVerifierAgentName");
+      if (verAgEl) {
+        const defaultExec = (ffObj && (ffObj.verifier_agent_name || ffObj.executive || ffObj.executive_name)) || (c.agent && c.agent !== "Not yet allotted" ? c.agent : "") || "";
+        verAgEl.value = defaultExec;
+      }
+      const clerkEl = document.getElementById("ecCaDealingClerk");
+      if (clerkEl) {
+        clerkEl.value = (ffObj && (ffObj.ca_dealing_clerk || ffObj.dealing_clerk)) || "";
+      }
+      const allottedEl = document.getElementById("ecFileAllottedBy");
+      if (allottedEl) {
+        const defaultAllotted = (ffObj && (ffObj.file_allotted_by || ffObj.allotted_by)) || (c.bank ? (c.branch ? `${c.bank}, ${c.branch}` : c.bank) : "");
+        allottedEl.value = defaultAllotted;
       }
       if (document.getElementById("ecApplicantPhone")) document.getElementById("ecApplicantPhone").value = c.phone || "";
       if (document.getElementById("ecLoanAmount")) document.getElementById("ecLoanAmount").value = c.loan_amount || "";
@@ -7420,13 +7433,30 @@
           return;
         }
         const relSelEl = document.getElementById("ecCoApplicantRelation");
-        if (relSelEl && relSelEl.value) {
+        const verAgEl = document.getElementById("ecVerifierAgentName");
+        const clerkEl = document.getElementById("ecCaDealingClerk");
+        const allottedEl = document.getElementById("ecFileAllottedBy");
+        const reportFieldsPayload = {};
+        if (relSelEl && relSelEl.value) reportFieldsPayload.co_applicant_relation = relSelEl.value;
+        if (verAgEl) {
+          reportFieldsPayload.verifier_agent_name = verAgEl.value.trim();
+          if (verAgEl.value.trim()) reportFieldsPayload.executive = verAgEl.value.trim();
+        }
+        if (clerkEl) reportFieldsPayload.ca_dealing_clerk = clerkEl.value.trim();
+        if (allottedEl) reportFieldsPayload.file_allotted_by = allottedEl.value.trim();
+        if (Object.keys(reportFieldsPayload).length > 0) {
           try {
-            await fetch(`/api/v1/cases/${encodeURIComponent(serverId)}/report-fields`, {
+            const rfRes = await fetch(`/api/v1/cases/${encodeURIComponent(serverId)}/report-fields`, {
               method: "PATCH",
               headers: authHeaders({ "Content-Type": "application/json" }),
-              body: JSON.stringify({ co_applicant_relation: relSelEl.value })
+              body: JSON.stringify(reportFieldsPayload)
             });
+            if (rfRes.ok) {
+              const rfData = await rfRes.json().catch(() => ({}));
+              if (rfData && rfData.field_form) {
+                c.field_form_data = JSON.stringify(rfData.field_form);
+              }
+            }
           } catch (e) {}
         }
       } catch (err) {

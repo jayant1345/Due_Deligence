@@ -67,7 +67,7 @@ Return ONLY a JSON object with exactly these keys:
   "co_applicant_contact": "Co-applicant phone number if mentioned, string or null",
   "co_applicant_address": "Co-applicant address if mentioned, string or null",
   "family_members": [
-    {{"name": "person's actual name (never 'APP' or 'HUSBAND')", "age": "string", "relation": "Self | Husband | Wife | Father | Mother | Father-in-law | Mother-in-law | Son | Daughter | Brother | Sister | Brother-in-law | Sister-in-law | Family Member (CRITICAL: relation MUST be relative to the applicant; if the applicant is Female/Mrs./Ms., no member can ever be 'Wife' — her spouse is 'Husband', her own row is 'Self', and a brother-in-law's wife is 'Sister-in-law')", "earning": "Yes or No (MUST be 'No' if written as NO/N/Housewife/Student or if age < 18)"}}
+    {{"name": "person's actual name (never 'APP' or 'HUSBAND')", "age": "string", "relation": "Self | Husband | Wife | Father | Mother | Grandfather | Grandmother | Father-in-law | Mother-in-law | Son | Daughter | Brother | Sister | Brother-in-law | Sister-in-law | Family Member (CRITICAL: relation MUST be relative to the applicant; if both Father and Grandfather are listed, e.g. age ~50 and age ~75-85, use 'Father' for the father and 'Grandfather' for the grandfather — NEVER label both as 'Father'; if the applicant is Female/Mrs./Ms., no member can ever be 'Wife' — her spouse is 'Husband', her own row is 'Self', and a brother-in-law's wife is 'Sister-in-law')", "earning": "Yes or No (MUST be 'No' if written as NO/N/Housewife/Student or if age < 18)"}}
   ],
   "address_visited": "string or null",
   "residence_landmark": "Landmark or locality extracted from address_visited (e.g. 'Near SAL Hospital, Driving Road, Thaltej'), string or null",
@@ -179,6 +179,20 @@ _RELATION_NORMALIZATION = {
     "WIFE": "Wife",
     "FATHER": "Father",
     "MOTHER": "Mother",
+    "GRANDFATHER": "Grandfather",
+    "GRAND FATHER": "Grandfather",
+    "GRAND-FATHER": "Grandfather",
+    "DADA": "Grandfather",
+    "DADAJI": "Grandfather",
+    "NANA": "Grandfather",
+    "NANAJI": "Grandfather",
+    "GRANDMOTHER": "Grandmother",
+    "GRAND MOTHER": "Grandmother",
+    "GRAND-MOTHER": "Grandmother",
+    "DADI": "Grandmother",
+    "DADIJI": "Grandmother",
+    "NANI": "Grandmother",
+    "NANIJI": "Grandmother",
     "FATHER IN LAW": "Father-in-law",
     "MOTHER IN LAW": "Mother-in-law",
     "FATHER-IN-LAW": "Father-in-law",
@@ -522,6 +536,8 @@ def reconcile_family_members_for_applicant(
     applicant_marital_status: Optional[str] = None,
     form_holder_name: Optional[str] = None,
     form_holder_age: Optional[Any] = None,
+    applicant_occupation: Optional[str] = None,
+    applicant_father_name: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Cleans, normalizes, and reconciles the family_members array against the primary applicant's
@@ -719,6 +735,97 @@ def reconcile_family_members_for_applicant(
                 },
             )
 
+    # 4. Resolve Father vs Grandfather (and Mother vs Grandmother) when two rows are labeled 'Father'
+    # (e.g. Father age 52 and Grandfather age 80 both extracted as 'Father'), or when a 'Father' row is
+    # >= 45 years older than the applicant while another parent-generation row (~45-65) exists.
+    father_rows = [x for x in cleaned_fam if (x.get("relation") or "").strip().lower() == "father"]
+    if len(father_rows) >= 2:
+        f_with_ages = [(x, _parse_age_int(x.get("age")) or 0) for x in father_rows]
+        f_with_ages.sort(key=lambda pair: pair[1])
+        younger_father, younger_age = f_with_ages[0]
+        for older_row, older_age in f_with_ages[1:]:
+            if (younger_age and older_age >= younger_age + 15) or older_age >= 68:
+                older_row["relation"] = "Grandfather"
+                # If both the Father row and Grandfather row were given the Grandfather's name
+                # (e.g. 'Bhogilal Suther' on both age 52 and age 80), restore the Father's real name
+                # from applicant_father_name (PAN/Aadhaar) or from the applicant's patronymic token!
+                if (_name_score(younger_father.get("name"), older_row.get("name")) or 0) >= 85:
+                    inferred_father_name = _clean_val(applicant_father_name)
+                    if inferred_father_name:
+                        inferred_father_name = " ".join(w.capitalize() for w in inferred_father_name.split())
+                    elif len(app_tokens) >= 3 and (app_gender == "MALE" or app_is_unmarried_or_child):
+                        if app_tokens[-1].endswith(("BHAI", "LAL", "KUMAR", "SINH", "DAS")) and not app_tokens[1].endswith(("BHAI", "LAL", "KUMAR", "SINH", "DAS")):
+                            inferred_father_name = f"{app_tokens[-1].capitalize()} {app_tokens[0].capitalize()}"
+                        else:
+                            inferred_father_name = f"{app_tokens[1].capitalize()} {app_tokens[-1].capitalize()}"
+                    if inferred_father_name and (_name_score(inferred_father_name, older_row.get("name")) or 0) < 85:
+                        younger_father["name"] = inferred_father_name
+    elif len(father_rows) == 1:
+        only_f = father_rows[0]
+        only_f_age = _parse_age_int(only_f.get("age"))
+        mother_ages = [_parse_age_int(x.get("age")) for x in cleaned_fam if (x.get("relation") or "").strip().lower() == "mother" and _parse_age_int(x.get("age"))]
+        if only_f_age and only_f_age >= 72 and app_age_num and only_f_age >= app_age_num + 45:
+            if mother_ages and min(mother_ages) <= only_f_age - 15:
+                only_f["relation"] = "Grandfather"
+
+    mother_rows = [x for x in cleaned_fam if (x.get("relation") or "").strip().lower() == "mother"]
+    if len(mother_rows) >= 2:
+        m_with_ages = [(x, _parse_age_int(x.get("age")) or 0) for x in mother_rows]
+        m_with_ages.sort(key=lambda pair: pair[1])
+        _, younger_m_age = m_with_ages[0]
+        for older_m_row, older_m_age in m_with_ages[1:]:
+            if (younger_m_age and older_m_age >= younger_m_age + 15) or older_m_age >= 68:
+                older_m_row["relation"] = "Grandmother"
+
+    # Also if a Grandfather row exists and the younger Father row still has the exact same name as Grandfather
+    gf_rows = [x for x in cleaned_fam if (x.get("relation") or "").strip().lower() == "grandfather"]
+    f_rows_now = [x for x in cleaned_fam if (x.get("relation") or "").strip().lower() == "father"]
+    if gf_rows and f_rows_now:
+        gf_row = gf_rows[0]
+        f_row = f_rows_now[0]
+        if (_name_score(f_row.get("name"), gf_row.get("name")) or 0) >= 85:
+            inferred_father_name = _clean_val(applicant_father_name)
+            if inferred_father_name:
+                inferred_father_name = " ".join(w.capitalize() for w in inferred_father_name.split())
+            elif len(app_tokens) >= 3 and (app_gender == "MALE" or app_is_unmarried_or_child):
+                if app_tokens[-1].endswith(("BHAI", "LAL", "KUMAR", "SINH", "DAS")) and not app_tokens[1].endswith(("BHAI", "LAL", "KUMAR", "SINH", "DAS")):
+                    inferred_father_name = f"{app_tokens[-1].capitalize()} {app_tokens[0].capitalize()}"
+                else:
+                    inferred_father_name = f"{app_tokens[1].capitalize()} {app_tokens[-1].capitalize()}"
+            if inferred_father_name and (_name_score(inferred_father_name, gf_row.get("name")) or 0) < 85:
+                f_row["name"] = inferred_father_name
+
+    # 5. Per CA Office requirement: Applicant 'Self' MUST always come first (row 0), followed by other family members
+    self_rows = [x for x in cleaned_fam if (x.get("relation") or "").strip().lower() == "self"]
+    other_rows = [x for x in cleaned_fam if (x.get("relation") or "").strip().lower() != "self"]
+    if self_rows:
+        primary_self = self_rows[0]
+        if not _clean_val(primary_self.get("age")) and app_age_num:
+            primary_self["age"] = str(app_age_num)
+        cleaned_fam = [primary_self] + other_rows
+    elif applicant_name and str(applicant_name).strip().lower() not in ("unknown", "na", "n/a", "pending ai identification", "pending ai scan"):
+        clean_self_name = re.sub(
+            r"^\s*(?:mr\.?|mrs\.?|miss\.?|ms\.?|smt\.?|shri\.?|shree\.?|kum\.?|kumari\.?|dr\.?)\s+",
+            "",
+            str(applicant_name).strip(),
+            flags=re.IGNORECASE,
+        ).strip() or str(applicant_name).strip()
+        occ_str = _clean_val(applicant_occupation)
+        raw_self_earn = "No" if (app_is_unmarried_or_child and not occ_str) else None
+        self_earning = _clean_earning_val(
+            raw_self_earn,
+            age_str=str(app_age_num or ""),
+            occupation_str=occ_str,
+        )
+        cleaned_fam = [
+            {
+                "name": clean_self_name,
+                "relation": "Self",
+                "age": str(app_age_num) if app_age_num else "",
+                "earning": self_earning,
+            }
+        ] + other_rows
+
     return cleaned_fam
 
 
@@ -745,7 +852,8 @@ _VALID_REFERENCE_RELATIONS = {
     "ACCOUNTANT", "CLERK", "CASHIER", "RECEPTIONIST", "ADMIN", "HR", "SALESMAN",
     "WATCHMAN", "SECURITY", "SECURITY GUARD", "GUARD", "CARETAKER",
     "RELATIVE", "FAMILY", "FAMILY MEMBER",
-    "FATHER", "MOTHER", "HUSBAND", "WIFE", "SON", "DAUGHTER", "BROTHER", "SISTER",
+    "FATHER", "MOTHER", "GRANDFATHER", "GRANDMOTHER", "GRAND FATHER", "GRAND MOTHER", "DADA", "DADI", "NANA", "NANI",
+    "HUSBAND", "WIFE", "SON", "DAUGHTER", "BROTHER", "SISTER",
     "UNCLE", "AUNT", "COUSIN", "NEPHEW", "NIECE",
     "FATHER IN LAW", "MOTHER IN LAW", "BROTHER IN LAW", "SISTER IN LAW",
     "FATHER-IN-LAW", "MOTHER-IN-LAW", "BROTHER-IN-LAW", "SISTER-IN-LAW",
@@ -1170,6 +1278,7 @@ def enrich_field_form_defaults(
         applicant_marital_status=_clean_val(ff.get("marital_status")),
         form_holder_name=form_person,
         form_holder_age=form_person_age,
+        applicant_occupation=_clean_val(ff.get("occupation")),
     )
     if cleaned_fam:
         ff["family_members"] = cleaned_fam

@@ -406,11 +406,16 @@ def generate_certified_cpv_report(
     if co_applicant_name:
         loan_persons_text += f"<br/>Co-Applicant: <b>{co_applicant_name}</b>"
     verifier_name = (
-        case_data.get("agent_name")
+        field_form.get("verifier_agent_name")
         or field_form.get("executive")
         or field_form.get("executive_name")
+        or case_data.get("agent_name")
         or NOT_CAPTURED
     )
+    dealing_clerk_name = field_form.get("ca_dealing_clerk") or field_form.get("dealing_clerk") or ""
+    verifier_display = f"Name: {verifier_name}"
+    if dealing_clerk_name and str(dealing_clerk_name).strip():
+        verifier_display += f"<br/>Name: {str(dealing_clerk_name).strip()}"
     allotted_by_name = (
         field_form.get("file_allotted_by")
         or field_form.get("allotted_by")
@@ -421,7 +426,7 @@ def generate_certified_cpv_report(
         [Paragraph("<b>Branch:</b>", table_cell_bold), Paragraph(f"{bank_name}, {branch}", table_cell_style)],
         [Paragraph("<b>Report Date:</b>", table_cell_bold), Paragraph(rep_date, table_cell_style)],
         [Paragraph("<b>Loan Persons:</b>", table_cell_bold), Paragraph(loan_persons_text, table_cell_style)],
-        [Paragraph("<b>Verifier Executive:</b>", table_cell_bold), Paragraph(f"Name: {verifier_name}", table_cell_style)],
+        [Paragraph("<b>Verifier Executive:</b>", table_cell_bold), Paragraph(verifier_display, table_cell_style)],
         [Paragraph("<b>File Allotted:</b>", table_cell_bold), Paragraph(f"Name: {allotted_by_name}", table_cell_style)],
     ]
     t_p1 = Table(p1_grid, colWidths=[2.2 * inch, 5.3 * inch])
@@ -745,11 +750,15 @@ def generate_certified_cpv_report(
         [Paragraph("Name", table_hdr_style), Paragraph("Relation", table_hdr_style), Paragraph("Age", table_hdr_style), Paragraph("Earning", table_hdr_style)]
     ]
     from app.services.field_form_pdf_ingest import reconcile_family_members_for_applicant
+    real_father_name = _ocr_first("father_or_spouse_name", {"PAN_CARD", "AADHAAR_CARD"}) or _ocr_first("father_or_spouse_name")
     raw_fam = reconcile_family_members_for_applicant(
         field_form.get("family_members") if isinstance(field_form, dict) else None,
         applicant_name=applicant_name if applicant_name != NOT_CAPTURED else None,
         applicant_gender=real_gender,
-        applicant_age=real_age,
+        applicant_age=real_age or (field_form.get("age") if isinstance(field_form, dict) else None),
+        applicant_marital_status=marital_val if marital_val != NOT_CAPTURED else None,
+        applicant_occupation=occupation_val if occupation_val != NOT_CAPTURED else None,
+        applicant_father_name=real_father_name,
     )
     if isinstance(raw_fam, list) and len(raw_fam) > 0:
         for m in raw_fam:

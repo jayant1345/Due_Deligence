@@ -980,7 +980,13 @@ async def list_case_documents(
             doc_folder = str(d.ocr_data.get("folder")).lower()
         else:
             dtype_str = doc_type_val.upper()
-            if any(w in dtype_str for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"]):
+            if dtype_str in {
+                "PAN_VERIFICATION_REPORT", "AADHAAR_CARD", "PAN_CARD", "UTILITY_BILL",
+                "SALARY_SLIP", "FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME",
+                "PROFIT_LOSS_BALANCE_SHEET", "PROPERTY_TITLE_DEED", "BANK_STATEMENT", "OTHER",
+            } and not slot_num:
+                doc_folder = "kyc"
+            elif any(w in dtype_str for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"]):
                 doc_folder = "work"
 
         include_in_report = None

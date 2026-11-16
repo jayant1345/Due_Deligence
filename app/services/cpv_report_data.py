@@ -725,6 +725,9 @@ async def assemble_cpv_report_data(
         applicant_name=applicant.get("display_name") or applicant.get("name") or applicant_name,
         applicant_gender=applicant.get("gender"),
         applicant_age=applicant.get("age"),
+        applicant_marital_status=applicant.get("marital_status"),
+        applicant_occupation=applicant.get("occupation") or form.get("occupation"),
+        applicant_father_name=applicant.get("father_name"),
     )
     family = [{k: m.get(k) for k in ("name", "relation", "age", "earning")} for m in fm if isinstance(m, dict)]
 
@@ -961,13 +964,22 @@ async def assemble_cpv_report_data(
     if effective_loan_amount:
         loan_type = f"{loan_type} – Rs. {_inr(str(int(round(effective_loan_amount))))}/-"
 
-    raw_exec = (agent.full_name if agent else None) or form.get("executive") or form.get("executive_name")
+    raw_exec = form.get("verifier_agent_name") or form.get("executive") or form.get("executive_name") or (agent.full_name if agent else None)
+    dealing_clerk = form.get("ca_dealing_clerk") or form.get("dealing_clerk") or None
     resolved_verifiers: List[str] = []
     if verifier_names:
         resolved_verifiers = [str(n).strip() for n in verifier_names if str(n).strip()]
     elif raw_exec:
         parts = [p.strip() for p in re.split(r"\s*(?:&|/|,|\band\b)\s*", str(raw_exec), flags=re.IGNORECASE) if p.strip()]
         resolved_verifiers = [_title(p) or p for p in parts]
+    if dealing_clerk and str(dealing_clerk).strip():
+        clerk_str = _title(str(dealing_clerk).strip()) or str(dealing_clerk).strip()
+        if not resolved_verifiers:
+            resolved_verifiers = ["", clerk_str]
+        elif len(resolved_verifiers) == 1:
+            resolved_verifiers.append(clerk_str)
+        else:
+            resolved_verifiers[1] = clerk_str
 
     resolved_allotted_by = (
         file_allotted_by
