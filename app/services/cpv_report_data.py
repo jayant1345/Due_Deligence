@@ -273,6 +273,60 @@ def _pick_best_pan_verification_page(pages: List[Dict[str, Any]]) -> List[str]:
     return [best_path] if best_path else []
 
 
+def _best_person_name(pages: List[Dict[str, Any]], fallback_name: Optional[str] = None) -> Optional[str]:
+    """
+    Choose the cleanest, most complete ASCII holder_name for a person from their matched pages,
+    never replacing a multi-token fallback_name with a 1-word fragment (e.g. 'Pravinbhai') or a
+    Devanagari string (e.g. 'ज्वलंत प्रवीणभाई कोठिया').
+    """
+    clean_fb = re.sub(r"^\s*(?:Mr\.?|Mrs\.?|Miss\.?|Ms\.?|Shri\.?|Smt\.?|Dr\.?)\s+", "", str(fallback_name or ""), flags=re.I).strip() or None
+    fb_tok_count = len(clean_fb.split()) if clean_fb else 0
+
+    def _is_valid_cand(val: Any) -> bool:
+        if not val or not isinstance(val, str):
+            return False
+        s = val.strip()
+        if not s or not re.search(r"[A-Za-z]", s):
+            return False
+        if clean_fb and (_name_score(s, clean_fb) or 0) < 80:
+            return False
+        return True
+
+    ident_types = {"AADHAAR_CARD", "PAN_CARD"}
+    ident_cands = [
+        str(p.get("holder_name")).strip()
+        for p in pages
+        if p.get("doc_type") in ident_types and _is_valid_cand(p.get("holder_name"))
+    ]
+    if ident_cands:
+        # Prefer 3-token [GivenName, MiddleName, Surname] (e.g. 'JWALANT PRAVINBHAI KOTHIYA') over 2-token 'KOTHIYA JWALANT'
+        return max(ident_cands, key=lambda s: (len(s.split()), len(s)))
+
+    formal_types = {"ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "UTILITY_BILL", "SALARY_SLIP", "FORM_16"}
+    formal_cands = [
+        str(p.get("holder_name")).strip()
+        for p in pages
+        if p.get("doc_type") in formal_types
+        and _is_valid_cand(p.get("holder_name"))
+        and len(str(p.get("holder_name")).split()) >= max(2, fb_tok_count)
+    ]
+    if formal_cands:
+        return max(formal_cands, key=lambda s: (len(s.split()), len(s)))
+
+    if clean_fb and fb_tok_count >= 2:
+        return clean_fb
+
+    other_cands = [
+        str(p.get("holder_name")).strip()
+        for p in pages
+        if _is_valid_cand(p.get("holder_name")) and len(str(p.get("holder_name")).split()) >= fb_tok_count
+    ]
+    if other_cands:
+        return max(other_cands, key=lambda s: (len(s.split()), len(s)))
+
+    return clean_fb or _first(pages, "holder_name") or fallback_name
+
+
 def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: date,
             contact: Optional[str] = None, marital: Optional[str] = None,
             community: Optional[str] = None, qualification: Optional[str] = None,
@@ -281,12 +335,18 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
             explicit_salutation: Optional[str] = None) -> Dict[str, Any]:
     office_form = office_form or {}
     ident = {"AADHAAR_CARD", "PAN_CARD"}
-    name = _first(pages, "holder_name", ident) or _first(pages, "holder_name") or fallback_name
+    name = _best_person_name(pages, fallback_name)
     gender = _first(pages, "gender", {"AADHAAR_CARD", "PAN_CARD"}) or _first(pages, "gender")
     dob = _first(pages, "date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"}) or _first(pages, "date_of_birth")
-    designation = _first(pages, "designation", {"EMPLOYEE_ID_CARD"}) or _first(pages, "designation")
-    employer = _first(pages, "employer_name")
-    workplace = next((p.get("extracted_address") for p in pages if p.get("address_type") == "WORKPLACE" and p.get("extracted_address")), None)
+    non_form_pages = [
+        p for p in pages
+        if p.get("doc_type") != "APPLICATION_FORM"
+        and "visit form" not in str(p.get("document_title") or "").lower()
+        and "quotation" not in str(p.get("document_title") or "").lower()
+    ]
+    designation = _first(non_form_pages, "designation", {"EMPLOYEE_ID_CARD"}) or _first(non_form_pages, "designation")
+    employer = _first(non_form_pages, "employer_name")
+    workplace = next((p.get("extracted_address") for p in non_form_pages if p.get("address_type") == "WORKPLACE" and p.get("extracted_address")), None)
     doj = _first(pages, "date_of_joining", {"EMPLOYEE_ID_CARD"}) or _first(pages, "date_of_joining")
     has_salary = any(p.get("doc_type") in ("SALARY_SLIP", "FORM_16") for p in pages)
 
@@ -569,15 +629,45 @@ async def assemble_cpv_report_data(
 ) -> Dict[str, Any]:
     on = report_date or date.today()
     pages = [dict(p) for p in pages if p.get("scan_status") != "FAILED"]
-    applicant_name = assign_relationships(pages, loan_case.applicant_name, loan_case.co_applicant_name) or loan_case.applicant_name
-    summary = reconcile_case_documents(pages, loan_case.applicant_name, loan_case.co_applicant_name)
+    from app.services.field_form_pdf_ingest import enrich_field_form_defaults, _format_person_name_with_salutation
+    raw_form_init = _form(loan_case)
+    ff_app_type_init = str(raw_form_init.get("form_applicant_type") or "Applicant").strip()
+    ff_person_init = str(raw_form_init.get("form_person_name") or "").strip()
+    ff_co_init = str(raw_form_init.get("co_applicant_name") or "").strip()
+
+    # Golden Rule: Always follow the Applicant and Co-Applicant details from the Field Visit Google Form PDF.
+    effective_case_app_name = loan_case.applicant_name
+    effective_case_co_name = loan_case.co_applicant_name or ff_co_init or None
+    if (
+        ff_person_init
+        and ff_co_init
+        and not ff_app_type_init.lower().startswith("co")
+        and (_name_score(ff_person_init, ff_co_init) or 0) < 75
+        and effective_case_app_name
+        and (_name_score(effective_case_app_name, ff_co_init) or 0) >= 80
+        and (_name_score(effective_case_app_name, ff_person_init) or 0) < 80
+    ):
+        prev_app_raw = effective_case_app_name.strip()
+        effective_case_app_name = _format_person_name_with_salutation(
+            ff_person_init,
+            marital_status=raw_form_init.get("marital_status"),
+            age_val=raw_form_init.get("age_community") or raw_form_init.get("age"),
+        ) or ff_person_init
+        fuller_co_src = prev_app_raw if len(prev_app_raw.split()) >= len(ff_co_init.split()) else ff_co_init
+        effective_case_co_name = _format_person_name_with_salutation(
+            fuller_co_src,
+            marital_status=raw_form_init.get("co_applicant_marital_status") or "Married",
+            age_val=raw_form_init.get("co_applicant_age"),
+        ) or ff_co_init
+
+    applicant_name = assign_relationships(pages, effective_case_app_name, effective_case_co_name) or effective_case_app_name
+    summary = reconcile_case_documents(pages, effective_case_app_name, effective_case_co_name)
     # The dashboard saves this literal placeholder when a case is created without typing a real
     # address (awaiting a later AI/manual correction) - it must never be treated as an actual,
     # verified address in a bank-facing report.
     target_address = loan_case.target_address if loan_case.target_address != "Pending AI Extraction" else None
-    from app.services.field_form_pdf_ingest import enrich_field_form_defaults
     form = enrich_field_form_defaults(
-        _form(loan_case),
+        raw_form_init,
         applicant_name=applicant_name,
         target_address=target_address,
     )
@@ -592,6 +682,8 @@ async def assemble_cpv_report_data(
     # occupation such as "Business".
     applicant_office_form = dict(form.get("office_details") or {})
     applicant_office_form.setdefault("occupation", form.get("occupation"))
+    if form.get("age_community") or form.get("age"):
+        applicant_office_form.setdefault("age", form.get("age_community") or form.get("age"))
 
     own = [p for p in pages if p.get("relationship_to_applicant") == "SELF"]
     co = None
@@ -606,12 +698,30 @@ async def assemble_cpv_report_data(
     candidates = [g for g in groups if any(p.get("doc_type") in CO_APPLICANT_DOC_TYPES for p in g[1])]
     co_pages: List[Dict[str, Any]] = []
     best_cand_name: Optional[str] = None
-    if candidates:
+    effective_co_name = effective_case_co_name or form.get("co_applicant_name")
+    if effective_co_name and groups:
+        matching_co_groups = [g for g in groups if (_name_score(g[0], effective_co_name) or 0) >= 75]
+        if matching_co_groups:
+            best_cand_name = max(matching_co_groups, key=lambda g: len(g[1]))[0]
+            for mg in matching_co_groups:
+                co_pages.extend(mg[1])
+    if not co_pages and candidates:
         best = max(candidates, key=lambda g: len(g[1]))
         best_cand_name = best[0]
-        co_pages = best[1]
-
-    effective_co_name = loan_case.co_applicant_name or form.get("co_applicant_name")
+        co_pages = list(best[1])
+    if co_pages:
+        co_pans = {str(p.get("extracted_pan")).strip().upper() for p in co_pages if p.get("extracted_pan")}
+        co_aadhaars = {re.sub(r"\D", "", str(p.get("extracted_aadhaar"))) for p in co_pages if p.get("extracted_aadhaar")}
+        co_aadhaars.discard("")
+        co_ids = {id(p) for p in co_pages}
+        for p in pages:
+            if id(p) in co_ids or p.get("relationship_to_applicant") == "SELF":
+                continue
+            p_pan = str(p.get("extracted_pan") or "").strip().upper()
+            p_aadh = re.sub(r"\D", "", str(p.get("extracted_aadhaar") or ""))
+            if (p_pan and p_pan in co_pans) or (p_aadh and p_aadh in co_aadhaars):
+                co_pages.append(p)
+                co_ids.add(id(p))
     # If a case is an Education Loan or has an office/visit form whose 'who_meet' / 'form_person_name'
     # matches a confirmed family co-applicant with their own distinct KYC/ITR in `co_pages`, recognize them!
     if not effective_co_name and best_cand_name and co_pages:
@@ -629,6 +739,8 @@ async def assemble_cpv_report_data(
     # Check if `applicant_office_form` actually belongs to the Co-applicant (e.g. Father Kaushikbhai's
     # business 'Stephy Mobile sales & Service' on Daughter Moksha's Education Loan)
     co_office_form = dict(form.get("office_details_co") or {})
+    if form.get("co_applicant_occupation") or co_office_form.get("firm_name"):
+        co_office_form.setdefault("occupation", form.get("co_applicant_occupation") or "Business")
     off_who_clean = (applicant_office_form.get("who_meet") or "").split("-")[0].split("(")[0].strip()
     office_belongs_to_co = False
     if effective_co_name and not co_office_form.get("firm_name") and applicant_office_form.get("firm_name"):
@@ -651,14 +763,14 @@ async def assemble_cpv_report_data(
     applicant = _person(own, pages, on, contact=loan_case.applicant_phone or form.get("contact_number") or None,
                         marital=app_marital_in,
                         community=form.get("community") or None, qualification=app_qual_in,
-                        office_form=applicant_office_form, fallback_name=loan_case.applicant_name,
+                        office_form=applicant_office_form, fallback_name=effective_case_app_name,
                         itr_ack_no=form.get("itr_acknowledgement_no") or None, itr_filing_date=form.get("itr_filing_date") or None)
     if office_belongs_to_co and "education" in (loan_case.loan_type or "").lower() and not applicant.get("occupation"):
         applicant["occupation"] = "--"
     applicant["bank"] = _bank(pages, (summary.get("applicant") or {}).get("bank_account"), form.get("bank_account_status") or None)
     if not applicant["name"]:
         applicant["name"] = _title(applicant_name)
-        applicant["display_name"] = f"{_salutation(applicant.get('gender'), applicant.get('marital_status'), age=applicant.get('age'), fallback_name=loan_case.applicant_name)} {applicant['name']}".strip()
+        applicant["display_name"] = f"{_salutation(applicant.get('gender'), applicant.get('marital_status'), age=applicant.get('age'), fallback_name=effective_case_app_name)} {applicant['name']}".strip()
 
     # Re-run enrich_field_form_defaults now that OCR-verified gender/age are known on `applicant`
     form = enrich_field_form_defaults(
@@ -700,7 +812,7 @@ async def assemble_cpv_report_data(
     # Apply age-based Daughter ('Miss.' / 'Unmarried') vs Wife ('Mrs.' / 'Married') resolution
     from app.services.field_form_pdf_ingest import infer_applicant_co_relation_by_age
     rel_decision = infer_applicant_co_relation_by_age(
-        applicant_name=loan_case.applicant_name or applicant.get("name"),
+        applicant_name=effective_case_app_name or applicant.get("name"),
         applicant_gender=applicant.get("gender"),
         applicant_age_or_dob=applicant.get("age") or applicant.get("dob"),
         applicant_marital=applicant.get("marital_status"),

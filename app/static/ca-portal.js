@@ -7150,26 +7150,45 @@
 
       const idName = a.name || fromOwn("holder_name", ["AADHAAR_CARD", "PAN_CARD"]);
       if (idName && idName !== c.applicant_name_persisted) {
-        // Only silently auto-fill when the CA genuinely left this for AI to identify (the
-        // "Pending AI Identification" placeholder) or hasn't named anyone yet. If the CA typed
-        // a REAL name and the scanned documents identify a clearly DIFFERENT person, that is not
-        // a correction - it means the wrong folder/files were selected for this case. Silently
-        // overwriting (and persisting to the server) in that situation is exactly what mixed two
-        // different applicants' data together in a real, confirmed production incident: a case
-        // typed as "Solanki Nitesh Mayurkumar" had a different applicant's bank folder scanned
-        // into it, and this code silently renamed the case to the scanned name with no warning.
+        // Golden Rule: Always follow the Applicant and Co-Applicant details from the Field Visit Google Form PDF.
+        // Never overwrite c.applicant_name when a Field Visit Form PDF has already established the primary applicant,
+        // or when idName matches the Co-Applicant, or when priorName is a 2-token Father's name ('Kothiya Pravinbhai')
+        // and idName is a 3-token Child's name ('JWALANT PRAVINBHAI KOTHIYA').
+        const ffObj = (c.field_form_data && typeof c.field_form_data === "object") ? c.field_form_data : null;
+        const hasAuthoritativeFieldForm = Boolean(
+          ffObj && ffObj.form_person_name && !String(ffObj.form_applicant_type || "Applicant").toLowerCase().startsWith("co")
+        );
+        const stripHon = (s) => String(s || "")
+          .replace(/^\s*(?:mr|mrs|miss|ms|shri|smt|dr|kumari)\.?\s+/i, "")
+          .toUpperCase()
+          .split(/\s+/)
+          .map(t => t.replace(/(?:BHAI|BEN|KUMAR|SINH|LAL|BAI)$/i, "") || t)
+          .filter(t => t.length > 1);
         const priorName = (c.applicant_name_persisted || c.applicant_name || "").trim();
         const isPlaceholder = !priorName || priorName === "Pending AI Identification";
-        const priorTokens = priorName.toUpperCase().split(/\s+/).filter(t => t.length > 1);
-        const newTokens = new Set(idName.toUpperCase().split(/\s+/).filter(t => t.length > 1));
-        // Only treat idName as the same person as priorName if EVERY token the CA entered in
-        // Basic Details (e.g. "MALIKA" or "MALIKA PILLAI") is present in idName (supporting
-        // South Indian first/middle name interchange like "NARAYAN MALIKA PILLAI" vs
-        // "MALIKA NARAYAN PILLAI"), and NEVER just because they share a father's name or
-        // surname (which previously allowed father "NARAYAN CHANDRASHEKHRAN PILLAI" to overwrite
-        // daughter "MALIKA NARAYAN PILLAI").
-        const allPriorTokensPresent = priorTokens.length > 0 && priorTokens.every(pt =>
-          [...newTokens].some(nt => nt === pt || nt.startsWith(pt) || pt.startsWith(nt))
+        const priorTokens = stripHon(priorName);
+        const newTokenList = stripHon(idName);
+        const newTokens = new Set(newTokenList);
+        const coTokens = stripHon(c.co_applicant_name || (ffObj && ffObj.co_applicant_name) || "");
+        const matchesCoApplicant = coTokens.length > 0 && coTokens.some(ct =>
+          !priorTokens.includes(ct) && newTokens.has(ct)
+        );
+        // A 2-token priorName ('PRAVIN KOTHIYA' or 'KOTHIYA PRAVIN') is a Father's name (NOT the same person)
+        // when compared against a 3-token idName ('JWALANT PRAVIN KOTHIYA') whose first/given token ('JWALANT')
+        // is absent from priorTokens.
+        const isParentTwoToken = (
+          priorTokens.length === 2
+          && newTokenList.length >= 3
+          && !priorTokens.some(pt => pt === newTokenList[0] || pt.startsWith(newTokenList[0]) || newTokenList[0].startsWith(pt))
+        );
+        const allPriorTokensPresent = (
+          !hasAuthoritativeFieldForm
+          && !matchesCoApplicant
+          && !isParentTwoToken
+          && priorTokens.length > 0
+          && priorTokens.every(pt =>
+            [...newTokens].some(nt => nt === pt || nt.startsWith(pt) || pt.startsWith(nt))
+          )
         );
         if (isPlaceholder || allPriorTokensPresent) {
           c.applicant_name = idName;

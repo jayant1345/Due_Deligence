@@ -304,19 +304,22 @@ def _name_score(extracted: Optional[str], reference: Optional[str]) -> Optional[
         if unmatched_a and unmatched_b:
             return min(base_score, 65.0)
 
-        # Guard against matching a 2-token parent/spouse name [MiddleName, Surname] (e.g.
-        # "KAUSHIK JAIN" or "KAUSHIKBHAI JAIN") as 100% identical to a 3-token name
-        # [GivenName, MiddleName, Surname] (e.g. "MOKSHA KAUSHIK JAIN") where the first/given
-        # names ("KAUSHIK" vs "MOKSHA") are completely different multi-letter names.
+        # Guard against matching a 2-token parent/spouse name [MiddleName, Surname] OR
+        # [Surname, MiddleName] (e.g. "KAUSHIK JAIN", "PRAVINBHAI KOTHIYA", or "KOTHIYA PRAVINBHAI")
+        # as 100% identical to a 3-token name [GivenName, MiddleName, Surname] (e.g.
+        # "MOKSHA KAUSHIK JAIN" or "JWALANT PRAVINBHAI KOTHIYA") where the 3-token person's
+        # given name ("MOKSHA", "JWALANT") is completely absent from the 2-token name.
         t_short_chk, t_long_chk = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
         if (
             len(t_short_chk) == 2
             and len(t_long_chk) >= 3
             and len(t_long_chk[0]) >= 2
-            and len(t_short_chk[0]) >= 2
-            and _token_similarity(t_short_chk[0], t_long_chk[0]) < 75.0
-            and _token_similarity(t_short_chk[0], t_long_chk[1]) >= 75.0
-            and _token_similarity(t_short_chk[-1], t_long_chk[-1]) >= 75.0
+            and min(len(x) for x in t_short_chk) >= 2
+            and max(_token_similarity(x, t_long_chk[0]) for x in t_short_chk) < 75.0
+            and (
+                (_token_similarity(t_short_chk[0], t_long_chk[1]) >= 75.0 and _token_similarity(t_short_chk[-1], t_long_chk[-1]) >= 75.0)
+                or (_token_similarity(t_short_chk[-1], t_long_chk[1]) >= 75.0 and _token_similarity(t_short_chk[0], t_long_chk[-1]) >= 75.0)
+            )
         ):
             return min(base_score, 65.0)
 
@@ -1003,7 +1006,8 @@ def identify_applicant_name(items: List[Dict[str, Any]], applicant_name: str = "
         return on_file
 
     not_co = [it for it in identity if not _is_co_applicant_holder(it)]
-    identity_for_fallback = not_co if not_co else identity
+    non_co_holders = [it for it in holders if not _is_co_applicant_holder(it)]
+    identity_for_fallback = not_co if not_co else ([] if non_co_holders else identity)
     # Exclude anyone who is the father/parent of another identity holder in the same bundle
     non_parent_identity = [it for it in identity_for_fallback if not _is_parent_of_another_holder(it["holder_name"])]
     if non_parent_identity:
@@ -1014,9 +1018,9 @@ def identify_applicant_name(items: List[Dict[str, Any]], applicant_name: str = "
         if hit:
             return hit["holder_name"]
     holders_for_fallback = [
-        it for it in holders
-        if not _is_co_applicant_holder(it) and not _is_parent_of_another_holder(it["holder_name"])
-    ] or [it for it in holders if not _is_co_applicant_holder(it)] or holders
+        it for it in non_co_holders
+        if not _is_parent_of_another_holder(it["holder_name"])
+    ] or non_co_holders or holders
     counts: Dict[str, int] = {}
     for it in holders_for_fallback:
         counts[it["holder_name"]] = counts.get(it["holder_name"], 0) + 1
@@ -1065,6 +1069,20 @@ def assign_relationships(items: List[Dict[str, Any]], applicant_name: str = "", 
         if it.get("relationship_to_applicant") == "SELF" and it.get("extracted_aadhaar")
     }
     self_aadhaars.discard("")
+    other_pans = {
+        str(it.get("extracted_pan")).strip().upper()
+        for it in items
+        if it.get("relationship_to_applicant") == "DIFFERENT_PERSON" and it.get("extracted_pan")
+    } - self_pans
+    other_aadhaars = {
+        re.sub(r"\D", "", str(it.get("extracted_aadhaar")))
+        for it in items
+        if it.get("relationship_to_applicant") == "DIFFERENT_PERSON" and it.get("extracted_aadhaar")
+    } - self_aadhaars
+    other_aadhaars.discard("")
+    itr_doc_types = {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET"}
+    has_self_itr = any(it.get("relationship_to_applicant") == "SELF" and it.get("doc_type") in itr_doc_types for it in items)
+    has_other_itr = any(it.get("relationship_to_applicant") == "DIFFERENT_PERSON" and it.get("doc_type") in itr_doc_types for it in items)
     for it in items:
         if it.get("scan_status") == "FAILED":
             continue
@@ -1080,13 +1098,18 @@ def assign_relationships(items: List[Dict[str, Any]], applicant_name: str = "", 
             it["relationship_to_applicant"] = "SELF"
             it["discrepancies"] = [d for d in (it.get("discrepancies") or []) if not str(d).startswith(_BELONGS_PREFIX)]
             continue
+        if it.get("relationship_to_applicant") == "UNKNOWN" and ((pan_val and pan_val in other_pans) or (aadhaar_val and aadhaar_val in other_aadhaars)):
+            it["relationship_to_applicant"] = "DIFFERENT_PERSON"
+            continue
         # Income / Assessment continuation pages (Form 16 Part B, Computation schedules, Balance Sheet)
         # often omit the holder name or print the business/trade name. When holder_name is blank/UNKNOWN
         # (or when there is no co-applicant AND no conflicting personal PAN or another person's KYC on file),
-        # link them to SELF so the report's ITR table is never left empty.
-        if it.get("doc_type") in {"FORM_16", "ITR_ACKNOWLEDGEMENT", "COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET"}:
+        # link them to whichever applicant's ITR bundle is present.
+        if it.get("doc_type") in itr_doc_types:
             has_conflicting_pan = bool(pan_val and self_pans and pan_val not in self_pans)
-            if it.get("relationship_to_applicant") == "UNKNOWN" or (not co_on_file and not has_conflicting_pan and not pan_val):
+            if it.get("relationship_to_applicant") == "UNKNOWN" and has_other_itr and not has_self_itr:
+                it["relationship_to_applicant"] = "DIFFERENT_PERSON"
+            elif it.get("relationship_to_applicant") == "UNKNOWN" or (not co_on_file and not has_conflicting_pan and not pan_val):
                 it["relationship_to_applicant"] = "SELF"
                 it["discrepancies"] = [d for d in (it.get("discrepancies") or []) if not str(d).startswith(_BELONGS_PREFIX)]
     return reference

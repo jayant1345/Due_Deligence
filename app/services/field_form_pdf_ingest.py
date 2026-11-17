@@ -76,7 +76,7 @@ Return ONLY a JSON object with exactly these keys:
   "residence_landmark": "Landmark or locality extracted from address_visited (e.g. 'Near SAL Hospital, Driving Road, Thaltej'), string or null",
   "residence_ownership": "Rented | Owned | Government Provided | Company Provided | null",
   "residence_references": [
-    {{"name": "Neighbour 1 person's name ONLY (if two neighbour names are written on one line separated by '-', ',', '&', or '/', output TWO separate objects in this array, NEVER put the second person's name into 'relation')", "relation": "Neighbour (default to 'Neighbour' unless another relation like 'Friend', 'Landlord', 'Relative', 'Secretary', 'Watchman' is explicitly written)"}}
+    {{"name": "Exact reference name as written before the '-' or relation (e.g. 'Jayantibhai', 'Vishalbhai' — keep the full name intact; if two different references are written separated by ',' or '/', output TWO separate objects in this array, NEVER put the second person's name into 'relation')", "relation": "Neighbour (default to 'Neighbour' unless another relation like 'Friend', 'Landlord', 'Relative', 'Secretary', 'Watchman' is explicitly written)"}}
   ],
   "residence_building_type": "Bungalow | Flat | Independent House | null",
   "residence_bhk": "e.g. '1 BHK', '2 BHK', '3 BHK', '4 BHK' or null",
@@ -104,7 +104,7 @@ Return ONLY a JSON object with exactly these keys:
   "position_or_nature_of_business": "string or null",
   "office_assets_visible": ["list of checked items"],
   "office_references": [
-    {{"name": "Reference person's name ONLY (if two reference names are written separated by '-', ',', '&', or '/', output TWO separate objects in this array, NEVER put the second person's name into 'relation')", "relation": "Colleague | Staff | Manager | Owner | Neighbour | Friend (default to 'Colleague' or 'Neighbour' if not explicitly written)"}}
+    {{"name": "Exact reference name or shop/firm name as written before the '-' or relation (e.g. 'Rajnibhai', 'Aakashbhai', 'Cool and casual', 'Bold look' — keep all words of the name intact, NEVER truncate words like 'and casual' or 'look'; if two different references are written on one line separated by ',' or '/', output TWO separate objects in this array)", "relation": "Colleague | Staff | Manager | Owner | Neighbour | Friend (default to 'Colleague' or 'Neighbour' if not explicitly written)"}}
   ],
   "who_met_office_name": "string or null - name only",
   "who_met_office_contact": "string or null",
@@ -273,6 +273,13 @@ def _infer_gender_from_name_or_hint(name: Optional[str], explicit_gender: Option
         return "FEMALE"
     if first in _COMMON_MALE_NAMES or any(first.endswith(sfx) for sfx in ("BHAI", "SINH", "KUMAR", "LAL", "DAS", "NATH", "UDDIN", "MIYA", "KHAN")):
         return "MALE"
+    # Handle 2-token Surname-First names (e.g. 'Kothiya pravinbhai' or 'Shaikh sakilabanu')
+    if len(tokens) == 2:
+        second = tokens[1]
+        if second in _COMMON_FEMALE_NAMES or any(second.endswith(sfx) for sfx in ("BEN", "BA", "DEVI", "BAI", "KUMARI", "BANU", "BANO", "BIBI", "BEGUM", "KHATOON", "FATIMA")):
+            return "FEMALE"
+        if second in _COMMON_MALE_NAMES or any(second.endswith(sfx) for sfx in ("BHAI", "SINH", "KUMAR", "LAL", "DAS", "NATH", "UDDIN", "MIYA", "KHAN")):
+            return "MALE"
     return None
 
 
@@ -988,18 +995,24 @@ def _expand_and_normalize_references(
     """
     pairs: List[tuple[str, str]] = []
 
+    non_empty_count = sum(1 for x in (raw_items or []) if x and (isinstance(x, dict) and _clean_val(x.get("name")) or not isinstance(x, dict) and _clean_val(x)))
+
     def _add_name_or_split(name_str: str, rel_str: Optional[str]):
         clean_n = (_clean_val(name_str) or "").strip(" .,-")
         clean_n = re.sub(r"^\d+[\.\)\-\s]+", "", clean_n).strip()
         if not clean_n:
             return
         norm_r = _normalize_relation_or_title(rel_str) if _is_valid_reference_relation(rel_str) else None
-        # Check if clean_n itself contains two names separated by ',', '&', '/', or ' and '
-        sub_names = [
-            re.sub(r"^\d+[\.\)\-\s]+", "", p.strip(" .,-")).strip()
-            for p in re.split(r"\s*(?:,|&|/|\band\b)\s*", clean_n, flags=re.IGNORECASE)
-            if p and p.strip(" .,-")
-        ]
+        # Only split a single combined string on ',' or '/' when a single reference item was passed;
+        # NEVER split on 'and' or '&' when 2 references already exist (preserves names like 'Cool and casual')
+        if non_empty_count <= 1:
+            sub_names = [
+                re.sub(r"^\d+[\.\)\-\s]+", "", p.strip(" .,-")).strip()
+                for p in re.split(r"\s*(?:,|/)\s*", clean_n, flags=re.IGNORECASE)
+                if p and p.strip(" .,-")
+            ]
+        else:
+            sub_names = [clean_n]
         if len(sub_names) > 1:
             for sn in sub_names:
                 if sn:
@@ -1015,6 +1028,11 @@ def _expand_and_normalize_references(
             r_val = _clean_val(item.get("relation"))
             if not n_val:
                 continue
+            # Also check if n_val still contains an embedded "- relation" (e.g. "Rajnibhai- friend")
+            if not r_val and "-" in n_val:
+                h_parts = [p.strip() for p in re.split(r"\s*-\s*", n_val) if p.strip()]
+                if len(h_parts) == 2 and _is_valid_reference_relation(h_parts[1]):
+                    n_val, r_val = h_parts[0], h_parts[1]
             if r_val and not _is_valid_reference_relation(r_val):
                 # Gemini put the 2nd person's name into 'relation' (e.g. name='BABU RAO', relation='RAJU BHAI')
                 _add_name_or_split(n_val, default_relation)
@@ -1030,18 +1048,20 @@ def _expand_and_normalize_references(
             if m_paren and _is_valid_reference_relation(m_paren.group(2)):
                 _add_name_or_split(m_paren.group(1), m_paren.group(2))
                 continue
-            if " - " in s_val:
-                parts = [p.strip() for p in s_val.split(" - ") if p.strip()]
+            if "-" in s_val:
+                parts = [p.strip() for p in re.split(r"\s*-\s*", s_val) if p.strip()]
                 if len(parts) == 2:
                     left, right = parts[0], parts[1]
                     if _is_valid_reference_relation(right):
                         _add_name_or_split(left, right)
-                    else:
+                    elif " - " in s_val:
                         # Both left and right are people's names (e.g. "BABU RAO - RAJU BHAI")!
                         _add_name_or_split(left, default_relation)
                         _add_name_or_split(right, default_relation)
+                    else:
+                        _add_name_or_split(s_val, default_relation)
                 else:
-                    # 3+ parts separated by " - "
+                    # 3+ parts separated by "-"
                     if _is_valid_reference_relation(parts[-1]):
                         rel_part = parts[-1]
                         for nm in parts[:-1]:
@@ -1967,6 +1987,7 @@ def merge_field_form_payloads(
             co_off_copy["age"] = _clean_val(co_ff.get("co_applicant_age")) or _clean_val(co_ff.get("age_community"))
             co_off_copy["community"] = _clean_val(co_ff.get("community")) or _clean_val(app_ff.get("community"))
             co_off_copy["qualification"] = _clean_val(co_ff.get("co_applicant_qualification")) or _clean_val(co_ff.get("qualification"))
+            co_off_copy["occupation"] = _clean_val(co_off_copy.get("occupation")) or _clean_val(co_ff.get("co_applicant_occupation")) or _clean_val(co_ff.get("occupation"))
             merged["office_details_co"] = co_off_copy
 
         for k in ("co_applicant_name", "co_applicant_contact", "co_applicant_marital_status", "co_applicant_age", "co_applicant_qualification", "co_applicant_occupation"):
@@ -2027,11 +2048,30 @@ def merge_field_form_payloads(
                 if co_holder_occ and any(k in co_holder_occ.lower() for k in ("house wife", "housewife", "homemaker", "home maker")):
                     em["earning"] = "No"
 
+    primary_age_int = _parse_age_int(eff_primary_age)
+    co_is_child_of_primary = bool(primary_age_int and co_holder_age and co_holder_age <= primary_age_int - 15)
+
     for cm in (co_ff.get("family_members") or []):
         if isinstance(cm, dict) and _clean_val(cm.get("name")):
-            cm_name = _clean_val(cm.get("name")) or ""
-            cm_age = _parse_age_int(cm.get("age"))
+            cm_copy = dict(cm)
+            cm_name = _clean_val(cm_copy.get("name")) or ""
+            cm_age = _parse_age_int(cm_copy.get("age"))
             cm_gen = _infer_gender_from_name_or_hint(cm_name)
+            cm_rel_up = (_clean_val(cm_copy.get("relation")) or "").upper()
+            # If the Co-Applicant is the adult Son/Daughter of the Primary Applicant (e.g. Jwalant age 30 vs Father Pravinbhai age 63),
+            # translate relations written from the Co-Applicant's perspective into the Primary Applicant's perspective!
+            if co_is_child_of_primary:
+                if cm_rel_up in ("FATHER", "MOTHER"):
+                    # Already represented by the Primary Applicant ('Self') and spouse ('Wife'/'Husband')
+                    continue
+                if cm_rel_up == "WIFE" and (not cm_age or not primary_age_int or cm_age <= primary_age_int - 12):
+                    cm_copy["relation"] = "Daughter-in-law"
+                elif cm_rel_up == "HUSBAND" and (not cm_age or not primary_age_int or cm_age <= primary_age_int - 12):
+                    cm_copy["relation"] = "Son-in-law"
+                elif cm_rel_up == "DAUGHTER" and (cm_age is not None and cm_age <= 18):
+                    cm_copy["relation"] = "Granddaughter"
+                elif cm_rel_up == "SON" and (cm_age is not None and cm_age <= 18):
+                    cm_copy["relation"] = "Grandson"
             already = False
             for em in combined_fam:
                 em_name = _clean_val(em.get("name")) or ""
@@ -2046,7 +2086,7 @@ def merge_field_form_payloads(
                     already = True
                     break
             if not already:
-                combined_fam.append(dict(cm))
+                combined_fam.append(cm_copy)
     merged["family_members"] = combined_fam
 
     # Merge previous_loan if app_ff had NA or generic 'Other'
@@ -2069,12 +2109,14 @@ def merge_field_form_payloads(
 def _split_pdf_into_form_page_groups(doc, image_paths: List[str]) -> List[List[str]]:
     """
     Detects if a single PDF file contains multiple concatenated Google Form questionnaires
-    (e.g. Applicant + Co-Applicant 1 + Co-Applicant 2 in one 18- or 27-page PDF).
-    Whenever a page after page 0 has 'Due Diligence Visit Form' or ('Executive Name' and
-    'RESIDENTIAL DETAILS'), starts a new form page group so each form is extracted individually.
+    (e.g. Applicant + Co-Applicant 1 + Co-Applicant 2 in one 18- or 28-page PDF).
+    NOTE: Chrome print headers put 'Due Diligence Visit Form' at the top of EVERY page of a
+    single 14-page form, so we must ONLY split when Question 1 ('Executive Name') + section 1
+    ('RESIDENTIAL DETAILS' or 'Due Diligence Details' or 'Select') reappears at least 8 pages
+    after the start of the previous form.
     """
     total_pages = len(image_paths)
-    if total_pages <= 10:
+    if total_pages <= 15:
         return [image_paths]
 
     start_indices = [0]
@@ -2084,18 +2126,20 @@ def _split_pdf_into_form_page_groups(doc, image_paths: List[str]) -> List[List[s
         except Exception:
             txt = ""
         is_form_start = (
-            "due diligence visit form" in txt
-            or ("executive name" in txt and "residential details" in txt)
-            or ("due diligence details" in txt and "select *" in txt)
+            "executive name" in txt
+            and ("residential details" in txt or "due diligence details" in txt or "select" in txt)
         )
-        if is_form_start and (page_num - start_indices[-1]) >= 3:
+        if is_form_start and (page_num - start_indices[-1]) >= 8:
             start_indices.append(page_num)
 
-    # Fallback for image-only (scanned) multi-form PDFs that are exact multiples of 9 pages (18, 27, 36)
-    if len(start_indices) == 1 and total_pages >= 18 and total_pages % 9 == 0:
+    # Fallback for image-only (scanned) multi-form PDFs that are exact multiples of 9 or 14 pages (18, 27, 28, 36)
+    if len(start_indices) == 1 and total_pages >= 18:
         all_text_empty = all(not (doc.load_page(i).get_text("text") or "").strip() for i in range(min(len(doc), 5)))
         if all_text_empty:
-            start_indices = list(range(0, total_pages, 9))
+            if total_pages % 14 == 0:
+                start_indices = list(range(0, total_pages, 14))
+            elif total_pages % 9 == 0:
+                start_indices = list(range(0, total_pages, 9))
 
     if len(start_indices) <= 1:
         return [image_paths]

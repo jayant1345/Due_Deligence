@@ -69,9 +69,38 @@ def generate_certified_cpv_report(
     applicant_name = case_data.get("applicant_name") or NOT_CAPTURED
     raw_target_address = case_data.get("target_address")
     target_address = raw_target_address if raw_target_address and raw_target_address != "Pending AI Extraction" else NOT_CAPTURED
-    from app.services.field_form_pdf_ingest import enrich_field_form_defaults, resolve_effective_loan_amount
+    from app.services.field_form_pdf_ingest import enrich_field_form_defaults, resolve_effective_loan_amount, _format_person_name_with_salutation
+    from app.services.pdf_separator import _name_score as _ns_pdf_guard
+    raw_ff_init = case_data.get("field_form") or {}
+    if isinstance(raw_ff_init, dict):
+        ff_app_t_pdf = str(raw_ff_init.get("form_applicant_type") or "Applicant").strip()
+        ff_pers_pdf = str(raw_ff_init.get("form_person_name") or "").strip()
+        ff_co_pdf = str(raw_ff_init.get("co_applicant_name") or "").strip()
+        if (
+            ff_pers_pdf
+            and ff_co_pdf
+            and not ff_app_t_pdf.lower().startswith("co")
+            and (_ns_pdf_guard(ff_pers_pdf, ff_co_pdf) or 0) < 75
+            and applicant_name
+            and applicant_name != NOT_CAPTURED
+            and (_ns_pdf_guard(applicant_name, ff_co_pdf) or 0) >= 80
+            and (_ns_pdf_guard(applicant_name, ff_pers_pdf) or 0) < 80
+        ):
+            prev_app_pdf = str(applicant_name).strip()
+            applicant_name = _format_person_name_with_salutation(
+                ff_pers_pdf,
+                marital_status=raw_ff_init.get("marital_status"),
+                age_val=raw_ff_init.get("age_community") or raw_ff_init.get("age"),
+            ) or ff_pers_pdf
+            fuller_co_pdf = prev_app_pdf if len(prev_app_pdf.split()) >= len(ff_co_pdf.split()) else ff_co_pdf
+            case_data["co_applicant_name"] = _format_person_name_with_salutation(
+                fuller_co_pdf,
+                marital_status=raw_ff_init.get("co_applicant_marital_status") or "Married",
+                age_val=raw_ff_init.get("co_applicant_age"),
+            ) or ff_co_pdf
+
     field_form = enrich_field_form_defaults(
-        case_data.get("field_form") or {},
+        raw_ff_init,
         applicant_name=applicant_name if applicant_name != NOT_CAPTURED else None,
         target_address=target_address if target_address != NOT_CAPTURED else None,
     )
@@ -81,8 +110,8 @@ def generate_certified_cpv_report(
     loan_type = case_data.get("loan_type") or NOT_CAPTURED
     loan_amount = resolve_effective_loan_amount(case_data.get("loan_amount"), field_form)
     loan_amount_str = f"Rs. {loan_amount:,.0f}/-" if loan_amount else NOT_CAPTURED
-    co_applicant_name = case_data.get("co_applicant_name") or None
-    co_applicant_phone = case_data.get("co_applicant_phone") or None
+    co_applicant_name = case_data.get("co_applicant_name") or field_form.get("co_applicant_name") or None
+    co_applicant_phone = case_data.get("co_applicant_phone") or field_form.get("co_applicant_contact") or None
     # Only set when the CA office has flagged the co-applicant as living at a separate address
     # from the primary applicant - the overwhelming majority of dual-applicant cases (e.g.
     # spouses) leave this blank and share the one Annexure A residence section below.
@@ -210,12 +239,12 @@ def generate_certified_cpv_report(
     _early_rel = _infer_rel_pdf(
         applicant_name=applicant_name if applicant_name != NOT_CAPTURED else None,
         applicant_gender=real_gender,
-        applicant_age_or_dob=real_age or (field_form.get("age") if isinstance(field_form, dict) else None),
+        applicant_age_or_dob=real_age or ((field_form.get("age_community") or field_form.get("age")) if isinstance(field_form, dict) else None),
         applicant_marital=field_form.get("marital_status") if isinstance(field_form, dict) else None,
         co_applicant_name=co_applicant_name,
         co_applicant_gender=real_gender_co,
-        co_applicant_age_or_dob=real_age_co_early or _early_office_co.get("age"),
-        co_applicant_marital=_early_office_co.get("marital_status"),
+        co_applicant_age_or_dob=real_age_co_early or _early_office_co.get("age") or (field_form.get("co_applicant_age") if isinstance(field_form, dict) else None),
+        co_applicant_marital=_early_office_co.get("marital_status") or (field_form.get("co_applicant_marital_status") if isinstance(field_form, dict) else None),
         explicit_relation=(field_form.get("co_applicant_relation") if isinstance(field_form, dict) else None) or _early_office_co.get("relation_to_applicant"),
         loan_type=loan_type if loan_type != NOT_CAPTURED else None,
     )
@@ -553,8 +582,11 @@ def generate_certified_cpv_report(
     residence_co = field_form.get("residence_details_co") or {}
     co_firm_name = office_co.get("firm_name") or ""
     co_office_addr = office_co.get("address") or ""
-    co_position = office_co.get("position") or NOT_CAPTURED
-    co_occupation_val = office_co.get("occupation") or NOT_CAPTURED
+    co_position = office_co.get("position") or office_co.get("designation") or NOT_CAPTURED
+    raw_co_occ = office_co.get("occupation") or field_form.get("co_applicant_occupation")
+    if not raw_co_occ and (co_firm_name or co_office_addr):
+        raw_co_occ = "Business"
+    co_occupation_val = raw_co_occ or NOT_CAPTURED
 
     # Real Form 16 assessment years, read off the applicant's own scanned Form 16 pages -
     # never a hardcoded guess. One scanned Form 16 can cover multiple years (Part A/Part B
@@ -662,7 +694,20 @@ def generate_certified_cpv_report(
      Based on the verification conducted, the applicant's profile details are genuine.<br/><br/>
         """
 
-    is_co_working = bool(co_applicant_name) and office_co.get("occupation") not in ("Housewife", "House Wife", None)
+    if not raw_co_occ and form16_rows_co:
+        raw_co_occ = "Business"
+        co_occupation_val = "Business"
+    co_is_male = str(real_gender_co or "").upper() == "MALE" or str(co_applicant_name or "").strip().lower().startswith(("mr.", "mr ", "shri"))
+    co_is_housewife = (
+        str(raw_co_occ or "").strip().lower() in ("housewife", "house wife", "homemaker", "home maker")
+        and not co_is_male
+    )
+    is_co_working = bool(co_applicant_name) and not co_is_housewife and bool(
+        (raw_co_occ and str(raw_co_occ).strip().lower() not in ("housewife", "house wife", "student", "unemployed", "none"))
+        or co_firm_name
+        or co_office_addr
+        or form16_rows_co
+    )
     co_work_bullet = ""
     if co_applicant_name:
         if is_co_working:
@@ -672,7 +717,7 @@ def generate_certified_cpv_report(
                 f"  During the verification, the co-applicant is working as a <b>{co_position}</b>.<br/><br/>"
                 f"  Based on the verification conducted, the employment details of the co-applicant are genuine.<br/><br/>"
             )
-        else:
+        elif co_is_housewife:
             co_work_bullet = (
                 "<b>Co-Applicant Working Details:</b><br/><br/>"
                 f"  The co-applicant, <b>{co_applicant_name}</b>, is a Housewife / Homemaker. Workplace physical verification is not applicable.<br/><br/>"
@@ -724,17 +769,29 @@ def generate_certified_cpv_report(
     from app.services.field_form_pdf_ingest import infer_applicant_co_relation_by_age
     from datetime import date as _date_cls
     real_age = _age(real_dob, _date_cls.today())
+    if not real_age and (field_form.get("age_community") or field_form.get("age")):
+        _m_a_pdf = re.search(r"\b(\d{1,3})\b", str(field_form.get("age_community") or field_form.get("age")))
+        if _m_a_pdf:
+            real_age = f"{int(_m_a_pdf.group(1))} Years"
     real_age_co = _age(real_dob_co, _date_cls.today()) if co_applicant_name else None
+    if not real_age_co and co_applicant_name and (office_co.get("age") or field_form.get("co_applicant_age")):
+        _m_aco_pdf = re.search(r"\b(\d{1,3})\b", str(office_co.get("age") or field_form.get("co_applicant_age")))
+        if _m_aco_pdf:
+            real_age_co = f"{int(_m_aco_pdf.group(1))} Years"
     _rel_info = infer_applicant_co_relation_by_age(
         applicant_name=applicant_name,
-        applicant_age_or_dob=real_age or field_form.get("age"),
+        applicant_age_or_dob=real_age or field_form.get("age_community") or field_form.get("age"),
         applicant_gender=real_gender,
         co_applicant_name=co_applicant_name,
-        co_applicant_age_or_dob=real_age_co or office_co.get("age"),
+        co_applicant_age_or_dob=real_age_co or office_co.get("age") or field_form.get("co_applicant_age"),
         co_applicant_gender=real_gender_co,
         explicit_relation=field_form.get("co_applicant_relation") or office_co.get("relation_to_applicant"),
         loan_type=loan_type if loan_type != NOT_CAPTURED else None,
     )
+    if not real_gender and _rel_info.get("applicant_gender"):
+        real_gender = _rel_info.get("applicant_gender")
+    if not real_gender_co and _rel_info.get("co_gender"):
+        real_gender_co = _rel_info.get("co_gender")
     marital_val = _strip_regional_suffix(field_form.get("marital_status")) or _rel_info.get("applicant_marital_status") or NOT_CAPTURED
     if _rel_info.get("applicant_marital_status") == "Unmarried" and (
         _rel_info.get("is_parent_child") or (_rel_info.get("applicant_age") is not None and _rel_info.get("applicant_age") <= 23)
@@ -1095,7 +1152,7 @@ def generate_certified_cpv_report(
         story.append(PageBreak())
         add_firm_header("5A")
         if is_co_working:
-            co_is_business = str(office_co.get("occupation") or "").strip().lower() == "business"
+            co_is_business = str(raw_co_occ or "").strip().lower() == "business" or bool(co_firm_name)
             co_anx_b_title = "Office Verification (Business Premises)" if co_is_business else "Office Verification (Salaried / Employer Premises)"
             story.append(Paragraph(f"__________Annexure ‘B’ (Co-Applicant)__________<br/>{co_anx_b_title}", anx_title_style))
             story.append(Spacer(1, 4))
@@ -1123,7 +1180,9 @@ def generate_certified_cpv_report(
                 [Paragraph("<b>Who meet?</b>", table_cell_bold), Paragraph(office_co.get("who_meet") or NOT_CAPTURED, table_cell_style)],
             ]
         else:
-            story.append(Paragraph("__________Annexure ‘B’ (Co-Applicant)__________<br/>Office Verification (Housewife)", anx_title_style))
+            co_non_work_lbl = "Housewife" if co_is_housewife else (str(raw_co_occ).strip() if raw_co_occ else "Not Applicable")
+            co_na_cell = "Not Applicable (Co-Applicant is a Housewife)" if co_is_housewife else NOT_CAPTURED
+            story.append(Paragraph(f"__________Annexure ‘B’ (Co-Applicant)__________<br/>Office Verification ({co_non_work_lbl})", anx_title_style))
             story.append(Spacer(1, 4))
             b_rows_co = [
                 "Firm Name", "Premises Address", "Landmark", "Firm Type", "Premises Ownership",
@@ -1133,7 +1192,7 @@ def generate_certified_cpv_report(
                 "Overall Assessment", "Who meet?"
             ]
             p5_grid_co = [
-                [Paragraph(f"<b>{r}</b>", table_cell_bold), Paragraph("Not Applicable (Co-Applicant is a Housewife)", table_cell_style)]
+                [Paragraph(f"<b>{r}</b>", table_cell_bold), Paragraph(co_na_cell, table_cell_style)]
                 for r in b_rows_co
             ]
         t_p5_co = Table(p5_grid_co, colWidths=[2.5 * inch, 5.0 * inch])

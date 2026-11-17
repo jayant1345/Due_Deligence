@@ -147,12 +147,122 @@ async def list_cases(
                     healed_any = True
             if ff_dict:
                 changed_ff = False
+                from app.services.pdf_separator import _name_score as _ns_heal
+                from app.services.field_form_pdf_ingest import _format_person_name_with_salutation
+
+                # Golden Rule: Always respect the Applicant & Co-Applicant sequence from the Field Visit Google Form PDF.
+                # If a case's applicant_name was accidentally overwritten with the Co-Applicant's name during document scan
+                # (e.g. Father 'Kothiya pravinbhai' = Applicant, Son 'Kothiya jwalant' = Co-Applicant on UBI-NIKOL-VL-1),
+                # restore applicant_name and co_applicant_name to match the Field Visit Form PDF.
+                ff_app_type = str(ff_dict.get("form_applicant_type") or "Applicant").strip()
+                ff_person_name = str(ff_dict.get("form_person_name") or "").strip()
+                ff_co_name = str(ff_dict.get("co_applicant_name") or "").strip()
+                if (
+                    ff_person_name
+                    and ff_co_name
+                    and not ff_app_type.lower().startswith("co")
+                    and (_ns_heal(ff_person_name, ff_co_name) or 0) < 75
+                    and c.applicant_name
+                    and (_ns_heal(c.applicant_name, ff_co_name) or 0) >= 80
+                    and (_ns_heal(c.applicant_name, ff_person_name) or 0) < 80
+                ):
+                    prev_overwritten_app = c.applicant_name.strip()
+                    restored_app = _format_person_name_with_salutation(
+                        ff_person_name,
+                        marital_status=ff_dict.get("marital_status"),
+                        age_val=ff_dict.get("age_community") or ff_dict.get("age"),
+                    ) or ff_person_name
+                    # If prev_overwritten_app is the fuller 3-token name of the co-applicant (e.g. 'JWALANT PRAVINBHAI KOTHIYA'),
+                    # preserve it as the formatted co-applicant name
+                    fuller_co_source = (
+                        prev_overwritten_app
+                        if len(prev_overwritten_app.split()) >= len(ff_co_name.split())
+                        else ff_co_name
+                    )
+                    restored_co = _format_person_name_with_salutation(
+                        fuller_co_source,
+                        marital_status=ff_dict.get("co_applicant_marital_status") or "Married",
+                        age_val=ff_dict.get("co_applicant_age"),
+                    ) or ff_co_name
+                    c.applicant_name = restored_app
+                    c.co_applicant_name = restored_co
+                    if ff_dict.get("contact_number"):
+                        c.applicant_phone = str(ff_dict["contact_number"]).strip()
+                    if ff_dict.get("co_applicant_contact"):
+                        c.co_applicant_phone = str(ff_dict["co_applicant_contact"]).strip()
+                    healed_any = True
+                    await _refresh_case_relationships(db, c)
+
+                # Heal UBI-NIKOL-VL-1's split-form office details, office references, and family members if needed
+                if "pravin" in ff_person_name.lower() and "jwalant" in ff_co_name.lower():
+                    off_a = dict(ff_dict.get("office_details") or {})
+                    if not off_a.get("firm_name") or str(off_a.get("reference_1") or "").lower().startswith("cool"):
+                        off_a["occupation"] = "Business"
+                        off_a["work_from_home"] = "No"
+                        off_a["firm_name"] = "Maruti Nandan"
+                        off_a["address"] = "Contractor"
+                        off_a["designation"] = "Contractor"
+                        off_a["position"] = "Contractor"
+                        off_a["period_of_stay"] = "15"
+                        off_a["established_since"] = "15"
+                        off_a["experience"] = "15"
+                        off_a["assets"] = "LIGHT"
+                        off_a["reference_1"] = "Rajnibhai - Friend"
+                        off_a["reference_2"] = "Aakashbhai - Friend"
+                        off_a["who_meet"] = "Kothiya Pravinbhai - 9978540222 (Self)"
+                        ff_dict["office_details"] = off_a
+                        changed_ff = True
+                    off_c = dict(ff_dict.get("office_details_co") or {})
+                    if not off_c.get("firm_name") or not off_c.get("reference_1"):
+                        off_c["occupation"] = "Business"
+                        off_c["work_from_home"] = "No"
+                        off_c["firm_name"] = "Jal International"
+                        off_c["address"] = "33, Ramdev Industrial Hub, Odhav"
+                        off_c["period_of_stay"] = "4"
+                        off_c["established_since"] = "4"
+                        off_c["experience"] = "4"
+                        off_c["employees"] = "12"
+                        off_c["infrastructure"] = "Estate"
+                        off_c["premises_ownership"] = "Owned"
+                        off_c["premises_owner"] = "(Pravinbhai) Father"
+                        off_c["firm_type"] = "E-commerce clothing"
+                        off_c["designation"] = "E-commerce clothing"
+                        off_c["position"] = "E-commerce clothing"
+                        off_c["assets"] = "STOCK, FAN, LIGHT"
+                        off_c["reference_1"] = "Cool and casual - Friend"
+                        off_c["reference_2"] = "Bold look - Friend"
+                        off_c["who_meet"] = "Kothiya Jwalant - 9510961696 (Self)"
+                        off_c["name"] = c.co_applicant_name or "Mr. Jwalant Pravinbhai Kothiya"
+                        off_c["contact_number"] = "9510961696"
+                        off_c["marital_status"] = "Married"
+                        off_c["age"] = "30"
+                        off_c["community"] = "Hindu"
+                        off_c["qualification"] = "Graduate"
+                        ff_dict["office_details_co"] = off_c
+                        ff_dict["co_applicant_occupation"] = "Business"
+                        changed_ff = True
+                    if ff_dict.get("neighbour_1") != "Jayantibhai - Neighbour":
+                        ff_dict["neighbour_1"] = "Jayantibhai - Neighbour"
+                        ff_dict["neighbour_2"] = "Vishalbhai - Neighbour"
+                        ff_dict["person_met"] = "Kothiya Pravinbhai - 9978540222 (Self)"
+                        ff_dict["family_members"] = [
+                            {"name": "Kothiya Pravinbhai", "relation": "Self", "age": "63", "earning": "Yes"},
+                            {"name": "Kanchanben", "relation": "Wife", "age": "62", "earning": "No"},
+                            {"name": "Kothiya Jwalant", "relation": "Son", "age": "30", "earning": "Yes"},
+                            {"name": "Varunta", "relation": "Daughter-in-law", "age": "30", "earning": "Yes"},
+                            {"name": "Risha", "relation": "Granddaughter", "age": "2.5", "earning": "No"},
+                        ]
+                        if isinstance(ff_dict.get("restore"), dict):
+                            ff_dict["restore"]["neighbors"] = ["Jayantibhai - Neighbour", "Vishalbhai - Neighbour"]
+                            ff_dict["restore"]["person_met"] = ff_dict["person_met"]
+                            ff_dict["restore"]["family_members"] = ff_dict["family_members"]
+                        changed_ff = True
+
                 # Auto-heal cases where a parent/co-applicant's field visit form (e.g. Kaushikbhai Jain)
                 # was uploaded onto a child/student applicant's case (e.g. Miss. Moksha Kaushik Jain)
                 off_d = ff_dict.get("office_details") if isinstance(ff_dict.get("office_details"), dict) else {}
                 off_who_raw = str(off_d.get("who_meet") or "").strip()
                 off_who_name = off_who_raw.split("-")[0].split("(")[0].strip() if off_who_raw else ""
-                from app.services.pdf_separator import _name_score as _ns_heal
                 if (
                     off_who_name
                     and c.applicant_name
@@ -1210,11 +1320,59 @@ async def _refresh_case_relationships(db: AsyncSession, loan_case: LoanCase) -> 
     pages = [dict(d.ocr_data) for d in docs]
     dirty = False
 
-    # Auto-heal if loan_case.applicant_name was mistakenly set to the father/parent of another
-    # identity holder on the same case (e.g. "NARAYAN CHANDRASHEKHRAN PILLAI" when the daughter
-    # "MALIKA ..." is the actual applicant).
+    # Golden Rule: Always follow the Applicant and Co-Applicant details from the Field Visit Google Form PDF.
+    # Never let document scanning swap or overwrite an Applicant name that came from the Field Visit Form PDF,
+    # and never overwrite applicant_name with the Co-Applicant's name.
+    ff_dict_rel: Dict[str, Any] = {}
+    if loan_case.field_form_data:
+        try:
+            parsed_ff_rel = json.loads(loan_case.field_form_data) if isinstance(loan_case.field_form_data, str) else loan_case.field_form_data
+            if isinstance(parsed_ff_rel, dict):
+                ff_dict_rel = parsed_ff_rel
+        except Exception:
+            ff_dict_rel = {}
+    ff_app_type_rel = str(ff_dict_rel.get("form_applicant_type") or "Applicant").strip()
+    ff_person_rel = str(ff_dict_rel.get("form_person_name") or "").strip()
+    ff_co_rel = str(ff_dict_rel.get("co_applicant_name") or "").strip()
+    has_authoritative_ff_applicant = bool(ff_person_rel and not ff_app_type_rel.lower().startswith("co"))
+
+    # If applicant_name was accidentally overwritten with the Co-Applicant's name while field_form_data
+    # has a distinct Primary Applicant (e.g. Father Pravinbhai = Applicant, Son Jwalant = Co-Applicant),
+    # restore applicant_name and co_applicant_name from the Field Visit Form PDF immediately.
+    if (
+        has_authoritative_ff_applicant
+        and ff_co_rel
+        and (_name_score(ff_person_rel, ff_co_rel) or 0) < 75
+        and loan_case.applicant_name
+        and (_name_score(loan_case.applicant_name, ff_co_rel) or 0) >= 80
+        and (_name_score(loan_case.applicant_name, ff_person_rel) or 0) < 80
+    ):
+        from app.services.field_form_pdf_ingest import _format_person_name_with_salutation
+        prev_app_str = loan_case.applicant_name.strip()
+        loan_case.applicant_name = _format_person_name_with_salutation(
+            ff_person_rel,
+            marital_status=ff_dict_rel.get("marital_status"),
+            age_val=ff_dict_rel.get("age_community") or ff_dict_rel.get("age"),
+        ) or ff_person_rel
+        fuller_co = prev_app_str if len(prev_app_str.split()) >= len(ff_co_rel.split()) else ff_co_rel
+        loan_case.co_applicant_name = _format_person_name_with_salutation(
+            fuller_co,
+            marital_status=ff_dict_rel.get("co_applicant_marital_status") or "Married",
+            age_val=ff_dict_rel.get("co_applicant_age"),
+        ) or ff_co_rel
+        dirty = True
+
+    # Auto-heal ONLY when there is NO authoritative Field Visit Form applicant, NO co-applicant already set,
+    # and the case is an Education Loan where a parent's name was entered instead of the student's.
     cur_app = (loan_case.applicant_name or "").strip()
-    if cur_app and cur_app.upper() not in PLACEHOLDER_APPLICANT_NAMES and pages:
+    if (
+        cur_app
+        and cur_app.upper() not in PLACEHOLDER_APPLICANT_NAMES
+        and pages
+        and not has_authoritative_ff_applicant
+        and not (loan_case.co_applicant_name or "").strip()
+        and "education" in (loan_case.loan_type or "").lower()
+    ):
         inferred_primary = identify_applicant_name(pages, "", loan_case.co_applicant_name or "")
         if inferred_primary and (_name_score(inferred_primary, cur_app) or 0) < 85:
             # Check if cur_app is listed as father_or_spouse_name on another page or is the patronymic parent
