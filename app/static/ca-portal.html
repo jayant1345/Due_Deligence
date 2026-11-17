@@ -85,6 +85,10 @@
     .flip-btn-glow {
       box-shadow: 0 0 10px rgba(30, 64, 175, 0.25);
     }
+    #pdfSeparatedPagesList > div {
+      content-visibility: auto;
+      contain-intrinsic-size: 60px 84px;
+    }
   </style>
 </head>
 <body class="min-h-screen bg-background text-on-surface font-body antialiased flex flex-col overflow-x-hidden">
@@ -449,7 +453,7 @@
               </button>
             </div>
           </div>
-          <div id="pdfSeparatedPagesList" class="grid grid-cols-5 gap-1.5">
+          <div id="pdfSeparatedPagesList" class="grid grid-cols-5 gap-1.5 overflow-y-auto custom-scrollbar pr-1" style="max-height: 340px;">
             <!-- Rendered thumbnail cards -->
           </div>
           <button type="button" id="btnDownloadCombinedForm16" onclick="downloadCombinedForm16()" class="hidden w-full text-[10px] font-mono font-bold text-indigo-300 hover:text-indigo-200 border border-indigo-500/40 hover:border-indigo-400 rounded px-2 py-1.5 flex items-center justify-center gap-1.5 transition-all">
@@ -2446,7 +2450,7 @@
     </div>
   </div>
 
-  <script src="/static/ca-portal.js?v=34"></script>
+  <script src="/static/ca-portal.js?v=36"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">

@@ -1074,13 +1074,21 @@
       });
     }
 
+    function toThumbUrl(src, w = 180) {
+      if (!src || typeof src !== "string") return src || "";
+      if (src.startsWith("/storage/") || src.startsWith("/static/extracted_pages/")) {
+        return `/api/v1/cases/thumb?u=${encodeURIComponent(src)}&w=${w}`;
+      }
+      return src;
+    }
+
     const lastSeenDocsSignature = {};
     async function fetchLiveCaseDocuments(caseId, opts = {}) {
       if (!caseId) return;
       try {
         let docs = [];
         try {
-          const res = await fetch(`/api/v1/cases/${caseId}/documents`);
+          const res = await fetch(`/api/v1/cases/${caseId}/documents?light=1`);
           if (res.ok) {
             docs = await res.json();
           }
@@ -1696,7 +1704,7 @@
       if (liveSyncInterval) clearInterval(liveSyncInterval);
       fetchLiveCaseDocuments(activeCaseId);
       checkLiveFieldFormUpdate(activeCaseId);
-      // Auto-poll every 6 seconds only when Scrutiny Desk is visible and tab is active
+      // Auto-poll every 12 seconds only when Scrutiny Desk is visible and tab is active
       liveSyncInterval = setInterval(async () => {
         if (document.hidden || _liveSyncInFlight) return;
         const scrutinyDesk = document.getElementById("viewScrutinyDesk");
@@ -1710,7 +1718,7 @@
         } finally {
           _liveSyncInFlight = false;
         }
-      }, 6000);
+      }, 12000);
     }
 
     // Realtime Manual UDIN Validation & Synchronization by CA Staff
@@ -1758,7 +1766,8 @@
     // the case had reverted to "UDIN required" when it was genuinely done. Restore it from the
     // most recent certified report on file for this case (GET /reports/case/{id}); clear it to
     // blank for a case with no prior report so a previous case's UDIN never leaks into this one.
-    async function restoreUdinForCase(caseId, c) {
+    async function restoreUdinAndReportDateForCase(caseId, c) {
+      const reportDateInput = document.getElementById("reportDateInput");
       const serverId = gfServerId(c) || caseId;
       if (!serverId) { handleUdinManualInput(""); return; }
       try {
@@ -1768,27 +1777,19 @@
         const reports = await res.json();
         const latestWithUdin = Array.isArray(reports) ? reports.find(r => r.udin) : null;
         handleUdinManualInput(latestWithUdin ? latestWithUdin.udin : "");
+        const latestWithDate = Array.isArray(reports) ? reports.find(r => r.report_date) : null;
+        if (latestWithDate && reportDateInput) reportDateInput.value = latestWithDate.report_date;
       } catch (err) {
         if (activeCaseId === caseId) handleUdinManualInput("");
       }
     }
 
-    // Same "was ephemeral, now restored from the server" fix as restoreUdinForCase, for the
-    // Report Date field - once a CA sets a specific date and generates a report, reopening the
-    // case later must show that same date again, not silently reset to today every time.
+    async function restoreUdinForCase(caseId, c) {
+      return restoreUdinAndReportDateForCase(caseId, c);
+    }
+
     async function restoreReportDateForCase(caseId, c) {
-      const reportDateInput = document.getElementById("reportDateInput");
-      if (!reportDateInput) return;
-      const serverId = gfServerId(c) || caseId;
-      if (!serverId) return;
-      try {
-        const res = await fetch(`/api/v1/reports/case/${encodeURIComponent(serverId)}`, { headers: authHeaders() });
-        if (activeCaseId !== caseId) return; // CA already switched to a different case
-        if (!res.ok) return;
-        const reports = await res.json();
-        const latestWithDate = Array.isArray(reports) ? reports.find(r => r.report_date) : null;
-        if (latestWithDate) reportDateInput.value = latestWithDate.report_date;
-      } catch (err) {}
+      return;
     }
 
     async function pasteUdinFromClipboard() {
@@ -1847,9 +1848,11 @@
       // left over from a previous case while the real value loads) - restoreReportDateForCase()
       // below then overwrites it with whatever date was actually used the last time THIS case's
       // report was generated, same pattern as restoreUdinForCase just below it.
-      const reportDateInput = document.getElementById("reportDateInput");
-      if (reportDateInput) reportDateInput.value = new Date().toISOString().slice(0, 10);
-      restoreReportDateForCase(caseId, c);
+      if (!opts.skipRemoteLoad) {
+        const reportDateInput = document.getElementById("reportDateInput");
+        if (reportDateInput) reportDateInput.value = new Date().toISOString().slice(0, 10);
+        restoreUdinAndReportDateForCase(caseId, c);
+      }
 
       // 1. Update Sub-header Dossier Ribbon
       document.getElementById("dispCaseRef").textContent = c.case_no;
@@ -1870,7 +1873,6 @@
       if (geoBadge) geoBadge.textContent = visitedForBadge ? (c.distance_m <= 150 ? "GEOFENCE VERIFIED" : "GEOFENCE BREACH") : "GEOFENCE PENDING";
       restoreAuditChecksForCase(caseId, c);
       document.getElementById("dispVisitDate").textContent = "Visited: " + c.visit_date;
-      restoreUdinForCase(caseId, c);
 
       // 2. Update Aadhaar Scrutiny Card & Flipped Document
       const aadhaarFrontUrl = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
@@ -2173,7 +2175,6 @@
             renderSeparatedPagesTray(data.documents, data.case_summary);
             mergeExtractedDocsIntoCase(caseId, data.documents, data.case_summary);
             onCaseSelected(caseId, { skipRemoteLoad: true });
-            bindSeparatedPagesToCards();
           } else {
             activeSeparatedDocs = [];
             selectedSeparatedDocIds.clear();
@@ -2533,11 +2534,13 @@
         img.loading = "lazy";
         img.decoding = "async";
         img.setAttribute("fetchpriority", "low");
-        img.src = docSrc;
+        img.src = toThumbUrl(docSrc, 180);
         img.alt = d.document_title || "";
         img.className = "w-full h-full object-cover group-hover:scale-105 transition-transform";
         img.onerror = function() {
-          if (this.src.includes("/storage/separated_docs/")) {
+          if (this.src.includes("/api/v1/cases/thumb")) {
+            this.src = docSrc;
+          } else if (this.src.includes("/storage/separated_docs/")) {
             this.src = this.src.replace("/storage/separated_docs/", "/static/extracted_pages/");
           }
         };
@@ -4442,11 +4445,14 @@
         // from burning bandwidth/decode time on 30+ full-size downloads ahead of the one image
         // the user is actually looking at, which was making Next/Prev feel stuck.
         img.loading = "lazy";
+        img.decoding = "async";
         img.setAttribute("fetchpriority", "low");
-        img.src = d.src;
+        img.src = toThumbUrl(d.src, 180);
         img.className = "w-full h-12 object-cover rounded pointer-events-none";
         img.onerror = function() {
-          if (this.src.includes("/storage/separated_docs/")) {
+          if (this.src.includes("/api/v1/cases/thumb")) {
+            this.src = d.src;
+          } else if (this.src.includes("/storage/separated_docs/")) {
             this.src = this.src.replace("/storage/separated_docs/", "/static/extracted_pages/");
           }
         };

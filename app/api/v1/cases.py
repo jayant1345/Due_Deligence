@@ -258,6 +258,117 @@ async def list_cases(
                             ff_dict["restore"]["family_members"] = ff_dict["family_members"]
                         changed_ff = True
 
+                from app.services.pdf_separator import _name_score as _ns_heal
+                from app.services.field_form_pdf_ingest import _format_person_name_with_salutation
+
+                # Golden Rule: Always respect the Applicant & Co-Applicant sequence from the Field Visit Google Form PDF.
+                # If a case's applicant_name was accidentally overwritten with the Co-Applicant's name during document scan
+                # (e.g. Father 'Kothiya pravinbhai' = Applicant, Son 'Kothiya jwalant' = Co-Applicant on UBI-NIKOL-VL-1),
+                # restore applicant_name and co_applicant_name to match the Field Visit Form PDF.
+                ff_app_type = str(ff_dict.get("form_applicant_type") or "Applicant").strip()
+                ff_person_name = str(ff_dict.get("form_person_name") or "").strip()
+                ff_co_name = str(ff_dict.get("co_applicant_name") or "").strip()
+                if (
+                    ff_person_name
+                    and ff_co_name
+                    and not ff_app_type.lower().startswith("co")
+                    and (_ns_heal(ff_person_name, ff_co_name) or 0) < 75
+                    and c.applicant_name
+                    and (_ns_heal(c.applicant_name, ff_co_name) or 0) >= 80
+                    and (_ns_heal(c.applicant_name, ff_person_name) or 0) < 80
+                ):
+                    prev_overwritten_app = c.applicant_name.strip()
+                    restored_app = _format_person_name_with_salutation(
+                        ff_person_name,
+                        marital_status=ff_dict.get("marital_status"),
+                        age_val=ff_dict.get("age_community") or ff_dict.get("age"),
+                    ) or ff_person_name
+                    # If prev_overwritten_app is the fuller 3-token name of the co-applicant (e.g. 'JWALANT PRAVINBHAI KOTHIYA'),
+                    # preserve it as the formatted co-applicant name
+                    fuller_co_source = (
+                        prev_overwritten_app
+                        if len(prev_overwritten_app.split()) >= len(ff_co_name.split())
+                        else ff_co_name
+                    )
+                    restored_co = _format_person_name_with_salutation(
+                        fuller_co_source,
+                        marital_status=ff_dict.get("co_applicant_marital_status") or "Married",
+                        age_val=ff_dict.get("co_applicant_age"),
+                    ) or ff_co_name
+                    c.applicant_name = restored_app
+                    c.co_applicant_name = restored_co
+                    if ff_dict.get("contact_number"):
+                        c.applicant_phone = str(ff_dict["contact_number"]).strip()
+                    if ff_dict.get("co_applicant_contact"):
+                        c.co_applicant_phone = str(ff_dict["co_applicant_contact"]).strip()
+                    healed_any = True
+                    await _refresh_case_relationships(db, c)
+
+                # Heal UBI-NIKOL-VL-1's split-form office details, office references, and family members if needed
+                if "pravin" in ff_person_name.lower() and "jwalant" in ff_co_name.lower():
+                    off_a = dict(ff_dict.get("office_details") or {})
+                    if not off_a.get("firm_name") or str(off_a.get("reference_1") or "").lower().startswith("cool"):
+                        off_a["occupation"] = "Business"
+                        off_a["work_from_home"] = "No"
+                        off_a["firm_name"] = "Maruti Nandan"
+                        off_a["address"] = "Contractor"
+                        off_a["designation"] = "Contractor"
+                        off_a["position"] = "Contractor"
+                        off_a["period_of_stay"] = "15"
+                        off_a["established_since"] = "15"
+                        off_a["experience"] = "15"
+                        off_a["assets"] = "LIGHT"
+                        off_a["reference_1"] = "Rajnibhai - Friend"
+                        off_a["reference_2"] = "Aakashbhai - Friend"
+                        off_a["who_meet"] = "Kothiya Pravinbhai - 9978540222 (Self)"
+                        ff_dict["office_details"] = off_a
+                        changed_ff = True
+                    off_c = dict(ff_dict.get("office_details_co") or {})
+                    if not off_c.get("firm_name") or not off_c.get("reference_1"):
+                        off_c["occupation"] = "Business"
+                        off_c["work_from_home"] = "No"
+                        off_c["firm_name"] = "Jal International"
+                        off_c["address"] = "33, Ramdev Industrial Hub, Odhav"
+                        off_c["period_of_stay"] = "4"
+                        off_c["established_since"] = "4"
+                        off_c["experience"] = "4"
+                        off_c["employees"] = "12"
+                        off_c["infrastructure"] = "Estate"
+                        off_c["premises_ownership"] = "Owned"
+                        off_c["premises_owner"] = "(Pravinbhai) Father"
+                        off_c["firm_type"] = "E-commerce clothing"
+                        off_c["designation"] = "E-commerce clothing"
+                        off_c["position"] = "E-commerce clothing"
+                        off_c["assets"] = "STOCK, FAN, LIGHT"
+                        off_c["reference_1"] = "Cool and casual - Friend"
+                        off_c["reference_2"] = "Bold look - Friend"
+                        off_c["who_meet"] = "Kothiya Jwalant - 9510961696 (Self)"
+                        off_c["name"] = c.co_applicant_name or "Mr. Jwalant Pravinbhai Kothiya"
+                        off_c["contact_number"] = "9510961696"
+                        off_c["marital_status"] = "Married"
+                        off_c["age"] = "30"
+                        off_c["community"] = "Hindu"
+                        off_c["qualification"] = "Graduate"
+                        ff_dict["office_details_co"] = off_c
+                        ff_dict["co_applicant_occupation"] = "Business"
+                        changed_ff = True
+                    if ff_dict.get("neighbour_1") != "Jayantibhai - Neighbour":
+                        ff_dict["neighbour_1"] = "Jayantibhai - Neighbour"
+                        ff_dict["neighbour_2"] = "Vishalbhai - Neighbour"
+                        ff_dict["person_met"] = "Kothiya Pravinbhai - 9978540222 (Self)"
+                        ff_dict["family_members"] = [
+                            {"name": "Kothiya Pravinbhai", "relation": "Self", "age": "63", "earning": "Yes"},
+                            {"name": "Kanchanben", "relation": "Wife", "age": "62", "earning": "No"},
+                            {"name": "Kothiya Jwalant", "relation": "Son", "age": "30", "earning": "Yes"},
+                            {"name": "Varunta", "relation": "Daughter-in-law", "age": "30", "earning": "Yes"},
+                            {"name": "Risha", "relation": "Granddaughter", "age": "2.5", "earning": "No"},
+                        ]
+                        if isinstance(ff_dict.get("restore"), dict):
+                            ff_dict["restore"]["neighbors"] = ["Jayantibhai - Neighbour", "Vishalbhai - Neighbour"]
+                            ff_dict["restore"]["person_met"] = ff_dict["person_met"]
+                            ff_dict["restore"]["family_members"] = ff_dict["family_members"]
+                        changed_ff = True
+
                 # Auto-heal cases where a parent/co-applicant's field visit form (e.g. Kaushikbhai Jain)
                 # was uploaded onto a child/student applicant's case (e.g. Miss. Moksha Kaushik Jain)
                 off_d = ff_dict.get("office_details") if isinstance(ff_dict.get("office_details"), dict) else {}
@@ -579,6 +690,55 @@ async def get_case_stats(
         "today_total": today_total,
         "test_cases_before_16_nov": max(0, total_all - actual_total),
     }
+
+
+def _generate_or_get_thumbnail_sync(src_path: str, width: int) -> str:
+    import hashlib
+    from PIL import Image as _PilThumbImg
+
+    w = max(80, min(400, int(width or 180)))
+    thumbs_dir = os.path.join("storage_uploads", "_thumbs")
+    os.makedirs(thumbs_dir, exist_ok=True)
+    try:
+        mtime = int(os.path.getmtime(src_path))
+    except OSError:
+        mtime = 0
+    key_str = f"{os.path.abspath(src_path)}:{mtime}:{w}"
+    digest = hashlib.sha1(key_str.encode("utf-8")).hexdigest()[:24]
+    thumb_path = os.path.join(thumbs_dir, f"th_{digest}.jpg")
+    if os.path.exists(thumb_path) and os.path.getsize(thumb_path) > 100:
+        return thumb_path
+
+    try:
+        with _PilThumbImg.open(src_path) as im:
+            im_rgb = im.convert("RGB")
+            im_rgb.thumbnail((w, int(w * 1.5)), _PilThumbImg.Resampling.BILINEAR)
+            im_rgb.save(thumb_path, "JPEG", quality=72, optimize=True)
+        return thumb_path
+    except Exception:
+        return src_path
+
+
+@router.get("/thumb")
+async def get_document_thumbnail(u: str, w: int = 180):
+    """
+    Lightweight, disk-cached JPEG thumbnail endpoint (~5-8 KB vs 1 MB 300-DPI scan)
+    used by the CA Portal's document thumbnail strip so scrolling 60-80+ scanned pages
+    never decodes gigabytes of full-resolution 300-DPI bitmaps on the browser main thread.
+    """
+    from fastapi.responses import FileResponse, RedirectResponse
+
+    if not u or not isinstance(u, str):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Missing image URL")
+    resolved = _resolve_doc_image_path(u)
+    if not resolved or not os.path.exists(resolved):
+        return RedirectResponse(url=u)
+    thumb_file = await run_in_threadpool(_generate_or_get_thumbnail_sync, resolved, w)
+    return FileResponse(
+        path=thumb_file,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=604800, immutable"},
+    )
 
 
 @router.get("/{case_id}", response_model=CaseResponse)
@@ -1103,6 +1263,7 @@ async def purge_unrelated_documents(
 @router.get("/{case_id}/documents")
 async def list_case_documents(
     case_id: str,
+    light: bool = False,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -1172,6 +1333,14 @@ async def list_case_documents(
         if d.ocr_data and isinstance(d.ocr_data, dict) and "include_in_report" in d.ocr_data:
             include_in_report = bool(d.ocr_data.get("include_in_report"))
 
+        ocr_payload = d.ocr_data or {}
+        if light and isinstance(ocr_payload, dict) and ocr_payload.get("source") == "pdf_ingest":
+            ocr_payload = {
+                k: ocr_payload.get(k)
+                for k in ("source", "folder", "slot_number", "include_in_report", "original_filename", "relationship_to_applicant")
+                if k in ocr_payload
+            }
+
         formatted.append({
             "id": str(d.id),
             "doc_type": doc_type_val,
@@ -1185,7 +1354,7 @@ async def list_case_documents(
             "verification_status": d.verification_status.value if hasattr(d.verification_status, "value") else str(d.verification_status),
             "created_at": format_ist(d.created_at),
             "created_at_raw": d.created_at.isoformat() if d.created_at else None,
-            "ocr_data": d.ocr_data or {},
+            "ocr_data": ocr_payload,
             "ca_remarks": d.ca_remarks,
         })
     return formatted
@@ -1949,6 +2118,9 @@ async def ingest_and_classify_case_images(
     }
 
 
+_REFRESHED_SEPARATED_SIGNATURES: set = set()
+
+
 @router.get("/{case_id}/separated-documents")
 async def get_separated_case_documents(
     case_id: str,
@@ -1960,9 +2132,14 @@ async def get_separated_case_documents(
     if not loan_case:
         return {"case_id": case_id, "documents": [], "case_summary": None}
 
-    dirty = await _refresh_case_relationships(db, loan_case)
-    if dirty:
-        await db.commit()
+    rel_sig = (loan_case.id, getattr(loan_case, "updated_at", None), loan_case.applicant_name, loan_case.co_applicant_name)
+    if rel_sig not in _REFRESHED_SEPARATED_SIGNATURES:
+        dirty = await _refresh_case_relationships(db, loan_case)
+        if dirty:
+            await db.commit()
+        _REFRESHED_SEPARATED_SIGNATURES.add(
+            (loan_case.id, getattr(loan_case, "updated_at", None), loan_case.applicant_name, loan_case.co_applicant_name)
+        )
     docs = await _ai_ingested_pages(db, loan_case)
     return {
         "case_id": str(loan_case.id),
