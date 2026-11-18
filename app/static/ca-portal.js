@@ -1657,6 +1657,25 @@
           return;
         }
         const c = caseRegistry[caseId];
+        if (c) {
+          if (dc.status) c.status = dc.status;
+          if (dc.office_address) c.office_address = dc.office_address;
+          if (dc.co_applicant_name) c.co_applicant_name = dc.co_applicant_name;
+          if (dc.co_applicant_phone) c.co_applicant_phone = dc.co_applicant_phone;
+          if (dc.co_applicant_address) c.co_applicant_address = dc.co_applicant_address;
+          if (dc.co_applicant_office_address) c.co_applicant_office_address = dc.co_applicant_office_address;
+          if (dc.applicant_3_name) c.applicant_3_name = dc.applicant_3_name;
+          if (dc.applicant_3_phone) c.applicant_3_phone = dc.applicant_3_phone;
+          if (dc.applicant_4_name) c.applicant_4_name = dc.applicant_4_name;
+          if (dc.applicant_4_phone) c.applicant_4_phone = dc.applicant_4_phone;
+          if (dc.applicant_5_name) c.applicant_5_name = dc.applicant_5_name;
+          if (dc.applicant_5_phone) c.applicant_5_phone = dc.applicant_5_phone;
+          if (typeof updateCoWorkFolderTabVisibility === "function") updateCoWorkFolderTabVisibility(c);
+          if (caseId === activeCaseId && c.status) {
+            const statusEl = document.getElementById("dispCaseStatus");
+            if (statusEl) statusEl.textContent = c.status;
+          }
+        }
         if (c && raw) {
           applyFieldFormDataToEntry(c, raw);
           if (caseId === activeCaseId) {

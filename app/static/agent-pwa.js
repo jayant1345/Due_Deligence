@@ -3056,6 +3056,28 @@
           if (bCoRes) { bCoRes.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bCoRes.textContent = "PENDING"; }
           if (btnCoRes) btnCoRes.textContent = "Capture Photo";
         }
+        // 5. Applicant 3/4/5 Residence Slots (home_3, home_4, home_5)
+        [3, 4, 5].forEach(slotNum => {
+          const homeSlotsMapRef = { 3: uploadedHome3Slots, 4: uploadedHome4Slots, 5: uploadedHome5Slots }[slotNum];
+          homeSlotsMapRef[i] = false;
+          const bHome = document.getElementById(`slotHome${slotNum}${i}Badge`);
+          const btnHome = document.getElementById(`slotHome${slotNum}${i}BtnText`);
+          const thumbHome = document.getElementById(`slotHome${slotNum}${i}Thumb`);
+          const cachedHome = localStorage.getItem(`pwa_evidence_${sampleCaseId}_home_${slotNum}_slot_${i}`) ||
+                            (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_home_${slotNum}_slot_${i}`) : null);
+          if (cachedHome) {
+            try {
+              const parsed = JSON.parse(cachedHome);
+              homeSlotsMapRef[i] = true;
+              if (bHome) { bHome.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bHome.textContent = "✓ UPLOADED"; }
+              if (btnHome) btnHome.textContent = "Re-take Photo";
+              if (thumbHome) thumbHome.innerHTML = `<img src="${parsed.src}" class="w-full h-full object-cover rounded-lg"/>`;
+            } catch(e) {}
+          } else {
+            if (bHome) { bHome.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bHome.textContent = "PENDING"; }
+            if (btnHome) btnHome.textContent = "Capture Photo";
+          }
+        });
       }
       updateEvidenceProgress();
 
