@@ -246,6 +246,7 @@ _COMMON_MALE_NAMES = {
     "DHAVAL", "TUSHAR", "SACHIN", "NITIN", "VIPIN", "JATIN", "CHETAN", "KETAN",
     "MANISH", "ASHISH", "GIRISH", "SATISH", "HARISH", "JAGDISH", "NARAYAN",
     "KAUSHIK", "KAUSHIKBHAI", "ANSH", "DEVILAL", "KAMAL", "NAIMISH", "PRANAV", "TANMAY", "HIMMATLAL",
+    "HEMAL", "JWALANT", "PRAVIN", "KAHAN", "KAHAAN", "NAIMUDDIN", "JENUDDIN",
 }
 
 
@@ -1616,7 +1617,7 @@ def build_field_form_payload(extracted: Dict[str, Any], case_applicant_name: Opt
     e = extracted or {}
 
     raw_app_type = (_clean_val(e.get("applicant_type")) or "Applicant").strip()
-    is_co_form = raw_app_type.lower().replace("-", " ").startswith("co")
+    is_co_form = raw_app_type.lower().replace("-", " ").startswith(("co", "g"))
     form_person_name = _clean_val(e.get("name"))
     effective_primary_name = _clean_val(case_applicant_name) or form_person_name
 
@@ -1775,6 +1776,8 @@ def build_field_form_payload(extracted: Dict[str, Any], case_applicant_name: Opt
         "persona": "Co-applicant" if is_co_form else "Applicant",
         "form_applicant_type": "Co-applicant" if is_co_form else "Applicant",
         "form_person_name": form_person_name or "",
+        "address_visited": res_addr or "",
+        "office_address": off_addr or "",
         "agent_selfie": None,
         "agent_selfie_captured_at": None,
         "contact_number": primary_contact,
@@ -1932,6 +1935,13 @@ def merge_field_form_payloads(
         co_applicant_name and nw_person and (_name_score(nw_person, co_applicant_name) or 0) >= 80
     )
 
+    is_distinct_second_person = bool(
+        ex_person
+        and nw_person
+        and (_name_score(ex_person, nw_person) or 0) < 75
+        and difflib.SequenceMatcher(None, ex_person.lower(), nw_person.lower()).ratio() < 0.72
+    )
+
     if ex_is_co and not nw_is_co:
         app_ff, co_ff = dict(new_ff), dict(existing_ff)
     elif nw_is_co and not ex_is_co:
@@ -1939,8 +1949,13 @@ def merge_field_form_payloads(
     elif ex_is_co and nw_is_co:
         # Both forms are Co-applicant forms (e.g. Jenuddin and Sakilabanu merged before Applicant form, or two co-applicants)
         app_ff, co_ff = dict(existing_ff), dict(new_ff)
+    elif is_distinct_second_person:
+        # Both forms had "Applicant" selected on the Google Form radio button, but they are for
+        # TWO DIFFERENT PEOPLE (e.g. Form 1 = Hemal Talaviya, Form 2 = Dineshbhai Talaviya).
+        # Keep existing_ff as 1st Applicant (app_ff) and treat new_ff as Co-Applicant (co_ff)!
+        app_ff, co_ff = dict(existing_ff), dict(new_ff)
     else:
-        # Both are Primary Applicant forms; new_ff takes precedence while preserving non-empty office_details_co & extra_co_applicants
+        # Both are Primary Applicant forms for the SAME person; new_ff takes precedence while preserving non-empty office_details_co & extra_co_applicants
         merged = dict(existing_ff)
         merged.update({k: v for k, v in new_ff.items() if v not in (None, "", [], {})})
         if existing_ff.get("office_details_co") and not new_ff.get("office_details_co"):
@@ -1974,31 +1989,44 @@ def merge_field_form_payloads(
     )
 
     if not slot2_already_has_different_person:
+        co_marital_resolved = _clean_val(co_ff.get("co_applicant_marital_status")) or _clean_val(co_ff.get("marital_status"))
+        co_age_resolved = _clean_val(co_ff.get("co_applicant_age")) or _clean_val(co_ff.get("age_community"))
+        co_contact_resolved = _clean_val(co_ff.get("co_applicant_contact")) or _clean_val(co_ff.get("contact_number"))
+        co_qual_resolved = _clean_val(co_ff.get("co_applicant_qualification")) or _clean_val(co_ff.get("qualification"))
+        co_occ_resolved = _clean_val(co_ff.get("co_applicant_occupation")) or _clean_val(co_ff.get("occupation"))
+
         co_off = co_ff.get("office_details_co") or co_ff.get("office_details")
         if isinstance(co_off, dict) and any(_clean_val(v) for v in co_off.values()):
             co_off_copy = dict(co_off)
             co_off_copy["name"] = _format_person_name_with_salutation(
                 new_co_name or co_applicant_name,
-                marital_status=_clean_val(co_ff.get("co_applicant_marital_status")) or _clean_val(co_ff.get("marital_status")),
-                age_val=_clean_val(co_ff.get("co_applicant_age")) or _clean_val(co_ff.get("age_community")),
+                marital_status=co_marital_resolved,
+                age_val=co_age_resolved,
             )
-            co_off_copy["contact_number"] = _clean_val(co_ff.get("co_applicant_contact")) or _clean_val(co_ff.get("contact_number"))
-            co_off_copy["marital_status"] = _clean_val(co_ff.get("co_applicant_marital_status")) or _clean_val(co_ff.get("marital_status"))
-            co_off_copy["age"] = _clean_val(co_ff.get("co_applicant_age")) or _clean_val(co_ff.get("age_community"))
+            co_off_copy["contact_number"] = co_contact_resolved
+            co_off_copy["marital_status"] = co_marital_resolved
+            co_off_copy["age"] = co_age_resolved
             co_off_copy["community"] = _clean_val(co_ff.get("community")) or _clean_val(app_ff.get("community"))
-            co_off_copy["qualification"] = _clean_val(co_ff.get("co_applicant_qualification")) or _clean_val(co_ff.get("qualification"))
-            co_off_copy["occupation"] = _clean_val(co_off_copy.get("occupation")) or _clean_val(co_ff.get("co_applicant_occupation")) or _clean_val(co_ff.get("occupation"))
+            co_off_copy["qualification"] = co_qual_resolved
+            co_off_copy["occupation"] = _clean_val(co_off_copy.get("occupation")) or co_occ_resolved
             merged["office_details_co"] = co_off_copy
 
-        for k in ("co_applicant_name", "co_applicant_contact", "co_applicant_marital_status", "co_applicant_age", "co_applicant_qualification", "co_applicant_occupation"):
-            if _clean_val(co_ff.get(k)):
-                merged[k] = co_ff.get(k)
-        if merged.get("co_applicant_name"):
+        if new_co_name:
             merged["co_applicant_name"] = _format_person_name_with_salutation(
-                merged.get("co_applicant_name"),
-                marital_status=merged.get("co_applicant_marital_status"),
-                age_val=merged.get("co_applicant_age"),
+                new_co_name,
+                marital_status=co_marital_resolved,
+                age_val=co_age_resolved,
             )
+        if co_contact_resolved:
+            merged["co_applicant_contact"] = co_contact_resolved
+        if co_marital_resolved:
+            merged["co_applicant_marital_status"] = co_marital_resolved
+        if co_age_resolved:
+            merged["co_applicant_age"] = co_age_resolved
+        if co_qual_resolved:
+            merged["co_applicant_qualification"] = co_qual_resolved
+        if co_occ_resolved:
+            merged["co_applicant_occupation"] = co_occ_resolved
     else:
         # Slot 2 is already occupied by 1st Co-Applicant (e.g. Jenuddin Shaikh); add this 2nd/3rd/4th Co-Applicant
         # (e.g. Sakilabanu Shaikh) into extra_co_applicants (Slots 3, 4, 5)!
@@ -2154,6 +2182,41 @@ def _split_pdf_into_form_page_groups(doc, image_paths: List[str]) -> List[List[s
     return groups
 
 
+def _infer_applicant_type_from_filename_or_family(pdf_path: str, ext: Dict[str, Any]) -> None:
+    """
+    Applies strong filename cues (e.g. 'Co Applicant Dineshbhai talaviya details.pdf' vs
+    'Applicant Hemal talaviya details.pdf') and self-relation cues in family_members
+    (e.g. 'Dineshbhai talaviya - 49 - guarantor - yes') when the Google Form's top 'Select'
+    radio button was accidentally left on 'Applicant' or misread.
+    """
+    if not isinstance(ext, dict):
+        return
+    base_name = os.path.basename(str(pdf_path or "")).lower()
+    # Strip any 32-char uuid prefix added by temp upload saving (e.g. 'a1b2c3..._Co Applicant ...')
+    base_name = re.sub(r"^[0-9a-f]{32}_", "", base_name)
+    ext["_source_filename"] = base_name
+
+    if re.search(r"\b(?:co[\s_\-]*app(?:licant)?|guarantor|gurantor)\b", base_name):
+        ext["applicant_type"] = "Co-applicant"
+        return
+    if re.search(r"\b(?:1st[\s_\-]*app|primary[\s_\-]*app|main[\s_\-]*app)\b", base_name) or (
+        re.search(r"(?:^|[\s_\-])app(?:licant)?\b", base_name) and not re.search(r"\bco\b", base_name)
+    ):
+        ext["applicant_type"] = "Applicant"
+        return
+
+    # Also check if the form holder listed themselves in family_members as 'guarantor' or 'co-applicant'
+    person_name = _clean_val(ext.get("name"))
+    if person_name and isinstance(ext.get("family_members"), list):
+        for fm in ext["family_members"]:
+            if isinstance(fm, dict) and _clean_val(fm.get("name")):
+                rel_low = (_clean_val(fm.get("relation")) or "").strip().lower()
+                if (_name_score(person_name, fm.get("name")) or 0) >= 80:
+                    if rel_low.startswith(("co", "guarantor", "gurantor")):
+                        ext["applicant_type"] = "Co-applicant"
+                        return
+
+
 def _extract_raw_forms_from_pdf(pdf_path: str, applicant_name: str = "") -> List[Dict[str, Any]]:
     """
     Renders a PDF and extracts 1 or more raw Google Form dicts from it (automatically splitting
@@ -2182,6 +2245,7 @@ def _extract_raw_forms_from_pdf(pdf_path: str, applicant_name: str = "") -> List
             ext = _call_gemini_extraction(page_groups[0], applicant_name)
             if applicant_name and not _clean_val(ext.get("name")):
                 ext["name"] = applicant_name
+            _infer_applicant_type_from_filename_or_family(pdf_path, ext)
             return [ext]
 
         def _extract_group(grp_paths: List[str]) -> Dict[str, Any]:
@@ -2224,14 +2288,19 @@ def _order_and_merge_extracted_forms(
 
     ordered = sorted(raw_forms, key=_form_sort_key)
 
-    # Determine the Primary Applicant's name from the first Applicant form (or case_applicant_name)
+    # Determine the Primary Applicant's name from existing_ff (if already primary) or the first Applicant form (or case_applicant_name)
     primary_name = _clean_val(case_applicant_name)
-    for ext in ordered:
-        app_t = (_clean_val(ext.get("applicant_type")) or "Applicant").strip().lower()
-        if not (app_t.startswith("co") or app_t.startswith("g")):
-            if _clean_val(ext.get("name")):
-                primary_name = _clean_val(ext.get("name"))
-                break
+    if not primary_name and isinstance(existing_ff, dict) and existing_ff:
+        ex_t = str(existing_ff.get("form_applicant_type") or existing_ff.get("persona") or "").strip().lower()
+        if not ex_t.startswith(("co", "g")) and _clean_val(existing_ff.get("form_person_name")):
+            primary_name = _clean_val(existing_ff.get("form_person_name"))
+    if not primary_name:
+        for ext in ordered:
+            app_t = (_clean_val(ext.get("applicant_type")) or "Applicant").strip().lower()
+            if not (app_t.startswith("co") or app_t.startswith("g")):
+                if _clean_val(ext.get("name")):
+                    primary_name = _clean_val(ext.get("name"))
+                    break
 
     merged: Optional[Dict[str, Any]] = dict(existing_ff) if isinstance(existing_ff, dict) and existing_ff else None
     for ext in ordered:
@@ -2480,11 +2549,13 @@ def extract_multiple_field_form_pdfs_for_intake(
     # Also preserve fields from the merged field_form_payload (when combining Form 1 -> Form 2 -> Form 3 sequentially)
     merged_off = field_form_payload.get("office_details") if isinstance(field_form_payload.get("office_details"), dict) else {}
     merged_pl = field_form_payload.get("previous_loan") if isinstance(field_form_payload.get("previous_loan"), dict) else {}
+    if _clean_val(field_form_payload.get("address_visited")):
+        address_visited = _clean_val(field_form_payload.get("address_visited"))
     if _clean_val(merged_off.get("address")):
         office_address = _clean_val(merged_off.get("address"))
     if _clean_val(merged_off.get("firm_name")):
         firm_name = _clean_val(merged_off.get("firm_name"))
-    if not executive_name and _clean_val(field_form_payload.get("executive")):
+    if _clean_val(field_form_payload.get("executive")):
         executive_name = _clean_val(field_form_payload.get("executive"))
     cand_merged_lt = _normalize_loan_type(merged_pl.get("loan_type"))
     if cand_merged_lt and (not normalized_loan or normalized_loan.lower() in ("other", "others")):
@@ -2500,7 +2571,11 @@ def extract_multiple_field_form_pdfs_for_intake(
     )
 
     raw_app_type = (_clean_val(primary_ext.get("applicant_type")) or "Applicant").strip()
-    has_existing_primary = bool(isinstance(existing_ff, dict) and _clean_val(existing_ff.get("form_person_name")) and not str(existing_ff.get("form_applicant_type") or "").lower().startswith("co"))
+    has_existing_primary = bool(
+        isinstance(existing_ff, dict)
+        and _clean_val(existing_ff.get("form_person_name"))
+        and not str(existing_ff.get("form_applicant_type") or "").lower().startswith(("co", "g"))
+    )
     all_uploaded_are_co = all(
         (_clean_val(x.get("applicant_type")) or "Applicant").strip().lower().replace("-", " ").startswith(("co", "g"))
         for x in ordered
@@ -2508,8 +2583,7 @@ def extract_multiple_field_form_pdfs_for_intake(
     is_co_only = all_uploaded_are_co and not has_existing_primary
     extracted_person_name = (
         _clean_val(field_form_payload.get("form_person_name"))
-        if has_existing_primary
-        else _clean_val(primary_ext.get("name"))
+        or _clean_val(primary_ext.get("name"))
     )
     extracted_co_name = _clean_val(field_form_payload.get("co_applicant_name")) or _clean_val(primary_ext.get("co_applicant_name"))
     extracted_co_contact = _clean_val(field_form_payload.get("co_applicant_contact")) or _clean_val(primary_ext.get("co_applicant_contact"))
