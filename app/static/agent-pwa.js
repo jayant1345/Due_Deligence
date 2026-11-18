@@ -1086,6 +1086,9 @@
 
               if (response.status === 202 || response.status === 200) {
                 const data = await response.json();
+                if (data && data.status === "offline_queued") {
+                  throw new Error("offline_queued");
+                }
                 alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
                 alertText.innerHTML = `✅ <b>Data Uploaded Successfully!</b> ${info.label} Slot ${slotNum} transmitted to CA Scrutiny Desk.<br/>GPS: ${latAtCapture.toFixed(4)}°N, ${lonAtCapture.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>N.N. SHAH & CO. watermark applied server-side and synced in real time.</i>`;
                 setUploadAlertIcon(false, "text-emerald-600", "check_circle");
@@ -1401,11 +1404,24 @@
                 headers: headers,
                 body: formData
               });
-              if (res.ok) {
+              const sData = await res.json().catch(() => ({}));
+              if (res.ok && sData.status !== "offline_queued") {
                 console.log("[✓] Field staff attendance selfie uploaded to CA Portal successfully!");
+              } else {
+                throw new Error(sData.status === "offline_queued" ? "offline_queued" : `HTTP ${res.status}`);
               }
             } catch (err) {
               console.warn("Selfie upload background retry queued:", err);
+              await enqueueOfflinePhoto({
+                sampleCaseId: sampleCaseId,
+                dataUrl: agentSelfieDataUrl,
+                fileName: `agent_selfie_${sampleCaseId}.jpg`,
+                docType: "AGENT_SELFIE",
+                slotNumber: null,
+                folder: "residence",
+                latitude: currentDeviceLat,
+                longitude: currentDeviceLon,
+              });
             }
           }, "image/jpeg", 0.88);
         };
@@ -1636,8 +1652,16 @@
 
     // Submit & Complete Physical Verification
     async function submitFinalPhysicalVerification() {
-      const count = Object.values(uploadedSlots).filter(Boolean).length;
-      if (count === 0) {
+      const resCount = Object.values(uploadedResidenceSlots).filter(Boolean).length;
+      const offCount = Object.values(uploadedOfficeSlots).filter(Boolean).length;
+      const coOffCount = Object.values(uploadedCoOfficeSlots).filter(Boolean).length;
+      const coResCount = Object.values(uploadedCoResidenceSlots).filter(Boolean).length;
+      const h3Count = Object.values(uploadedHome3Slots).filter(Boolean).length;
+      const h4Count = Object.values(uploadedHome4Slots).filter(Boolean).length;
+      const h5Count = Object.values(uploadedHome5Slots).filter(Boolean).length;
+      const totalUploadedCount = resCount + offCount + coOffCount + coResCount + h3Count + h4Count + h5Count;
+
+      if (totalUploadedCount === 0) {
         if (!confirm("No physical evidence photos have been captured yet. Do you still wish to submit?")) {
           return;
         }
@@ -1650,6 +1674,14 @@
       }
 
       try {
+        // Auto-save questionnaire data first so no typed field answers are ever lost if the
+        // agent tapped "Submit & Complete Physical Verification" directly.
+        try {
+          await submitDueDiligenceForm({ silent: true });
+        } catch (formErr) {
+          console.warn("Auto-save form before checkout:", formErr);
+        }
+
         const token = localStorage.getItem("pwa_token");
         const headers = { "Content-Type": "application/json" };
         if (token && token !== "demo-pwa-token") {
@@ -1663,19 +1695,23 @@
             case_id: sampleCaseId,
             latitude: currentDeviceLat,
             longitude: currentDeviceLon,
-            notes: `Physical verification completed on-site. ${count}/4 evidence photo slots submitted. Verified with applicant identity.`
+            notes: `Physical verification completed on-site. ${totalUploadedCount} geotagged photo slot(s) submitted (Residence: ${resCount}/4, Office: ${offCount}/4${coOffCount ? `, Co-Office: ${coOffCount}/4` : ""}).`
           })
         });
 
         // Show completion modal
         const compModal = document.getElementById("pwaCompletionModal");
+        const compCaseNo = document.getElementById("pwaCompletionCaseNo");
+        if (compCaseNo) {
+          compCaseNo.textContent = activeCaseKey || "Current Case";
+        }
         const compTime = document.getElementById("pwaCompletionTimestamp");
         if (compTime) {
           compTime.textContent = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + " IST";
         }
         const compSlots = document.getElementById("pwaCompletionSlots");
         if (compSlots) {
-          compSlots.textContent = `${count} of 4 Geotagged Slots Uploaded`;
+          compSlots.textContent = `${totalUploadedCount} Geotagged Photo Slot(s) Uploaded`;
         }
         if (compModal) compModal.classList.remove("hidden");
 
@@ -1691,22 +1727,47 @@
       }
     }
 
-    function handleSiteCheckIn() {
+    async function handleSiteCheckIn() {
       const btn = document.getElementById("checkInBtnText");
       const nowDate = new Date();
       const stamp = nowDate.toLocaleDateString('en-GB') + " " +
         nowDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + " IST";
-      btn.textContent = `Check-In Logged: ${stamp}`;
+      if (btn) btn.textContent = `Check-In Logged: ${stamp}`;
       try {
         localStorage.setItem(`pwa_checkin_${sampleCaseId}`, stamp);
         localStorage.setItem(`pwa_checkin_${activeCaseKey}`, stamp);
       } catch(e) {}
-      alert(`Site Check-In successfully recorded at GPS coordinates (${currentDeviceLat.toFixed(4)}° N, ${currentDeviceLon.toFixed(4)}° E)`);
+      if (sampleCaseId) {
+        try {
+          const token = localStorage.getItem("pwa_token");
+          const headers = { "Content-Type": "application/json" };
+          if (token && token !== "demo-pwa-token") headers["Authorization"] = `Bearer ${token}`;
+          await fetch(`/api/v1/visits/check-in`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              case_id: sampleCaseId,
+              current_lat: currentDeviceLat || TARGET_LAT || 23.0225,
+              current_lon: currentDeviceLon || TARGET_LON || 72.5714,
+              notes: `Field agent checked in at site (${stamp})`,
+            }),
+          });
+        } catch (err) {
+          console.warn("Check-in offline/background:", err);
+        }
+      }
+      alert(`Site Check-In successfully recorded at GPS coordinates (${(currentDeviceLat || 23.0225).toFixed(4)}° N, ${(currentDeviceLon || 72.5714).toFixed(4)}° E)`);
     }
 
     function promptInspectionNotes() {
-      const notes = prompt("Enter observation notes for this property visit:", "Physical existence confirmed. Met building society security guard. Flat 402 is self-occupied.");
+      const existingNote = (document.getElementById("formOfficeAssessment") && document.getElementById("formOfficeAssessment").value)
+        || localStorage.getItem(`pwa_notes_${sampleCaseId}`)
+        || "Physical existence confirmed. Property & identity verified on site.";
+      const notes = prompt("Enter observation notes for this property visit:", existingNote);
       if (notes) {
+        try { localStorage.setItem(`pwa_notes_${sampleCaseId}`, notes); } catch (e) {}
+        const assessEl = document.getElementById("formOfficeAssessment");
+        if (assessEl && !assessEl.value) assessEl.value = notes;
         alert("Visit notes saved and linked to case dossier.");
       }
     }
@@ -1825,7 +1886,8 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ form_data: payload })
           });
-          if (res.ok) {
+          const fData = await res.json().catch(() => ({}));
+          if (res.ok && fData.status !== "offline_queued") {
             localStorage.removeItem(k);
             console.log(`[✓] Offline field form for case ${caseId} auto-synced successfully!`);
           }
@@ -1871,7 +1933,8 @@
                 headers: headers,
                 body: formData
               });
-              if (upRes.ok || upRes.status === 202) {
+              const upData = await upRes.json().catch(() => ({}));
+              if ((upRes.ok || upRes.status === 202) && upData.status !== "offline_queued") {
                 const delTx = db.transaction(PWA_PHOTO_STORE, "readwrite");
                 delTx.objectStore(PWA_PHOTO_STORE).delete(item.id);
                 console.log(`[✓] Queued offline photo ${item.fileName} auto-uploaded to server successfully!`);
@@ -1958,17 +2021,204 @@
       if (!skipNaSync) handlePrevLoanNaToggle(value === "NA");
     }
 
-    async function submitDueDiligenceForm() {
+    // Dynamic state for 2nd / 3rd / 4th Co-Applicants (Applicants 3, 4, 5) on Mobile PWA
+    let pwaExtraCoApplicants = [];
+
+    function enableCoApplicantOnPwa() {
+      const coModule = document.getElementById("coApplicantOfficeModule");
+      if (coModule) coModule.classList.remove("hidden");
+      const btnWrap = document.getElementById("addCoApplicantBtnWrap");
+      if (btnWrap) btnWrap.classList.add("hidden");
+      setCoApplicantTabVisible(true);
+      const fCoName = document.getElementById("formCoName");
+      if (fCoName) fCoName.focus();
+    }
+
+    function renderExtraCoApplicantsPwa() {
+      const mod = document.getElementById("extraCoApplicantsModule");
+      const list = document.getElementById("extraCoApplicantsPwaList");
+      if (!mod || !list) return;
+      if (!Array.isArray(pwaExtraCoApplicants) || pwaExtraCoApplicants.length === 0) {
+        mod.classList.add("hidden");
+        list.innerHTML = "";
+        return;
+      }
+      mod.classList.remove("hidden");
+      list.innerHTML = pwaExtraCoApplicants.map((ec, idx) => {
+        const slotNum = ec.slot || (idx + 3);
+        const off = ec.office_details || {};
+        const occ = ec.occupation || off.occupation || "Job";
+        const isHw = String(occ).toLowerCase().includes("house");
+        const refsJoined = [off.reference_1 || off.reference, off.reference_2].filter(Boolean).join(", ");
+        const esc = (v) => String(v || "").replace(/"/g, "&quot;");
+        return `
+          <div class="p-3 rounded-xl bg-white border border-indigo-200 shadow-2xs space-y-2.5 text-xs">
+            <div class="flex items-center justify-between pb-1.5 border-b border-indigo-100">
+              <span class="font-headline font-bold text-indigo-900">Applicant #${slotNum} (Co-Applicant ${idx + 2}): ${esc(ec.name || "New Co-Applicant")}</span>
+              <button type="button" onclick="removeExtraCoApplicantPwaRow(${idx})" class="p-1 text-rose-500 hover:bg-rose-50 rounded" title="Remove">
+                <span class="material-symbols-outlined text-[16px]">delete</span>
+              </button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Full Name (નામ)*</label>
+                <input type="text" value="${esc(ec.name)}" oninput="updateExtraCoApplicantPwa(${idx}, 'name', this.value)" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5"/>
+              </div>
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Contact Number (નંબર)</label>
+                <input type="text" value="${esc(ec.contact_number)}" oninput="updateExtraCoApplicantPwa(${idx}, 'contact_number', this.value)" class="w-full text-xs font-mono font-semibold rounded border border-outline-variant p-1.5"/>
+              </div>
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Age (ઉંમર)</label>
+                <input type="text" value="${esc(ec.age)}" oninput="updateExtraCoApplicantPwa(${idx}, 'age', this.value)" class="w-full text-xs font-mono font-semibold rounded border border-outline-variant p-1.5"/>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Marital Status</label>
+                <select onchange="updateExtraCoApplicantPwa(${idx}, 'marital_status', this.value)" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5">
+                  <option value="Married" ${String(ec.marital_status || "").toLowerCase().includes("unmarried") ? "" : "selected"}>Married</option>
+                  <option value="Unmarried" ${String(ec.marital_status || "").toLowerCase().includes("unmarried") ? "selected" : ""}>Unmarried</option>
+                </select>
+              </div>
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Qualification</label>
+                <input type="text" value="${esc(ec.qualification)}" oninput="updateExtraCoApplicantPwa(${idx}, 'qualification', this.value)" placeholder="e.g. Graduate" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5"/>
+              </div>
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Relation to Applicant</label>
+                <input type="text" value="${esc(ec.relation_to_applicant)}" oninput="updateExtraCoApplicantPwa(${idx}, 'relation_to_applicant', this.value)" placeholder="e.g. Mother, Brother" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5"/>
+              </div>
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Occupation</label>
+                <select onchange="updateExtraCoApplicantPwa(${idx}, 'occupation', this.value); renderExtraCoApplicantsPwa();" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5">
+                  <option value="Job" ${occ === "Job" ? "selected" : ""}>Job / Salaried</option>
+                  <option value="Business" ${occ === "Business" ? "selected" : ""}>Business</option>
+                  <option value="House Wife" ${isHw ? "selected" : ""}>House Wife</option>
+                  <option value="Retired" ${occ === "Retired" ? "selected" : ""}>Retired</option>
+                </select>
+              </div>
+            </div>
+            ${isHw ? `<div class="p-2 rounded bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900">Housewife / Home Maker — Office verification Not Applicable.</div>` : `
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-indigo-50">
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Employer / Firm Name</label>
+                <input type="text" value="${esc(off.firm_name)}" oninput="updateExtraCoApplicantPwaOffice(${idx}, 'firm_name', this.value)" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5"/>
+              </div>
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Designation / Business Nature</label>
+                <input type="text" value="${esc(off.position || off.designation)}" oninput="updateExtraCoApplicantPwaOffice(${idx}, 'position', this.value)" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5"/>
+              </div>
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Office Address</label>
+                <input type="text" value="${esc(off.address)}" oninput="updateExtraCoApplicantPwaOffice(${idx}, 'address', this.value)" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5"/>
+              </div>
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Established Since / Stay</label>
+                <input type="text" value="${esc(off.established_since || off.period_of_stay)}" oninput="updateExtraCoApplicantPwaOffice(${idx}, 'established_since', this.value)" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5"/>
+              </div>
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Workplace References (2)</label>
+                <input type="text" value="${esc(refsJoined)}" oninput="updateExtraCoApplicantPwaOffice(${idx}, 'references_raw', this.value)" placeholder="Name - Relation, Name - Relation" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5"/>
+              </div>
+              <div>
+                <label class="font-mono text-[9px] text-outline block mb-0.5">Who Did You Meet</label>
+                <input type="text" value="${esc(off.who_meet)}" oninput="updateExtraCoApplicantPwaOffice(${idx}, 'who_meet', this.value)" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5"/>
+              </div>
+            </div>`}
+          </div>
+        `;
+      }).join("");
+    }
+
+    function addExtraCoApplicantPwaRow() {
+      if (pwaExtraCoApplicants.length >= 3) {
+        alert("Up to 5 total applicants (Applicant + 4 Co-Applicants) are supported.");
+        return;
+      }
+      const nextSlot = pwaExtraCoApplicants.length + 3;
+      pwaExtraCoApplicants.push({
+        slot: nextSlot,
+        name: "",
+        contact_number: "",
+        age: "",
+        marital_status: "Married",
+        qualification: "",
+        relation_to_applicant: "",
+        occupation: "Job",
+        office_details: { occupation: "Job", work_from_home: "No" },
+      });
+      renderExtraCoApplicantsPwa();
+    }
+
+    function removeExtraCoApplicantPwaRow(idx) {
+      pwaExtraCoApplicants.splice(idx, 1);
+      pwaExtraCoApplicants.forEach((item, i) => { item.slot = i + 3; });
+      renderExtraCoApplicantsPwa();
+    }
+
+    function updateExtraCoApplicantPwa(idx, field, val) {
+      if (!pwaExtraCoApplicants[idx]) return;
+      pwaExtraCoApplicants[idx][field] = val;
+      if (field === "occupation") {
+        if (!pwaExtraCoApplicants[idx].office_details) pwaExtraCoApplicants[idx].office_details = {};
+        pwaExtraCoApplicants[idx].office_details.occupation = val;
+      }
+    }
+
+    function updateExtraCoApplicantPwaOffice(idx, field, val) {
+      if (!pwaExtraCoApplicants[idx]) return;
+      if (!pwaExtraCoApplicants[idx].office_details) pwaExtraCoApplicants[idx].office_details = {};
+      const off = pwaExtraCoApplicants[idx].office_details;
+      if (field === "position") {
+        off.position = val;
+        off.designation = val;
+      } else if (field === "established_since") {
+        off.established_since = val;
+        off.period_of_stay = val;
+      } else if (field === "references_raw") {
+        off.reference_1 = (val.split(",")[0] || "").trim();
+        off.reference_2 = (val.split(",")[1] || "").trim();
+      } else {
+        off[field] = val;
+      }
+    }
+
+    function renderPwaCoApplicantsBanner(c) {
+      const banner = document.getElementById("pwaCoApplicantsBanner");
+      if (!banner) return;
+      const rows = [];
+      if (c && c.co_applicant_name) {
+        rows.push(`<div><b>Co-Applicant 1:</b> ${c.co_applicant_name.replace(/</g, "&lt;")}${c.co_applicant_phone ? " • 📞 " + c.co_applicant_phone.replace(/</g, "&lt;") : ""}${c.co_office_address ? " • 🏢 " + c.co_office_address.replace(/</g, "&lt;") : ""}</div>`);
+      }
+      [3, 4, 5].forEach((slotNum, idx) => {
+        const sName = (c && c[`applicant_${slotNum}_name`]) || (pwaExtraCoApplicants[idx] && pwaExtraCoApplicants[idx].name);
+        const sPhone = (c && c[`applicant_${slotNum}_phone`]) || (pwaExtraCoApplicants[idx] && pwaExtraCoApplicants[idx].contact_number);
+        if (sName) {
+          rows.push(`<div><b>Co-Applicant ${idx + 2} (Applicant ${slotNum}):</b> ${String(sName).replace(/</g, "&lt;")}${sPhone ? " • 📞 " + String(sPhone).replace(/</g, "&lt;") : ""}</div>`);
+        }
+      });
+      if (rows.length > 0) {
+        banner.innerHTML = rows.join("");
+        banner.classList.remove("hidden");
+      } else {
+        banner.innerHTML = "";
+        banner.classList.add("hidden");
+      }
+    }
+
+    async function submitDueDiligenceForm(opts = {}) {
+      const isSilent = Boolean(opts && opts.silent);
       // sampleCaseId is intentionally left unset while a just-switched-to case is still loading
       // its real data from the server (see switchPwaCase's placeholder branch) - saving here
       // would otherwise either queue against a literal "undefined" case id that can never sync,
       // or (before that placeholder existed) silently save under whichever case was PREVIOUSLY
       // open. Block the save and tell the agent to wait, instead of either of those.
       if (!sampleCaseId) {
-        alert("This case is still loading. Please wait a moment for the case details to finish loading, then try saving again.");
+        if (!isSilent) alert("This case is still loading. Please wait a moment for the case details to finish loading, then try saving again.");
         return;
       }
-      if (!agentSelfieDataUrl) {
+      if (!agentSelfieDataUrl && !isSilent) {
         if (!confirm("Field Staff Selfie has not been captured yet. Capturing your selfie authenticates attendance to start the survey. Do you wish to continue without selfie?")) {
           return;
         }
@@ -2035,8 +2285,17 @@
         return el && !el.classList.contains("hidden");
       })();
       let officeDetailsCo = null;
+      let coNameVal = "";
+      let coPhoneVal = "";
+      let coAgeVal = "";
       if (coModuleVisible) {
+        coNameVal = document.getElementById("formCoName") ? document.getElementById("formCoName").value.trim() : "";
+        coPhoneVal = document.getElementById("formCoPhone") ? document.getElementById("formCoPhone").value.trim() : "";
+        coAgeVal = document.getElementById("formCoAge") ? document.getElementById("formCoAge").value.trim() : "";
         officeDetailsCo = {
+          name: coNameVal,
+          contact_number: coPhoneVal,
+          age: coAgeVal,
           marital_status: document.getElementById("formCoMarital") ? document.getElementById("formCoMarital").value : "",
           community: document.getElementById("formCoCommunity") ? document.getElementById("formCoCommunity").value : "",
           qualification: document.getElementById("formCoQualification") ? document.getElementById("formCoQualification").value : "",
@@ -2163,6 +2422,13 @@
         },
         office_details_co: officeDetailsCo,
         residence_details_co: residenceDetailsCo,
+        co_applicant_name: coNameVal || undefined,
+        co_applicant_contact: coPhoneVal || undefined,
+        co_applicant_age: coAgeVal || undefined,
+        co_applicant_marital_status: officeDetailsCo ? officeDetailsCo.marital_status : undefined,
+        co_applicant_qualification: officeDetailsCo ? officeDetailsCo.qualification : undefined,
+        co_applicant_occupation: officeDetailsCo ? officeDetailsCo.occupation : undefined,
+        extra_co_applicants: pwaExtraCoApplicants.filter(x => x && (x.name || "").trim()),
         // Raw, lossless values for restoring the form's own inputs when this case is reopened
         // (the fields above are flattened/combined for the report, which loses information -
         // e.g. building_type above merges BHK into one string, family_members is a flat
@@ -2224,36 +2490,43 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ form_data: payload })
         });
-        if (res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        if (res.ok && resData.status !== "offline_queued") {
           alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
           alertText.innerHTML = `<b>✓ Data Uploaded Successfully!</b> ${bhk} ${bType} (${own}), ${stay} stay, ${visibleAssets.filter(a=>a.active).length} assets. Pushed to CA Portal for Scrutiny.`;
           setUploadAlertIcon(false, "text-emerald-600", "check_circle");
           const savedAt = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-          showSubmitConfirm(
-            "bg-emerald-50 border border-emerald-300 text-emerald-900",
-            `<span class="material-symbols-outlined text-[18px] text-emerald-600">check_circle</span><span>Saved & synced to CA Portal at ${savedAt}</span>`
-          );
-          alert(`[✓] Due Diligence Form Synced Successfully!\nExecutive: ${exec}\nPersona: ${persona}\nProperty: ${bhk} ${bType} (${own})\nDuration of Stay: ${stay}\nAssets: ${assetsObserved}\nData has been pushed to CA Verification Desk.`);
+          if (!isSilent) {
+            showSubmitConfirm(
+              "bg-emerald-50 border border-emerald-300 text-emerald-900",
+              `<span class="material-symbols-outlined text-[18px] text-emerald-600">check_circle</span><span>Saved & synced to CA Portal at ${savedAt}</span>`
+            );
+            alert(`[✓] Due Diligence Form Synced Successfully!\nExecutive: ${exec}\nPersona: ${persona}\nProperty: ${bhk} ${bType} (${own})\nDuration of Stay: ${stay}\nAssets: ${assetsObserved}\nData has been pushed to CA Verification Desk.`);
+          }
         } else {
           localStorage.setItem(`field_form_${sampleCaseId}`, JSON.stringify(payload));
           alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
           alertText.innerHTML = `<b>✓ Cached Locally:</b> Form saved in PWA offline queue. Will auto-sync when online.`;
           setUploadAlertIcon(false, "text-amber-600", "cloud_off");
-          showSubmitConfirm(
-            "bg-amber-50 border border-amber-300 text-amber-900",
-            `<span class="material-symbols-outlined text-[18px] text-amber-600">cloud_off</span><span>Saved on this phone - will sync to CA Portal once back online</span>`
-          );
+          if (!isSilent) {
+            showSubmitConfirm(
+              "bg-amber-50 border border-amber-300 text-amber-900",
+              `<span class="material-symbols-outlined text-[18px] text-amber-600">cloud_off</span><span>Saved on this phone - will sync to CA Portal once back online</span>`
+            );
+          }
         }
       } catch (e) {
         localStorage.setItem(`field_form_${sampleCaseId}`, JSON.stringify(payload));
         alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
         alertText.innerHTML = `<b>✓ Offline Mode:</b> Form cached in PWA device storage. Will auto-sync when back in network.`;
         setUploadAlertIcon(false, "text-amber-600", "cloud_off");
-        showSubmitConfirm(
-          "bg-amber-50 border border-amber-300 text-amber-900",
-          `<span class="material-symbols-outlined text-[18px] text-amber-600">cloud_off</span><span>Saved on this phone (offline) - will sync to CA Portal once back online</span>`
-        );
-        alert(`[✓ Offline Saved] Due Diligence Form cached locally on your device. It will auto-sync with the CA Office portal when you are back in network.`);
+        if (!isSilent) {
+          showSubmitConfirm(
+            "bg-amber-50 border border-amber-300 text-amber-900",
+            `<span class="material-symbols-outlined text-[18px] text-amber-600">cloud_off</span><span>Saved on this phone (offline) - will sync to CA Portal once back online</span>`
+          );
+          alert(`[✓ Offline Saved] Due Diligence Form cached locally on your device. It will auto-sync with the CA Office portal when you are back in network.`);
+        }
       }
     }
 
@@ -2547,10 +2820,19 @@
       // ==========================================
       const coModule = document.getElementById("coApplicantOfficeModule");
       const coNameLabel = document.getElementById("coApplicantNameLabel");
+      const addCoBtnWrap = document.getElementById("addCoApplicantBtnWrap");
       if (c.co_applicant_name) {
         if (coModule) coModule.classList.remove("hidden");
+        if (addCoBtnWrap) addCoBtnWrap.classList.add("hidden");
         if (coNameLabel) coNameLabel.textContent = c.co_applicant_name;
         setCoApplicantTabVisible(true);
+
+        const fCoName = document.getElementById("formCoName");
+        if (fCoName) fCoName.value = c.co_applicant_name || "";
+        const fCoPhone = document.getElementById("formCoPhone");
+        if (fCoPhone) fCoPhone.value = c.co_applicant_phone || "";
+        const fCoAge = document.getElementById("formCoAge");
+        if (fCoAge) fCoAge.value = c.co_applicant_age || "";
 
         // Every other field in this block falls back to a neutral default ("" or "Job") when
         // this case has no saved value of its own yet - this one didn't, so switching from a
@@ -2605,8 +2887,41 @@
         handleCoOccupationChange(fCoOcc ? fCoOcc.value : "Job");
       } else {
         if (coModule) coModule.classList.add("hidden");
+        if (addCoBtnWrap) addCoBtnWrap.classList.remove("hidden");
         setCoApplicantTabVisible(false);
+        const fCoName = document.getElementById("formCoName");
+        if (fCoName) fCoName.value = "";
+        const fCoPhone = document.getElementById("formCoPhone");
+        if (fCoPhone) fCoPhone.value = "";
+        const fCoAge = document.getElementById("formCoAge");
+        if (fCoAge) fCoAge.value = "";
       }
+
+      // Restore 2nd/3rd/4th Co-Applicants (Applicants 3, 4, 5)
+      if (Array.isArray(c.extra_co_applicants) && c.extra_co_applicants.length > 0) {
+        pwaExtraCoApplicants = JSON.parse(JSON.stringify(c.extra_co_applicants));
+      } else {
+        pwaExtraCoApplicants = [];
+        [3, 4, 5].forEach(slotNum => {
+          const sName = c[`applicant_${slotNum}_name`];
+          const sPhone = c[`applicant_${slotNum}_phone`];
+          if (sName) {
+            pwaExtraCoApplicants.push({
+              slot: slotNum,
+              name: sName,
+              contact_number: sPhone || "",
+              age: "",
+              marital_status: "Married",
+              qualification: "",
+              relation_to_applicant: "",
+              occupation: "Job",
+              office_details: { occupation: "Job", work_from_home: "No" },
+            });
+          }
+        });
+      }
+      renderExtraCoApplicantsPwa();
+      renderPwaCoApplicantsBanner(c);
 
       // ==========================================
       // SYNCHRONIZE MODULE 3C (Co-Applicant Residence Details) - only when the CA office has
@@ -3104,13 +3419,15 @@
             prev_loan_amount: prevLoan.amount || "",
             prev_loan_bank: prevLoan.bank || "",
             prev_loan_date: prevLoan.date || "",
-            co_applicant_name: target.co_applicant_name || "",
-            co_applicant_phone: target.co_applicant_phone || "",
-            co_marital_status: offCo.marital_status || "",
+            co_applicant_name: target.co_applicant_name || parsedFormData.co_applicant_name || "",
+            co_applicant_phone: target.co_applicant_phone || parsedFormData.co_applicant_contact || offCo.contact_number || "",
+            co_applicant_age: offCo.age || parsedFormData.co_applicant_age || "",
+            co_marital_status: offCo.marital_status || parsedFormData.co_applicant_marital_status || "",
             co_community: offCo.community || "",
-            co_qualification: offCo.qualification || "",
+            co_qualification: offCo.qualification || parsedFormData.co_applicant_qualification || "",
             co_relation_to_applicant: offCo.relation_to_applicant || "",
-            co_occupation: offCo.occupation || "Job",
+            co_occupation: offCo.occupation || parsedFormData.co_applicant_occupation || "Job",
+            extra_co_applicants: Array.isArray(parsedFormData.extra_co_applicants) ? parsedFormData.extra_co_applicants : [],
             co_firm_name: offCo.firm_name || "",
             co_position: offCo.position || offCo.designation || "",
             // Falls back to the CA office's own pre-typed co_applicant_office_address on the
@@ -3340,14 +3657,23 @@
       if (modal) modal.classList.add("hidden");
     }
 
+    function toPwaThumbUrl(src, w = 180) {
+      if (!src || typeof src !== "string") return src;
+      if (src.startsWith("/storage/") || src.startsWith("/static/extracted_pages/")) {
+        return `/api/v1/cases/thumb?u=${encodeURIComponent(src)}&w=${w}`;
+      }
+      return src;
+    }
+
     // Fetches every document the CA office has scanned (via Gemini AI) for this case —
     // real content, never a filename guess — and overlays it onto the document cards
     // plus the full "All Case Documents" gallery.
     async function loadCaseDocumentsIntoPwa(caseId) {
       try {
-        const res = await fetch(`/api/v1/cases/${caseId}/documents`);
+        const res = await fetch(`/api/v1/cases/${caseId}/documents?light=1`);
         if (!res.ok) return;
         const docs = await res.json();
+        if (docs && docs.status === "offline_queued") return;
         if (!Array.isArray(docs) || docs.length === 0) {
           renderAllCaseDocumentsGallery([]);
           return;
@@ -4021,7 +4347,8 @@
         const frame = document.createElement("div");
         frame.className = "w-full h-16 overflow-hidden bg-slate-800";
         const img = document.createElement("img");
-        img.src = d.url; img.alt = title; img.loading = "lazy";
+        img.src = toPwaThumbUrl(d.url, 180); img.alt = title; img.loading = "lazy";
+        img.onerror = function() { if (this.src !== d.url) this.src = d.url; };
         img.className = "w-full h-full object-cover group-hover:scale-105 transition-transform";
         frame.appendChild(img);
 

@@ -137,7 +137,10 @@ class VisitCheckInRequest(BaseModel):
 
 
 class VisitCheckOutRequest(BaseModel):
-    visit_id: uuid.UUID
+    visit_id: Optional[uuid.UUID] = None
+    case_id: Optional[uuid.UUID] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     notes: Optional[str] = None
 
 

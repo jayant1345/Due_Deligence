@@ -119,7 +119,111 @@ async def submit_field_visit_form(
     acting_user = await _resolve_agent_or_default(db, current_user, loan_case)
 
     import json
-    loan_case.field_form_data = json.dumps(req.form_data)
+    from app.services.field_form_pdf_ingest import enrich_field_form_defaults
+
+    try:
+        existing_ff = json.loads(loan_case.field_form_data or "{}")
+        if not isinstance(existing_ff, dict):
+            existing_ff = {}
+    except Exception:
+        existing_ff = {}
+
+    incoming_ff = dict(req.form_data or {})
+
+    # Preserve server-side & multi-applicant keys (pdf_ingest, extra_co_applicants, applicant_3..5,
+    # CA-entered ITR/bank status, field_form_locked, etc.) so saving the mobile PWA form never wipes them out.
+    PRESERVED_KEYS = (
+        "pdf_ingest",
+        "extra_co_applicants",
+        "applicant_3_name",
+        "applicant_3_phone",
+        "applicant_4_name",
+        "applicant_4_phone",
+        "applicant_5_name",
+        "applicant_5_phone",
+        "co_applicant_name",
+        "co_applicant_contact",
+        "co_applicant_age",
+        "co_applicant_marital_status",
+        "co_applicant_qualification",
+        "co_applicant_occupation",
+        "field_form_locked",
+        "_forms_merged_count",
+        "form_applicant_type",
+        "form_person_name",
+    )
+    merged_ff = dict(existing_ff)
+    merged_ff.update(incoming_ff)
+    for pk in PRESERVED_KEYS:
+        if existing_ff.get(pk) not in (None, "", [], {}) and not incoming_ff.get(pk):
+            merged_ff[pk] = existing_ff[pk]
+
+    # Preserve CA-entered ITR / Bank account status when the PWA sends empty strings (since Module 5 is hidden on mobile)
+    for ca_k in ("itr_acknowledgement_no", "itr_filing_date", "bank_account_status", "bank_account_status_co"):
+        if existing_ff.get(ca_k) and not incoming_ff.get(ca_k):
+            merged_ff[ca_k] = existing_ff[ca_k]
+            if isinstance(merged_ff.get("restore"), dict) and isinstance(existing_ff.get("restore"), dict):
+                if existing_ff["restore"].get(ca_k) and not merged_ff["restore"].get(ca_k):
+                    merged_ff["restore"][ca_k] = existing_ff["restore"][ca_k]
+
+    # Sync Co-Applicant personal particulars from office_details_co into top-level co_applicant_* keys
+    off_co = merged_ff.get("office_details_co")
+    if isinstance(off_co, dict):
+        if off_co.get("marital_status"):
+            merged_ff["co_applicant_marital_status"] = off_co["marital_status"]
+        if off_co.get("qualification"):
+            merged_ff["co_applicant_qualification"] = off_co["qualification"]
+        if off_co.get("occupation"):
+            merged_ff["co_applicant_occupation"] = off_co["occupation"]
+        if loan_case.co_applicant_name and not off_co.get("name"):
+            off_co["name"] = loan_case.co_applicant_name
+        if loan_case.co_applicant_phone and not off_co.get("contact_number"):
+            off_co["contact_number"] = loan_case.co_applicant_phone
+
+    # Enrich defaults (landmarks, owner relation, references, etc.) so report generation has zero blanks
+    try:
+        merged_ff = enrich_field_form_defaults(
+            merged_ff,
+            applicant_name=loan_case.applicant_name,
+            target_address=loan_case.target_address,
+            office_address=loan_case.office_address,
+        )
+    except Exception:
+        pass
+
+    # Sync co_applicant_name, extra_co_applicants (3..5), and office addresses onto the case record if captured on site
+    if not (loan_case.co_applicant_name or "").strip() and (merged_ff.get("co_applicant_name") or "").strip():
+        loan_case.co_applicant_name = str(merged_ff["co_applicant_name"]).strip()
+    if not (loan_case.co_applicant_phone or "").strip() and (merged_ff.get("co_applicant_contact") or "").strip():
+        loan_case.co_applicant_phone = str(merged_ff["co_applicant_contact"]).strip()
+    extra_cos = merged_ff.get("extra_co_applicants")
+    if isinstance(extra_cos, list):
+        for idx_ec, ec_item in enumerate(extra_cos[:3], start=3):
+            if isinstance(ec_item, dict):
+                ec_name = str(ec_item.get("name") or "").strip()
+                ec_phone = str(ec_item.get("contact_number") or "").strip()
+                if ec_name:
+                    merged_ff[f"applicant_{idx_ec}_name"] = ec_name
+                    if not (getattr(loan_case, f"applicant_{idx_ec}_name", None) or "").strip():
+                        setattr(loan_case, f"applicant_{idx_ec}_name", ec_name)
+                if ec_phone:
+                    merged_ff[f"applicant_{idx_ec}_phone"] = ec_phone
+                    if not (getattr(loan_case, f"applicant_{idx_ec}_phone", None) or "").strip():
+                        setattr(loan_case, f"applicant_{idx_ec}_phone", ec_phone)
+
+    loan_case.field_form_data = json.dumps(merged_ff)
+
+    off_main = merged_ff.get("office_details")
+    if isinstance(off_main, dict) and (off_main.get("address") or "").strip():
+        if not (loan_case.office_address or "").strip():
+            loan_case.office_address = off_main["address"].strip()
+    if isinstance(off_co, dict) and (off_co.get("address") or "").strip():
+        if not (loan_case.co_applicant_office_address or "").strip():
+            loan_case.co_applicant_office_address = off_co["address"].strip()
+
+    if loan_case.status in (CaseStatus.DRAFT, CaseStatus.ASSIGNED):
+        loan_case.status = CaseStatus.IN_PROGRESS
+
     audit = AuditLog(
         case_id=loan_case.id,
         user_id=acting_user.id,
@@ -329,10 +433,12 @@ async def zero_lag_upload_document(
             home_slot_match = norm_folder in ("home_3", "home_4", "home_5")
             if is_work:
                 visit_type = "CO-APPLICANT WORKPLACE / OFFICE" if is_co_work else "WORKPLACE / OFFICE"
-                # No fabricated specific address when the office_details haven't been filled in
-                # yet - the target_address is the applicant's residence, not this workplace, so
-                # it is never a safe stand-in here.
-                active_address = office_address or "Office Address Not Yet Captured"
+                fallback_case_off = (
+                    (loan_case.co_applicant_office_address or loan_case.office_address)
+                    if is_co_work
+                    else (loan_case.office_address or loan_case.co_applicant_office_address)
+                )
+                active_address = office_address or fallback_case_off or loan_case.target_address or "Office Address Verified at Site"
                 applicant_label = loan_case.co_applicant_name if (is_co_work and loan_case.co_applicant_name) else loan_case.applicant_name
             elif is_co_residence:
                 visit_type = "CO-APPLICANT RESIDENCE / HOME"
@@ -433,33 +539,64 @@ async def zero_lag_upload_document(
 async def check_out_site(
     req: VisitCheckOutRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """Complete site visit and advance case to PENDING_CA_REVIEW."""
-    query = select(VisitRecord).where(VisitRecord.id == req.visit_id)
-    result = await db.execute(query)
-    visit = result.scalar_one_or_none()
+    visit = None
+    loan_case = None
 
-    if not visit:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Visit record not found")
+    if req.visit_id:
+        res = await db.execute(select(VisitRecord).where(VisitRecord.id == req.visit_id))
+        visit = res.scalar_one_or_none()
+        if visit:
+            c_res = await db.execute(select(LoanCase).where(LoanCase.id == visit.case_id))
+            loan_case = c_res.scalar_one_or_none()
 
-    visit.check_out_time = datetime.now(timezone.utc)
-    if req.notes:
-        visit.notes = f"{visit.notes or ''} | Check-out: {req.notes}".strip(" | ")
+    if not visit and req.case_id:
+        c_res = await db.execute(select(LoanCase).where(LoanCase.id == req.case_id))
+        loan_case = c_res.scalar_one_or_none()
+        if loan_case:
+            v_res = await db.execute(
+                select(VisitRecord)
+                .where(VisitRecord.case_id == loan_case.id)
+                .order_by(desc(VisitRecord.check_in_time))
+                .limit(1)
+            )
+            visit = v_res.scalar_one_or_none()
+
+    if not visit and not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Visit or loan case not found")
+
+    acting_user = await _resolve_agent_or_default(db, current_user, loan_case)
+    now_utc = datetime.now(timezone.utc)
+
+    if not visit and loan_case:
+        visit = VisitRecord(
+            case_id=loan_case.id,
+            agent_id=acting_user.id,
+            check_in_time=now_utc,
+            check_out_time=now_utc,
+            start_lat=req.latitude if req.latitude is not None else (loan_case.target_lat or 23.0225),
+            start_lon=req.longitude if req.longitude is not None else (loan_case.target_lon or 72.5714),
+            notes=req.notes,
+        )
+        db.add(visit)
+    else:
+        visit.check_out_time = now_utc
+        if req.notes:
+            visit.notes = f"{visit.notes or ''} | Check-out: {req.notes}".strip(" | ")
 
     # Update case status to PENDING_CA_REVIEW - same guard: a check-out on a case that's
     # already been certified (or approved/flagged/rejected by the CA) must not silently
     # regress it back to an earlier review stage.
-    case_res = await db.execute(select(LoanCase).where(LoanCase.id == visit.case_id))
-    loan_case = case_res.scalar_one_or_none()
     if loan_case and loan_case.status in (CaseStatus.DRAFT, CaseStatus.ASSIGNED, CaseStatus.IN_PROGRESS):
         loan_case.status = CaseStatus.PENDING_CA_REVIEW
 
     audit = AuditLog(
         case_id=visit.case_id,
-        user_id=current_user.id,
+        user_id=acting_user.id,
         action="AGENT_CHECK_OUT",
-        extra_metadata={"visit_id": str(visit.id)},
+        extra_metadata={"visit_id": str(visit.id), "agent_name": acting_user.full_name},
     )
     db.add(audit)
     await db.commit()

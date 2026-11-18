@@ -159,6 +159,8 @@
         <span id="loanAmountDisplay" class="font-mono text-base font-bold text-primary-container shrink-0">₹20.00 Lakhs</span>
       </div>
 
+      <div id="pwaCoApplicantsBanner" class="hidden mb-2.5 p-2 rounded-lg bg-purple-50 border border-purple-200 text-xs text-purple-900 space-y-1"></div>
+
       <div class="flex items-center gap-1.5 text-on-surface-variant text-xs mb-3">
         <span class="material-symbols-outlined text-[16px] text-primary-container">account_balance</span>
         <span id="bankNameDisplay" class="font-medium text-on-surface">Union Bank of India</span>
@@ -949,6 +951,13 @@
           <span class="material-symbols-outlined text-[18px] text-secondary">verified</span>
           <span><b>Office Verification Exemption:</b> Applicant is a Home Maker / Housewife. Resident visit completed. Office verification is Not Applicable.</span>
         </div>
+
+        <div id="addCoApplicantBtnWrap" class="pt-1">
+          <button type="button" onclick="enableCoApplicantOnPwa()" class="px-3 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 font-headline text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">group_add</span>
+            <span>+ Add Co-Applicant Details (સહ-અરજદાર ઉમેરો)</span>
+          </button>
+        </div>
       </div>
 
       <!-- MODULE 3B: Co-Applicant Office / Occupation Details - shown only for dual-applicant
@@ -959,9 +968,25 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-purple-700 text-[18px]">domain</span>
-            <span class="font-headline font-bold text-xs text-on-surface">3B. Co-Applicant Office Details (<span id="coApplicantNameLabel">Co-Applicant</span>)</span>
+            <span class="font-headline font-bold text-xs text-on-surface">3B. Co-Applicant Details & Office (<span id="coApplicantNameLabel">Co-Applicant</span>)</span>
           </div>
-          <span class="font-mono text-[9px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded uppercase font-bold">Dual Applicant</span>
+          <span class="font-mono text-[9px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded uppercase font-bold">Dual / Multi-Applicant</span>
+        </div>
+
+        <!-- Co-Applicant's own Name, Contact & Age -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Co-Applicant Name (સહ-અરજદાર નું નામ)*</label>
+            <input id="formCoName" value="" oninput="const l=document.getElementById('coApplicantNameLabel'); if(l) l.textContent=this.value||'Co-Applicant';" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="Enter Co-Applicant full name"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Contact Number (મોબાઈલ નંબર)</label>
+            <input id="formCoPhone" value="" class="w-full text-xs font-mono font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. 9876543210"/>
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-outline block mb-1">Age (ઉંમર)*</label>
+            <input id="formCoAge" value="" class="w-full text-xs font-mono font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. 30 years"/>
+          </div>
         </div>
 
         <!-- Co-Applicant's own personal/KYC particulars (separate from the office/workplace
@@ -1161,6 +1186,13 @@
           <span class="material-symbols-outlined text-[18px] text-secondary">verified</span>
           <span><b>Office Verification Exemption:</b> Co-applicant is a Home Maker / Housewife. Office verification is Not Applicable.</span>
         </div>
+
+        <div id="addExtraCoApplicantBtnWrap" class="pt-1">
+          <button type="button" onclick="addExtraCoApplicantPwaRow()" class="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-900 font-headline text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[16px]">group_add</span>
+            <span>+ Add 2nd / 3rd Co-Applicant (Applicant 3 / 4 / 5)</span>
+          </button>
+        </div>
       </div>
 
       <!-- MODULE 3C: Co-Applicant Residence Details - only shown when the CA office has flagged
@@ -1223,6 +1255,21 @@
             <b>Co-Applicant Residence Verification Required:</b> Switch to the "Co-Applicant Residence" tab below in Photo Slots and capture 4 Geotagged Residence Evidence Photos for the co-applicant's home.
           </div>
         </div>
+      </div>
+
+      <!-- MODULE 3D: Additional Co-Applicants (Applicant 3, 4, 5) - shown for multi-applicant cases -->
+      <div id="extraCoApplicantsModule" class="hidden p-3.5 rounded-xl bg-indigo-50/50 border border-indigo-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-indigo-700 text-[18px]">groups</span>
+            <span class="font-headline font-bold text-xs text-on-surface">3D. Additional Co-Applicants (Applicant 3 / 4 / 5)</span>
+          </div>
+          <button type="button" onclick="addExtraCoApplicantPwaRow()" class="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-headline text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[14px]">person_add</span>
+            <span>+ Add Co-Applicant</span>
+          </button>
+        </div>
+        <div id="extraCoApplicantsPwaList" class="space-y-3"></div>
       </div>
 
       <!-- MODULE 4: Previous Loan Details (અગાઉની લોનની વિગત - PAGE 14 & 15) -->
@@ -2253,7 +2300,7 @@
   </nav>
 
   <!-- Interactive JavaScript Engine -->
-  <script src="/static/agent-pwa.js?v=7"></script>
+  <script src="/static/agent-pwa.js?v=8"></script>
 
   <!-- FIELD AGENT AUTHENTICATION MODAL -->
   <div id="agentLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
