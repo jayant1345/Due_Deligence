@@ -1324,7 +1324,9 @@ def classify_and_store_single_image(
     )
     _apply_rotation_if_needed(analysis.get("rotation_needed"), storage_img_path, static_img_path)
     relative_web_url = f"/storage/separated_docs/{case_id}/{img_name}"
-    return _finalize_page_item(analysis, None, None, relative_web_url, [storage_img_path, static_img_path])
+    item = _finalize_page_item(analysis, None, None, relative_web_url, [storage_img_path, static_img_path])
+    item["source_file"] = os.path.basename(image_path)
+    return item
 
 
 _FORM16_SIGNATORY_TITLES = (
@@ -1501,7 +1503,9 @@ def burst_and_separate_pdf_with_llm(
     logger.info("Bursting PDF '%s' (%d pages) for case %s", pdf_path, total_pages, case_id)
 
     pdf_base = os.path.splitext(os.path.basename(pdf_path))[0]
-    safe_slug = re.sub(r'[^a-zA-Z0-9_-]', '_', pdf_base)[:20]
+    safe_slug = re.sub(r'[^a-zA-Z0-9_-]', '_', pdf_base)[:36].strip("_") or "doc"
+    batch_id = f"{safe_slug}_{uuid.uuid4().hex[:6]}"
+    source_pdf_name = os.path.basename(pdf_path)
 
     def _scan(entry):
         page_idx, raw_text, storage_img_path, static_img_path, web_url = entry
@@ -1512,7 +1516,11 @@ def burst_and_separate_pdf_with_llm(
             target_address=target_address,
         )
         _apply_rotation_if_needed(analysis.get("rotation_needed"), storage_img_path, static_img_path)
-        return _finalize_page_item(analysis, page_idx, total_pages, web_url, [storage_img_path, static_img_path])
+        item = _finalize_page_item(analysis, page_idx, total_pages, web_url, [storage_img_path, static_img_path])
+        item["source_pdf"] = source_pdf_name
+        item["ingest_batch_id"] = batch_id
+        item["pdf_page_number"] = page_idx
+        return item
 
     # Rasterizing a page (PyMuPDF render + 2 JPEG writes) is a fraction of the time a Gemini
     # vision call takes - but it used to run for ALL pages first, sequentially, before a single
@@ -1528,7 +1536,7 @@ def burst_and_separate_pdf_with_llm(
         for page_num in range(total_pages):
             page = doc.load_page(page_num)
             page_idx = page_num + 1
-            img_name = f"{safe_slug}_page_{page_idx}.jpg"
+            img_name = f"{batch_id}_page_{page_idx}.jpg"
             storage_img_path = os.path.join(storage_dir, img_name)
             static_img_path = os.path.join(static_dir, img_name)
             pix = page.get_pixmap(dpi=300)

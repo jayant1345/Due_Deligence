@@ -1406,30 +1406,17 @@ async def download_combined_form16(
     if not matched_case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
 
-    # FORM_16 is a real Gemini classification but not a stored DocumentType enum value - the
-    # DB column collapses it to SALARY_SLIP (see LLM_TO_DOCUMENT_TYPE in pdf_separator.py), so
-    # the real page type must be read back out of ocr_data, not queried on the column itself.
-    result = await db.execute(
-        select(CaseDocument)
-        .where(CaseDocument.case_id == matched_case.id, CaseDocument.doc_type == DocumentType.SALARY_SLIP)
-        .order_by(asc(CaseDocument.created_at))
-    )
-    docs = [
-        d for d in result.scalars().all()
-        if isinstance(d.ocr_data, dict) and (d.ocr_data.get("llm_doc_type") or d.ocr_data.get("doc_type")) == "FORM_16"
-    ]
-    if not docs:
+    # Use _ai_ingested_pages so multi-PDF Form 16 bundles stay grouped document-by-document
+    # (Page 1..Last of Form 16 PDF #1, followed by Page 1..Last of Form 16 PDF #2) instead of
+    # interleaving Page 1 of every PDF together.
+    ingested_pages = await _ai_ingested_pages(db, matched_case)
+    form16_pages = [p for p in ingested_pages if (p.get("llm_doc_type") or p.get("doc_type")) == "FORM_16"]
+    if not form16_pages:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Form 16 documents on record for this case")
 
-    def _page_sort_key(d: CaseDocument):
-        od = d.ocr_data if isinstance(d.ocr_data, dict) else {}
-        return (od.get("page_number") or 0, d.created_at or datetime.min)
-
-    docs = sorted(docs, key=_page_sort_key)
-
     image_paths = []
-    for d in docs:
-        p = _resolve_doc_image_path(d.watermarked_url or d.storage_url)
+    for p_item in form16_pages:
+        p = _resolve_doc_image_path(p_item.get("image_url") or p_item.get("local_path"))
         if p:
             try:
                 with PILImage.open(p) as im:
@@ -2149,6 +2136,124 @@ async def get_separated_case_documents(
     }
 
 
+def _sort_separated_pages_in_document_order(docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Arrange separated pages in the exact sequence documents were uploaded, keeping all pages
+    of each multi-page PDF (Page 1 .. Last Page) contiguous in strict 1..N order, and grouping
+    simultaneously uploaded loose images by document type so multi-page image scans (such as
+    Form 16 or Application Form pages) never interleave with other documents.
+    """
+    if not docs:
+        return []
+
+    def _parse_ts(val: Any) -> float:
+        if not val:
+            return 0.0
+        try:
+            return datetime.fromisoformat(str(val).replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return 0.0
+
+    def _pdf_slug(p: Dict[str, Any]) -> Optional[str]:
+        if p.get("ingest_batch_id"):
+            return str(p["ingest_batch_id"])
+        if p.get("source_pdf"):
+            return str(p["source_pdf"])
+        img = os.path.basename(str(p.get("image_url") or "").split("?")[0])
+        m = re.match(r"^(.+)_page_(\d+)\.[a-zA-Z0-9]+$", img)
+        return m.group(1) if m else None
+
+    items: List[Dict[str, Any]] = []
+    for idx, p in enumerate(docs):
+        pn = p.get("pdf_page_number") if "pdf_page_number" in p else p.get("page_number")
+        if not isinstance(pn, int):
+            pn = int(pn) if isinstance(pn, str) and pn.isdigit() else None
+        items.append({
+            "page": p,
+            "ts": _parse_ts(p.get("created_at_raw")),
+            "pn": pn,
+            "total": p.get("total_pages"),
+            "slug": _pdf_slug(p),
+            "orig_idx": idx,
+        })
+
+    items.sort(key=lambda x: (x["ts"], x["pn"] if x["pn"] is not None else 0, x["orig_idx"]))
+
+    groups: List[Dict[str, Any]] = []
+    for it in items:
+        if it["slug"] is not None and it["pn"] is not None:
+            matched_grp = None
+            for grp in reversed(groups):
+                if (
+                    grp["kind"] == "pdf"
+                    and grp["slug"] == it["slug"]
+                    and grp["total"] == it["total"]
+                    and abs(it["ts"] - grp["last_ts"]) <= 15.0
+                    and it["pn"] not in grp["seen_pages"]
+                ):
+                    matched_grp = grp
+                    break
+            if matched_grp is not None:
+                matched_grp["items"].append(it)
+                matched_grp["last_ts"] = max(matched_grp["last_ts"], it["ts"])
+                matched_grp["seen_pages"].add(it["pn"])
+            else:
+                groups.append({
+                    "kind": "pdf",
+                    "slug": it["slug"],
+                    "total": it["total"],
+                    "first_ts": it["ts"],
+                    "last_ts": it["ts"],
+                    "seen_pages": {it["pn"]},
+                    "items": [it],
+                })
+        else:
+            if groups and groups[-1]["kind"] == "images" and abs(it["ts"] - groups[-1]["last_ts"]) <= 5.0:
+                groups[-1]["items"].append(it)
+                groups[-1]["last_ts"] = max(groups[-1]["last_ts"], it["ts"])
+            else:
+                groups.append({
+                    "kind": "images",
+                    "slug": None,
+                    "total": None,
+                    "first_ts": it["ts"],
+                    "last_ts": it["ts"],
+                    "seen_pages": set(),
+                    "items": [it],
+                })
+
+    ordered_pages: List[Dict[str, Any]] = []
+    for grp in groups:
+        if grp["kind"] == "pdf":
+            grp["items"].sort(key=lambda x: (x["pn"] if x["pn"] is not None else 0, x["ts"], x["orig_idx"]))
+            for x in grp["items"]:
+                page_copy = dict(x["page"])
+                page_copy["pdf_page_number"] = x["pn"]
+                ordered_pages.append(page_copy)
+        else:
+            type_first_idx: Dict[str, int] = {}
+            for i_idx, x in enumerate(grp["items"]):
+                dt = str(x["page"].get("doc_type") or "OTHER").upper()
+                if dt not in type_first_idx:
+                    type_first_idx[dt] = i_idx
+            grp["items"].sort(
+                key=lambda x: (
+                    type_first_idx.get(str(x["page"].get("doc_type") or "OTHER").upper(), 0),
+                    x["ts"],
+                    x["orig_idx"],
+                )
+            )
+            for x in grp["items"]:
+                page_copy = dict(x["page"])
+                page_copy["pdf_page_number"] = None
+                ordered_pages.append(page_copy)
+
+    for seq_idx, p in enumerate(ordered_pages, 1):
+        p["page_number"] = seq_idx
+
+    return ordered_pages
+
+
 async def _ai_ingested_pages(db: AsyncSession, loan_case: LoanCase) -> List[Dict[str, Any]]:
     result = await db.execute(
         select(CaseDocument)
@@ -2173,8 +2278,7 @@ async def _ai_ingested_pages(db: AsyncSession, loan_case: LoanCase) -> List[Dict
             if not isinstance(pn, int):
                 page["page_number"] = int(pn) if isinstance(pn, str) and pn.isdigit() else None
             docs.append(page)
-    docs.sort(key=lambda p: p.get("page_number") or 0)
-    return docs
+    return _sort_separated_pages_in_document_order(docs)
 
 
 @router.delete("/{case_id}/documents/{document_id}")

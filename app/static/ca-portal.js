@@ -2258,11 +2258,20 @@
       }
     }
 
+    function sortFilesNaturallyIfFromFolder(files) {
+      const arr = Array.from(files || []);
+      if (arr.some(f => f && f.webkitRelativePath)) {
+        arr.sort((a, b) => (a.webkitRelativePath || a.name || "").localeCompare(b.webkitRelativePath || b.name || "", undefined, { numeric: true, sensitivity: "base" }));
+      }
+      return arr;
+    }
+
     async function handleBatchPortalFilesIngest(fileList) {
       lastIngestedDocIds = new Set();
       pendingPasswordPdfs = [];
-      const pdfs = fileList.filter(f => f.name.toLowerCase().endsWith(".pdf"));
-      const images = fileList.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name));
+      const sortedList = sortFilesNaturallyIfFromFolder(fileList);
+      const pdfs = sortedList.filter(f => f.name.toLowerCase().endsWith(".pdf"));
+      const images = sortedList.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name));
 
       if (pdfs.length === 0 && images.length === 0) {
         alert("No PDF or image files found in the selected folder/files.");
@@ -2499,7 +2508,11 @@
         const col = document.createElement("div");
         col.className = "group relative rounded-lg bg-black/60 border p-1 flex flex-col items-center hover:border-amber-400 cursor-pointer transition-all"
           + (isJustAdded ? " border-emerald-400 ring-2 ring-emerald-400/60" : " border-white/20");
-        col.title = `${d.document_title || ""}${d.holder_name ? "\nHolder: " + d.holder_name : ""}${(d.discrepancies || []).length ? "\n⚠ " + d.discrepancies.join("\n⚠ ") : ""}`;
+        const seqPage = d.page_number || (idx + 1);
+        const pdfSubPage = (d.pdf_page_number && d.total_pages && d.total_pages > 1)
+          ? ` (Doc p.${d.pdf_page_number}/${d.total_pages})`
+          : "";
+        col.title = `Page ${seqPage}${pdfSubPage}: ${d.document_title || shortType}${d.holder_name ? "\nHolder: " + d.holder_name : ""}${(d.discrepancies || []).length ? "\n⚠ " + d.discrepancies.join("\n⚠ ") : ""}`;
         col.onclick = () => openSeparatedDocViewer(idx);
 
         if (isJustAdded) {
@@ -2582,7 +2595,7 @@
 
         const badge = document.createElement("span");
         badge.className = `text-[8px] font-mono font-bold px-1 py-0.5 rounded border ${badgeColor} text-center truncate w-full block`;
-        badge.textContent = `${d.page_number ? "P" + d.page_number : "IMG"}: ${shortType}`;
+        badge.textContent = `P${d.page_number || (idx + 1)}: ${shortType}`;
 
         col.appendChild(frame);
         col.appendChild(badge);
@@ -4219,11 +4232,15 @@
           docSrc = docSrc.replace("/static/extracted_pages/", "/storage/separated_docs/");
         }
 
+        const seqNum = d.page_number || (i + 1);
+        const docPageNote = (d.pdf_page_number && d.total_pages && d.total_pages > 1)
+          ? ` [Doc p.${d.pdf_page_number}/${d.total_pages}]`
+          : "";
         return {
           id: d.id,
           index: i,
-          pageNumber: d.page_number || (i + 1),
-          title: `Page ${d.page_number || (i + 1)} • ${shortType}`,
+          pageNumber: seqNum,
+          title: `Page ${seqNum} • ${shortType}${docPageNote}`,
           sub: `${d.holder_name || ''} ${d.document_title || ''}`.trim() || 'AI Scanned Document',
           src: docSrc,
           status: d.scan_status || 'VERIFIED',
@@ -5465,7 +5482,7 @@
 
     function handleTabNcFolderSelected(files) {
       if (!files || files.length === 0) return;
-      const fileList = Array.from(files);
+      const fileList = sortFilesNaturallyIfFromFolder(files);
       tabStagedPdfs = fileList.filter(f => f.name.toLowerCase().endsWith(".pdf"));
       tabStagedImages = fileList.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name) && !isSiteVisitPhotoFile(f));
 
