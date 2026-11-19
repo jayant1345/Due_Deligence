@@ -276,16 +276,15 @@
         const info = PWA_FOLDER_INFO[folder];
         for (let n = 1; n <= 4; n++) {
           const d = PWA_SLOT_DEFAULTS[`${folder}_${n}`];
-          if (!d) continue;
           const thumbEl = document.getElementById(`${info.slotIdPrefix}${n}Thumb`);
-          if (thumbEl && d.thumbHTML !== null) thumbEl.innerHTML = d.thumbHTML;
+          if (thumbEl) thumbEl.innerHTML = (d && d.thumbHTML !== null) ? d.thumbHTML : `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
           const badgeEl = document.getElementById(`${info.slotIdPrefix}${n}Badge`);
           if (badgeEl) {
-            if (d.badgeClass !== null) badgeEl.className = d.badgeClass;
-            if (d.badgeHTML !== null) badgeEl.innerHTML = d.badgeHTML;
+            badgeEl.className = (d && d.badgeClass !== null) ? d.badgeClass : "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
+            badgeEl.innerHTML = (d && d.badgeHTML !== null) ? d.badgeHTML : "PENDING";
           }
           const btnTextEl = document.getElementById(`${info.slotIdPrefix}${n}BtnText`);
-          if (btnTextEl && d.btnText !== null) btnTextEl.textContent = d.btnText;
+          if (btnTextEl) btnTextEl.textContent = (d && d.btnText !== null) ? d.btnText : "Capture Photo";
           info.slotsMap[n] = false;
         }
         const gallery = document.getElementById(`extraGallery_${folder}`);
@@ -294,6 +293,42 @@
         extraPhotoNextSlot[folder] = 4;
       });
       if (typeof updateEvidenceProgress === "function") updateEvidenceProgress();
+    }
+
+    function getValidCachedSlotEvidence(caseId, caseNo, storageKey, slotIdx) {
+      const keys = [
+        caseId ? `pwa_evidence_${caseId}_${storageKey}_${slotIdx}` : null,
+        caseNo ? `pwa_evidence_${caseNo}_${storageKey}_${slotIdx}` : null,
+      ].filter(Boolean);
+      for (const k of keys) {
+        try {
+          const raw = localStorage.getItem(k);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw);
+          if (!parsed || !parsed.src) continue;
+          // Strict cross-case ownership verification:
+          // 1. If explicit caseId or caseNo was stamped on the cached payload, it MUST match this case.
+          if (parsed.caseId && caseId && String(parsed.caseId) !== String(caseId)) {
+            localStorage.removeItem(k);
+            continue;
+          }
+          if (parsed.caseNo && caseNo && String(parsed.caseNo).toUpperCase() !== String(caseNo).toUpperCase()) {
+            localStorage.removeItem(k);
+            continue;
+          }
+          // 2. If src is a server /storage/case_<uuid_hex>/ URL, verify the UUID hex in the path matches caseId!
+          if (typeof parsed.src === "string" && parsed.src.startsWith("/storage/case_") && caseId) {
+            const expectedHex = String(caseId).replace(/-/g, "").toLowerCase();
+            const pathMatch = parsed.src.match(/\/storage\/case_([0-9a-f]{32})\//i);
+            if (pathMatch && pathMatch[1].toLowerCase() !== expectedHex) {
+              localStorage.removeItem(k);
+              continue;
+            }
+          }
+          return parsed;
+        } catch (e) {}
+      }
+      return null;
     }
 
     // Switch between Residence, Office/Workplace, and (dual-applicant cases) Co-Applicant
@@ -1038,9 +1073,18 @@
 
       if (!isExtra) info.slotsMap[slotNum] = true;
       try {
-        const slotPayload = JSON.stringify({ src: finalPreviewUrl, timestamp: timeStr, lat: latAtCapture, lon: lonAtCapture, doc_type: docType });
-        localStorage.setItem(`pwa_evidence_${caseIdAtCapture}_${info.storageKey}_${slotNum}`, slotPayload);
-        localStorage.setItem(`pwa_evidence_${caseKeyAtCapture}_${info.storageKey}_${slotNum}`, slotPayload);
+        const slotPayload = JSON.stringify({
+          src: finalPreviewUrl,
+          timestamp: timeStr,
+          lat: latAtCapture,
+          lon: lonAtCapture,
+          doc_type: docType,
+          caseId: caseIdAtCapture,
+          caseNo: caseKeyAtCapture,
+          pendingOffline: true,
+        });
+        if (caseIdAtCapture) localStorage.setItem(`pwa_evidence_${caseIdAtCapture}_${info.storageKey}_${slotNum}`, slotPayload);
+        if (caseKeyAtCapture) localStorage.setItem(`pwa_evidence_${caseKeyAtCapture}_${info.storageKey}_${slotNum}`, slotPayload);
       } catch (storageErr) {
         console.warn("Storage quota limit or private browsing:", storageErr);
       }
@@ -2894,7 +2938,9 @@
           applyFormPayloadToCaseEntryPwa(c, localDraft);
         }
       }
-      if (isActualSwitch) resetAllPwaPhotoSlotsUi();
+      // Always reset every photo slot thumbnail/badge to PENDING first so previous case's photos
+      // can NEVER remain in the DOM when switching to or loading another case.
+      resetAllPwaPhotoSlotsUi();
 
       activeCaseKey = key;
       sampleCaseId = c.id; // undefined only when actually switching to an uncached case - safer than silently keeping the PREVIOUS case's real id while this screen shows blank/loading data
@@ -3319,26 +3365,24 @@
         localStorage.setItem("pwa_active_case_id", sampleCaseId);
       } catch(e) {}
 
-      // Reset & restore slot states for Residence & Office Folders
+      // Reset & restore slot states for Residence & Office Folders (with strict per-case ownership validation)
       for (let i = 1; i <= 4; i++) {
         // 1. Residence Slot
         uploadedResidenceSlots[i] = false;
         const bRes = document.getElementById(`slot${i}Badge`);
         const btnRes = document.getElementById(`slot${i}BtnText`);
         const thumbRes = document.getElementById(`slot${i}Thumb`);
-        const cachedRes = localStorage.getItem(`pwa_evidence_${sampleCaseId}_slot_${i}`) ||
-                          (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_slot_${i}`) : null);
-        if (cachedRes) {
-          try {
-            const parsed = JSON.parse(cachedRes);
-            uploadedResidenceSlots[i] = true;
-            if (bRes) { bRes.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bRes.textContent = "✓ UPLOADED"; }
-            if (btnRes) btnRes.textContent = "Re-take Photo";
-            if (thumbRes) thumbRes.innerHTML = `<img src="${parsed.src}" class="w-full h-full object-cover rounded-lg"/>`;
-          } catch(e) {}
+        const defRes = PWA_SLOT_DEFAULTS[`residence_${i}`];
+        const parsedRes = getValidCachedSlotEvidence(sampleCaseId, c.case_no, "slot", i);
+        if (parsedRes) {
+          uploadedResidenceSlots[i] = true;
+          if (bRes) { bRes.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bRes.textContent = "✓ UPLOADED"; }
+          if (btnRes) btnRes.textContent = "Re-take Photo";
+          if (thumbRes) thumbRes.innerHTML = `<img src="${parsedRes.src}" class="w-full h-full object-cover rounded-lg"/>`;
         } else {
           if (bRes) { bRes.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bRes.textContent = "PENDING"; }
-          if (btnRes) btnRes.textContent = "Capture Photo";
+          if (btnRes) btnRes.textContent = (defRes && defRes.btnText) ? defRes.btnText : "Capture Photo";
+          if (thumbRes) thumbRes.innerHTML = (defRes && defRes.thumbHTML) ? defRes.thumbHTML : `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
         }
 
         // 2. Office / Workplace Slot
@@ -3346,19 +3390,17 @@
         const bOff = document.getElementById(`slotOffice${i}Badge`);
         const btnOff = document.getElementById(`slotOffice${i}BtnText`);
         const thumbOff = document.getElementById(`slotOffice${i}Thumb`);
-        const cachedOff = localStorage.getItem(`pwa_evidence_${sampleCaseId}_office_slot_${i}`) ||
-                          (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_office_slot_${i}`) : null);
-        if (cachedOff) {
-          try {
-            const parsed = JSON.parse(cachedOff);
-            uploadedOfficeSlots[i] = true;
-            if (bOff) { bOff.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bOff.textContent = "✓ UPLOADED"; }
-            if (btnOff) btnOff.textContent = "Re-take Photo";
-            if (thumbOff) thumbOff.innerHTML = `<img src="${parsed.src}" class="w-full h-full object-cover rounded-lg"/>`;
-          } catch(e) {}
+        const defOff = PWA_SLOT_DEFAULTS[`office_${i}`];
+        const parsedOff = getValidCachedSlotEvidence(sampleCaseId, c.case_no, "office_slot", i);
+        if (parsedOff) {
+          uploadedOfficeSlots[i] = true;
+          if (bOff) { bOff.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bOff.textContent = "✓ UPLOADED"; }
+          if (btnOff) btnOff.textContent = "Re-take Photo";
+          if (thumbOff) thumbOff.innerHTML = `<img src="${parsedOff.src}" class="w-full h-full object-cover rounded-lg"/>`;
         } else {
           if (bOff) { bOff.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bOff.textContent = "PENDING"; }
-          if (btnOff) btnOff.textContent = "Capture Photo";
+          if (btnOff) btnOff.textContent = (defOff && defOff.btnText) ? defOff.btnText : "Capture Photo";
+          if (thumbOff) thumbOff.innerHTML = (defOff && defOff.thumbHTML) ? defOff.thumbHTML : `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
         }
 
         // 3. Co-Applicant Office / Workplace Slot (dual-applicant cases only)
@@ -3366,19 +3408,17 @@
         const bCoOff = document.getElementById(`slotCoOffice${i}Badge`);
         const btnCoOff = document.getElementById(`slotCoOffice${i}BtnText`);
         const thumbCoOff = document.getElementById(`slotCoOffice${i}Thumb`);
-        const cachedCoOff = localStorage.getItem(`pwa_evidence_${sampleCaseId}_co_office_slot_${i}`) ||
-                          (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_co_office_slot_${i}`) : null);
-        if (cachedCoOff) {
-          try {
-            const parsed = JSON.parse(cachedCoOff);
-            uploadedCoOfficeSlots[i] = true;
-            if (bCoOff) { bCoOff.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bCoOff.textContent = "✓ UPLOADED"; }
-            if (btnCoOff) btnCoOff.textContent = "Re-take Photo";
-            if (thumbCoOff) thumbCoOff.innerHTML = `<img src="${parsed.src}" class="w-full h-full object-cover rounded-lg"/>`;
-          } catch(e) {}
+        const defCoOff = PWA_SLOT_DEFAULTS[`co_office_${i}`];
+        const parsedCoOff = getValidCachedSlotEvidence(sampleCaseId, c.case_no, "co_office_slot", i);
+        if (parsedCoOff) {
+          uploadedCoOfficeSlots[i] = true;
+          if (bCoOff) { bCoOff.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bCoOff.textContent = "✓ UPLOADED"; }
+          if (btnCoOff) btnCoOff.textContent = "Re-take Photo";
+          if (thumbCoOff) thumbCoOff.innerHTML = `<img src="${parsedCoOff.src}" class="w-full h-full object-cover rounded-lg"/>`;
         } else {
           if (bCoOff) { bCoOff.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bCoOff.textContent = "PENDING"; }
-          if (btnCoOff) btnCoOff.textContent = "Capture Photo";
+          if (btnCoOff) btnCoOff.textContent = (defCoOff && defCoOff.btnText) ? defCoOff.btnText : "Capture Photo";
+          if (thumbCoOff) thumbCoOff.innerHTML = (defCoOff && defCoOff.thumbHTML) ? defCoOff.thumbHTML : `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
         }
 
         // 4. Co-Applicant Residence Slot (only when co-applicant has a separate home address)
@@ -3386,19 +3426,17 @@
         const bCoRes = document.getElementById(`slotCoResidence${i}Badge`);
         const btnCoRes = document.getElementById(`slotCoResidence${i}BtnText`);
         const thumbCoRes = document.getElementById(`slotCoResidence${i}Thumb`);
-        const cachedCoRes = localStorage.getItem(`pwa_evidence_${sampleCaseId}_co_residence_slot_${i}`) ||
-                          (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_co_residence_slot_${i}`) : null);
-        if (cachedCoRes) {
-          try {
-            const parsed = JSON.parse(cachedCoRes);
-            uploadedCoResidenceSlots[i] = true;
-            if (bCoRes) { bCoRes.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bCoRes.textContent = "✓ UPLOADED"; }
-            if (btnCoRes) btnCoRes.textContent = "Re-take Photo";
-            if (thumbCoRes) thumbCoRes.innerHTML = `<img src="${parsed.src}" class="w-full h-full object-cover rounded-lg"/>`;
-          } catch(e) {}
+        const defCoRes = PWA_SLOT_DEFAULTS[`co_residence_${i}`];
+        const parsedCoRes = getValidCachedSlotEvidence(sampleCaseId, c.case_no, "co_residence_slot", i);
+        if (parsedCoRes) {
+          uploadedCoResidenceSlots[i] = true;
+          if (bCoRes) { bCoRes.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bCoRes.textContent = "✓ UPLOADED"; }
+          if (btnCoRes) btnCoRes.textContent = "Re-take Photo";
+          if (thumbCoRes) thumbCoRes.innerHTML = `<img src="${parsedCoRes.src}" class="w-full h-full object-cover rounded-lg"/>`;
         } else {
           if (bCoRes) { bCoRes.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bCoRes.textContent = "PENDING"; }
-          if (btnCoRes) btnCoRes.textContent = "Capture Photo";
+          if (btnCoRes) btnCoRes.textContent = (defCoRes && defCoRes.btnText) ? defCoRes.btnText : "Capture Photo";
+          if (thumbCoRes) thumbCoRes.innerHTML = (defCoRes && defCoRes.thumbHTML) ? defCoRes.thumbHTML : `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
         }
         // 5. Applicant 3/4/5 Residence Slots (home_3, home_4, home_5)
         [3, 4, 5].forEach(slotNum => {
@@ -3407,19 +3445,17 @@
           const bHome = document.getElementById(`slotHome${slotNum}${i}Badge`);
           const btnHome = document.getElementById(`slotHome${slotNum}${i}BtnText`);
           const thumbHome = document.getElementById(`slotHome${slotNum}${i}Thumb`);
-          const cachedHome = localStorage.getItem(`pwa_evidence_${sampleCaseId}_home_${slotNum}_slot_${i}`) ||
-                            (c.case_no ? localStorage.getItem(`pwa_evidence_${c.case_no}_home_${slotNum}_slot_${i}`) : null);
-          if (cachedHome) {
-            try {
-              const parsed = JSON.parse(cachedHome);
-              homeSlotsMapRef[i] = true;
-              if (bHome) { bHome.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bHome.textContent = "✓ UPLOADED"; }
-              if (btnHome) btnHome.textContent = "Re-take Photo";
-              if (thumbHome) thumbHome.innerHTML = `<img src="${parsed.src}" class="w-full h-full object-cover rounded-lg"/>`;
-            } catch(e) {}
+          const defHome = PWA_SLOT_DEFAULTS[`home_${slotNum}_${i}`];
+          const parsedHome = getValidCachedSlotEvidence(sampleCaseId, c.case_no, `home_${slotNum}_slot`, i);
+          if (parsedHome) {
+            homeSlotsMapRef[i] = true;
+            if (bHome) { bHome.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold"; bHome.textContent = "✓ UPLOADED"; }
+            if (btnHome) btnHome.textContent = "Re-take Photo";
+            if (thumbHome) thumbHome.innerHTML = `<img src="${parsedHome.src}" class="w-full h-full object-cover rounded-lg"/>`;
           } else {
             if (bHome) { bHome.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold"; bHome.textContent = "PENDING"; }
-            if (btnHome) btnHome.textContent = "Capture Photo";
+            if (btnHome) btnHome.textContent = (defHome && defHome.btnText) ? defHome.btnText : "Capture Photo";
+            if (thumbHome) thumbHome.innerHTML = (defHome && defHome.thumbHTML) ? defHome.thumbHTML : `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
           }
         });
       }
@@ -4017,14 +4053,18 @@
     // real content, never a filename guess — and overlays it onto the document cards
     // plus the full "All Case Documents" gallery.
     async function loadCaseDocumentsIntoPwa(caseId) {
+      if (!caseId) return;
       try {
         const res = await fetch(`/api/v1/cases/${caseId}/documents?light=1`);
         if (!res.ok) return;
-        const docs = await res.json();
-        if (docs && docs.status === "offline_queued") return;
-        if (!Array.isArray(docs) || docs.length === 0) {
+        const docsRaw = await res.json();
+        if (docsRaw && docsRaw.status === "offline_queued") return;
+        // Stale async response guard: if the agent switched to a different case while this fetch
+        // was in flight, discard it so Case 1's photos never render into Case 2's screen!
+        if (String(caseId) !== String(sampleCaseId)) return;
+        const docs = Array.isArray(docsRaw) ? docsRaw : [];
+        if (docs.length === 0) {
           renderAllCaseDocumentsGallery([]);
-          return;
         }
 
         const c = caseRegistryPwa[activeCaseKey];
@@ -4305,24 +4345,24 @@
                 timestamp: d.created_at || "Verified on Server",
                 lat: d.latitude || 23.2154,
                 lon: d.longitude || 72.6367,
-                doc_type: d.doc_type
+                doc_type: d.doc_type,
+                caseId: sampleCaseId,
+                caseNo: activeCaseKey,
               });
               localStorage.setItem(cacheKey1, resPayload);
               localStorage.setItem(cacheKey2, resPayload);
             } catch(e) {}
           } else {
-            // No server document for this slot right now. Only clear the cached "uploaded" badge
-            // if what's cached was itself a server-confirmed photo (a /storage/... URL) that has
-            // since been deleted server-side (e.g. a misfiled duplicate removed from the CA
-            // dashboard) - never touch a locally-captured-but-not-yet-synced photo (a blob:/data:
-            // URL from the camera), which is real pending field work waiting to sync, not stale cache.
-            let cached = null;
-            try { cached = JSON.parse(localStorage.getItem(cacheKey2) || localStorage.getItem(cacheKey1) || "null"); } catch (e) {}
-            if (cached && typeof cached.src === "string" && cached.src.startsWith("/storage/")) {
+            // Server returned no photo for this slot on this case. Only preserve a local cache entry
+            // if it is explicitly tagged pendingOffline === true for THIS exact caseId/caseNo.
+            const validCached = getValidCachedSlotEvidence(sampleCaseId, activeCaseKey, "slot", s);
+            const keepOffline = Boolean(validCached && validCached.pendingOffline && ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) || (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey))));
+            if (!keepOffline) {
               localStorage.removeItem(cacheKey1);
               localStorage.removeItem(cacheKey2);
               uploadedResidenceSlots[s] = false;
               uploadedSlots[s] = false;
+              const defRes = PWA_SLOT_DEFAULTS[`residence_${s}`];
               const bRes = document.getElementById(`slot${s}Badge`);
               const btnRes = document.getElementById(`slot${s}BtnText`);
               const thumbRes = document.getElementById(`slot${s}Thumb`);
@@ -4330,8 +4370,8 @@
                 bRes.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
                 bRes.textContent = "PENDING";
               }
-              if (btnRes) btnRes.textContent = "Capture Photo";
-              if (thumbRes) thumbRes.innerHTML = `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
+              if (btnRes) btnRes.textContent = (defRes && defRes.btnText) ? defRes.btnText : "Capture Photo";
+              if (thumbRes) thumbRes.innerHTML = (defRes && defRes.thumbHTML) ? defRes.thumbHTML : `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
             }
           }
         }
@@ -4396,20 +4436,21 @@
                 timestamp: d.created_at || "Verified on Server",
                 lat: d.latitude || 23.2154,
                 lon: d.longitude || 72.6367,
-                doc_type: d.doc_type
+                doc_type: d.doc_type,
+                caseId: sampleCaseId,
+                caseNo: activeCaseKey,
               });
               localStorage.setItem(offCacheKey1, offPayload);
               localStorage.setItem(offCacheKey2, offPayload);
             } catch(e) {}
           } else {
-            // Same "only clear a server-confirmed photo that's since been deleted, never a
-            // locally-captured-but-unsynced one" rule as the residence slots above.
-            let cached = null;
-            try { cached = JSON.parse(localStorage.getItem(offCacheKey2) || localStorage.getItem(offCacheKey1) || "null"); } catch (e) {}
-            if (cached && typeof cached.src === "string" && cached.src.startsWith("/storage/")) {
+            const validCached = getValidCachedSlotEvidence(sampleCaseId, activeCaseKey, "office_slot", s);
+            const keepOffline = Boolean(validCached && validCached.pendingOffline && ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) || (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey))));
+            if (!keepOffline) {
               localStorage.removeItem(offCacheKey1);
               localStorage.removeItem(offCacheKey2);
               uploadedOfficeSlots[s] = false;
+              const defOff = PWA_SLOT_DEFAULTS[`office_${s}`];
               const bOff = document.getElementById(`slotOffice${s}Badge`);
               const btnOff = document.getElementById(`slotOffice${s}BtnText`);
               const thumbOff = document.getElementById(`slotOffice${s}Thumb`);
@@ -4417,23 +4458,17 @@
                 bOff.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
                 bOff.textContent = "PENDING";
               }
-              if (btnOff) btnOff.textContent = "Capture Photo";
-              if (thumbOff) thumbOff.innerHTML = `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
+              if (btnOff) btnOff.textContent = (defOff && defOff.btnText) ? defOff.btnText : "Capture Photo";
+              if (thumbOff) thumbOff.innerHTML = (defOff && defOff.thumbHTML) ? defOff.thumbHTML : `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
             }
           }
         }
         restoreExtraPhotosForFolder('office', officeDocs, serverOffSlotMap);
 
-        // 3. Restore Co-Applicant Office / Workplace Slots - same server-authoritative pass as
-        // the applicant's own Office slots above. Without this, these slots only ever checked
-        // localStorage (switchPwaCase's cachedCoOff lookup), so a cleared cache, a different
-        // device, or simply enough time passing made successfully-uploaded, server-stored
-        // co-applicant office photos show as PENDING again after a refresh, even though the CA
-        // dashboard (which reads straight from the server) still showed them correctly.
         const serverCoOffSlotMap = { 1: null, 2: null, 3: null, 4: null };
         coOfficeDocs.forEach((d, idx) => {
           const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
-          if (explicitSlot && explicitSlot > 4) return; // genuine "Additional Photo" - never a mandatory slot
+          if (explicitSlot && explicitSlot > 4) return;
           const s = getOffSlot(d, idx + 1);
           if (s >= 1 && s <= 4 && !serverCoOffSlotMap[s]) {
             serverCoOffSlotMap[s] = d;
@@ -4474,18 +4509,21 @@
                 timestamp: d.created_at || "Verified on Server",
                 lat: d.latitude || 23.2154,
                 lon: d.longitude || 72.6367,
-                doc_type: d.doc_type
+                doc_type: d.doc_type,
+                caseId: sampleCaseId,
+                caseNo: activeCaseKey,
               });
               localStorage.setItem(coOffCacheKey1, coOffPayload);
               localStorage.setItem(coOffCacheKey2, coOffPayload);
             } catch(e) {}
           } else {
-            let cached = null;
-            try { cached = JSON.parse(localStorage.getItem(coOffCacheKey2) || localStorage.getItem(coOffCacheKey1) || "null"); } catch (e) {}
-            if (cached && typeof cached.src === "string" && cached.src.startsWith("/storage/")) {
+            const validCached = getValidCachedSlotEvidence(sampleCaseId, activeCaseKey, "co_office_slot", s);
+            const keepOffline = Boolean(validCached && validCached.pendingOffline && ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) || (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey))));
+            if (!keepOffline) {
               localStorage.removeItem(coOffCacheKey1);
               localStorage.removeItem(coOffCacheKey2);
               uploadedCoOfficeSlots[s] = false;
+              const defCoOff = PWA_SLOT_DEFAULTS[`co_office_${s}`];
               const bCoOff = document.getElementById(`slotCoOffice${s}Badge`);
               const btnCoOff = document.getElementById(`slotCoOffice${s}BtnText`);
               const thumbCoOff = document.getElementById(`slotCoOffice${s}Thumb`);
@@ -4493,19 +4531,17 @@
                 bCoOff.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
                 bCoOff.textContent = "PENDING";
               }
-              if (btnCoOff) btnCoOff.textContent = "Capture Photo";
-              if (thumbCoOff) thumbCoOff.innerHTML = `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
+              if (btnCoOff) btnCoOff.textContent = (defCoOff && defCoOff.btnText) ? defCoOff.btnText : "Capture Photo";
+              if (thumbCoOff) thumbCoOff.innerHTML = (defCoOff && defCoOff.thumbHTML) ? defCoOff.thumbHTML : `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
             }
           }
         }
         restoreExtraPhotosForFolder('co_office', coOfficeDocs, serverCoOffSlotMap);
 
-        // 4. Restore Co-Applicant Residence Slots - same server-authoritative pass, only
-        // relevant when the co-applicant has their own separate home address on the case.
         const serverCoResSlotMap = { 1: null, 2: null, 3: null, 4: null };
         coResidenceDocs.forEach((d, idx) => {
           const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
-          if (explicitSlot && explicitSlot > 4) return; // genuine "Additional Photo" - never a mandatory slot
+          if (explicitSlot && explicitSlot > 4) return;
           const s = getResSlot(d, idx + 1);
           if (s >= 1 && s <= 4 && !serverCoResSlotMap[s]) {
             serverCoResSlotMap[s] = d;
@@ -4546,18 +4582,21 @@
                 timestamp: d.created_at || "Verified on Server",
                 lat: d.latitude || 23.2154,
                 lon: d.longitude || 72.6367,
-                doc_type: d.doc_type
+                doc_type: d.doc_type,
+                caseId: sampleCaseId,
+                caseNo: activeCaseKey,
               });
               localStorage.setItem(coResCacheKey1, coResPayload);
               localStorage.setItem(coResCacheKey2, coResPayload);
             } catch(e) {}
           } else {
-            let cached = null;
-            try { cached = JSON.parse(localStorage.getItem(coResCacheKey2) || localStorage.getItem(coResCacheKey1) || "null"); } catch (e) {}
-            if (cached && typeof cached.src === "string" && cached.src.startsWith("/storage/")) {
+            const validCached = getValidCachedSlotEvidence(sampleCaseId, activeCaseKey, "co_residence_slot", s);
+            const keepOffline = Boolean(validCached && validCached.pendingOffline && ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) || (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey))));
+            if (!keepOffline) {
               localStorage.removeItem(coResCacheKey1);
               localStorage.removeItem(coResCacheKey2);
               uploadedCoResidenceSlots[s] = false;
+              const defCoRes = PWA_SLOT_DEFAULTS[`co_residence_${s}`];
               const bCoRes = document.getElementById(`slotCoResidence${s}Badge`);
               const btnCoRes = document.getElementById(`slotCoResidence${s}BtnText`);
               const thumbCoRes = document.getElementById(`slotCoResidence${s}Thumb`);
@@ -4565,15 +4604,13 @@
                 bCoRes.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
                 bCoRes.textContent = "PENDING";
               }
-              if (btnCoRes) btnCoRes.textContent = "Capture Photo";
-              if (thumbCoRes) thumbCoRes.innerHTML = `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
+              if (btnCoRes) btnCoRes.textContent = (defCoRes && defCoRes.btnText) ? defCoRes.btnText : "Capture Photo";
+              if (thumbCoRes) thumbCoRes.innerHTML = (defCoRes && defCoRes.thumbHTML) ? defCoRes.thumbHTML : `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
             }
           }
         }
         restoreExtraPhotosForFolder('co_residence', coResidenceDocs, serverCoResSlotMap);
 
-        // 5. Restore Applicant 3/4/5 Residence Slots - same server-authoritative pass as
-        // Co-Applicant Residence above, one static folder per extra applicant slot.
         [3, 4, 5].forEach(slotNum => {
           const slotDocs = homeSlotDocs[slotNum];
           const serverHomeSlotMap = { 1: null, 2: null, 3: null, 4: null };
@@ -4621,18 +4658,21 @@
                   timestamp: d.created_at || "Verified on Server",
                   lat: d.latitude || 23.2154,
                   lon: d.longitude || 72.6367,
-                  doc_type: d.doc_type
+                  doc_type: d.doc_type,
+                  caseId: sampleCaseId,
+                  caseNo: activeCaseKey,
                 });
                 localStorage.setItem(homeCacheKey1, homePayload);
                 localStorage.setItem(homeCacheKey2, homePayload);
               } catch(e) {}
             } else {
-              let cached = null;
-              try { cached = JSON.parse(localStorage.getItem(homeCacheKey2) || localStorage.getItem(homeCacheKey1) || "null"); } catch (e) {}
-              if (cached && typeof cached.src === "string" && cached.src.startsWith("/storage/")) {
+              const validCached = getValidCachedSlotEvidence(sampleCaseId, activeCaseKey, `home_${slotNum}_slot`, s);
+              const keepOffline = Boolean(validCached && validCached.pendingOffline && ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) || (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey))));
+              if (!keepOffline) {
                 localStorage.removeItem(homeCacheKey1);
                 localStorage.removeItem(homeCacheKey2);
                 homeSlotsMapRef[s] = false;
+                const defHome = PWA_SLOT_DEFAULTS[`home_${slotNum}_${s}`];
                 const bHome = document.getElementById(`slotHome${slotNum}${s}Badge`);
                 const btnHome = document.getElementById(`slotHome${slotNum}${s}BtnText`);
                 const thumbHome = document.getElementById(`slotHome${slotNum}${s}Thumb`);
@@ -4640,8 +4680,8 @@
                   bHome.className = "font-mono text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300 font-bold";
                   bHome.textContent = "PENDING";
                 }
-                if (btnHome) btnHome.textContent = "Capture Photo";
-                if (thumbHome) thumbHome.innerHTML = `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
+                if (btnHome) btnHome.textContent = (defHome && defHome.btnText) ? defHome.btnText : "Capture Photo";
+                if (thumbHome) thumbHome.innerHTML = (defHome && defHome.thumbHTML) ? defHome.thumbHTML : `<span class="material-symbols-outlined text-[22px]">photo_camera</span>`;
               }
             }
           }
