@@ -4738,50 +4738,11 @@
     }
 
     function renderAllCaseDocumentsGallery(docs) {
+      // Hidden on Field Agent PWA per CA Office confidentiality & data security policy
       const section = document.getElementById("pwaAllDocsSection");
-      const grid = document.getElementById("pwaAllDocsGrid");
-      const countEl = document.getElementById("pwaAllDocsCount");
-      if (!section || !grid) return;
-
-      if (!docs || docs.length === 0) {
-        section.classList.add("hidden");
-        return;
-      }
-
-      // Built with textContent: titles come from AI-read document text.
-      grid.innerHTML = "";
-      docs.forEach(d => {
-        const od = d.ocr_data || {};
-        const failed = od.scan_status === "FAILED";
-        const other = od.relationship_to_applicant === "DIFFERENT_PERSON";
-        const title = failed ? "Not scanned" : `${od.document_title || d.doc_type}${other && od.holder_name ? " — " + od.holder_name : ""}`;
-        const item = document.createElement("div");
-        item.className = "rounded-lg overflow-hidden border border-outline-variant bg-slate-900 cursor-pointer group shadow-xs";
-        item.title = title;
-        item.onclick = () => window.open(d.url, "_blank", "noopener");
-
-        const frame = document.createElement("div");
-        frame.className = "w-full h-16 overflow-hidden bg-slate-800";
-        const img = document.createElement("img");
-        img.src = toPwaThumbUrl(d.url, 180); img.alt = title; img.loading = "lazy";
-        img.onerror = function() { if (this.src !== d.url) this.src = d.url; };
-        img.className = "w-full h-full object-cover group-hover:scale-105 transition-transform";
-        frame.appendChild(img);
-
-        const cap = document.createElement("div");
-        cap.className = "px-1 py-0.5 " + (failed ? "bg-red-900" : other ? "bg-orange-900" : "bg-black/80");
-        const span = document.createElement("span");
-        span.className = "text-[8px] font-mono text-white truncate block";
-        span.textContent = title;
-        cap.appendChild(span);
-
-        item.appendChild(frame);
-        item.appendChild(cap);
-        grid.appendChild(item);
-      });
-
-      if (countEl) countEl.textContent = `${docs.length} DOCS`;
-      section.classList.remove("hidden");
+      if (section) section.classList.add("hidden");
+      const caDocsSec = document.getElementById("caDocsSection");
+      if (caDocsSec) caDocsSec.classList.add("hidden");
     }
 
     // The header's name badge/avatar used to be hardcoded to the old "agent1 / Rajesh Varma"

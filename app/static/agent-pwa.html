@@ -184,8 +184,8 @@
       </div>
     </section>
 
-    <!-- Case Documents Provided by CA Office Section (Direct Visual Previews for Field Staff) -->
-    <section id="caDocsSection" class="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm flex flex-col gap-3">
+    <!-- Case Documents Provided by CA Office Section (Hidden on Field Agent PWA per CA Office confidentiality & data security policy) -->
+    <section id="caDocsSection" class="hidden">
       <div class="flex items-center justify-between pb-2.5 border-b border-outline-variant">
         <div class="flex items-center gap-2">
           <div class="w-7 h-7 rounded-md bg-blue-50 text-primary-container flex items-center justify-center font-bold">
@@ -363,10 +363,8 @@
       </div>
     </section>
 
-    <!-- ALL CASE DOCUMENTS (every document the CA has scanned for this case via Gemini AI,
-         including any types not covered by the 5 named cards above, e.g. bank statements,
-         application forms). Populated live from the server — never hidden from the agent. -->
-    <section id="pwaAllDocsSection" class="hidden bg-surface-container-lowest rounded-2xl border border-outline-variant p-4 sm:p-5 shadow-sm flex flex-col gap-3">
+    <!-- ALL CASE DOCUMENTS (Hidden on Field Agent PWA per CA Office confidentiality & data security policy) -->
+    <section id="pwaAllDocsSection" class="hidden">
       <div class="flex items-center justify-between pb-2 border-b border-outline-variant">
         <div class="flex items-center gap-2.5">
           <div class="w-8 h-8 rounded-lg bg-blue-100 text-primary-container flex items-center justify-center font-bold shadow-xs">
@@ -2286,9 +2284,9 @@
 
   <!-- Mobile Bottom PWA Nav Bar (STRICTLY ISOLATED FROM CA DESK) -->
   <nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-2 bg-surface-container-lowest border-t border-outline-variant shadow-md backdrop-blur-md bg-opacity-95">
-    <a href="#caDocsSection" class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 font-mono text-[10px] hover:bg-surface-container-high active:scale-95 transition-all">
-      <span class="material-symbols-outlined text-[20px] mb-0.5">folder_shared</span>
-      <span>CA Docs</span>
+    <a href="#dueDiligenceQuestionnaireSection" class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 font-mono text-[10px] hover:bg-surface-container-high active:scale-95 transition-all">
+      <span class="material-symbols-outlined text-[20px] mb-0.5">assignment_turned_in</span>
+      <span>Visit Form</span>
     </a>
     <a href="#slotCard1" class="flex flex-col items-center justify-center bg-primary-container text-white rounded-lg px-4 py-1 font-mono text-[10px] active:scale-95 transition-all shadow-sm">
       <span class="material-symbols-outlined text-[20px] mb-0.5 text-white">photo_camera</span>
@@ -2310,7 +2308,7 @@
   </nav>
 
   <!-- Interactive JavaScript Engine -->
-  <script src="/static/agent-pwa.js?v=11"></script>
+  <script src="/static/agent-pwa.js?v=12"></script>
 
   <!-- FIELD AGENT AUTHENTICATION MODAL -->
   <div id="agentLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
