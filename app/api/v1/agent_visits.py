@@ -181,6 +181,13 @@ async def submit_field_visit_form(
             off_co["contact_number"] = loan_case.co_applicant_phone
 
     # Enrich defaults (landmarks, owner relation, references, etc.) so report generation has zero blanks
+    # Preserve the raw UI 'restore' object submitted by the PWA so re-opening or switching back to
+    # this case in the PWA restores the exact dropdown/chip/family values the agent entered.
+    raw_incoming_restore = (
+        dict(incoming_ff["restore"])
+        if isinstance(incoming_ff.get("restore"), dict)
+        else None
+    )
     try:
         merged_ff = enrich_field_form_defaults(
             merged_ff,
@@ -190,6 +197,12 @@ async def submit_field_visit_form(
         )
     except Exception:
         pass
+    if raw_incoming_restore is not None:
+        if not isinstance(merged_ff.get("restore"), dict):
+            merged_ff["restore"] = {}
+        for rk, rv in raw_incoming_restore.items():
+            if rv not in (None, "", []):
+                merged_ff["restore"][rk] = rv
 
     # Sync co_applicant_name, extra_co_applicants (3..5), and office addresses onto the case record if captured on site
     if not (loan_case.co_applicant_name or "").strip() and (merged_ff.get("co_applicant_name") or "").strip():

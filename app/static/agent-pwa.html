@@ -2266,10 +2266,20 @@
         <span class="font-mono text-[9px] text-outline uppercase font-bold">AUTO-ENCRYPT</span>
       </div>
 
-      <button id="btnSubmitVerification" onclick="submitFinalPhysicalVerification()" class="w-full py-3.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-headline text-sm font-bold shadow-md flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
-        <span class="material-symbols-outlined text-[20px]">send_and_archive</span>
-        <span>Submit & Complete Physical Verification (વેરિફિકેશન પૂર્ણ કરો)</span>
-      </button>
+      <div class="p-2.5 bg-blue-50/70 rounded-lg border border-blue-200 text-[11px] text-primary-container leading-relaxed">
+        <b>Split Visit Convenience (Home Today / Office Tomorrow):</b> If you are only doing the <b>Home Visit</b> today (or switching to another case link), tap <b>"Save Partial Visit (Home / Office) — Continue Later"</b> below. Your form & photos stay saved on the server and phone so the same link works tomorrow for the remaining visit!
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <button id="btnSavePartialVisit" type="button" onclick="submitDueDiligenceForm()" class="w-full py-3 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs sm:text-sm font-bold shadow flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
+          <span class="material-symbols-outlined text-[18px]">cloud_upload</span>
+          <span>Save Partial Visit (Home / Office) — Continue Later</span>
+        </button>
+        <button id="btnSubmitVerification" onclick="submitFinalPhysicalVerification()" class="w-full py-3 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-headline text-xs sm:text-sm font-bold shadow-md flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
+          <span class="material-symbols-outlined text-[18px]">send_and_archive</span>
+          <span>Submit & Complete All Visits (સંપૂર્ણ વેરિફિકેશન પૂર્ણ કરો)</span>
+        </button>
+      </div>
     </section>
 
   </main>
@@ -2300,7 +2310,7 @@
   </nav>
 
   <!-- Interactive JavaScript Engine -->
-  <script src="/static/agent-pwa.js?v=9"></script>
+  <script src="/static/agent-pwa.js?v=10"></script>
 
   <!-- FIELD AGENT AUTHENTICATION MODAL -->
   <div id="agentLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">

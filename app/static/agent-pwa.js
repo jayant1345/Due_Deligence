@@ -193,7 +193,12 @@
     const _savedCaseId = localStorage.getItem("pwa_active_case_id");
 
     let activeCaseKey = _paramCaseInit || _savedCaseKey || "UBI-HL-2026-531";
-    let sampleCaseId = _savedCaseId || (caseRegistryPwa[activeCaseKey] ? caseRegistryPwa[activeCaseKey].id : "b8df82fd-e33a-493e-8d4b-a802861cf294");
+    // Only reuse _savedCaseId if the URL's ?case= matches _savedCaseKey (or no ?case= was passed);
+    // if the agent opened a NEW WhatsApp link (?case=Case2) while _savedCaseKey was Case1, never
+    // initialize sampleCaseId with Case1's UUID!
+    let sampleCaseId = (!_paramCaseInit || _paramCaseInit === _savedCaseKey)
+      ? (_savedCaseId || (caseRegistryPwa[activeCaseKey] ? caseRegistryPwa[activeCaseKey].id : "b8df82fd-e33a-493e-8d4b-a802861cf294"))
+      : (caseRegistryPwa[activeCaseKey] ? caseRegistryPwa[activeCaseKey].id : undefined);
     let TARGET_LAT = (caseRegistryPwa[activeCaseKey] || {}).lat || 23.2156;
     let TARGET_LON = (caseRegistryPwa[activeCaseKey] || {}).lon || 72.6369;
     let currentDeviceLat = (caseRegistryPwa[activeCaseKey] || {}).dev_lat || 23.2154;
@@ -379,6 +384,7 @@
       });
       labelEl.classList.remove("bg-white", "border-outline-variant", "text-on-surface");
       labelEl.classList.add("bg-blue-50", "border-blue-300", "text-primary-container", "font-bold");
+      if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
     }
 
     // Shared Yes/No "pill" toggle styling for radio groups like pwaNameBoardRadio and
@@ -660,6 +666,9 @@
         alert("This case is still loading. Please wait a moment for the case details to finish loading, then try taking the photo again.");
         return;
       }
+      // Auto-persist any questionnaire answers typed so far before launching the mobile camera
+      // (Android/iOS can evict background tabs while the camera app is open).
+      if (typeof savePwaFormDraftLocally === "function") savePwaFormDraftLocally();
       activeUploadSlot = slotNum;
       activeDocType = docType;
       if (folder) currentPwaFolder = folder;
@@ -1049,6 +1058,10 @@
         if (btnTextEl) btnTextEl.textContent = "Re-take Photo";
       }
       updateEvidenceProgress();
+      // Auto-sync the Due Diligence Questionnaire whenever an evidence photo is confirmed, so
+      // even if the agent captures all 4 Residence photos and switches directly to another case link
+      // without tapping the Save Questionnaire button, all form answers are already saved on the server.
+      if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
 
           // Unlock capture right away - the slot is already saved locally (preview + localStorage)
           // and the server upload below runs in the background. The agent must never be made to
@@ -1510,6 +1523,7 @@
     function addFamilyMemberRow() {
       familyMembers.push({ name: "", age: "", relation: "Relative / Other (અન્ય)", occupation: "Job / Salaried (નોકરી)" });
       renderFamilyMembers();
+      if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
     }
 
     function removeFamilyMemberRow(idx) {
@@ -1519,6 +1533,7 @@
       }
       familyMembers.splice(idx, 1);
       renderFamilyMembers();
+      if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
     }
 
     function updateFamilyMember(idx, field, val) {
@@ -1529,10 +1544,12 @@
           if (ageNum > 0 && ageNum < 18 && (familyMembers[idx].occupation || "").startsWith("Job")) {
             familyMembers[idx].occupation = "Student (વિદ્યાર્થી)";
             renderFamilyMembers();
+            if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
             return;
           }
         }
         syncFamilyTextarea();
+        if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
       }
     }
 
@@ -1629,6 +1646,7 @@
       if (visibleAssets[idx]) {
         visibleAssets[idx].active = !visibleAssets[idx].active;
         renderAssetsChips();
+        if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
       }
     }
 
@@ -1642,6 +1660,7 @@
       visibleAssets.push({ id: "custom_" + Date.now(), name: val.toUpperCase(), active: true });
       if (input) input.value = "";
       renderAssetsChips();
+      if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
     }
 
     function syncAssetsInput() {
@@ -2149,12 +2168,14 @@
         office_details: { occupation: "Job", work_from_home: "No" },
       });
       renderExtraCoApplicantsPwa();
+      if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
     }
 
     function removeExtraCoApplicantPwaRow(idx) {
       pwaExtraCoApplicants.splice(idx, 1);
       pwaExtraCoApplicants.forEach((item, i) => { item.slot = i + 3; });
       renderExtraCoApplicantsPwa();
+      if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
     }
 
     function updateExtraCoApplicantPwa(idx, field, val) {
@@ -2164,6 +2185,7 @@
         if (!pwaExtraCoApplicants[idx].office_details) pwaExtraCoApplicants[idx].office_details = {};
         pwaExtraCoApplicants[idx].office_details.occupation = val;
       }
+      if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
     }
 
     function updateExtraCoApplicantPwaOffice(idx, field, val) {
@@ -2182,6 +2204,7 @@
       } else {
         off[field] = val;
       }
+      if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
     }
 
     function renderPwaCoApplicantsBanner(c) {
@@ -2207,43 +2230,29 @@
       }
     }
 
-    async function submitDueDiligenceForm(opts = {}) {
-      const isSilent = Boolean(opts && opts.silent);
-      // sampleCaseId is intentionally left unset while a just-switched-to case is still loading
-      // its real data from the server (see switchPwaCase's placeholder branch) - saving here
-      // would otherwise either queue against a literal "undefined" case id that can never sync,
-      // or (before that placeholder existed) silently save under whichever case was PREVIOUSLY
-      // open. Block the save and tell the agent to wait, instead of either of those.
-      if (!sampleCaseId) {
-        if (!isSilent) alert("This case is still loading. Please wait a moment for the case details to finish loading, then try saving again.");
-        return;
-      }
-      if (!agentSelfieDataUrl && !isSilent) {
-        if (!confirm("Field Staff Selfie has not been captured yet. Capturing your selfie authenticates attendance to start the survey. Do you wish to continue without selfie?")) {
-          return;
-        }
-      }
+    // ==========================================
+    // PER-CASE AUTOMATIC FORM PERSISTENCE & MULTI-DAY HOME/OFFICE VISIT ENGINE
+    // ==========================================
+    let isSwitchingPwaCase = false;
+    let pwaFormAutoSyncTimer = null;
 
-      const exec = document.getElementById("formExecutive").value;
-      const persona = document.getElementById("formPersona").value;
+    function collectPwaDueDiligencePayload() {
+      const exec = document.getElementById("formExecutive") ? document.getElementById("formExecutive").value : "";
+      const persona = document.getElementById("formPersona") ? document.getElementById("formPersona").value : "Applicant";
       const contactNumber = document.getElementById("formContactNumber") ? document.getElementById("formContactNumber").value.trim() : "";
-      const marital = document.getElementById("formMarital").value;
+      const marital = document.getElementById("formMarital") ? document.getElementById("formMarital").value : "Married (પરિણિત)";
       const ageComm = (document.getElementById("formAge") || {}).value || "";
       const communityChecked = document.querySelector('input[name="pwaCommRadio"]:checked');
       const community = communityChecked ? communityChecked.value : "";
       const qualification = document.getElementById("formQualification") ? document.getElementById("formQualification").value : "";
-      const bType = document.getElementById("formBuildingType").value;
-      const bhk = document.getElementById("formBhk").value;
-      const own = document.getElementById("formOwnership").value;
-      const stay = document.getElementById("formStayDuration").value;
-      const owner = document.getElementById("formOwnerName").value;
-      const refs = document.getElementById("formReferences").value;
+      const bType = document.getElementById("formBuildingType") ? document.getElementById("formBuildingType").value : "Flat";
+      const bhk = document.getElementById("formBhk") ? document.getElementById("formBhk").value : "3 BHK";
+      const own = document.getElementById("formOwnership") ? document.getElementById("formOwnership").value : "Owned";
+      const stay = document.getElementById("formStayDuration") ? document.getElementById("formStayDuration").value : "";
+      const owner = document.getElementById("formOwnerName") ? document.getElementById("formOwnerName").value : "";
+      const refs = document.getElementById("formReferences") ? document.getElementById("formReferences").value : "";
       const landmark = document.getElementById("formLandmark") ? document.getElementById("formLandmark").value.trim() : "";
-      // Combine the Name/Contact box with the explicit Relation dropdown into the same
-      // "Name - Phone (Relation)" string the backend already parses (person_met) - an explicit
-      // dropdown is far more reliable than expecting the agent to type "(Relation)" by hand, and
-      // this way no backend change is needed to make use of it.
-      const personMetRaw = document.getElementById("formPersonMet").value.trim();
+      const personMetRaw = document.getElementById("formPersonMet") ? document.getElementById("formPersonMet").value.trim() : "";
       const personMetRelationSel = document.getElementById("formPersonMetRelation") ? document.getElementById("formPersonMetRelation").value : "";
       const personMet = personMetRelationSel ? `${personMetRaw} (${personMetRelationSel})` : personMetRaw;
       const occupation = document.getElementById("formOccupation") ? document.getElementById("formOccupation").value : "Job";
@@ -2277,9 +2286,6 @@
       const bankAccountStatus = document.getElementById("formBankAccountStatus") ? document.getElementById("formBankAccountStatus").value : "";
       const bankAccountStatusCo = document.getElementById("formCoBankAccountStatus") ? document.getElementById("formCoBankAccountStatus").value : "";
 
-      // Co-applicant office details - only actually submitted when this case has a
-      // co-applicant (Module 3B visible); omitted entirely for ordinary single-applicant
-      // cases rather than saving an empty/irrelevant object onto every case.
       const coModuleVisible = (() => {
         const el = document.getElementById("coApplicantOfficeModule");
         return el && !el.classList.contains("hidden");
@@ -2323,8 +2329,6 @@
         };
       }
 
-      // Co-applicant residence details - only submitted when the CA office flagged a separate
-      // co-applicant home address (Module 3C visible), same opt-in pattern as office_details_co.
       const coResModuleVisible = (() => {
         const el = document.getElementById("coApplicantResidenceModule");
         return el && !el.classList.contains("hidden");
@@ -2346,10 +2350,6 @@
 
       const assetsObserved = (document.getElementById("formAssetsObserved") || {}).value
         || visibleAssets.filter(a => a.active).map(a => a.name || a.label || a.id).filter(Boolean).join(", ");
-      // The Name board Visibility Yes/No radio (pwaNameBoardRadio) was a real, filled-in field
-      // in the UI that this function never actually read - it hardcoded nameboard_visible to ""
-      // regardless of the agent's answer, so the data the field staff correctly captured never
-      // reached the server at all, let alone the report.
       const nameboardRadio = document.querySelector('input[name="pwaNameBoardRadio"]:checked');
       const nameboardVisible = nameboardRadio ? nameboardRadio.value : "";
       const buildingNature = document.getElementById("formBuildingNature") ? document.getElementById("formBuildingNature").value.trim() : "";
@@ -2359,11 +2359,12 @@
       const resEvidenceRadio = document.querySelector('input[name="pwaResEvidenceRadio"]:checked');
       const resEvidence = resEvidenceRadio ? resEvidenceRadio.value : "";
 
-      const payload = {
+      return {
+        _updated_at: Date.now(),
         executive: exec,
         persona: persona,
-        agent_selfie: agentSelfieDataUrl || localStorage.getItem("selfie_" + sampleCaseId) || null,
-        agent_selfie_captured_at: localStorage.getItem("selfie_timestamp_" + sampleCaseId) || new Date().toISOString(),
+        agent_selfie: agentSelfieDataUrl || (sampleCaseId ? localStorage.getItem("selfie_" + sampleCaseId) : null) || null,
+        agent_selfie_captured_at: (sampleCaseId ? localStorage.getItem("selfie_timestamp_" + sampleCaseId) : null) || new Date().toISOString(),
         contact_number: contactNumber,
         marital_status: marital,
         age_community: ageComm,
@@ -2429,13 +2430,6 @@
         co_applicant_qualification: officeDetailsCo ? officeDetailsCo.qualification : undefined,
         co_applicant_occupation: officeDetailsCo ? officeDetailsCo.occupation : undefined,
         extra_co_applicants: pwaExtraCoApplicants.filter(x => x && (x.name || "").trim()),
-        // Raw, lossless values for restoring the form's own inputs when this case is reopened
-        // (the fields above are flattened/combined for the report, which loses information -
-        // e.g. building_type above merges BHK into one string, family_members is a flat
-        // textarea string, neighbours get split into two keys). Without these, switching away
-        // from a case and back wiped every Residential Details & Family field blank even
-        // though the data had been saved successfully - only photos persisted, because those
-        // are restored from their own CaseDocument records, not from this form payload at all.
         restore: {
           bhk: bhk,
           building_type_only: bType,
@@ -2450,8 +2444,9 @@
           landmark: landmark,
           person_met: personMet,
           neighbors: [(refs.split(",")[0] || "").trim(), (refs.split(",")[1] || "").trim()].filter(Boolean),
-          family_members: familyMembers,
+          family_members: JSON.parse(JSON.stringify(familyMembers)),
           active_asset_ids: visibleAssets.filter(a => a.active).map(a => a.id),
+          custom_assets: visibleAssets.filter(a => String(a.id || "").startsWith("custom_")).map(a => ({ id: a.id, name: a.name, active: a.active })),
           itr_acknowledgement_no: itrAckNo,
           itr_filing_date: itrFilingDate,
           bank_account_status: bankAccountStatus,
@@ -2464,66 +2459,392 @@
           residence_evidence_obtained: resEvidence,
         },
       };
+    }
+
+    function applyFormPayloadToCaseEntryPwa(c, formData) {
+      if (!c || !formData || typeof formData !== "object") return c;
+      const r = formData.restore || {};
+      const off = formData.office_details || {};
+      const offCo = formData.office_details_co || {};
+      const resCo = formData.residence_details_co || {};
+      const prevLoan = formData.previous_loan || {};
+
+      if (formData.executive) c.executive = formData.executive;
+      if (formData.persona) c.persona = formData.persona;
+
+      // Parse BHK and Building Type from restore or top-level building_type
+      if (r.bhk) {
+        c.bhk = r.bhk;
+      } else if (formData.building_type) {
+        const bhkMatch = String(formData.building_type).match(/\b([1-5]\s*BHK)\b/i);
+        if (bhkMatch) c.bhk = bhkMatch[1].toUpperCase();
+      }
+      if (r.building_type_only) {
+        c.building_type = r.building_type_only;
+      } else if (formData.building_type) {
+        const stripped = String(formData.building_type).replace(/\b[1-5]\s*BHK\b/i, "").trim();
+        if (stripped) c.building_type = stripped;
+      }
+
+      if (r.ownership !== undefined || formData.ownership !== undefined) {
+        c.ownership = r.ownership !== undefined ? r.ownership : formData.ownership;
+      }
+      if (r.period_of_stay !== undefined || formData.period_of_stay !== undefined) {
+        c.stay_period = r.period_of_stay !== undefined ? r.period_of_stay : formData.period_of_stay;
+      }
+      if (r.owner_name !== undefined || formData.owner_name !== undefined) {
+        c.owner_name = r.owner_name !== undefined ? r.owner_name : formData.owner_name;
+      }
+      if (r.marital_status !== undefined || formData.marital_status !== undefined) {
+        c.marital = r.marital_status !== undefined ? r.marital_status : formData.marital_status;
+      }
+      if (r.age_community !== undefined || formData.age_community !== undefined) {
+        c.age = r.age_community !== undefined ? r.age_community : formData.age_community;
+      }
+      if (r.community !== undefined || formData.community !== undefined) {
+        c.community = r.community !== undefined ? r.community : formData.community;
+      }
+      if (r.qualification !== undefined || formData.qualification !== undefined) {
+        c.qualification = r.qualification !== undefined ? r.qualification : formData.qualification;
+      }
+      if (r.contact_number || formData.contact_number) {
+        c.phone = r.contact_number || formData.contact_number;
+      }
+      if (r.landmark !== undefined || formData.landmark !== undefined) {
+        c.landmark = r.landmark !== undefined ? r.landmark : formData.landmark;
+      }
+      if (r.person_met !== undefined || formData.person_met !== undefined) {
+        c.person_met = r.person_met !== undefined ? r.person_met : formData.person_met;
+      }
+      if (Array.isArray(r.neighbors) && r.neighbors.length > 0) {
+        c.neighbors = r.neighbors;
+      } else if (formData.neighbour_1 || formData.neighbour_2) {
+        c.neighbors = [formData.neighbour_1, formData.neighbour_2].filter(Boolean);
+      }
+      if (Array.isArray(r.family_members) && r.family_members.length > 0) {
+        c.family_members = JSON.parse(JSON.stringify(r.family_members));
+      } else if (Array.isArray(formData.family_members) && formData.family_members.length > 0) {
+        c.family_members = JSON.parse(JSON.stringify(formData.family_members));
+      }
+      if (Array.isArray(r.custom_assets)) {
+        c.custom_assets = r.custom_assets;
+      }
+      if (Array.isArray(r.active_asset_ids)) {
+        c.active_asset_ids = r.active_asset_ids;
+      } else if (formData.assets_observed) {
+        const obsUpper = String(formData.assets_observed).toUpperCase();
+        c.active_asset_ids = visibleAssets
+          .filter(a => obsUpper.includes(String(a.name || "").split(" (")[0].toUpperCase()) || obsUpper.includes(String(a.id || "").toUpperCase()))
+          .map(a => a.id);
+      }
+      if (r.nameboard_visible !== undefined || formData.nameboard_visible !== undefined) {
+        c.nameboard_visible = r.nameboard_visible || formData.nameboard_visible || "No";
+      }
+      if (r.building_nature !== undefined || formData.building_nature !== undefined) {
+        c.building_nature = r.building_nature !== undefined ? r.building_nature : formData.building_nature;
+      }
+      if (r.general_appearance !== undefined || formData.general_appearance !== undefined) {
+        c.general_appearance = r.general_appearance !== undefined ? r.general_appearance : formData.general_appearance;
+      }
+      if (r.locality !== undefined || formData.locality !== undefined) {
+        c.locality = r.locality !== undefined ? r.locality : formData.locality;
+      }
+      if (r.surroundings !== undefined || formData.surroundings !== undefined) {
+        c.surroundings = r.surroundings !== undefined ? r.surroundings : formData.surroundings;
+      }
+      if (r.residence_evidence_obtained !== undefined || formData.residence_evidence_obtained !== undefined) {
+        const rawEv = r.residence_evidence_obtained || formData.residence_evidence_obtained || "";
+        c.residence_evidence_obtained = String(rawEv).toLowerCase().startsWith("yes") ? "Yes" : (rawEv || "No");
+      }
+
+      // Module 3: Office Details
+      if (formData.occupation || off.occupation) c.occupation = formData.occupation || off.occupation;
+      if (off.firm_name !== undefined) c.firm_name = off.firm_name;
+      if (off.position !== undefined || off.designation !== undefined) {
+        c.position = off.position || off.designation || "";
+        c.designation = c.position;
+      }
+      if (off.address) c.office_address = off.address;
+      if (off.work_from_home !== undefined) c.work_from_home = off.work_from_home;
+      if (off.firm_type !== undefined) c.firm_type = off.firm_type;
+      if (off.employees !== undefined) c.employees = off.employees;
+      if (off.nameboard !== undefined) c.nameboard = off.nameboard;
+      if (off.infrastructure !== undefined) c.infrastructure = off.infrastructure;
+      if (off.premises_ownership !== undefined) c.premises_ownership = off.premises_ownership;
+      if (off.premises_owner !== undefined) c.premises_owner = off.premises_owner;
+      if (off.landmark !== undefined) c.office_landmark = off.landmark;
+      if (off.established_since !== undefined) c.office_established_since = off.established_since;
+      if (off.location !== undefined) c.office_location = off.location;
+      if (off.assets !== undefined) c.office_assets = off.assets;
+      if (off.reference_1 || off.reference_2 || off.reference) {
+        c.office_references = [off.reference_1 || off.reference, off.reference_2].filter(Boolean);
+      }
+      if (off.who_meet !== undefined) c.office_who_meet = off.who_meet;
+      if (off.reg_no !== undefined) c.office_reg_no = off.reg_no;
+      if (off.assessment !== undefined) c.office_assessment = off.assessment;
+
+      // Module 4: Previous Loan
+      if (prevLoan.loan_type !== undefined) c.prev_loan_type = prevLoan.loan_type;
+      if (prevLoan.amount !== undefined) c.prev_loan_amount = prevLoan.amount;
+      if (prevLoan.bank !== undefined) c.prev_loan_bank = prevLoan.bank;
+      if (prevLoan.date !== undefined) c.prev_loan_date = prevLoan.date;
+
+      // Module 3B: Co-Applicant Office
+      if (formData.co_applicant_name || offCo.name) c.co_applicant_name = formData.co_applicant_name || offCo.name || c.co_applicant_name;
+      if (formData.co_applicant_contact || offCo.contact_number) c.co_applicant_phone = formData.co_applicant_contact || offCo.contact_number || c.co_applicant_phone;
+      if (formData.co_applicant_age || offCo.age) c.co_applicant_age = offCo.age || formData.co_applicant_age || c.co_applicant_age;
+      if (offCo.marital_status || formData.co_applicant_marital_status) c.co_marital_status = offCo.marital_status || formData.co_applicant_marital_status;
+      if (offCo.community !== undefined) c.co_community = offCo.community;
+      if (offCo.qualification || formData.co_applicant_qualification) c.co_qualification = offCo.qualification || formData.co_applicant_qualification;
+      if (offCo.relation_to_applicant !== undefined) c.co_relation_to_applicant = offCo.relation_to_applicant;
+      if (offCo.occupation || formData.co_applicant_occupation) c.co_occupation = offCo.occupation || formData.co_applicant_occupation;
+      if (offCo.firm_name !== undefined) c.co_firm_name = offCo.firm_name;
+      if (offCo.position !== undefined || offCo.designation !== undefined) c.co_position = offCo.position || offCo.designation || "";
+      if (offCo.address) c.co_office_address = offCo.address;
+      if (offCo.firm_type !== undefined) c.co_firm_type = offCo.firm_type;
+      if (offCo.employees !== undefined) c.co_employees = offCo.employees;
+      if (offCo.nameboard !== undefined) c.co_nameboard = offCo.nameboard;
+      if (offCo.infrastructure !== undefined) c.co_infrastructure = offCo.infrastructure;
+      if (offCo.premises_ownership !== undefined) c.co_premises_ownership = offCo.premises_ownership;
+      if (offCo.premises_owner !== undefined) c.co_premises_owner = offCo.premises_owner;
+      if (offCo.landmark !== undefined) c.co_office_landmark = offCo.landmark;
+      if (offCo.established_since !== undefined) c.co_office_established_since = offCo.established_since;
+      if (offCo.location !== undefined) c.co_office_location = offCo.location;
+      if (offCo.assets !== undefined) c.co_office_assets = offCo.assets;
+      if (offCo.reference_1 || offCo.reference_2 || offCo.reference) {
+        c.co_office_references = [offCo.reference_1 || offCo.reference, offCo.reference_2].filter(Boolean);
+      }
+      if (offCo.who_meet !== undefined) c.co_office_who_meet = offCo.who_meet;
+      if (offCo.reg_no !== undefined) c.co_office_reg_no = offCo.reg_no;
+
+      // Module 3C: Co-Applicant Residence
+      if (resCo.building_type !== undefined) c.co_res_building_type = resCo.building_type;
+      if (resCo.period_of_stay !== undefined) c.co_res_period_of_stay = resCo.period_of_stay;
+      if (resCo.owner_name !== undefined) c.co_res_owner_name = resCo.owner_name;
+      if (resCo.landmark !== undefined) c.co_res_landmark = resCo.landmark;
+      if (resCo.person_met !== undefined) c.co_res_person_met = resCo.person_met;
+      if (resCo.neighbour_1 !== undefined) c.co_res_neighbour_1 = resCo.neighbour_1;
+      if (resCo.neighbour_2 !== undefined) c.co_res_neighbour_2 = resCo.neighbour_2;
+
+      // Module 3D: Additional Co-Applicants
+      if (Array.isArray(formData.extra_co_applicants) && formData.extra_co_applicants.length > 0) {
+        c.extra_co_applicants = JSON.parse(JSON.stringify(formData.extra_co_applicants));
+      }
+      return c;
+    }
+
+    function savePwaFormDraftLocally(explicitPayload) {
+      if (isSwitchingPwaCase || !sampleCaseId) return null;
+      const appDisp = document.getElementById("applicantNameDisplay");
+      if (appDisp && appDisp.textContent === "Loading case...") return null;
+
+      const payload = explicitPayload || collectPwaDueDiligencePayload();
+      // Update in-memory registry immediately so any re-render (e.g. loadCaseDocumentsIntoPwa) preserves edits
+      if (activeCaseKey && caseRegistryPwa[activeCaseKey]) {
+        applyFormPayloadToCaseEntryPwa(caseRegistryPwa[activeCaseKey], payload);
+      }
+      if (sampleCaseId && caseRegistryPwa[sampleCaseId] && caseRegistryPwa[sampleCaseId] !== caseRegistryPwa[activeCaseKey]) {
+        applyFormPayloadToCaseEntryPwa(caseRegistryPwa[sampleCaseId], payload);
+      }
+
+      // Strip large base64 selfie from draft JSON (selfie is already stored separately under selfie_<caseId>)
+      const draftCopy = Object.assign({}, payload, { agent_selfie: null });
+      try {
+        const serialized = JSON.stringify(draftCopy);
+        localStorage.setItem(`pwa_form_draft_${sampleCaseId}`, serialized);
+        if (activeCaseKey) {
+          localStorage.setItem(`pwa_form_draft_${activeCaseKey}`, serialized);
+        }
+      } catch (e) {
+        console.warn("Could not save form draft to localStorage:", e);
+      }
+      return payload;
+    }
+
+    function loadPwaFormDraftLocally(caseId, caseKey) {
+      const keysToTry = [
+        caseId ? `pwa_form_draft_${caseId}` : null,
+        caseKey ? `pwa_form_draft_${caseKey}` : null,
+        caseId ? `field_form_${caseId}` : null,
+        caseKey ? `field_form_${caseKey}` : null,
+      ].filter(Boolean);
+      let bestDraft = null;
+      for (const k of keysToTry) {
+        try {
+          const raw = localStorage.getItem(k);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object") {
+            if (!bestDraft || (parsed._updated_at || 0) > (bestDraft._updated_at || 0)) {
+              bestDraft = parsed;
+            }
+          }
+        } catch (e) {}
+      }
+      return bestDraft;
+    }
+
+    function mergeServerAndLocalDraftFormData(serverData, draftData) {
+      const s = (serverData && typeof serverData === "object") ? serverData : {};
+      const d = (draftData && typeof draftData === "object") ? draftData : null;
+      if (!d) return { merged: s, hasNewerLocalDraft: false };
+
+      const serverHasRestore = Boolean(s.restore && Object.keys(s.restore).length > 0);
+      const draftIsNewer = !serverHasRestore || ((d._updated_at || 0) >= (s._updated_at || 0));
+
+      const pickVal = (sVal, dVal) => {
+        const sEmpty = sVal === undefined || sVal === null || sVal === "" || (Array.isArray(sVal) && sVal.length === 0);
+        const dEmpty = dVal === undefined || dVal === null || dVal === "" || (Array.isArray(dVal) && dVal.length === 0);
+        if (draftIsNewer) return !dEmpty ? dVal : sVal;
+        return !sEmpty ? sVal : dVal;
+      };
+
+      const merged = Object.assign({}, s);
+      for (const k of Object.keys(d)) {
+        if (k === "office_details" || k === "office_details_co" || k === "residence_details_co" || k === "previous_loan" || k === "restore") {
+          continue;
+        }
+        merged[k] = pickVal(s[k], d[k]);
+      }
+      ["office_details", "office_details_co", "residence_details_co", "previous_loan", "restore"].forEach(subKey => {
+        if (d[subKey] && typeof d[subKey] === "object") {
+          const sSub = (s[subKey] && typeof s[subKey] === "object") ? s[subKey] : {};
+          const mSub = Object.assign({}, sSub);
+          for (const sk of Object.keys(d[subKey])) {
+            mSub[sk] = pickVal(sSub[sk], d[subKey][sk]);
+          }
+          merged[subKey] = mSub;
+        }
+      });
+      return { merged, hasNewerLocalDraft: draftIsNewer };
+    }
+
+    function schedulePwaFormAutoSave() {
+      if (isSwitchingPwaCase || !sampleCaseId) return;
+      savePwaFormDraftLocally();
+      if (pwaFormAutoSyncTimer) clearTimeout(pwaFormAutoSyncTimer);
+      pwaFormAutoSyncTimer = setTimeout(() => {
+        if (!isSwitchingPwaCase && sampleCaseId) {
+          submitDueDiligenceForm({ silent: true, autoDraft: true });
+        }
+      }, 1800);
+    }
+
+    function flushPwaFormWithKeepalive() {
+      if (isSwitchingPwaCase || !sampleCaseId) return;
+      const payload = savePwaFormDraftLocally();
+      if (!payload) return;
+      try {
+        const bodyStr = JSON.stringify({ form_data: Object.assign({}, payload, { agent_selfie: null }) });
+        fetch(`/api/v1/visits/cases/${sampleCaseId}/field-form`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: bodyStr,
+          keepalive: true,
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
+    async function submitDueDiligenceForm(opts = {}) {
+      const isSilent = Boolean(opts && opts.silent);
+      const isAutoDraft = Boolean(opts && opts.autoDraft);
+      if (!sampleCaseId) {
+        if (!isSilent) alert("This case is still loading. Please wait a moment for the case details to finish loading, then try saving again.");
+        return;
+      }
+      if (!agentSelfieDataUrl && !isSilent) {
+        if (!confirm("Field Staff Selfie has not been captured yet. Capturing your selfie authenticates attendance to start the survey. Do you wish to continue without selfie?")) {
+          return;
+        }
+      }
+
+      const targetCaseId = sampleCaseId;
+      const targetCaseKey = activeCaseKey;
+      const payload = collectPwaDueDiligencePayload();
+      // Always persist locally per-case immediately (both online & offline) so switching cases or closing the browser never loses form data
+      savePwaFormDraftLocally(payload);
+
+      const bhk = (payload.restore && payload.restore.bhk) || "3 BHK";
+      const bType = (payload.restore && payload.restore.building_type_only) || "Flat";
+      const own = payload.ownership || "Owned";
+      const stay = payload.period_of_stay || "";
+      const exec = payload.executive || "";
+      const persona = payload.persona || "Applicant";
+      const assetsObserved = payload.assets_observed || "";
 
       const alertBox = document.getElementById("uploadAlert");
       const alertText = document.getElementById("uploadAlertText");
-      alertBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-200 text-primary-container text-xs flex items-center justify-between";
-      alertBox.classList.remove("hidden");
-      alertText.textContent = "Syncing Due Diligence Form to CA Verification Portal...";
-      setUploadAlertIcon(true, "text-blue-600", "autorenew");
+      if (!isAutoDraft && alertBox && alertText) {
+        alertBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-200 text-primary-container text-xs flex items-center justify-between";
+        alertBox.classList.remove("hidden");
+        alertText.textContent = "Syncing Due Diligence Form to CA Verification Portal...";
+        setUploadAlertIcon(true, "text-blue-600", "autorenew");
+      }
 
-      // Shown right next to the Save button itself, scrolled into view, so the agent sees
-      // confirmation at the exact spot they just tapped - not only in the shared status banner
-      // two whole sections further down the page, which was easy to miss on a phone screen.
       const confirmBox = document.getElementById("formSubmitConfirm");
-      const showSubmitConfirm = (cls, html) => {
+      const showSubmitConfirm = (cls, html, scroll) => {
         if (!confirmBox) return;
         confirmBox.className = `p-3 rounded-lg text-xs font-bold flex items-center gap-2 ${cls}`;
         confirmBox.innerHTML = html;
         confirmBox.classList.remove("hidden");
-        confirmBox.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (scroll) confirmBox.scrollIntoView({ behavior: "smooth", block: "center" });
       };
 
       try {
-        const res = await fetch(`/api/v1/visits/cases/${sampleCaseId}/field-form`, {
+        const res = await fetch(`/api/v1/visits/cases/${targetCaseId}/field-form`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ form_data: payload })
         });
         const resData = await res.json().catch(() => ({}));
         if (res.ok && resData.status !== "offline_queued") {
-          alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
-          alertText.innerHTML = `<b>✓ Data Uploaded Successfully!</b> ${bhk} ${bType} (${own}), ${stay} stay, ${visibleAssets.filter(a=>a.active).length} assets. Pushed to CA Portal for Scrutiny.`;
-          setUploadAlertIcon(false, "text-emerald-600", "check_circle");
           const savedAt = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+          if (!isAutoDraft && alertBox && alertText) {
+            alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
+            alertText.innerHTML = `<b>✓ Data Uploaded Successfully!</b> ${bhk} ${bType} (${own}), ${stay} stay, ${visibleAssets.filter(a=>a.active).length} assets. Pushed to CA Portal for Scrutiny.`;
+            setUploadAlertIcon(false, "text-emerald-600", "check_circle");
+          }
           if (!isSilent) {
             showSubmitConfirm(
               "bg-emerald-50 border border-emerald-300 text-emerald-900",
-              `<span class="material-symbols-outlined text-[18px] text-emerald-600">check_circle</span><span>Saved & synced to CA Portal at ${savedAt}</span>`
+              `<span class="material-symbols-outlined text-[18px] text-emerald-600">check_circle</span><span>Saved & synced to CA Portal at ${savedAt} (You can reopen this link anytime to continue Office / Home visit)</span>`,
+              true
             );
-            alert(`[✓] Due Diligence Form Synced Successfully!\nExecutive: ${exec}\nPersona: ${persona}\nProperty: ${bhk} ${bType} (${own})\nDuration of Stay: ${stay}\nAssets: ${assetsObserved}\nData has been pushed to CA Verification Desk.`);
+            alert(`[✓] Due Diligence Form Synced Successfully!\nCase: ${targetCaseKey}\nExecutive: ${exec}\nProperty: ${bhk} ${bType} (${own})\nDuration of Stay: ${stay}\n\nAll filled details are saved on the server & your phone. You can reopen this link tomorrow or switch cases anytime without losing data.`);
+          } else if (isAutoDraft && targetCaseId === sampleCaseId) {
+            showSubmitConfirm(
+              "bg-emerald-50/80 border border-emerald-200 text-emerald-800",
+              `<span class="material-symbols-outlined text-[16px] text-emerald-600">cloud_done</span><span>Auto-saved for Case ${targetCaseKey} at ${savedAt}</span>`,
+              false
+            );
           }
         } else {
-          localStorage.setItem(`field_form_${sampleCaseId}`, JSON.stringify(payload));
-          alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
-          alertText.innerHTML = `<b>✓ Cached Locally:</b> Form saved in PWA offline queue. Will auto-sync when online.`;
-          setUploadAlertIcon(false, "text-amber-600", "cloud_off");
+          localStorage.setItem(`field_form_${targetCaseId}`, JSON.stringify(Object.assign({}, payload, { agent_selfie: null })));
+          if (!isAutoDraft && alertBox && alertText) {
+            alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
+            alertText.innerHTML = `<b>✓ Cached Locally:</b> Form saved in PWA offline queue. Will auto-sync when online.`;
+            setUploadAlertIcon(false, "text-amber-600", "cloud_off");
+          }
           if (!isSilent) {
             showSubmitConfirm(
               "bg-amber-50 border border-amber-300 text-amber-900",
-              `<span class="material-symbols-outlined text-[18px] text-amber-600">cloud_off</span><span>Saved on this phone - will sync to CA Portal once back online</span>`
+              `<span class="material-symbols-outlined text-[18px] text-amber-600">cloud_off</span><span>Saved on this phone - will sync to CA Portal once back online</span>`,
+              true
             );
           }
         }
       } catch (e) {
-        localStorage.setItem(`field_form_${sampleCaseId}`, JSON.stringify(payload));
-        alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
-        alertText.innerHTML = `<b>✓ Offline Mode:</b> Form cached in PWA device storage. Will auto-sync when back in network.`;
-        setUploadAlertIcon(false, "text-amber-600", "cloud_off");
+        localStorage.setItem(`field_form_${targetCaseId}`, JSON.stringify(Object.assign({}, payload, { agent_selfie: null })));
+        if (!isAutoDraft && alertBox && alertText) {
+          alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
+          alertText.innerHTML = `<b>✓ Offline Mode:</b> Form cached in PWA device storage. Will auto-sync when back in network.`;
+          setUploadAlertIcon(false, "text-amber-600", "cloud_off");
+        }
         if (!isSilent) {
           showSubmitConfirm(
             "bg-amber-50 border border-amber-300 text-amber-900",
-            `<span class="material-symbols-outlined text-[18px] text-amber-600">cloud_off</span><span>Saved on this phone (offline) - will sync to CA Portal once back online</span>`
+            `<span class="material-symbols-outlined text-[18px] text-amber-600">cloud_off</span><span>Saved on this phone (offline) - will sync to CA Portal once back online</span>`,
+            true
           );
           alert(`[✓ Offline Saved] Due Diligence Form cached locally on your device. It will auto-sync with the CA Office portal when you are back in network.`);
         }
@@ -2535,6 +2856,13 @@
     // ==========================================
     function switchPwaCase(key) {
       const isActualSwitch = key !== activeCaseKey;
+      // Before switching away from the currently active case, persist its latest form draft into
+      // localStorage and caseRegistryPwa so no typed home/office details are ever lost.
+      if (isActualSwitch && sampleCaseId && !isSwitchingPwaCase) {
+        savePwaFormDraftLocally();
+      }
+      isSwitchingPwaCase = true;
+      try {
       let c = caseRegistryPwa[key];
       if (!c) {
         // A case this device has never cached yet (e.g. a brand-new case just handed over) -
@@ -2558,6 +2886,13 @@
           // being blocked until the network round-trip finishes.
           id: isActualSwitch ? undefined : sampleCaseId,
         };
+      }
+      // Overlay any locally-saved draft for this exact case onto `c` before rendering inputs
+      if (c && c.applicant !== "Loading case...") {
+        const localDraft = loadPwaFormDraftLocally(c.id, c.case_no || key);
+        if (localDraft) {
+          applyFormPayloadToCaseEntryPwa(c, localDraft);
+        }
       }
       if (isActualSwitch) resetAllPwaPhotoSlotsUi();
 
@@ -2623,17 +2958,22 @@
       }
 
       // ==========================================
-      // SYNCHRONIZE MODULE 2 (Residential & Family Inquiries) DYNAMICALLY
+      // SYNCHRONIZE MODULE 1 & MODULE 2 (Residential & Family Inquiries) DYNAMICALLY
       // ==========================================
+      if (c.executive) {
+        const fExec = document.getElementById("formExecutive");
+        if (fExec) fExec.value = c.executive;
+      }
+      if (c.persona) {
+        const fPersona = document.getElementById("formPersona");
+        if (fPersona) fPersona.value = c.persona;
+      }
       const fName = document.getElementById("formApplicantName");
       if (fName) fName.value = c.applicant;
       const fPhone = document.getElementById("formContactNumber");
       if (fPhone) fPhone.value = c.phone || "";
       const fAge = document.getElementById("formAge");
       if (fAge) fAge.value = c.age || "";
-      // Same stale-carryover bug as formCoMarital below: with no fallback here, switching to a
-      // case whose Marital Status hadn't been set yet left whichever OTHER case's selection was
-      // already showing, looking like a deliberate answer for this applicant.
       const fMarital = document.getElementById("formMarital");
       if (fMarital) fMarital.value = c.marital || "Married (પરિણિત)";
       document.querySelectorAll('input[name="pwaCommRadio"]').forEach(r => { r.checked = false; });
@@ -2650,20 +2990,17 @@
       const fAddr = document.getElementById("formAddressVisited");
       if (fAddr) fAddr.value = c.address;
       const fOwn = document.getElementById("formOwnership");
-      if (fOwn) fOwn.value = c.ownership || "";
+      if (fOwn) fOwn.value = c.ownership || "Owned";
       const fBType = document.getElementById("formBuildingType");
-      if (fBType) fBType.value = c.building_type || "";
+      if (fBType) fBType.value = c.building_type || "Flat";
       const fBhk = document.getElementById("formBhk");
-      if (fBhk) fBhk.value = c.bhk || "";
+      if (fBhk) fBhk.value = c.bhk || "3 BHK";
       const fStay = document.getElementById("formStayDuration");
       if (fStay) fStay.value = c.stay_period || "";
       const fOwner = document.getElementById("formOwnerName");
       if (fOwner) fOwner.value = c.owner_name || "";
       const fMet = document.getElementById("formPersonMet");
       const fMetRelation = document.getElementById("formPersonMetRelation");
-      // c.person_met is the combined "Name - Phone (Relation)" string - split it back apart so
-      // the Relation dropdown shows the right selection on reopen, not just dumped into the name
-      // box as raw text.
       const metRawVal = c.person_met || "";
       const metSplit = metRawVal.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
       if (fMet) fMet.value = metSplit ? metSplit[1].trim() : metRawVal;
@@ -2700,7 +3037,14 @@
       }
       renderFamilyMembers();
 
-      // Restore which "Assets Visible in Home" chips were previously tapped for this case.
+      // Restore custom assets and which "Assets Visible in Home" chips were previously tapped for this case.
+      if (Array.isArray(c.custom_assets)) {
+        c.custom_assets.forEach(ca => {
+          if (ca && ca.id && !visibleAssets.some(a => a.id === ca.id)) {
+            visibleAssets.push({ id: ca.id, name: ca.name || ca.id, active: Boolean(ca.active) });
+          }
+        });
+      }
       if (c.active_asset_ids && Array.isArray(c.active_asset_ids)) {
         const activeSet = new Set(c.active_asset_ids);
         visibleAssets.forEach(a => { a.active = activeSet.has(a.id); });
@@ -3134,6 +3478,9 @@
       updateAttestationProgress();
 
       updateGeofenceUI(currentDeviceLat, currentDeviceLon, 3.2);
+      } finally {
+        isSwitchingPwaCase = false;
+      }
     }
 
     // ==========================================
@@ -3230,6 +3577,15 @@
     // Agent picked a different one of their own cases from the "MY TASK" dropdown.
     async function handlePwaCaseDropdownChange(caseNo) {
       if (!caseNo || caseNo === activeCaseKey) return;
+      // Auto-save & sync current case's questionnaire before switching to the next case
+      if (sampleCaseId && !isSwitchingPwaCase) {
+        if (pwaFormAutoSyncTimer) {
+          clearTimeout(pwaFormAutoSyncTimer);
+          pwaFormAutoSyncTimer = null;
+        }
+        savePwaFormDraftLocally();
+        submitDueDiligenceForm({ silent: true, autoDraft: true }).catch(() => {});
+      }
       const token = localStorage.getItem("pwa_token");
       switchPwaCase(caseNo); // instant render from any locally-cached data for this case
       try {
@@ -3319,19 +3675,21 @@
 
           const key = target.case_no;
           const amtLakhs = target.loan_amount ? (target.loan_amount / 100000).toFixed(2) : "0.00";
-          let parsedFormData = {};
+          let serverFormData = {};
           if (target.field_form_data) {
             try {
-              parsedFormData = typeof target.field_form_data === 'string' ? JSON.parse(target.field_form_data) : target.field_form_data;
+              serverFormData = typeof target.field_form_data === 'string' ? JSON.parse(target.field_form_data) : target.field_form_data;
             } catch(e) {}
           }
+          // Merge server field_form_data with any locally-saved draft for THIS exact case so
+          // partial Home visit or Office visit edits typed on this phone are never lost when
+          // switching between cases or reopening the link later.
+          const localDraft = loadPwaFormDraftLocally(target.id, key);
+          const { merged: parsedFormData, hasNewerLocalDraft } = mergeServerAndLocalDraftFormData(serverFormData, localDraft);
           const off = parsedFormData.office_details || {};
           const occ = parsedFormData.occupation || off.position || off.occupation || "Job";
           const firm = off.firm_name || "";
           const pos = off.position || off.designation || "";
-          // Falls back to the CA office's own pre-typed office_address on the case record (new
-          // field, captured at case creation) until the agent has filled this in themselves on
-          // site - gives the agent a starting reference instead of a blank field to guess from.
           const offAddr = off.address || target.office_address || "";
           const offFirmType = off.firm_type || "";
           const offNumWorkers = off.employees || "";
@@ -3348,49 +3706,12 @@
           const offRegNo = off.reg_no || "";
           const offAssessment = off.assessment || "";
           const prevLoan = parsedFormData.previous_loan || {};
-          // Co-applicant office details - a case only has these when target.co_applicant_name
-          // is set server-side (dual-applicant case); the co-applicant's workplace is captured
-          // entirely separately from the primary applicant's, since they're frequently different.
           const offCo = parsedFormData.office_details_co || {};
           const resCo = parsedFormData.residence_details_co || {};
           const itrAckNoSaved = parsedFormData.itr_acknowledgement_no || "";
           const itrFilingDateSaved = parsedFormData.itr_filing_date || "";
           const bankAccountStatusSaved = parsedFormData.bank_account_status || "";
           const bankAccountStatusCoSaved = parsedFormData.bank_account_status_co || "";
-          // The lossless fields saved alongside the flattened report fields - see the
-          // "restore" comment in submitDueDiligenceForm(). Without these, every Residential
-          // Details & Family input went back to blank the moment the agent switched to a
-          // different case and back, even though the form had already been submitted.
-          const r = parsedFormData.restore || {};
-          // Object.assign would otherwise overwrite an already-known value with `undefined`
-          // for any case that has never had the form submitted (r is {}) - only patch in the
-          // keys that actually came back from a real submission.
-          const restorePatch = {};
-          if (r.bhk !== undefined) restorePatch.bhk = r.bhk;
-          if (r.building_type_only !== undefined) restorePatch.building_type = r.building_type_only;
-          if (r.ownership !== undefined) restorePatch.ownership = r.ownership;
-          if (r.period_of_stay !== undefined) restorePatch.stay_period = r.period_of_stay;
-          if (r.owner_name !== undefined) restorePatch.owner_name = r.owner_name;
-          if (r.marital_status !== undefined) restorePatch.marital = r.marital_status;
-          if (r.age_community !== undefined) restorePatch.age = r.age_community;
-          if (r.community !== undefined) restorePatch.community = r.community;
-          if (r.qualification !== undefined) restorePatch.qualification = r.qualification;
-          if (r.contact_number !== undefined) restorePatch.phone = r.contact_number;
-          if (r.landmark !== undefined) restorePatch.landmark = r.landmark;
-          if (r.person_met !== undefined) restorePatch.person_met = r.person_met;
-          if (r.neighbors !== undefined) restorePatch.neighbors = r.neighbors;
-          if (r.family_members !== undefined) restorePatch.family_members = r.family_members;
-          if (r.active_asset_ids !== undefined) restorePatch.active_asset_ids = r.active_asset_ids;
-          if (r.itr_acknowledgement_no !== undefined) restorePatch.itr_ack_no = r.itr_acknowledgement_no;
-          if (r.itr_filing_date !== undefined) restorePatch.itr_filing_date = r.itr_filing_date;
-          if (r.bank_account_status !== undefined) restorePatch.bank_account_status = r.bank_account_status;
-          if (r.bank_account_status_co !== undefined) restorePatch.bank_account_status_co = r.bank_account_status_co;
-          if (r.nameboard_visible !== undefined) restorePatch.nameboard_visible = r.nameboard_visible;
-          if (r.building_nature !== undefined) restorePatch.building_nature = r.building_nature;
-          if (r.general_appearance !== undefined) restorePatch.general_appearance = r.general_appearance;
-          if (r.locality !== undefined) restorePatch.locality = r.locality;
-          if (r.surroundings !== undefined) restorePatch.surroundings = r.surroundings;
-          if (r.residence_evidence_obtained !== undefined) restorePatch.residence_evidence_obtained = r.residence_evidence_obtained;
 
           const mergedCase = Object.assign({}, caseRegistryPwa[key] || {}, {
             id: target.id,
@@ -3452,9 +3773,6 @@
             extra_co_applicants: Array.isArray(parsedFormData.extra_co_applicants) ? parsedFormData.extra_co_applicants : [],
             co_firm_name: offCo.firm_name || "",
             co_position: offCo.position || offCo.designation || "",
-            // Falls back to the CA office's own pre-typed co_applicant_office_address on the
-            // case record (captured at case creation, same reasoning as offAddr above) until
-            // the agent has filled this in themselves on site.
             co_office_address: offCo.address || target.co_applicant_office_address || "",
             co_firm_type: offCo.firm_type || "",
             co_employees: offCo.employees || "",
@@ -3478,7 +3796,15 @@
             co_res_neighbour_1: resCo.neighbour_1 || "",
             co_res_neighbour_2: resCo.neighbour_2 || "",
             is_live_case: true,
-          }, restorePatch);
+          });
+          applyFormPayloadToCaseEntryPwa(mergedCase, parsedFormData);
+          if (localDraft && hasNewerLocalDraft && !(serverFormData && serverFormData.restore && Object.keys(serverFormData.restore).length > 0)) {
+            fetch(`/api/v1/visits/cases/${target.id}/field-form`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ form_data: parsedFormData })
+            }).catch(() => {});
+          }
 
           // Show/hide Module 3B and the Co-Applicant Office photo tab based on whether this
           // case actually has a co-applicant - set from the server, never guessed client-side.
@@ -3796,8 +4122,36 @@
             c.utility_provider = "Electricity Bill (manually uploaded)";
           }
 
-          // Re-render the currently visible case so the real scanned documents show up
-          switchPwaCase(activeCaseKey);
+          // Update ONLY the CA-provided KYC document cards & employer fallback in-place instead of
+          // calling switchPwaCase(activeCaseKey) a second time, which would otherwise overwrite any
+          // form fields the agent started typing while /documents?light=1 was in flight.
+          if (document.getElementById("pwaDocAadhaarName")) {
+            document.getElementById("pwaDocAadhaarName").textContent = c.applicant || "—";
+            document.getElementById("pwaDocAadhaarNo").textContent = c.aadhaar_no || "Aadhaar: Pending AI scan";
+            document.getElementById("pwaDocAadhaarDob").textContent = `DOB: ${c.dob || "Pending AI scan"}`;
+          }
+          if (document.getElementById("pwaDocPanName")) {
+            document.getElementById("pwaDocPanName").textContent = (c.applicant || "—").toUpperCase();
+            document.getElementById("pwaDocPanNo").textContent = `PAN: ${c.pan_no || "Pending AI scan"}`;
+            document.getElementById("pwaDocPanWard").textContent = (c.father_name ? `Father: ${c.father_name}` : (c.ward ? `WARD: ${c.ward}` : ""));
+          }
+          if (document.getElementById("pwaDocUtilityProvider")) {
+            document.getElementById("pwaDocUtilityProvider").textContent = c.utility_provider || "Electricity bill: Pending AI scan";
+            document.getElementById("pwaDocUtilityNo").textContent = c.utility_no || "";
+            document.getElementById("pwaDocUtilityMeter").textContent = c.meter_name || "";
+          }
+          const aadhImg = document.getElementById("pwaDocInlineAadhaarImg");
+          if (aadhImg) aadhImg.src = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
+          const panImg = document.getElementById("pwaDocInlinePanImg");
+          if (panImg) panImg.src = c.pan_front_img || "/static/placeholders/doc_pending.svg";
+          const utilImg = document.getElementById("pwaDocInlineUtilityImg");
+          if (utilImg) utilImg.src = c.utility_front_img || "/static/placeholders/doc_pending.svg";
+          const f16Img = document.getElementById("pwaDocInlineForm16Img");
+          if (f16Img) f16Img.src = c.form16_img || "/static/placeholders/doc_pending.svg";
+          const deedImg = document.getElementById("pwaDocInlineSaleDeedImg");
+          if (deedImg) deedImg.src = c.sale_deed_img || "/static/placeholders/doc_pending.svg";
+          const fFirm = document.getElementById("formFirmName");
+          if (fFirm && !fFirm.value && c.employer_name) fFirm.value = c.employer_name;
           const salaryEl = document.getElementById("pwaDocIncomeSalary");
           if (salaryEl && c.net_salary_text) salaryEl.textContent = c.net_salary_text;
         }
@@ -4568,4 +4922,25 @@
       if (navigator.onLine) {
         syncOfflineQueue(false);
       }
+
+      // Attach automatic per-case form persistence & background sync on every input/change
+      const qSec = document.getElementById("dueDiligenceQuestionnaireSection");
+      if (qSec) {
+        qSec.addEventListener("input", () => {
+          if (!isSwitchingPwaCase) schedulePwaFormAutoSave();
+        });
+        qSec.addEventListener("change", () => {
+          if (!isSwitchingPwaCase) schedulePwaFormAutoSave();
+        });
+      }
+      // Flush current form draft locally and to the server whenever the mobile browser tab is
+      // backgrounded (e.g. agent switches to WhatsApp to tap a second case link) or closed.
+      window.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+          flushPwaFormWithKeepalive();
+        }
+      });
+      window.addEventListener("pagehide", () => {
+        flushPwaFormWithKeepalive();
+      });
     });
