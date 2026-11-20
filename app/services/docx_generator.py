@@ -1012,12 +1012,23 @@ def generate_certified_cpv_docx(
     p_ca.add_run(
         f"For, NAIMISH N. SHAH & CO.\n"
         f"CHARTERED ACCOUNTANTS\n"
-        f"(F.R. No. {frn})\n\n"
+        f"(F.R. No. {frn})\n"
+    )
+    ca_sig_path = os.getenv("CA_SIGNATURE_IMAGE_PATH") or os.path.join("app", "static", "specimen_assets", "ca_pranav_signature.png")
+    if ca_sig_path and os.path.exists(ca_sig_path):
+        try:
+            p_ca.add_run().add_picture(ca_sig_path, width=Inches(1.85))
+            p_ca.add_run("\n")
+        except Exception:
+            p_ca.add_run("\n")
+    else:
+        p_ca.add_run("\n")
+    p_ca.add_run(
         f"({partner})\n"
         f"PARTNER\n"
         f"M. NO.: 033747\n"
         f"UDIN: {effective_udin}\n"
-        f"Signature: [Digitally Signed]\n\n"
+        f"Signature\n\n"
         f"Place: Ahmedabad\n"
         f"Date: {rep_date}\n"
         f"(Official seal of approved CPA agency)"

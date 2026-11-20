@@ -2043,21 +2043,42 @@ def generate_certified_cpv_report(
     story.append(Paragraph(cert_statement, body_style))
     story.append(Spacer(1, 10))
 
+    ca_sig_path = os.getenv("CA_SIGNATURE_IMAGE_PATH") or os.path.join("app", "static", "specimen_assets", "ca_pranav_signature.png")
+    ca_sign_cell = [
+        Paragraph(
+            f"<b>For, NAIMISH N. SHAH & CO.</b><br/>"
+            f"CHARTERED ACCOUNTANTS<br/>"
+            f"<b>(F.R. No. {frn})</b>",
+            body_style
+        ),
+    ]
+    if ca_sig_path and os.path.exists(ca_sig_path) and is_valid_image(ca_sig_path):
+        try:
+            sig_img = Image(ca_sig_path, width=1.85 * inch, height=0.52 * inch)
+            sig_img.hAlign = "LEFT"
+            ca_sign_cell.append(Spacer(1, 3))
+            ca_sign_cell.append(sig_img)
+            ca_sign_cell.append(Spacer(1, 3))
+        except Exception:
+            ca_sign_cell.append(Spacer(1, 10))
+    else:
+        ca_sign_cell.append(Spacer(1, 10))
+    ca_sign_cell.append(
+        Paragraph(
+            f"<b>({partner})</b><br/>"
+            f"PARTNER<br/>"
+            f"M. NO.: 033747<br/>"
+            f"<b>UDIN: {effective_udin}</b><br/>"
+            f"Signature<br/><br/>"
+            f"Place: Ahmedabad<br/>"
+            f"Date: {rep_date}",
+            body_style
+        )
+    )
+
     sign_data = [
         [
-            Paragraph(
-                f"<b>For, NAIMISH N. SHAH & CO.</b><br/>"
-                f"CHARTERED ACCOUNTANTS<br/>"
-                f"<b>(F.R. No. {frn})</b><br/><br/>"
-                f"<b>({partner})</b><br/>"
-                f"PARTNER<br/>"
-                f"M. NO.: 033747<br/>"
-                f"<b>UDIN: {effective_udin}</b><br/>"
-                f"<i>[Signature & Official Seal of Approved CPA Agency]</i><br/><br/>"
-                f"Place: Ahmedabad<br/>"
-                f"Date: {rep_date}",
-                body_style
-            ),
+            ca_sign_cell,
             Paragraph(
                 "<b>CONFIRMATION BY BRANCH HEAD:</b><br/><br/>"
                 "This is to certify that we have verified the report and found the same "

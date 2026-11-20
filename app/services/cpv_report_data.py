@@ -1109,13 +1109,9 @@ async def assemble_cpv_report_data(
         if os.path.exists(p8):
             pan_photos.append(p8)
 
-    # The signature block is left blank on purpose so the CA signs the printed report by hand -
-    # auto-pasting a scanned signature image into every generated report was a demo/specimen
-    # leftover, not something that should go out on a real bank-facing certified document. This
-    # used to still auto-paste whenever CA_SIGNATURE_IMAGE_PATH happened to be set in the
-    # environment (it was, on production) - per explicit CA office instruction, never insert an
-    # image here at all, full stop; matches the PDF, which has never pasted one either.
-    sig_path = None
+    sig_path = os.getenv("CA_SIGNATURE_IMAGE_PATH") or os.path.join("app", "static", "specimen_assets", "ca_pranav_signature.png")
+    if sig_path and not os.path.exists(sig_path):
+        sig_path = None
 
     from app.services.field_form_pdf_ingest import resolve_effective_loan_amount
     effective_loan_amount = resolve_effective_loan_amount(loan_case.loan_amount, form)

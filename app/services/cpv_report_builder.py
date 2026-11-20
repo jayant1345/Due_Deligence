@@ -584,7 +584,6 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
     co = data.get("co_applicant")
     persons = 2 if co else 1
     doc = docx.Document(os.path.join(TEMPLATE_DIR, TEMPLATES[persons]))
-    _strip_specimen_signature_image(doc)
     T = doc.tables
 
     # Cover page
@@ -745,11 +744,20 @@ def build_cpv_report(data: Dict[str, Any], output_path: str) -> Dict[str, Any]:
     for p in _all_paragraphs(doc):
         if p.text.strip().startswith("Date:") and "00/00/2026" in p.text:
             _set_par_text(p, f"Date: {data.get('certificate_date') or 'NA'}")
+    # The original handwritten signature scan (word/media/image1.png) is already embedded in the
+    # template paragraph right between "(F.R. No. 106829W)" and "(CA PRANAV N. SHAH)" at its exact
+    # width (159pt x 44.4pt). Only replace/insert if a custom signature_path was requested and the
+    # template's embedded image is missing.
     sig = data.get("signature_path")
-    if sig and os.path.exists(sig):
-        for p in _all_paragraphs(doc):
-            if p.text.strip() == "Signature":
-                p.add_run().add_picture(sig, width=Inches(1.6))
+    has_embedded_sig = any(
+        "image" in rel.reltype and rel.target_ref.endswith("image1.png")
+        for rel in doc.part.rels.values()
+    )
+    if sig and os.path.exists(sig) and not has_embedded_sig:
+        pars_list = list(_all_paragraphs(doc))
+        for idx, p in enumerate(pars_list):
+            if "(F.R. No." in p.text and idx + 1 < len(pars_list):
+                pars_list[idx + 1].add_run().add_picture(sig, width=Inches(2.2))
                 break
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
