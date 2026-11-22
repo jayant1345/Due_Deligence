@@ -146,14 +146,10 @@
             <span class="material-symbols-outlined text-[16px] text-primary-container">fact_check</span>
             <span>Agent Activity</span>
           </button>
-          <button onclick="openActivityLog()" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-surface-container-low text-rose-800 hover:bg-rose-50 border border-rose-300 transition-colors shadow-2xs whitespace-nowrap" title="Full audit trail: every login, edit, delete, and upload across the dashboard and PWA (ઓડિટ લોગ)">
+          <button onclick="openActivityLog()" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-surface-container-low text-rose-800 hover:bg-rose-50 border border-rose-300 transition-colors shadow-2xs whitespace-nowrap" title="Full audit trail &amp; Live Active Sessions across dashboard and PWA (ઓડિટ લોગ)">
             <span class="material-symbols-outlined text-[16px] text-rose-700">history</span>
             <span>Activity Log</span>
-          </button>
-          <button onclick="openActivityLog()" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1.5 bg-amber-50 text-amber-950 hover:bg-amber-100 border border-amber-300 transition-colors shadow-2xs whitespace-nowrap" title="Live Active Sessions (Dashboard &amp; Field Agent Mobile PWA)">
-            <span class="material-symbols-outlined text-[16px] text-amber-600">admin_panel_settings</span>
-            <span>Active Sessions</span>
-            <span id="navActiveSessionsBadge" style="background-color: #f59e0b; color: #111827;" class="px-1.5 py-0.5 rounded-md font-mono text-[10px] font-bold">1 active</span>
+            <span id="navActiveSessionsBadge" style="background-color: #f59e0b; color: #111827;" class="px-1.5 py-0.5 rounded-md font-mono text-[10px] font-bold" title="Live connected sessions (Dashboard + Mobile PWA)">1 active</span>
           </button>
           <button id="navTabArchive" onclick="switchMainPortalView('archive')" class="px-2.5 py-1.5 rounded-lg font-headline font-bold text-xs flex items-center gap-1 bg-amber-500/10 text-amber-900 hover:bg-amber-500/20 border border-amber-300 transition-colors shadow-2xs whitespace-nowrap" title="Monthly Case Archival & Local Backup Download (માસિક બેકઅપ અને ક્લાઉડ સફાઈ)">
             <span class="material-symbols-outlined text-[16px] text-amber-700">archive</span>
@@ -2455,7 +2451,7 @@
     </div>
   </div>
 
-  <script src="/static/ca-portal.js?v=39"></script>
+  <script src="/static/ca-portal.js?v=40"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
@@ -3012,17 +3008,26 @@
         </div>
       </div>
       <div class="p-5 overflow-y-auto space-y-4">
-        <!-- LIVE ACTIVE SESSIONS CARD (Dashboard & Mobile Field Agent PWA) -->
+        <!-- LIVE ACTIVE SESSIONS CARD (Dashboard & Mobile Field Agent PWA) — Collapsible via Slider Toggle -->
         <div class="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-          <div class="px-4 py-2.5 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between flex-wrap gap-2">
+          <div class="px-4 py-2.5 bg-slate-50/70 flex items-center justify-between flex-wrap gap-2">
             <div class="flex items-center gap-2">
               <span class="material-symbols-outlined text-[20px]" style="color: #f59e0b;">admin_panel_settings</span>
               <span class="font-headline font-bold text-sm text-slate-900">Active Admin &amp; PWA Sessions</span>
               <span id="activeSessionsBreakdown" class="font-mono text-[10px] text-slate-500"></span>
             </div>
-            <span id="activeSessionsCountPill" style="background-color: #f59e0b; color: #111827;" class="px-2.5 py-0.5 rounded-md font-headline font-bold text-xs shadow-2xs">1 active</span>
+            <div class="flex items-center gap-2.5">
+              <span id="activeSessionsCountPill" style="background-color: #f59e0b; color: #111827;" class="px-2.5 py-0.5 rounded-md font-headline font-bold text-xs shadow-2xs">1 active</span>
+              <label class="inline-flex items-center gap-1.5 cursor-pointer select-none" title="Show or hide Live Active Sessions table">
+                <input id="activeSessionsToggleInput" type="checkbox" onchange="toggleActiveSessionsPanel(this.checked)" class="sr-only peer"/>
+                <span id="activeSessionsToggleLabel" class="font-mono text-[10px] font-bold text-slate-600">Show</span>
+                <div style="width: 34px; height: 18px;" class="relative bg-slate-300 peer-checked:bg-amber-500 rounded-full transition-colors">
+                  <div id="activeSessionsToggleKnob" style="width: 14px; height: 14px; top: 2px; left: 2px;" class="absolute bg-white rounded-full shadow transition-all"></div>
+                </div>
+              </label>
+            </div>
           </div>
-          <div class="overflow-x-auto">
+          <div id="activeSessionsCollapsibleBody" style="display: none;" class="overflow-x-auto border-t border-slate-200">
             <table class="w-full text-xs border-collapse">
               <thead>
                 <tr class="text-left font-headline font-bold text-xs text-slate-900 border-b border-slate-200 bg-white">
@@ -3711,6 +3716,47 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- FLOATING SLIDE-OUT DRAWER & EDGE TAB FOR LIVE ACTIVE SESSIONS (Zero Dashboard Space Used) -->
+  <div id="liveSessionsDrawerWrap" style="position: fixed; right: 0; bottom: 18px; z-index: 9990; pointer-events: none;" class="flex items-end justify-end">
+    <!-- Collapsible Slide-Out Panel (Hidden by default) -->
+    <div id="liveSessionsDrawerPanel" style="display: none; pointer-events: auto; width: 620px; max-width: 94vw;" class="mr-2 mb-10 rounded-2xl border border-amber-300 bg-white shadow-2xl overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-[20px]" style="color: #f59e0b;">admin_panel_settings</span>
+          <span class="font-headline font-bold text-sm text-slate-900">Active Admin &amp; PWA Sessions</span>
+          <span id="drawerActiveSessionsBreakdown" class="font-mono text-[10px] text-slate-500"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="drawerActiveSessionsCountPill" style="background-color: #f59e0b; color: #111827;" class="px-2.5 py-0.5 rounded-md font-headline font-bold text-xs">1 active</span>
+          <button type="button" onclick="toggleLiveSessionsDrawer(false)" class="w-7 h-7 rounded-full bg-slate-200/70 hover:bg-slate-300 text-slate-700 flex items-center justify-center" title="Hide Live Sessions Drawer">
+            <span class="material-symbols-outlined text-[17px]">chevron_right</span>
+          </button>
+        </div>
+      </div>
+      <div class="overflow-x-auto max-h-60 overflow-y-auto">
+        <table class="w-full text-xs border-collapse">
+          <thead>
+            <tr class="text-left font-headline font-bold text-xs text-slate-900 border-b border-slate-200 bg-white">
+              <th class="py-2 px-3 w-8">#</th>
+              <th class="py-2 px-3">IP Address</th>
+              <th class="py-2 px-3">User / Surface</th>
+              <th class="py-2 px-3">Logged In At</th>
+              <th class="py-2 px-3">Last Active</th>
+            </tr>
+          </thead>
+          <tbody id="drawerActiveSessionsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Compact Right-Edge Slider Button (Takes Zero Dashboard Layout Space) -->
+    <button id="liveSessionsSliderBtn" type="button" onclick="toggleLiveSessionsDrawer()" style="pointer-events: auto; background-color: #1e293b; color: #ffffff;" class="px-2.5 py-1.5 rounded-l-xl border border-r-0 border-amber-400/80 shadow-lg hover:opacity-95 flex items-center gap-1.5 font-headline font-bold text-xs transition-all" title="Click to slide open / hide Live Active Sessions (Dashboard &amp; PWA)">
+      <span id="liveSessionsSliderIcon" class="material-symbols-outlined text-[16px]" style="color: #f59e0b;">chevron_left</span>
+      <span class="material-symbols-outlined text-[16px]" style="color: #f59e0b;">admin_panel_settings</span>
+      <span id="drawerSliderCountBadge" style="background-color: #f59e0b; color: #111827;" class="px-1.5 py-0.5 rounded font-mono text-[10px] font-bold">1 active</span>
+    </button>
   </div>
 </body>
 </html>
