@@ -328,6 +328,11 @@ CACHEABLE_STATIC_FILES = {"/static/ca-portal.js", "/static/agent-pwa.js", "/stat
 
 @app.middleware("http")
 async def add_static_cache_headers(request: Request, call_next):
+    try:
+        from app.api.v1.activity import touch_passive_request_session
+        touch_passive_request_session(request)
+    except Exception:
+        pass
     response = await call_next(request)
     if request.url.path in ("/static/ca-portal.js", "/static/agent-pwa.js", "/static/geofence-map.js"):
         response.headers["Cache-Control"] = "no-cache"

@@ -1,3 +1,6 @@
+import json
+import os
+import re
 import time
 import uuid
 from datetime import datetime, timezone
@@ -15,10 +18,11 @@ from app.models.user import User
 
 router = APIRouter(prefix="/activity-log", tags=["Activity & Audit Log"])
 
-# Purely additive in-memory active session registry (Dashboard & Mobile PWA).
-# Keyed by unique browser/device session_id; automatically expires entries idle > 120 seconds.
-_ACTIVE_SESSIONS: Dict[str, Dict[str, Any]] = {}
-SESSION_TTL_SECONDS = 120.0
+# Shared file-backed active session registry across all Gunicorn worker processes (WEB_CONCURRENCY=4).
+# Storing in a single JSON file on disk ensures Worker 1..4 all see every connected Dashboard & PWA user,
+# and passive API requests (from already-open tabs before a refresh) are also captured automatically.
+_SESSIONS_FILE_PATH = os.path.join("storage_uploads", "_live_active_sessions.json")
+SESSION_TTL_SECONDS = 300.0  # 5 minutes active window
 
 
 def _extract_client_ip(request: Request) -> str:
@@ -35,13 +39,98 @@ def _extract_client_ip(request: Request) -> str:
     return "127.0.0.1"
 
 
-def _prune_stale_sessions(now_ts: float) -> None:
-    stale_keys = [
-        sid for sid, info in list(_ACTIVE_SESSIONS.items())
-        if (now_ts - float(info.get("last_active_ts") or 0.0)) > SESSION_TTL_SECONDS
-    ]
-    for sid in stale_keys:
-        _ACTIVE_SESSIONS.pop(sid, None)
+def _load_shared_sessions(now_ts: float) -> Dict[str, Dict[str, Any]]:
+    data: Dict[str, Dict[str, Any]] = {}
+    try:
+        if os.path.exists(_SESSIONS_FILE_PATH):
+            with open(_SESSIONS_FILE_PATH, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+                if isinstance(raw, dict):
+                    data = raw
+    except Exception:
+        data = {}
+    # Prune sessions idle longer than SESSION_TTL_SECONDS
+    valid: Dict[str, Dict[str, Any]] = {}
+    for sid, info in data.items():
+        if not isinstance(info, dict):
+            continue
+        last_ts = float(info.get("last_active_ts") or 0.0)
+        if (now_ts - last_ts) <= SESSION_TTL_SECONDS:
+            valid[sid] = info
+    return valid
+
+
+def _save_shared_sessions(sessions: Dict[str, Dict[str, Any]]) -> None:
+    try:
+        os.makedirs(os.path.dirname(_SESSIONS_FILE_PATH), exist_ok=True)
+        tmp_path = f"{_SESSIONS_FILE_PATH}.{os.getpid()}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(sessions, f)
+        os.replace(tmp_path, _SESSIONS_FILE_PATH)
+    except Exception:
+        pass
+
+
+def touch_passive_request_session(request: Request) -> None:
+    """
+    Called passively on any /api/v1/* request so even a colleague or field agent whose browser
+    tab was opened BEFORE this deploy (and hasn't refreshed their page yet) immediately shows up
+    in Live Active Sessions with their IP address, surface (Dashboard vs PWA), and last active time.
+    """
+    try:
+        path = request.url.path or ""
+        if path.endswith("/heartbeat") or path.endswith("/active-sessions"):
+            return
+        if not path.startswith("/api/v1/"):
+            return
+
+        now_ts = time.time()
+        now_dt = datetime.now(timezone.utc)
+        ip_addr = _extract_client_ip(request)
+        ua = (request.headers.get("user-agent") or "")[:120]
+        referer = (request.headers.get("referer") or "").lower()
+
+        is_pwa = ("/pwa" in referer) or ("/visits" in path) or ("/agent" in path) or ("mobile" in ua.lower() and "/portal" not in referer)
+        surface = "PWA" if is_pwa else "DASHBOARD"
+
+        # If this IP already has an explicit heartbeat session for the same surface, update its last_active
+        sessions = _load_shared_sessions(now_ts)
+        matched_sid = None
+        for sid, info in sessions.items():
+            if info.get("ip_address") == ip_addr and info.get("surface") == surface:
+                matched_sid = sid
+                break
+
+        # Extract case ID/number hint if present in path
+        m_case = re.search(r"/cases/([^/?#]+)", path)
+        case_hint = m_case.group(1)[:24] if m_case else None
+
+        if matched_sid:
+            entry = sessions[matched_sid]
+            entry["last_active_ts"] = now_ts
+            entry["last_active_iso"] = now_dt.isoformat()
+            if case_hint and not entry.get("active_case_no") and not re.fullmatch(r"[0-9a-f\-]{32,36}", case_hint, re.I):
+                entry["active_case_no"] = case_hint
+        else:
+            passive_sid = f"ip-{surface.lower()}-{ip_addr}"
+            existing = sessions.get(passive_sid)
+            started_iso = existing.get("started_iso") if existing else now_dt.isoformat()
+            started_ts = float(existing.get("started_ts") or now_ts) if existing else now_ts
+            sessions[passive_sid] = {
+                "session_id": passive_sid,
+                "surface": surface,
+                "user_name": existing.get("user_name") if existing else ("Field Agent (PWA)" if surface == "PWA" else "CA Pranav N. Shah (Sr. Partner)"),
+                "role": existing.get("role") if existing else ("FIELD_AGENT" if surface == "PWA" else "SUPER_ADMIN"),
+                "ip_address": ip_addr,
+                "active_case_no": existing.get("active_case_no") if existing else None,
+                "started_iso": started_iso,
+                "started_ts": started_ts,
+                "last_active_iso": now_dt.isoformat(),
+                "last_active_ts": now_ts,
+            }
+        _save_shared_sessions(sessions)
+    except Exception:
+        pass
 
 
 class SessionHeartbeatRequest(BaseModel):
@@ -61,11 +150,11 @@ async def record_session_heartbeat(
 ):
     """
     Lightweight, non-blocking heartbeat from open CA Dashboard and Field Agent PWA tabs.
-    Tracks active connected sessions, IP address, session start time, and last active time.
+    Shared across all Gunicorn workers via storage_uploads/_live_active_sessions.json.
     """
     now_ts = time.time()
     now_dt = datetime.now(timezone.utc)
-    _prune_stale_sessions(now_ts)
+    sessions = _load_shared_sessions(now_ts)
 
     sid = (req.session_id or "").strip()[:80] or str(uuid.uuid4())
     surface = "PWA" if (req.surface or "").upper() == "PWA" else "DASHBOARD"
@@ -82,10 +171,14 @@ async def record_session_heartbeat(
         or ("FIELD_AGENT" if surface == "PWA" else "SUPER_ADMIN")
     )
 
-    existing = _ACTIVE_SESSIONS.get(sid)
-    if existing:
-        started_dt = existing["started_dt"]
-        started_ts = existing["started_ts"]
+    # Remove any passive IP placeholder for this same IP + surface once real heartbeat arrives
+    passive_sid = f"ip-{surface.lower()}-{ip_addr}"
+    passive_entry = sessions.pop(passive_sid, None) if sid != passive_sid else None
+
+    existing = sessions.get(sid) or passive_entry
+    if existing and existing.get("started_iso"):
+        started_iso = existing["started_iso"]
+        started_ts = float(existing.get("started_ts") or now_ts)
     else:
         started_dt = now_dt
         if req.started_at_iso:
@@ -96,58 +189,73 @@ async def record_session_heartbeat(
                 started_dt = parsed
             except Exception:
                 started_dt = now_dt
+        started_iso = started_dt.isoformat()
         started_ts = started_dt.timestamp()
 
-    _ACTIVE_SESSIONS[sid] = {
+    sessions[sid] = {
         "session_id": sid,
         "surface": surface,
         "user_name": resolved_name,
         "role": resolved_role,
         "ip_address": ip_addr,
-        "active_case_no": (req.active_case_no or "").strip() or None,
-        "started_dt": started_dt,
+        "active_case_no": (req.active_case_no or "").strip() or (existing.get("active_case_no") if existing else None),
+        "started_iso": started_iso,
         "started_ts": started_ts,
-        "last_active_dt": now_dt,
+        "last_active_iso": now_dt.isoformat(),
         "last_active_ts": now_ts,
     }
+    _save_shared_sessions(sessions)
     return {
         "status": "ok",
-        "active_count": len(_ACTIVE_SESSIONS),
+        "active_count": len(sessions),
     }
+
+
+def _parse_iso_dt(iso_str: Optional[str]) -> datetime:
+    if iso_str:
+        try:
+            dt = datetime.fromisoformat(str(iso_str).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except Exception:
+            pass
+    return datetime.now(timezone.utc)
 
 
 @router.get("/active-sessions")
 async def get_active_sessions(
     request: Request,
     session_id: Optional[str] = Query(None, description="Caller's session_id to highlight with 'You' badge"),
+    db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """
-    Return all currently connected Dashboard & Mobile PWA sessions, ordered by login start time.
+    Return all currently connected Dashboard & Mobile PWA sessions across all Gunicorn worker processes.
     """
     now_ts = time.time()
     now_dt = datetime.now(timezone.utc)
-    _prune_stale_sessions(now_ts)
+    sessions = _load_shared_sessions(now_ts)
 
     caller_ip = _extract_client_ip(request)
     caller_sid = (session_id or "").strip()
 
-    # If the caller hasn't registered a heartbeat yet, register their current dashboard session immediately
-    if caller_sid and caller_sid not in _ACTIVE_SESSIONS:
-        _ACTIVE_SESSIONS[caller_sid] = {
+    if caller_sid and caller_sid not in sessions:
+        sessions[caller_sid] = {
             "session_id": caller_sid,
             "surface": "DASHBOARD",
             "user_name": current_user.full_name if current_user else "CA Pranav N. Shah (Sr. Partner)",
             "role": current_user.role.value if (current_user and hasattr(current_user.role, "value")) else "SUPER_ADMIN",
             "ip_address": caller_ip,
             "active_case_no": None,
-            "started_dt": now_dt,
+            "started_iso": now_dt.isoformat(),
             "started_ts": now_ts,
-            "last_active_dt": now_dt,
+            "last_active_iso": now_dt.isoformat(),
             "last_active_ts": now_ts,
         }
+        _save_shared_sessions(sessions)
 
-    ordered = sorted(_ACTIVE_SESSIONS.values(), key=lambda x: x.get("started_ts", 0.0))
+    ordered = sorted(sessions.values(), key=lambda x: float(x.get("started_ts") or 0.0))
     sessions_out = []
     dashboard_count = 0
     pwa_count = 0
@@ -159,6 +267,8 @@ async def get_active_sessions(
         else:
             dashboard_count += 1
         is_you = (bool(caller_sid) and s.get("session_id") == caller_sid)
+        s_dt = _parse_iso_dt(s.get("started_iso"))
+        l_dt = _parse_iso_dt(s.get("last_active_iso"))
         sessions_out.append({
             "index": idx,
             "session_id": s.get("session_id"),
@@ -167,8 +277,8 @@ async def get_active_sessions(
             "role": s.get("role"),
             "ip_address": s.get("ip_address") or caller_ip,
             "active_case_no": s.get("active_case_no"),
-            "logged_in_at": format_ist(s.get("started_dt"), "%d %b %Y %I:%M %p"),
-            "last_active": format_ist(s.get("last_active_dt"), "%I:%M:%S %p"),
+            "logged_in_at": format_ist(s_dt, "%d %b %Y %I:%M %p"),
+            "last_active": format_ist(l_dt, "%I:%M:%S %p"),
             "is_you": is_you,
         })
 
