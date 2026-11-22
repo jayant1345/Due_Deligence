@@ -9185,10 +9185,130 @@
       APPLICANT_LOCATION_SHARED: "Shared applicant location",
     };
 
+    // ==========================================
+    // LIVE ACTIVE SESSIONS (Dashboard & Mobile PWA) — Purely Additive Tracker
+    // ==========================================
+    const _caSessionId = (() => {
+      try {
+        let sid = sessionStorage.getItem("ca_live_session_id");
+        if (!sid) {
+          sid = "dash-" + Math.random().toString(36).slice(2, 10) + "-" + Date.now().toString(36);
+          sessionStorage.setItem("ca_live_session_id", sid);
+        }
+        if (!sessionStorage.getItem("ca_live_session_started")) {
+          sessionStorage.setItem("ca_live_session_started", new Date().toISOString());
+        }
+        return sid;
+      } catch (_) {
+        return "dash-fallback";
+      }
+    })();
+
+    async function sendDashboardSessionHeartbeat() {
+      try {
+        const userEl = document.getElementById("caUserFullName");
+        const userName = (userEl && userEl.textContent.trim()) || "CA Pranav N. Shah (Sr. Partner)";
+        const curCase = (typeof caseRegistry !== "undefined" && activeCaseId && caseRegistry[activeCaseId])
+          ? caseRegistry[activeCaseId].case_no
+          : null;
+        const startedIso = sessionStorage.getItem("ca_live_session_started") || null;
+        const res = await fetch("/api/v1/activity-log/heartbeat", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            session_id: _caSessionId,
+            surface: "DASHBOARD",
+            user_name: userName,
+            role: "SUPER_ADMIN",
+            active_case_no: curCase,
+            started_at_iso: startedIso,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const navBadge = document.getElementById("navActiveSessionsBadge");
+          if (navBadge && typeof data.active_count === "number") {
+            navBadge.textContent = `${data.active_count} active`;
+          }
+        }
+      } catch (_) {
+        // Silent fail-safe: never disturb dashboard operations
+      }
+    }
+
+    async function loadActiveSessionsTable() {
+      const tbody = document.getElementById("activeSessionsTableBody");
+      const countPill = document.getElementById("activeSessionsCountPill");
+      const navBadge = document.getElementById("navActiveSessionsBadge");
+      const breakdownEl = document.getElementById("activeSessionsBreakdown");
+      try {
+        await sendDashboardSessionHeartbeat();
+        const res = await fetch(`/api/v1/activity-log/active-sessions?session_id=${encodeURIComponent(_caSessionId)}`, {
+          headers: authHeaders(),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const total = data.total_active || 1;
+        if (countPill) countPill.textContent = `${total} active`;
+        if (navBadge) navBadge.textContent = `${total} active`;
+        if (breakdownEl) {
+          breakdownEl.textContent = `(${data.dashboard_active || 0} Dashboard • ${data.pwa_active || 0} Mobile PWA)`;
+        }
+        if (!tbody) return;
+        const rows = data.sessions || [];
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="5" class="py-3 px-3 text-center text-xs text-slate-500 font-mono">No active sessions</td></tr>`;
+          return;
+        }
+        const esc = (s) => String(s || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        tbody.innerHTML = rows.map(s => {
+          const isYou = Boolean(s.is_you);
+          const rowBg = isYou ? "background-color: #fef3c7;" : "";
+          const youBadge = isYou
+            ? `<span style="background-color: #f59e0b; color: #111827;" class="ml-1.5 px-1.5 py-0.5 rounded font-headline font-bold text-[10px]">You</span>`
+            : "";
+          const isPwa = s.surface === "PWA";
+          const surfBadge = isPwa
+            ? `<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300 font-mono font-bold text-[10px]">📱 Mobile PWA</span>`
+            : `<span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-900 border border-blue-300 font-mono font-bold text-[10px]">💻 CA Dashboard</span>`;
+          const caseTag = s.active_case_no
+            ? `<span class="ml-1 font-mono text-[10px] text-slate-500">• ${esc(s.active_case_no)}</span>`
+            : "";
+          return `
+            <tr style="${rowBg}" class="border-b border-slate-200/70">
+              <td class="py-2.5 px-3 font-mono text-xs text-slate-800">${s.index}</td>
+              <td class="py-2.5 px-3 font-mono text-xs whitespace-nowrap">
+                <span style="color: #be185d;">${esc(s.ip_address)}</span>${youBadge}
+              </td>
+              <td class="py-2.5 px-3 text-xs text-slate-800 whitespace-nowrap">
+                ${surfBadge} <span class="ml-1 font-semibold">${esc(s.user_name)}</span>${caseTag}
+              </td>
+              <td class="py-2.5 px-3 text-xs text-slate-800 whitespace-nowrap">${esc(s.logged_in_at)}</td>
+              <td class="py-2.5 px-3 text-xs text-slate-800 whitespace-nowrap">${esc(s.last_active)}</td>
+            </tr>`;
+        }).join("");
+      } catch (_) {
+        // Silent fail-safe
+      }
+    }
+
+    setTimeout(() => {
+      sendDashboardSessionHeartbeat();
+      loadActiveSessionsTable();
+    }, 800);
+    setInterval(() => {
+      sendDashboardSessionHeartbeat();
+      const modal = document.getElementById("modalActivityLog");
+      if (modal && modal.style.display === "flex") {
+        loadActiveSessionsTable();
+      }
+    }, 25000);
+
     function openActivityLog() {
       const modal = document.getElementById("modalActivityLog");
       if (!modal) return;
       modal.style.display = "flex";
+      loadActiveSessionsTable();
       loadActivityLog();
     }
 
@@ -9214,6 +9334,7 @@
     }
 
     async function loadActivityLog() {
+      loadActiveSessionsTable();
       const tbody = document.getElementById("alTableBody");
       const loading = document.getElementById("alLoadingState");
       const actionFilter = document.getElementById("alActionFilter");

@@ -4944,4 +4944,53 @@
       window.addEventListener("pagehide", () => {
         flushPwaFormWithKeepalive();
       });
+
+      // Purely additive background session heartbeat for CA Office Live Active Sessions tracker
+      try {
+        let pwaSid = sessionStorage.getItem("pwa_live_session_id");
+        if (!pwaSid) {
+          pwaSid = "pwa-" + Math.random().toString(36).slice(2, 10) + "-" + Date.now().toString(36);
+          sessionStorage.setItem("pwa_live_session_id", pwaSid);
+        }
+        if (!sessionStorage.getItem("pwa_live_session_started")) {
+          sessionStorage.setItem("pwa_live_session_started", new Date().toISOString());
+        }
+        const sendPwaSessionHeartbeat = async () => {
+          try {
+            if (!navigator.onLine) return;
+            let uName = "Field Agent (PWA)";
+            try {
+              const uObj = JSON.parse(localStorage.getItem("pwa_user") || "{}");
+              if (uObj && uObj.full_name) uName = uObj.full_name;
+            } catch (_) {}
+            const nameEl = document.getElementById("agentNameDisplay");
+            if (uName === "Field Agent (PWA)" && nameEl && nameEl.textContent.trim()) {
+              uName = nameEl.textContent.trim();
+            }
+            const curCaseObj = (typeof pwaCases !== "undefined" && typeof currentCaseKey !== "undefined" && pwaCases[currentCaseKey])
+              ? pwaCases[currentCaseKey]
+              : null;
+            const curCaseNo = curCaseObj ? curCaseObj.caseNo : null;
+            const tok = localStorage.getItem("pwa_token");
+            const hdrs = { "Content-Type": "application/json" };
+            if (tok && tok !== "demo-pwa-token") hdrs["Authorization"] = `Bearer ${tok}`;
+            await fetch("/api/v1/activity-log/heartbeat", {
+              method: "POST",
+              headers: hdrs,
+              body: JSON.stringify({
+                session_id: pwaSid,
+                surface: "PWA",
+                user_name: uName,
+                role: "FIELD_AGENT",
+                active_case_no: curCaseNo,
+                started_at_iso: sessionStorage.getItem("pwa_live_session_started") || null,
+              }),
+            });
+          } catch (_) {
+            // Silent fail-safe: never disturb field agent offline/online workflow
+          }
+        };
+        setTimeout(sendPwaSessionHeartbeat, 1200);
+        setInterval(sendPwaSessionHeartbeat, 25000);
+      } catch (_) {}
     });
