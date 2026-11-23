@@ -117,7 +117,7 @@ Return ONLY a JSON object with exactly these keys:
 }}"""
 
 
-def _call_gemini_extraction(image_paths: List[str], applicant_name: str) -> Dict[str, Any]:
+def _call_gemini_extraction(image_paths: List[str], applicant_name: str, page_texts: Optional[List[str]] = None) -> Dict[str, Any]:
     api_key = settings.OPENROUTER_API_KEY
     model = settings.OPENROUTER_EXTRACTION_MODEL or "google/gemini-2.5-flash"
     base_url = settings.OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
@@ -128,7 +128,25 @@ def _call_gemini_extraction(image_paths: List[str], applicant_name: str) -> Dict
     import mimetypes
 
     applicant_hint = f" for applicant {applicant_name}" if applicant_name and applicant_name.lower() != "unknown" else ""
-    content = [{"type": "text", "text": EXTRACTION_PROMPT.format(applicant_hint=applicant_hint)}]
+    prompt_text = EXTRACTION_PROMPT.format(applicant_hint=applicant_hint)
+    if page_texts and any((t or "").strip() for t in page_texts):
+        joined_text = "\n\n".join(
+            f"--- EMBEDDED PDF DIGITAL TEXT FOR PAGE {idx + 1} ---\n{t.strip()}"
+            for idx, t in enumerate(page_texts)
+            if (t or "").strip()
+        )
+        prompt_text += (
+            "\n\nIMPORTANT — EXACT NATIVE DIGITAL TEXT LAYER FROM THE PDF:\n"
+            "Below is the exact selectable digital text extracted directly from the PDF pages. "
+            "Use the page images to see which radio buttons and checkboxes are visually selected, "
+            "and use this exact digital text layer for 100% character-for-character spelling of all "
+            "typed text answers (names, family member lines like 'Dhara - 12 - daughter- no', "
+            "addresses like 'D-103 sharnam homes near kanba hospital nikol', firm names like 'Rivaan pharma', "
+            "references like 'Hareshbhai bhesaniya', phone numbers, etc.) so that dotted underlines in the "
+            "page image never cause a spelling misread:\n\n"
+            + joined_text
+        )
+    content = [{"type": "text", "text": prompt_text}]
     for p in image_paths:
         mime_type, _ = mimetypes.guess_type(p)
         with open(p, "rb") as f:
@@ -2110,6 +2128,9 @@ def merge_field_form_payloads(
                     cm_age and em_age and abs(cm_age - em_age) <= 1
                     and (not cm_gen or not em_gen or cm_gen == em_gen)
                     and seq_r >= 0.72
+                ) or (
+                    seq_r >= 0.88
+                    and (not cm_gen or not em_gen or cm_gen == em_gen)
                 ):
                     already = True
                     break
@@ -2230,10 +2251,15 @@ def _extract_raw_forms_from_pdf(pdf_path: str, applicant_name: str = "") -> List
     tmp_dir = f"{pdf_path}_{uuid.uuid4().hex[:8]}_pages"
     os.makedirs(tmp_dir, exist_ok=True)
     image_paths: List[str] = []
+    page_texts: List[str] = []
     try:
         doc = fitz.open(pdf_path)
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
+            try:
+                page_texts.append(page.get_text("text") or "")
+            except Exception:
+                page_texts.append("")
             pix = page.get_pixmap(dpi=160)
             img_path = os.path.join(tmp_dir, f"page_{page_num + 1}.jpg")
             pix.save(img_path, jpg_quality=85)
@@ -2241,15 +2267,19 @@ def _extract_raw_forms_from_pdf(pdf_path: str, applicant_name: str = "") -> List
         page_groups = _split_pdf_into_form_page_groups(doc, image_paths)
         doc.close()
 
+        path_to_text = {img_p: txt for img_p, txt in zip(image_paths, page_texts)}
+
         if len(page_groups) == 1:
-            ext = _call_gemini_extraction(page_groups[0], applicant_name)
+            grp_texts = [path_to_text.get(p, "") for p in page_groups[0]]
+            ext = _call_gemini_extraction(page_groups[0], applicant_name, page_texts=grp_texts)
             if applicant_name and not _clean_val(ext.get("name")):
                 ext["name"] = applicant_name
             _infer_applicant_type_from_filename_or_family(pdf_path, ext)
             return [ext]
 
         def _extract_group(grp_paths: List[str]) -> Dict[str, Any]:
-            return _call_gemini_extraction(grp_paths, "")
+            grp_texts = [path_to_text.get(p, "") for p in grp_paths]
+            return _call_gemini_extraction(grp_paths, "", page_texts=grp_texts)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(page_groups), 4)) as pool:
             extracted_list = list(pool.map(_extract_group, page_groups))
