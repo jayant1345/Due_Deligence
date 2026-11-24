@@ -27,10 +27,19 @@ router = APIRouter(prefix="/auth", tags=["Authentication & RBAC"])
 def login_aliases(identifier: str) -> list:
     """Short login names map to the e-mail-style accounts seeded in different environments."""
     identifier = (identifier or "").lower().strip()
+    compact = re.sub(r"\s+", "", identifier)
     aliases = [identifier]
-    if identifier in ("admin", "admin@123", "superadmin"):
+    if compact and compact not in aliases:
+        aliases.append(compact)
+    if compact in ("admin", "admin@123", "superadmin"):
         aliases.extend(["admin", "admin@valuexca.com"])
-    elif identifier in ("agent1", "agent", "rajesh"):
+    elif compact in ("user1", "user1@123", "user1@valuexca.com", "desk1"):
+        aliases.extend(["user1", "user1@valuexca.com"])
+    elif compact in ("user2", "user2@123", "user2@valuexca.com", "desk2"):
+        aliases.extend(["user2", "user2@valuexca.com"])
+    elif compact in ("user3", "user3@123", "user3@valuexca.com", "desk3"):
+        aliases.extend(["user3", "user3@valuexca.com"])
+    elif compact in ("agent1", "agent", "rajesh"):
         aliases.extend(["agent1", "agent1@valuexca.com", "agent.rajesh@valuexca.com"])
     return aliases
 

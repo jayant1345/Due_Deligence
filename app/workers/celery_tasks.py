@@ -330,7 +330,7 @@ async def async_generate_report_pdf(
         document_items=doc_items,
         ca_remarks=ca_remarks,
         udin=udin,
-        partner_name=ca_user.full_name if ca_user else None,
+        partner_name="CA PRANAV N. SHAH",
     )
 
     from app.api.v1.cases import _ai_ingested_pages

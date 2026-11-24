@@ -58,7 +58,15 @@ def generate_certified_cpv_report(
     """
     os.makedirs(os.path.dirname(os.path.abspath(output_pdf_path)), exist_ok=True)
 
-    partner = partner_name or "CA PRANAV N. SHAH"
+    # The FINAL CERTIFICATE block carries the handwritten signature of CA Pranav N. Shah
+    # (M. No.: 033747). Even when an independent CA Office scrutiny desk user (user1, user2,
+    # user3) clicks "Generate Certified Dossier", the signing partner on the certificate
+    # must always remain "CA PRANAV N. SHAH".
+    _raw_partner = (partner_name or "").strip()
+    if not _raw_partner or "pranav" in _raw_partner.lower() or "desk" in _raw_partner.lower() or "user" in _raw_partner.lower():
+        partner = "CA PRANAV N. SHAH"
+    else:
+        partner = _raw_partner
     frn = firm_reg_no or "106829W"
     # A UDIN is unique per document (ICAI portal); without one the report must say so.
     effective_udin = udin or "NOT YET GENERATED"

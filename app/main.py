@@ -94,6 +94,36 @@ async def lifespan(app: FastAPI):
             # a brand-new user, never to fix an already-existing one.
             admin_user.full_name = "CA Pranav N. Shah (Sr. Partner)"
 
+        # 1b. Independent CA Office Scrutiny Desk Users (user1, user2, user3)
+        # Allows multiple CA office team members to log in simultaneously on separate computers
+        # with full SUPER_ADMIN permissions (case creation, AI PDF/field-form ingestion, editing,
+        # and report generation) while tracking their sessions independently.
+        ca_desk_users_spec = [
+            ("user1", "user1@123", "CA Office Desk 1 (user1)", "+91 98200 12346"),
+            ("user2", "user2@123", "CA Office Desk 2 (user2)", "+91 98200 12347"),
+            ("user3", "user3@123", "CA Office Desk 3 (user3)", "+91 98200 12348"),
+        ]
+        for u_email, u_pass, u_name, u_phone in ca_desk_users_spec:
+            res_desk = await session.execute(
+                select(User).where(User.email.in_([u_email, f"{u_email}@valuexca.com"]))
+            )
+            desk_user = res_desk.scalars().first()
+            if not desk_user:
+                desk_user = User(
+                    email=u_email,
+                    hashed_password=hash_password(u_pass),
+                    full_name=u_name,
+                    phone=u_phone,
+                    role=UserRole.SUPER_ADMIN,
+                    is_active=True,
+                )
+                session.add(desk_user)
+            else:
+                desk_user.hashed_password = hash_password(u_pass)
+                desk_user.full_name = u_name
+                desk_user.role = UserRole.SUPER_ADMIN
+                desk_user.is_active = True
+
         # 2. Field Agent: Only seed initial agent1 if NO active field agent exists at all
         agent_cnt_res = await session.execute(
             select(func.count(User.id)).where(User.role == UserRole.FIELD_AGENT, User.is_active == True)
