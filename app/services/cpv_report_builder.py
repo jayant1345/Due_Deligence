@@ -469,14 +469,19 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
             clean_met += ")"
         if "(" not in clean_met and met_rel:
             clean_met = f"{clean_met} ({met_rel})"
-        if "of the applicant" not in clean_met.lower() and "(" in clean_met and "(self)" not in clean_met.lower():
+        if (
+            "of the applicant" not in clean_met.lower()
+            and "(" in clean_met
+            and "(self)" not in clean_met.lower()
+            and "relationship not mentioned" not in clean_met.lower()
+        ):
             clean_met = clean_met.replace(")", " of the applicant)")
         met_text = clean_met
     else:
         met_text = "the occupants at the site"
 
-    stay_period = str(residence.get("stay_period") or "05 years")
-    if not stay_period.lower().endswith("years") and not stay_period.lower().endswith("yrs"):
+    stay_period = str(residence.get("stay_period") or "05 years").strip()
+    if not re.search(r"\b(?:years?|yrs?|months?|mos?|days?|weeks?|since)\b", stay_period, flags=re.IGNORECASE):
         stay_period = f"{stay_period} years"
 
     bldg_type = residence.get("building_type") or "2 BHK Flat/ Independent House"

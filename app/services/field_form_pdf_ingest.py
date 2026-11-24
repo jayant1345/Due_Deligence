@@ -859,18 +859,25 @@ def reconcile_person_relation(
 ) -> Optional[str]:
     """
     Strictly preserves the person's relationship as explicitly written in the Google Form PDF
-    or PWA Field Visit Form with ZERO assumptions or age/surname calculations.
-    If no relationship was written in the form, returns None (so the report displays
-    'Relationship not mentioned').
+    or PWA Field Visit Form with ZERO assumptions or age/surname calculations, except when
+    the person named is the applicant themselves ('Self').
+    If no relationship was written in the form (and the person is not the applicant themselves),
+    returns None (so the report displays 'Relationship not mentioned').
     """
+    p_name = _clean_val(person_name)
     rel = _clean_val(raw_relation)
-    if not rel:
-        return None
-    rel = re.sub(r"\s*\([^)]*\)\s*$", "", rel).strip()
-    rel = re.sub(r"\s+of\s+the\s+applicant\s*$", "", rel, flags=re.IGNORECASE).strip()
-    if rel.lower() in ("relationship not mentioned", "not mentioned", "no provide", "not provided"):
-        return None
-    return _normalize_relation_or_title(rel) or rel
+    if rel:
+        rel = re.sub(r"\s*\([^)]*\)\s*$", "", rel).strip()
+        rel = re.sub(r"\s+of\s+the\s+applicant\s*$", "", rel, flags=re.IGNORECASE).strip()
+        if rel.lower() in ("relationship not mentioned", "not mentioned", "no provide", "not provided"):
+            rel = None
+        else:
+            rel = _normalize_relation_or_title(rel) or rel
+
+    if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 80:
+        return "Self"
+
+    return rel
 
 
 def _clean_person_met_string(
@@ -895,7 +902,9 @@ def _clean_person_met_string(
         m_p = re.search(r"\(([^)]+)\)", s)
         raw_rel = m_p.group(1).strip() if m_p else None
 
-    explicit_rel = reconcile_person_relation(base_name, raw_rel)
+    explicit_rel = reconcile_person_relation(base_name, raw_rel, applicant_name=applicant_name)
+    if not phone and explicit_rel == "Self" and contact_number:
+        phone = str(contact_number).strip()
     out = base_name
     if phone:
         out += f" - {phone}"
@@ -913,7 +922,7 @@ def _infer_owner_relation(
     applicant_gender: Optional[str] = None,
     applicant_age: Optional[Any] = None,
 ) -> Optional[str]:
-    return reconcile_person_relation(owner_name, explicit_relation)
+    return reconcile_person_relation(owner_name, explicit_relation, applicant_name=applicant_name)
 
 
 def enrich_field_form_defaults(

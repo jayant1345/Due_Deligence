@@ -949,7 +949,13 @@ def generate_certified_cpv_report(
     else:
         res_owner = res_owner_raw.strip() or NOT_CAPTURED
         res_rel = "Relationship not mentioned" if res_owner != NOT_CAPTURED else NOT_CAPTURED
+    if res_owner != NOT_CAPTURED and res_rel == "Relationship not mentioned" and applicant_name != NOT_CAPTURED and (_name_score(res_owner, applicant_name) or 0) >= 80:
+        res_rel = "Self"
     res_met = (field_form.get("person_met") if isinstance(field_form, dict) else None) or NOT_CAPTURED
+    if res_met != NOT_CAPTURED and "(" not in res_met and applicant_name != NOT_CAPTURED:
+        _res_met_base = res_met.split(" - ")[0].strip()
+        if (_name_score(_res_met_base, applicant_name) or 0) >= 80:
+            res_met = f"{res_met} (Self)"
 
     neighbour_1 = field_form.get("neighbour_1") if isinstance(field_form, dict) else None
     neighbour_2 = field_form.get("neighbour_2") if isinstance(field_form, dict) else None

@@ -442,10 +442,15 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     _premises_owner_match = re.match(r"^\s*\(([^)]+)\)\s*(.*)$", premises_owner_raw)
     if _premises_owner_match:
         office_premises_owner = _premises_owner_match.group(1).strip() or None
-        office_owner_relation = _premises_owner_match.group(2).strip() or "Relationship not mentioned"
+        office_owner_relation = _premises_owner_match.group(2).strip() or None
     else:
         office_premises_owner = premises_owner_raw.strip() or None
-        office_owner_relation = "Relationship not mentioned" if office_premises_owner else None
+        office_owner_relation = None
+    if office_premises_owner and not office_owner_relation:
+        if name and (_name_score(office_premises_owner, name) or 0) >= 80:
+            office_owner_relation = "Self"
+        else:
+            office_owner_relation = "Relationship not mentioned"
 
     # Office "Who did you meet" strictly as written in the Google Form / PWA form
     office_met_raw = office_form.get("who_meet") or ""
@@ -453,11 +458,18 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     if _office_met_match:
         office_met_name = _office_met_match.group(1).strip() or None
         office_met_contact = (_office_met_match.group(2) or "").strip() or None
-        office_met_relation = (_office_met_match.group(3) or "").strip() or ("Relationship not mentioned" if office_met_name else None)
+        office_met_relation = (_office_met_match.group(3) or "").strip() or None
     else:
         office_met_name = office_met_raw.strip() or None
         office_met_contact = None
-        office_met_relation = "Relationship not mentioned" if office_met_name else None
+        office_met_relation = None
+    if office_met_name and (not office_met_relation or office_met_relation.lower() in ("relationship not mentioned", "not mentioned")):
+        if name and (_name_score(office_met_name, name) or 0) >= 80:
+            office_met_relation = "Self"
+        else:
+            office_met_relation = "Relationship not mentioned"
+    if office_met_relation == "Self" and not office_met_contact:
+        office_met_contact = contact
 
     computed_age = _age(dob, on)
     if computed_age is None and office_form.get("age"):
@@ -849,10 +861,17 @@ async def assemble_cpv_report_data(
     _owner_match = re.match(r"^\s*\(([^)]+)\)\s*(.*)$", owner_raw)
     if _owner_match:
         res_owner_name = _owner_match.group(1).strip() or None
-        res_owner_relation = _owner_match.group(2).strip() or "Relationship not mentioned"
+        res_owner_relation = _owner_match.group(2).strip() or None
     else:
         res_owner_name = owner_raw.strip() or None
-        res_owner_relation = "Relationship not mentioned" if res_owner_name else None
+        res_owner_relation = None
+    if res_owner_name and (not res_owner_relation or res_owner_relation.lower() in ("relationship not mentioned", "not mentioned")):
+        if (applicant.get("name") and (_name_score(res_owner_name, applicant.get("name")) or 0) >= 80) or (
+            applicant_name and (_name_score(res_owner_name, applicant_name) or 0) >= 80
+        ):
+            res_owner_relation = "Self"
+        else:
+            res_owner_relation = "Relationship not mentioned"
 
     from app.services.field_form_pdf_ingest import reconcile_family_members_for_applicant, reconcile_person_relation
     fm = reconcile_family_members_for_applicant(
@@ -866,17 +885,26 @@ async def assemble_cpv_report_data(
     )
     family = [{k: m.get(k) for k in ("name", "relation", "age", "earning")} for m in fm if isinstance(m, dict)]
 
-    # "Who did you meet" strictly as written in the Google Form / PWA form
+    # "Who did you meet" strictly as written in the Google Form / PWA form (with Self recognition when the person met is the applicant themselves)
     met_raw_str = form.get("person_met") or ""
     _met_match = re.match(r"^\s*([^-()]+?)\s*(?:-\s*([\d\s+]{7,15}))?\s*(?:\(([^)]+)\))?\s*$", met_raw_str)
     if _met_match:
         met_name = _met_match.group(1).strip() or None
         met_contact = (_met_match.group(2) or "").strip() or None
-        met_relation = (_met_match.group(3) or "").strip() or ("Relationship not mentioned" if met_name else None)
+        met_relation = (_met_match.group(3) or "").strip() or None
     else:
         met_name = met_raw_str.strip() or None
         met_contact = None
-        met_relation = "Relationship not mentioned" if met_name else None
+        met_relation = None
+    if met_name and (not met_relation or met_relation.lower() in ("relationship not mentioned", "not mentioned")):
+        if (applicant.get("name") and (_name_score(met_name, applicant.get("name")) or 0) >= 80) or (
+            applicant_name and (_name_score(met_name, applicant_name) or 0) >= 80
+        ):
+            met_relation = "Self"
+        else:
+            met_relation = "Relationship not mentioned"
+    if met_relation == "Self" and not met_contact:
+        met_contact = loan_case.applicant_phone or form.get("contact_number") or None
 
     residence = {
         "verified_address": target_address if visited else None,
