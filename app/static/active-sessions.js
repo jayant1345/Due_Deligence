@@ -152,7 +152,258 @@
   window.toggleLiveSessionsDrawer = toggleLiveSessionsDrawer;
   window.loadActiveSessionsTable = loadActiveSessionsTable;
 
+  // ==========================================
+  // PURELY ADDITIVE: DATE-WISE CASE ENTRY & KPI DETAILS REPORT CONTROLLER
+  // ==========================================
+  let _dwCachedCases = [];
+  let _dwCurrentTitle = "Date-wise Case Entry Report";
+
+  function _formatDateChipLabel(isoStr) {
+    if (!isoStr || isoStr === "Unknown") return isoStr || "—";
+    try {
+      const [y, m, d] = isoStr.split("-").map(Number);
+      const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+      return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+    } catch (_) {
+      return isoStr;
+    }
+  }
+
+  function _formatInrLakhs(amountVal) {
+    const n = Number(amountVal);
+    if (!Number.isFinite(n) || n <= 0) return "—";
+    if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
+    if (n >= 100000) return `₹${(n / 100000).toFixed(2)} Lacs`;
+    return `₹${n.toLocaleString("en-IN")}`;
+  }
+
+  function _renderStatusPill(statusStr) {
+    const s = String(statusStr || "DRAFT").toUpperCase();
+    if (s === "CERTIFIED") {
+      return `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">CERTIFIED (UDIN)</span>`;
+    }
+    if (s === "PENDING_CA_REVIEW") {
+      return `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200">PENDING CA REVIEW</span>`;
+    }
+    if (s === "ASSIGNED" || s === "ASSIGNED_TO_FIELD") {
+      return `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">ASSIGNED</span>`;
+    }
+    if (s === "IN_PROGRESS") {
+      return `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200">IN PROGRESS</span>`;
+    }
+    if (s === "APPROVED") {
+      return `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">APPROVED</span>`;
+    }
+    return `<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">${s}</span>`;
+  }
+
+  function renderDateWiseModalRows(rows) {
+    const tbody = document.getElementById("dwReportTableBody");
+    const countBadge = document.getElementById("dwReportCountBadge");
+    if (countBadge) countBadge.textContent = `${rows.length} Case${rows.length === 1 ? "" : "s"}`;
+    if (!tbody) return;
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center font-mono text-xs text-outline">No cases found for the selected date / filter.</td></tr>`;
+      return;
+    }
+    const esc = (s) => String(s || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    tbody.innerHTML = rows
+      .map((c, idx) => {
+        const coLine = c.co_applicant_name
+          ? `<div class="text-[10px] font-mono text-purple-700 mt-0.5">Co-App: ${esc(c.co_applicant_name)}</div>`
+          : "";
+        const phLine = c.applicant_phone
+          ? `<div class="text-[10px] font-mono text-outline">${esc(c.applicant_phone)}</div>`
+          : "";
+        return `
+          <tr class="hover:bg-surface-container-low/70 transition-colors">
+            <td class="py-2.5 px-3 font-mono text-xs text-outline">${idx + 1}</td>
+            <td class="py-2.5 px-3 font-mono text-xs whitespace-nowrap">
+              <div class="font-bold text-on-surface">${esc(c.date_label)}</div>
+              <div class="text-[10px] text-outline">${esc(c.time_label)}</div>
+            </td>
+            <td class="py-2.5 px-3 font-mono text-xs font-bold text-primary-container whitespace-nowrap">${esc(c.case_no)}</td>
+            <td class="py-2.5 px-3">
+              <div class="font-bold text-on-surface">${esc(c.applicant_name)}</div>
+              ${coLine}
+              ${phLine}
+            </td>
+            <td class="py-2.5 px-3">
+              <div class="font-bold text-on-surface">${esc(c.bank_name)}</div>
+              <div class="text-[11px] text-on-surface-variant font-medium">${esc(c.branch)}</div>
+            </td>
+            <td class="py-2.5 px-3">
+              <div class="font-semibold text-on-surface">${esc(c.loan_type)}</div>
+              <div class="font-mono text-[10px] font-bold text-secondary">${_formatInrLakhs(c.loan_amount)}</div>
+            </td>
+            <td class="py-2.5 px-3 text-xs font-medium text-on-surface">${esc(c.executive)}</td>
+            <td class="py-2.5 px-3 whitespace-nowrap">${_renderStatusPill(c.status)}</td>
+            <td class="py-2.5 px-3 text-right whitespace-nowrap">
+              <button type="button" onclick="openCaseFromDateWiseReport('${esc(c.id)}')" class="px-2.5 py-1 rounded bg-primary-container hover:bg-primary text-white font-mono text-[11px] font-bold cursor-pointer">Open Case</button>
+            </td>
+          </tr>`;
+      })
+      .join("");
+  }
+
+  function filterDateWiseModalRows() {
+    const q = (document.getElementById("dwSearchInput")?.value || "").toLowerCase().trim();
+    if (!q) {
+      renderDateWiseModalRows(_dwCachedCases);
+      return;
+    }
+    const filtered = _dwCachedCases.filter(
+      (c) =>
+        (c.case_no || "").toLowerCase().includes(q) ||
+        (c.applicant_name || "").toLowerCase().includes(q) ||
+        (c.co_applicant_name || "").toLowerCase().includes(q) ||
+        (c.bank_name || "").toLowerCase().includes(q) ||
+        (c.branch || "").toLowerCase().includes(q) ||
+        (c.loan_type || "").toLowerCase().includes(q) ||
+        (c.executive || "").toLowerCase().includes(q) ||
+        (c.date_label || "").toLowerCase().includes(q)
+    );
+    renderDateWiseModalRows(filtered);
+  }
+
+  async function openDateWiseCaseReport(opts) {
+    const options = opts || {};
+    const modal = document.getElementById("modalDateWiseCaseReport");
+    const titleEl = document.getElementById("dwReportTitle");
+    const tbody = document.getElementById("dwReportTableBody");
+    const chipsBox = document.getElementById("dwDateChipsContainer");
+    const modalDateInp = document.getElementById("dwModalDateInput");
+    const bannerDateInp = document.getElementById("mgmtDailyReportDateInput");
+    const searchInp = document.getElementById("dwSearchInput");
+
+    if (searchInp) searchInp.value = "";
+    if (modal) modal.style.display = "flex";
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center font-mono text-xs text-outline">Loading case entry details...</td></tr>`;
+    }
+
+    const params = new URLSearchParams();
+    if (options.date) {
+      params.set("date", options.date);
+      if (modalDateInp) modalDateInp.value = options.date;
+      if (bannerDateInp) bannerDateInp.value = options.date;
+    } else if (options.category) {
+      params.set("category", options.category);
+    } else {
+      params.set("category", "actual_all");
+    }
+
+    try {
+      const res = await fetch(`/api/v1/cases/date-wise-report?${params.toString()}`, {
+        headers: _getAuthHeaders(),
+      });
+      if (!res.ok) {
+        if (tbody) {
+          tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center font-mono text-xs text-rose-700">Could not load case report (HTTP ${res.status}).</td></tr>`;
+        }
+        return;
+      }
+      const data = await res.json();
+      _dwCachedCases = Array.isArray(data.cases) ? data.cases : [];
+      _dwCurrentTitle = data.title || "Date-wise Case Entry Report";
+      if (titleEl) titleEl.textContent = _dwCurrentTitle;
+      if (options.category === "today" && data.today_ist) {
+        if (modalDateInp) modalDateInp.value = data.today_ist;
+        if (bannerDateInp) bannerDateInp.value = data.today_ist;
+      } else if (!options.date && modalDateInp) {
+        modalDateInp.value = data.today_ist || "";
+      }
+
+      if (chipsBox && Array.isArray(data.date_wise_counts)) {
+        const selectedDate = options.date || (options.category === "today" ? data.today_ist : "");
+        chipsBox.innerHTML = data.date_wise_counts
+          .slice(0, 14)
+          .map((d) => {
+            const isSel = d.date_iso === selectedDate;
+            const cls = isSel
+              ? "px-2.5 py-1 rounded-lg bg-emerald-700 text-white font-mono text-[11px] font-bold shadow-xs cursor-pointer"
+              : "px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-100 text-emerald-950 border border-emerald-300 font-mono text-[11px] font-semibold cursor-pointer transition-colors";
+            return `<button type="button" onclick="openDateWiseCaseReport({ date: '${d.date_iso}' })" class="${cls}">${_formatDateChipLabel(d.date_iso)}: <strong>${d.count}</strong></button>`;
+          })
+          .join("");
+      }
+
+      renderDateWiseModalRows(_dwCachedCases);
+    } catch (err) {
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center font-mono text-xs text-rose-700">Network error while loading date-wise report.</td></tr>`;
+      }
+    }
+  }
+
+  function closeDateWiseCaseReport() {
+    const modal = document.getElementById("modalDateWiseCaseReport");
+    if (modal) modal.style.display = "none";
+  }
+
+  function openCaseFromDateWiseReport(caseId) {
+    closeDateWiseCaseReport();
+    if (!caseId) return;
+    try {
+      if (typeof activeCaseId !== "undefined") activeCaseId = caseId;
+      if (typeof onCaseSelected === "function") onCaseSelected(caseId);
+      if (typeof switchMainPortalView === "function") switchMainPortalView("scrutiny");
+    } catch (_) {}
+  }
+
+  function exportDateWiseReportCsv() {
+    if (!_dwCachedCases || !_dwCachedCases.length) {
+      alert("No case rows to export.");
+      return;
+    }
+    const headers = ["Sr No", "Entered Date", "Entered Time", "Case Reference", "Applicant Name", "Co-Applicant Name", "Phone", "Bank Name", "Branch", "Loan Type", "Loan Amount", "Executive / Staff", "Status", "Address"];
+    const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lines = [
+      headers.join(","),
+      ..._dwCachedCases.map((c, idx) =>
+        [
+          idx + 1,
+          q(c.date_label),
+          q(c.time_label),
+          q(c.case_no),
+          q(c.applicant_name),
+          q(c.co_applicant_name),
+          q(c.applicant_phone),
+          q(c.bank_name),
+          q(c.branch),
+          q(c.loan_type),
+          q(c.loan_amount || ""),
+          q(c.executive),
+          q(c.status),
+          q(c.target_address),
+        ].join(",")
+      ),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `CA_DateWise_Case_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  window.openDateWiseCaseReport = openDateWiseCaseReport;
+  window.closeDateWiseCaseReport = closeDateWiseCaseReport;
+  window.filterDateWiseModalRows = filterDateWiseModalRows;
+  window.openCaseFromDateWiseReport = openCaseFromDateWiseReport;
+  window.exportDateWiseReportCsv = exportDateWiseReportCsv;
+
   setTimeout(() => {
+    const bannerDateInp = document.getElementById("mgmtDailyReportDateInput");
+    if (bannerDateInp && !bannerDateInp.value) {
+      try {
+        const istNow = new Date(Date.now() + 5.5 * 3600 * 1000);
+        bannerDateInp.value = istNow.toISOString().slice(0, 10);
+      } catch (_) {}
+    }
     sendDashboardSessionHeartbeat();
     loadActiveSessionsTable();
   }, 1000);

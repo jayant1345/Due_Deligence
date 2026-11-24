@@ -671,6 +671,139 @@ async def get_case_stats(
     }
 
 
+@router.get("/date-wise-report")
+async def get_date_wise_case_entry_report(
+    date: Optional[str] = Query(None, description="Optional YYYY-MM-DD date in IST"),
+    category: Optional[str] = Query(None, description="Optional category filter: actual_all | today | actual_completed | actual_certified | all_total | all_allotted | all_completed | all_certified"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_ca_user),
+):
+    """
+    Purely additive endpoint for the Date-wise & KPI Case Entry Details Report Modal.
+    Returns all cases with their exact IST creation date (YYYY-MM-DD and formatted DD MMM YYYY, HH:MM IST),
+    daily counts per date, and full case details (Case No, Applicant, Co-Applicant, Bank, Branch,
+    Loan Type, Loan Amount, Executive/Agent, Status, Address).
+    """
+    from datetime import timedelta
+    ist_offset = timedelta(hours=5, minutes=30)
+    cutoff_16_nov_utc = datetime(2026, 11, 15, 18, 30, 0, tzinfo=timezone.utc)
+    now_ist = datetime.now(timezone.utc) + ist_offset
+    today_ist_str = now_ist.strftime("%Y-%m-%d")
+
+    q = select(LoanCase).order_by(desc(LoanCase.created_at))
+    if current_user.role == UserRole.FIELD_AGENT:
+        q = q.where(LoanCase.assigned_agent_id == current_user.id)
+    res = await db.execute(q)
+    all_cases = res.scalars().all()
+
+    agent_res = await db.execute(select(User.id, User.full_name))
+    agent_map = {row[0]: row[1] for row in agent_res.all()}
+
+    import json as _json_dw
+    date_counts: Dict[str, int] = {}
+    items: List[Dict[str, Any]] = []
+
+    for c in all_cases:
+        dt_utc = c.created_at
+        if dt_utc is not None:
+            if dt_utc.tzinfo is None:
+                dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+            dt_ist = dt_utc + ist_offset
+            date_iso = dt_ist.strftime("%Y-%m-%d")
+            date_label = dt_ist.strftime("%d %b %Y")
+            time_label = dt_ist.strftime("%I:%M %p IST")
+            is_actual_since_16_nov = dt_utc >= cutoff_16_nov_utc
+        else:
+            date_iso = "Unknown"
+            date_label = "Unknown"
+            time_label = "—"
+            is_actual_since_16_nov = False
+
+        date_counts[date_iso] = date_counts.get(date_iso, 0) + 1
+
+        exec_name = agent_map.get(c.assigned_agent_id) or ""
+        if not exec_name and c.field_form_data:
+            try:
+                ffd = _json_dw.loads(c.field_form_data)
+                if isinstance(ffd, dict):
+                    exec_name = ffd.get("verifier_agent_name") or ffd.get("executive") or ffd.get("executive_name") or ""
+            except Exception:
+                pass
+
+        status_val = c.status.value if hasattr(c.status, "value") else str(c.status or "DRAFT")
+        items.append({
+            "id": str(c.id),
+            "case_no": c.case_no or "—",
+            "applicant_name": c.applicant_name or "—",
+            "co_applicant_name": c.co_applicant_name or "",
+            "applicant_phone": c.applicant_phone or "",
+            "bank_name": c.bank_name or "—",
+            "branch": c.branch or "—",
+            "loan_type": c.loan_type or "Loan",
+            "loan_amount": c.loan_amount,
+            "status": status_val,
+            "executive": exec_name or "Unassigned",
+            "target_address": c.target_address or "",
+            "date_iso": date_iso,
+            "date_label": date_label,
+            "time_label": time_label,
+            "is_actual_since_16_nov": is_actual_since_16_nov,
+            "is_today": date_iso == today_ist_str,
+        })
+
+    # Filter items according to category or date if requested
+    filtered = items
+    title_label = "All Entered Cases (Since 16 Nov 2026)"
+    if date and date.strip() and date.strip().upper() != "ALL":
+        target_d = date.strip()
+        filtered = [x for x in items if x["date_iso"] == target_d]
+        try:
+            d_obj = datetime.strptime(target_d, "%Y-%m-%d")
+            title_label = f"Cases Entered on {d_obj.strftime('%d %b %Y')} ({len(filtered)} Cases)"
+        except ValueError:
+            title_label = f"Cases Entered on {target_d} ({len(filtered)} Cases)"
+    elif category:
+        cat = category.strip().lower()
+        if cat == "actual_all":
+            filtered = [x for x in items if x["is_actual_since_16_nov"]]
+            title_label = f"Actual Cases Since 16 Nov 2026 ({len(filtered)} Cases)"
+        elif cat == "today":
+            filtered = [x for x in items if x["is_today"]]
+            title_label = f"Today's Entered Cases — {now_ist.strftime('%d %b %Y')} ({len(filtered)} Cases)"
+        elif cat == "actual_completed":
+            filtered = [x for x in items if x["is_actual_since_16_nov"] and x["status"] in ("PENDING_CA_REVIEW", "APPROVED", "CERTIFIED", "FLAGGED", "REJECTED")]
+            title_label = f"Actual Work Completed Since 16 Nov 2026 ({len(filtered)} Cases)"
+        elif cat == "actual_certified":
+            filtered = [x for x in items if x["is_actual_since_16_nov"] and x["status"] == "CERTIFIED"]
+            title_label = f"Actual Certified (UDIN) Since 16 Nov 2026 ({len(filtered)} Cases)"
+        elif cat == "all_total":
+            filtered = items
+            title_label = f"Total Received Cases Across Portfolio ({len(filtered)} Cases)"
+        elif cat == "all_allotted":
+            filtered = [x for x in items if x["status"] in ("ASSIGNED", "IN_PROGRESS")]
+            title_label = f"Cases Currently Allotted to Field Staff ({len(filtered)} Cases)"
+        elif cat == "all_completed":
+            filtered = [x for x in items if x["status"] in ("PENDING_CA_REVIEW", "APPROVED", "CERTIFIED", "FLAGGED", "REJECTED")]
+            title_label = f"Visits Completed Across Portfolio ({len(filtered)} Cases)"
+        elif cat == "all_certified":
+            filtered = [x for x in items if x["status"] == "CERTIFIED"]
+            title_label = f"Certified Reports Across Portfolio ({len(filtered)} Cases)"
+
+    sorted_dates = sorted(
+        [{"date_iso": k, "count": v} for k, v in date_counts.items() if k != "Unknown"],
+        key=lambda x: x["date_iso"],
+        reverse=True,
+    )
+
+    return {
+        "today_ist": today_ist_str,
+        "title": title_label,
+        "total_matching": len(filtered),
+        "date_wise_counts": sorted_dates,
+        "cases": filtered,
+    }
+
+
 def _generate_or_get_thumbnail_sync(src_path: str, width: int) -> str:
     import hashlib
     from PIL import Image as _PilThumbImg
