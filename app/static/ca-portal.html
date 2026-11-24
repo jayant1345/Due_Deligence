@@ -118,7 +118,7 @@
               <span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
             </span>
             <span class="font-mono text-[10px] text-secondary bg-surface-container-low px-2 py-0.5 rounded border border-secondary/30 whitespace-nowrap">
-              Empanelled: Union Bank • SBI • HDFC • ICICI • Axis
+              Empanelled: Union Bank of India • Bank of Baroda
             </span>
           </div>
         </div>
@@ -194,11 +194,8 @@
           <div class="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 shadow-sm">
             <span class="material-symbols-outlined text-outline text-[15px]">account_balance</span>
             <select id="filterBankSelect" onchange="onBankFilterChanged(this.value)" class="text-xs bg-transparent border-0 font-semibold text-on-surface focus:ring-0 cursor-pointer pr-4">
-              <option value="ALL">All Empanelled Banks (5)</option>
+              <option value="ALL">All Empanelled Banks (2)</option>
               <option value="Union Bank of India">Union Bank of India</option>
-              <option value="State Bank of India">State Bank of India</option>
-              <option value="HDFC Bank">HDFC Bank</option>
-              <option value="ICICI Bank">ICICI Bank</option>
               <option value="Bank of Baroda">Bank of Baroda</option>
             </select>
           </div>
@@ -1641,9 +1638,6 @@
           <select id="mgmtFilterBank" onchange="applyManagementFilters()" class="w-full text-xs font-bold text-on-surface bg-transparent border-0 p-0 focus:ring-0 cursor-pointer">
             <option value="ALL">All Empanelled Banks (બધી બેંક)</option>
             <option value="Union Bank of India">Union Bank of India</option>
-            <option value="State Bank of India">State Bank of India</option>
-            <option value="HDFC Bank">HDFC Bank</option>
-            <option value="ICICI Bank">ICICI Bank</option>
             <option value="Bank of Baroda">Bank of Baroda</option>
           </select>
         </div>
@@ -1906,14 +1900,8 @@
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Empanelled Bank (બેંક)*</label>
             <select id="tabNcBankName" onchange="syncTabNcCaseNoPrefix()" class="w-full text-xs font-bold bg-surface-container-low border border-outline-variant rounded-lg p-2 focus:ring-emerald-500">
-              <option value="Bank of Baroda" selected>Bank of Baroda (BOB)</option>
-              <option value="Union Bank of India">Union Bank of India (UBI)</option>
-              <option value="State Bank of India">State Bank of India (SBI)</option>
-              <option value="HDFC Bank">HDFC Bank</option>
-              <option value="ICICI Bank">ICICI Bank</option>
-              <option value="Axis Bank">Axis Bank</option>
-              <option value="Canara Bank">Canara Bank</option>
-              <option value="Punjab National Bank">Punjab National Bank (PNB)</option>
+              <option value="Union Bank of India" selected>Union Bank of India (UBI)</option>
+              <option value="Bank of Baroda">Bank of Baroda (BOB)</option>
             </select>
           </div>
 
@@ -2266,7 +2254,7 @@
       </div>
       <div class="p-3 bg-surface-container-low rounded-lg font-mono text-xs text-on-surface leading-relaxed overflow-x-auto border border-outline-variant/60">
         <span class="text-amber-700 font-bold">📁 <span id="dispArchiveTreeMonth">OCT - 2026</span>/</span><br/>
-        &nbsp;&nbsp;└── <span class="text-primary-container font-bold">🏦 <span id="dispArchiveTreeBank">All Empanelled Banks (Union Bank, SBI, Bank of Baroda, HDFC, ICICI)</span>/</span><br/>
+        &nbsp;&nbsp;└── <span class="text-primary-container font-bold">🏦 <span id="dispArchiveTreeBank">All Empanelled Banks (Union Bank of India, Bank of Baroda)</span>/</span><br/>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="text-indigo-700 font-bold">🏢 Branchwise Folders (e.g. 150ft ring road , Rajkot / Bagodara / GOTA / Ashram Road)/</span><br/>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="text-emerald-800 font-bold">📁 Case Name Wise Folder (e.g. Bhavnaben Pargi - UBI-HL-2026-531)/</span><br/>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 <span class="text-slate-600">Input_Original_PDFs/ (All uploaded bank loan dossiers)</span><br/>
@@ -2295,9 +2283,6 @@
             <option value="ALL">All Empanelled Banks</option>
             <option value="Union Bank of India">Union Bank of India</option>
             <option value="Bank of Baroda">Bank of Baroda</option>
-            <option value="State Bank of India">State Bank of India</option>
-            <option value="HDFC Bank">HDFC Bank</option>
-            <option value="ICICI Bank">ICICI Bank</option>
           </select>
         </div>
       </div>
@@ -2458,7 +2443,7 @@
   </div>
 
   <script src="/static/ca-portal.js?v=42"></script>
-  <script src="/static/active-sessions.js?v=2"></script>
+  <script src="/static/active-sessions.js?v=3"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
@@ -3303,13 +3288,7 @@
               <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Empanelled Bank Name (બેંક)*</label>
               <select id="ncBankName" required class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
                 <option value="Union Bank of India">Union Bank of India</option>
-                <option value="State Bank of India">State Bank of India</option>
-                <option value="HDFC Bank">HDFC Bank</option>
-                <option value="ICICI Bank">ICICI Bank</option>
                 <option value="Bank of Baroda">Bank of Baroda</option>
-                <option value="Canara Bank">Canara Bank</option>
-                <option value="Punjab National Bank">Punjab National Bank</option>
-                <option value="Axis Bank">Axis Bank</option>
               </select>
             </div>
 

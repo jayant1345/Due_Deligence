@@ -396,7 +396,30 @@
   window.openCaseFromDateWiseReport = openCaseFromDateWiseReport;
   window.exportDateWiseReportCsv = exportDateWiseReportCsv;
 
+  // ==========================================
+  // STRICT TWO EMPANELLED BANKS (Union Bank of India & Bank of Baroda)
+  // ==========================================
+  const EMPANELLED_BANKS_ONLY = ["Union Bank of India", "Bank of Baroda"];
+
+  function enforceTwoEmpanelledBanks() {
+    window.getDistinctCaseBanks = function () {
+      return EMPANELLED_BANKS_ONLY.slice();
+    };
+    window.rebuildBankFilterOptions = function () {
+      const banks = EMPANELLED_BANKS_ONLY.slice();
+      if (typeof fillBranchSelect === "function") {
+        fillBranchSelect("filterBankSelect", `All Empanelled Banks (${banks.length})`, banks);
+        fillBranchSelect("mgmtFilterBank", "All Empanelled Banks (બધી બેંક)", banks);
+      }
+    };
+    if (typeof window.rebuildBankFilterOptions === "function") {
+      window.rebuildBankFilterOptions();
+    }
+  }
+  enforceTwoEmpanelledBanks();
+
   setTimeout(() => {
+    enforceTwoEmpanelledBanks();
     const bannerDateInp = document.getElementById("mgmtDailyReportDateInput");
     if (bannerDateInp && !bannerDateInp.value) {
       try {
