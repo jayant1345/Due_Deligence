@@ -325,6 +325,20 @@ def _fill_identity(table, person: Dict[str, Any]) -> None:
 
 
 def _fill_family(table, family: List[Dict[str, Any]]) -> None:
+    if not family:
+        for r in range(1, len(table.rows)):
+            cells = _ucells(table, r)
+            if r == 1:
+                _set_cell(cells[-4], "Family details not provided")
+                _set_cell(cells[-3], "-")
+                _set_cell(cells[-2], "-")
+                _set_cell(cells[-1], "-")
+            else:
+                _set_cell(cells[-4], "")
+                _set_cell(cells[-3], "")
+                _set_cell(cells[-2], "")
+                _set_cell(cells[-1], "")
+        return
     for r in range(1, len(table.rows)):
         m = family[r - 1] if r - 1 < len(family) else {}
         cells = _ucells(table, r)

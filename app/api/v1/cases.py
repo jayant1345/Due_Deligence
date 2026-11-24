@@ -425,7 +425,7 @@ async def list_cases(
                 if ff_dict.get("neighbour_1") or ff_dict.get("neighbour_2"):
                     old_n1 = ff_dict.get("neighbour_1") or ""
                     old_n2 = ff_dict.get("neighbour_2") or ""
-                    norm_n = _expand_and_normalize_references([old_n1, old_n2], default_relation="Neighbour")
+                    norm_n = _expand_and_normalize_references([old_n1, old_n2])
                     new_n1 = norm_n[0] if len(norm_n) > 0 else ""
                     new_n2 = norm_n[1] if len(norm_n) > 1 else ""
                     if (new_n1, new_n2) != (old_n1, old_n2):
@@ -434,36 +434,13 @@ async def list_cases(
                         if isinstance(ff_dict.get("restore"), dict):
                             ff_dict["restore"]["neighbors"] = [x for x in (new_n1, new_n2) if x]
                         changed_ff = True
-                if isinstance(ff_dict.get("family_members"), list) and ff_dict["family_members"]:
+                if isinstance(ff_dict.get("family_members"), list):
                     old_fam = ff_dict["family_members"]
-                    new_fam = reconcile_family_members_for_applicant(
-                        old_fam,
-                        applicant_name=c.applicant_name,
-                        applicant_age=ff_dict.get("age_community") or ff_dict.get("age"),
-                        applicant_marital_status=ff_dict.get("marital_status"),
-                        form_holder_name=c.co_applicant_name or off_who_name or None,
-                        form_holder_age=ff_dict.get("co_applicant_age") or "49" if off_who_name else None,
-                    )
+                    new_fam = reconcile_family_members_for_applicant(old_fam)
                     if new_fam != old_fam:
                         ff_dict["family_members"] = new_fam
                         if isinstance(ff_dict.get("restore"), dict):
                             ff_dict["restore"]["family_members"] = new_fam
-                        changed_ff = True
-                if ff_dict.get("person_met") or ff_dict.get("owner_name"):
-                    old_pm = ff_dict.get("person_met")
-                    old_on = ff_dict.get("owner_name")
-                    enriched_ff = enrich_field_form_defaults(
-                        ff_dict,
-                        applicant_name=c.applicant_name,
-                        target_address=c.target_address if c.target_address != "Pending AI Extraction" else None,
-                        applicant_age=ff_dict.get("age_community") or ff_dict.get("age"),
-                    )
-                    if enriched_ff.get("person_met") != old_pm or enriched_ff.get("owner_name") != old_on:
-                        ff_dict["person_met"] = enriched_ff.get("person_met")
-                        ff_dict["owner_name"] = enriched_ff.get("owner_name")
-                        if isinstance(ff_dict.get("restore"), dict):
-                            ff_dict["restore"]["person_met"] = ff_dict["person_met"]
-                            ff_dict["restore"]["owner_name"] = ff_dict["owner_name"]
                         changed_ff = True
                 if changed_ff:
                     c.field_form_data = _json_heal.dumps(ff_dict)

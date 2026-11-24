@@ -51,8 +51,8 @@ When Family Details lines are written like "APP- SWETA ARORA -37- YES" or "HUSBA
 and "ANAND VORA" is the person's name. Always put the person's actual name in "name" and the
 relationship ("Self", "Husband", "Wife", "Father", "Mother", "Son", "Daughter", etc.) in "relation".
 Normalize obvious spelling slips in relations or positions (e.g. "FERIND" -> "Friend", "MENEGER" -> "Manager").
-If a field contains only "N", "NA", "Na", "No", or "Nil" as a placeholder for "none", return null for that field
-(except office_ownership where "NA" is a radio button option).
+If a field contains only "N", "NA", "Na", or "Nil" as a placeholder for "none", return null for that field
+(except office_ownership where "NA" is a radio button option, and nameboard_visibility_residence / office_nameboard_visibility where "No" is a real answer).
 
 Return ONLY a JSON object with exactly these keys:
 {{
@@ -70,24 +70,24 @@ Return ONLY a JSON object with exactly these keys:
   "co_applicant_contact": "Co-applicant phone number if mentioned, string or null",
   "co_applicant_address": "Co-applicant address if mentioned, string or null",
   "family_members": [
-    {{"name": "exact person's name as written in the Google Form (or null ONLY if no name was written on that line — NEVER copy another family member's name onto a line that had no name)", "age": "string", "relation": "exact relation as written in the Google Form: Self | Husband | Wife | Father | Mother | Grandfather | Grandmother | Father-in-law | Mother-in-law | Son | Daughter | Brother | Sister | Brother-in-law | Sister-in-law | Uncle | Aunt | Family Member (Follow the Google Form details first; only infer relation when the form line is ambiguous)", "earning": "Yes or No as written in the Google Form (MUST be 'No' if written as NO/N/Housewife/Student or if age < 18)"}}
+    {{"name": "exact person's name as written under 'Family Details (કુટુંબ વિગતો)' in the Google Form. CRITICAL RULE: If 'Family Details' in the Google Form says 'No provide', 'Not provided', 'NA', 'Nil', 'No', or is blank, return an empty array []! NEVER invent, assume, or add any family member that is not explicitly written under 'Family Details (કુટુંબ વિગતો)'", "age": "exact age as written in the Google Form", "relation": "exact relation as written in the Google Form (only map 'APP'/'Applicant' -> 'Self')", "earning": "exact earning status ('Yes' or 'No') as written in the Google Form"}}
   ],
   "address_visited": "string or null",
   "residence_landmark": "Landmark or locality extracted from address_visited (e.g. 'Near SAL Hospital, Driving Road, Thaltej'), string or null",
   "residence_ownership": "Rented | Owned | Government Provided | Company Provided | null",
   "residence_references": [
-    {{"name": "Exact reference name as written before the '-' or relation (e.g. 'Jayantibhai', 'Vishalbhai' — keep the full name intact; if two different references are written separated by ',' or '/', output TWO separate objects in this array, NEVER put the second person's name into 'relation')", "relation": "Neighbour (default to 'Neighbour' unless another relation like 'Friend', 'Landlord', 'Relative', 'Secretary', 'Watchman' is explicitly written)"}}
+    {{"name": "Exact reference name as written under 'References (2)' in the Google Form (e.g. 'Kishorbhai', 'Jayantibhai' — strip leading item numbers like '1 -' or '2 -', keep full name intact; if a line says 'No reference' or 'No provide' or 'NA', either omit it or return name='No reference' and relation=null)", "relation": "Exact relation as written in the Google Form (e.g. 'Neighbour', 'Friend'). CRITICAL: If no relation was written next to the reference name in the Google Form, return null — NEVER default or assume 'Neighbour'!"}}
   ],
   "residence_building_type": "Bungalow | Flat | Independent House | null",
   "residence_bhk": "e.g. '1 BHK', '2 BHK', '3 BHK', '4 BHK' or null",
   "duration_of_stay": "string or null (e.g. '2.5 years')",
-  "residence_owner_name": "string or null - name only, no relation",
-  "residence_owner_relation": "string or null - e.g. 'Father', 'Self', 'Mother in law', 'Family Member'",
+  "residence_owner_name": "string or null - exact owner name as written in the Google Form, no relation",
+  "residence_owner_relation": "string or null - ONLY if a relation was explicitly written in 'Owner Name (માલિકનું નામ) : (Name Relation)' in the Google Form; if only the owner's name was written (e.g. 'Dineshbhai Chauhan') without any relation word, return null — NEVER guess or calculate relation!",
   "nameboard_visibility_residence": "string or null - whatever was typed/selected, e.g. 'Yes' or 'No' or the name on the board",
   "residence_assets_visible": ["list of checked items, e.g. 'AC', 'FAN', 'CCTV'"],
-  "who_met_residence_name": "string or null - name only",
-  "who_met_residence_contact": "string or null - phone number if given",
-  "who_met_residence_relation": "string or null - only if explicitly written, never guessed",
+  "who_met_residence_name": "string or null - name only as written in the Google Form",
+  "who_met_residence_contact": "string or null - phone number if explicitly written in the Google Form",
+  "who_met_residence_relation": "string or null - ONLY if relation was explicitly written in 'Who did you meet?' in the Google Form; if no relation was written, return null — NEVER guess or assume!",
   "occupation": "Business | Job | House Wife | Retired | Pensioner | null",
   "work_from_home": "Yes | No | null",
   "firm_name": "string or null",
@@ -99,16 +99,16 @@ Return ONLY a JSON object with exactly these keys:
   "office_nameboard_visibility": "string or null - whatever was typed/selected",
   "office_infrastructure": "Office | Shop | Factory | School | Hospital | College | Clinic | Shed | string (if Other) | null",
   "office_ownership": "Owned | Rented | NA | null",
-  "office_owner_name": "string or null - name only, no relation",
-  "office_owner_relation": "string or null",
+  "office_owner_name": "string or null - exact owner name as written in the Google Form, no relation",
+  "office_owner_relation": "string or null - ONLY if relation was explicitly written in the Google Form; otherwise null",
   "position_or_nature_of_business": "string or null",
   "office_assets_visible": ["list of checked items"],
   "office_references": [
-    {{"name": "Exact reference name or shop/firm name as written before the '-' or relation (e.g. 'Rajnibhai', 'Aakashbhai', 'Cool and casual', 'Bold look' — keep all words of the name intact, NEVER truncate words like 'and casual' or 'look'; if two different references are written on one line separated by ',' or '/', output TWO separate objects in this array)", "relation": "Colleague | Staff | Manager | Owner | Neighbour | Friend (default to 'Colleague' or 'Neighbour' if not explicitly written)"}}
+    {{"name": "Exact reference name or shop/firm name as written in the Google Form (e.g. 'Kalpeshbhai', 'Nikhil Panchal', 'Cool and casual' — strip leading '1 -' or '2 -', keep all words of the name intact)", "relation": "Exact relation/designation as written in the Google Form (e.g. 'OS', 'Junior Clark', 'Colleague', 'Staff', 'Manager', 'Owner', 'Neighbour', 'Friend'). CRITICAL: If no relation was written in the Google Form, return null — NEVER default or assume!"}}
   ],
-  "who_met_office_name": "string or null - name only",
+  "who_met_office_name": "string or null - name only as written in the Google Form",
   "who_met_office_contact": "string or null",
-  "who_met_office_relation": "string or null - only if explicitly written",
+  "who_met_office_relation": "string or null - ONLY if explicitly written in the Google Form; otherwise null",
   "loan_type": "Home | Car | Education | Personal | string (if Other) | null",
   "loan_amount": "string or null",
   "previous_loan_bank": "string or null",
@@ -183,7 +183,12 @@ def _call_gemini_extraction(image_paths: List[str], applicant_name: str, page_te
     raise RuntimeError(f"Gemini extraction failed: {last_error}")
 
 
-_PLACEHOLDER_STRINGS = {"", "n", "na", "n/a", "no", "nil", "none", "-", "null", "pending ai extraction"}
+_PLACEHOLDER_STRINGS = {
+    "", "n", "na", "n/a", "no", "nil", "none", "-", "null",
+    "no provide", "not provide", "not provided", "no provided",
+    "family details not provided", "no reference", "no references",
+    "pending ai extraction",
+}
 
 _RELATION_NORMALIZATION = {
     "APP": "Self",
@@ -569,63 +574,14 @@ def reconcile_family_members_for_applicant(
     applicant_father_name: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Cleans, normalizes, and reconciles the family_members array against the primary applicant's
-    identity, gender, marital status, and age:
-    - Swaps misordered name/relation (e.g. name='APP', relation='SWETA ARORA').
-    - Detects when the applicant is an unmarried child / student (e.g. 'Miss. Moksha Kaushik Jain',
-      age 20, or listed as 'Daughter'/'Son' in a parent's visit form) and translates parent-perspective
-      relations into the child applicant's perspective:
-      * Father ('Kaushikbhai', 49) -> 'Father' (earning='Yes')
-      * Mother ('Mamtaben', 47, labeled 'Wife' on Father's form) -> 'Mother' (earning='No'), NEVER 'Mother-in-law'
-      * Sibling ('Ansh', 18, labeled 'Son' on Father's form) -> 'Brother' (earning='No'), NEVER 'Son'
-    - Fixes impossible spouse relations relative to a married applicant's gender.
-    - Ensures any minor child (age < 18) or student has earning='No'.
+    Strictly preserves Family Details exactly as written in the Google Form PDF (for backlog cases)
+    or PWA Field Visit Form (for field agent cases) with ZERO assumptions, ZERO age/relation formulas,
+    and ZERO auto-fabricated 'Self' or parent rows.
+    If no family details were provided (or 'No provide' / 'Not provided' / 'NA' / blank), returns []
+    so the report displays 'Family details not provided'.
     """
-    if not isinstance(raw_fam, list):
+    if not isinstance(raw_fam, list) or not raw_fam:
         return []
-
-    app_gender = _infer_gender_from_name_or_hint(applicant_name, applicant_gender)
-    app_age_num: Optional[int] = _parse_age_int(applicant_age)
-
-    # Extract applicant's middle token (often husband/father name in Gujarati/Indian 3-part names)
-    app_tokens = [
-        re.sub(r"[^A-Za-z]", "", t).upper()
-        for t in (applicant_name or "").split()
-        if re.sub(r"[^A-Za-z]", "", t).upper() not in ("MR", "MRS", "MS", "MISS", "SMT", "SHRI", "DR")
-    ]
-    app_middle_token = app_tokens[1] if len(app_tokens) >= 3 else None
-
-    # Check if the applicant herself/himself appears in raw_fam with relation 'Daughter' or 'Son'
-    # (which happens when a parent filled out the form) and extract the applicant's true age if needed
-    applicant_was_listed_as_child = False
-    for m in raw_fam:
-        if isinstance(m, dict):
-            mn = _clean_val(m.get("name"))
-            mr = (_clean_val(m.get("relation")) or "").upper().strip()
-            if mn and applicant_name and (_name_score(mn, applicant_name) or 0) >= 80:
-                m_age_parsed = _parse_age_int(m.get("age"))
-                if m_age_parsed and (app_age_num is None or app_age_num > 30 and m_age_parsed <= 25):
-                    app_age_num = m_age_parsed
-                if mr in ("DAUGHTER", "SON"):
-                    applicant_was_listed_as_child = True
-
-    app_upper = (applicant_name or "").strip().upper()
-    app_is_unmarried_or_child = bool(
-        applicant_was_listed_as_child
-        or re.match(r"^(?:MISS\.?|KUM\.?|KUMARI)\b", app_upper)
-        or (applicant_marital_status and str(applicant_marital_status).strip().lower() in ("unmarried", "single"))
-        or (app_age_num is not None and app_age_num <= 23 and not re.match(r"^(?:MRS\.?|SMT\.?)\b", app_upper))
-    )
-
-    # Check if this family list has minors (<18) that were previously stored with earning='Yes'
-    # due to the old _clean_val('No') -> None -> 'Yes' bug.
-    had_buggy_all_yes_minors = False
-    for m in raw_fam:
-        if isinstance(m, dict):
-            a_m = re.search(r"\b(\d{1,3})\b", str(m.get("age") or ""))
-            if a_m and 0 < int(a_m.group(1)) < 18 and str(m.get("earning") or "").strip().upper() == "YES":
-                had_buggy_all_yes_minors = True
-                break
 
     cleaned_fam: List[Dict[str, Any]] = []
     for m in raw_fam:
@@ -644,317 +600,46 @@ def reconcile_family_members_for_applicant(
         elif m_name and m_name.upper().strip(" .,-") in _RELATION_NORMALIZATION and not m_rel:
             m_rel = _RELATION_NORMALIZATION[m_name.upper().strip(" .,-")]
             m_name = None
-        else:
-            m_rel = _normalize_relation_or_title(m_rel)
-
-        # Strip bilingual suffix from relation if present (e.g. "Wife (પત્ની)" -> "Wife")
-        if m_rel:
-            m_rel = re.sub(r"\s*\([^)]*\)\s*$", "", m_rel).strip()
-            m_rel = _normalize_relation_or_title(m_rel) or m_rel
-
-        # Fallback ONLY when the Google Form PDF omitted the person's name on that line
-        if (not m_name or m_name.upper().strip(" .,-") in _RELATION_NORMALIZATION) and m_rel:
-            if m_rel == "Self" and applicant_name:
-                m_name = re.sub(r"^\s*(?:mr\.?|mrs\.?|miss\.?|ms\.?|smt\.?|shri\.?|dr\.?)\s+", "", str(applicant_name).strip(), flags=re.IGNORECASE).strip() or str(applicant_name).strip()
-            elif m_rel == "Father":
-                inferred_f = _clean_val(applicant_father_name)
-                if inferred_f:
-                    m_name = " ".join(w.capitalize() for w in inferred_f.split())
-                elif len(app_tokens) >= 3 and (app_gender == "MALE" or app_is_unmarried_or_child):
-                    if app_tokens[-1].endswith(("BHAI", "LAL", "KUMAR", "SINH", "DAS")) and not app_tokens[1].endswith(("BHAI", "LAL", "KUMAR", "SINH", "DAS")):
-                        m_name = f"{app_tokens[-1].capitalize()} {app_tokens[0].capitalize()}"
-                    else:
-                        m_name = f"{app_tokens[1].capitalize()} {app_tokens[-1].capitalize()}"
 
         if not m_name:
             continue
 
+        # Strip bilingual suffix from relation if present (e.g. "Wife (પત્ની)" -> "Wife", "Self (પોતે)" -> "Self")
+        if m_rel:
+            m_rel = re.sub(r"\s*\([^)]*\)\s*$", "", m_rel).strip()
+            if m_rel.upper().strip(" .,-") in ("APP", "APPLICANT", "SELF"):
+                m_rel = "Self"
+
         age_clean = str(_clean_val(m.get("age")) or "")
-        mem_age_num: Optional[int] = _parse_age_int(age_clean)
-
-        # 1. Check if member is actually the applicant themselves
-        if applicant_name and (_name_score(m_name, applicant_name) or 0) >= 80:
-            m_rel = "Self"
-        elif m_rel and m_rel.lower().startswith("self"):
-            # Only keep "Self" if it actually matches applicant_name (or applicant_name is unknown);
-            # if a co-applicant's form had marked the co-applicant as 'Self', re-classify relative to the Primary Applicant!
-            if applicant_name and (_name_score(m_name, applicant_name) or 0) < 75:
-                if mem_age_num and app_age_num and mem_age_num >= app_age_num + 15:
-                    m_rel = "Mother" if _infer_gender_from_name_or_hint(m_name) == "FEMALE" else "Father"
-                elif mem_age_num and app_age_num and mem_age_num <= app_age_num - 15:
-                    m_rel = "Daughter" if _infer_gender_from_name_or_hint(m_name) == "FEMALE" else "Son"
-                else:
-                    m_gen = _infer_gender_from_name_or_hint(m_name)
-                    if m_gen and app_gender and m_gen != app_gender:
-                        m_rel = "Wife" if m_gen == "FEMALE" else "Husband"
-                    else:
-                        m_rel = "Sister" if m_gen == "FEMALE" else "Brother"
-            elif app_is_unmarried_or_child and mem_age_num and app_age_num and mem_age_num >= app_age_num + 15:
-                m_rel = "Mother" if _infer_gender_from_name_or_hint(m_name) == "FEMALE" else "Father"
-            else:
-                m_rel = "Self"
-
-        mem_gender = _infer_gender_from_name_or_hint(m_name)
-        if not mem_gender and app_middle_token and m_name.strip().upper().startswith(app_middle_token):
-            mem_gender = "MALE"
-
-        rel_upper = (m_rel or "").upper()
-
-        # 1b. If the field agent wrote 'co app' / 'co-applicant' / 'guarantor' in the Relation column
-        # of Family Details (e.g. 'Jenuttin shaikh - 62 - co app - yes', 'Shakilabanu shaikh - 50 - co app - yes'),
-        # infer their actual family relationship to the primary applicant using age & gender!
-        if m_rel != "Self" and re.sub(r"[^A-Z]", "", rel_upper) in ("COAPP", "COAPPLICANT", "GUARANTOR", "GURANTOR", "COAPPL"):
-            if app_age_num and mem_age_num:
-                if mem_age_num >= app_age_num + 16:
-                    if mem_age_num >= app_age_num + 42 and mem_age_num >= 68:
-                        m_rel = "Grandmother" if mem_gender == "FEMALE" else "Grandfather"
-                    else:
-                        m_rel = "Mother" if mem_gender == "FEMALE" else "Father"
-                elif mem_age_num <= app_age_num - 16:
-                    m_rel = "Daughter" if mem_gender == "FEMALE" else "Son"
-                else:
-                    if mem_gender and app_gender and mem_gender != app_gender:
-                        m_rel = "Wife" if mem_gender == "FEMALE" else "Husband"
-                    elif mem_gender == "FEMALE":
-                        m_rel = "Sister" if app_is_unmarried_or_child else "Wife"
-                    else:
-                        m_rel = "Brother"
-            else:
-                if mem_gender == "FEMALE":
-                    m_rel = "Mother" if app_is_unmarried_or_child else "Wife"
-                elif mem_gender == "MALE":
-                    m_rel = "Father" if app_is_unmarried_or_child else "Brother"
-                else:
-                    m_rel = "Co-Applicant"
-            rel_upper = m_rel.upper()
-
-        # 2. If applicant is an unmarried child/student (or form was filled by parent), translate
-        # parent-perspective relations ('Wife' -> 'Mother', 'Son' -> 'Brother', 'Daughter' -> 'Sister')
-        if m_rel != "Self" and app_is_unmarried_or_child:
-            if rel_upper in ("WIFE", "MOTHER-IN-LAW", "SISTER-IN-LAW") and mem_gender != "MALE":
-                if not app_age_num or not mem_age_num or mem_age_num >= app_age_num + 15:
-                    m_rel = "Mother"
-                    rel_upper = "MOTHER"
-            elif rel_upper in ("HUSBAND", "FATHER-IN-LAW") and mem_gender == "MALE":
-                if not app_age_num or not mem_age_num or mem_age_num >= app_age_num + 15:
-                    m_rel = "Father"
-                    rel_upper = "FATHER"
-            elif rel_upper in ("SON", "DAUGHTER"):
-                if not app_age_num or not mem_age_num or mem_age_num > app_age_num - 15:
-                    m_rel = "Brother" if (rel_upper == "SON" or mem_gender == "MALE") else "Sister"
-                    rel_upper = m_rel.upper()
-
-        # Also for ANY applicant of known age: a person whose age is not at least 15 years younger
-        # than the applicant can never be their 'Son' or 'Daughter' (they are 'Brother' or 'Sister')
-        if m_rel != "Self" and rel_upper in ("SON", "DAUGHTER") and app_age_num and mem_age_num:
-            if mem_age_num > app_age_num - 15:
-                m_rel = "Brother" if (rel_upper == "SON" or mem_gender == "MALE") else "Sister"
-                rel_upper = m_rel.upper()
-
-        # 3. Reconcile impossible spouse relations against applicant's gender
-        if app_gender == "FEMALE" and rel_upper == "WIFE":
-            if applicant_name and (_name_score(m_name, applicant_name) or 0) >= 65:
-                m_rel = "Self"
-            elif mem_gender == "MALE":
-                m_rel = "Husband"
-            else:
-                if app_age_num and mem_age_num and mem_age_num >= app_age_num + 16:
-                    m_rel = "Mother" if app_is_unmarried_or_child else "Mother-in-law"
-                else:
-                    m_rel = "Sister" if app_is_unmarried_or_child else "Sister-in-law"
-        elif app_gender == "MALE" and rel_upper == "HUSBAND":
-            if applicant_name and (_name_score(m_name, applicant_name) or 0) >= 65:
-                m_rel = "Self"
-            elif mem_gender == "FEMALE":
-                m_rel = "Wife"
-            else:
-                if app_age_num and mem_age_num and mem_age_num >= app_age_num + 16:
-                    m_rel = "Father"
-                else:
-                    m_rel = "Brother"
-        elif rel_upper == "HUSBAND" and mem_gender == "FEMALE":
-            m_rel = "Wife" if app_gender == "MALE" else ("Mother" if app_is_unmarried_or_child else "Sister-in-law")
-        elif rel_upper == "WIFE" and mem_gender == "MALE":
-            m_rel = "Husband" if app_gender == "FEMALE" else "Brother"
-
-        earning_clean = _clean_earning_val(m.get("earning"), age_str=age_clean, occupation_str=m.get("occupation"))
-        if (
-            had_buggy_all_yes_minors
-            and not m.get("occupation")
-            and m_rel in ("Sister-in-law", "Mother-in-law", "Mother", "Wife", "Grandmother")
-        ):
+        raw_earn = m.get("earning")
+        earn_str = str(raw_earn).strip() if raw_earn is not None else ""
+        if earn_str.upper() in ("YES", "Y", "EARNING"):
+            earning_clean = "Yes"
+        elif earn_str.upper() in ("NO", "N", "NOT EARNING", "NON-EARNING", "NONE"):
             earning_clean = "No"
-        if app_is_unmarried_or_child and m_rel in ("Self", "Brother", "Sister") and (not mem_age_num or mem_age_num <= 22):
-            if not m.get("occupation") and str(m.get("earning") or "").strip().upper() not in ("YES", "Y"):
-                earning_clean = "No"
+        elif earn_str:
+            earning_clean = earn_str
+        else:
+            earning_clean = ""
 
         cleaned_fam.append({
             "name": m_name,
-            "relation": m_rel or "Family Member",
+            "relation": m_rel or "",
             "age": age_clean,
             "earning": earning_clean,
         })
 
-    # If the form was filled by a parent (e.g. 'Kaushikbhai Jain', age 49) who wasn't listed inside
-    # family_members because they were the form respondent, include them as Father/Mother!
-    holder_clean = _clean_val(form_holder_name)
-    if holder_clean and applicant_name and (_name_score(holder_clean, applicant_name) or 0) < 75:
-        already_in_fam = any((_name_score(holder_clean, x.get("name")) or 0) >= 75 for x in cleaned_fam)
-        if not already_in_fam:
-            h_age_num = _parse_age_int(form_holder_age)
-            h_gender = _infer_gender_from_name_or_hint(holder_clean)
-            if (h_age_num and app_age_num and h_age_num >= app_age_num + 15) or app_is_unmarried_or_child:
-                h_rel = "Mother" if h_gender == "FEMALE" else "Father"
-            elif h_gender == "MALE" and app_gender == "FEMALE":
-                h_rel = "Husband"
-            elif h_gender == "FEMALE" and app_gender == "MALE":
-                h_rel = "Wife"
-            else:
-                h_rel = "Co-Applicant"
-            cleaned_fam.insert(
-                0,
-                {
-                    "name": holder_clean,
-                    "relation": h_rel,
-                    "age": str(h_age_num) if h_age_num else str(_clean_val(form_holder_age) or ""),
-                    "earning": "Yes",
-                },
-            )
-
-    # 4. Resolve Father vs Grandfather (and Mother vs Grandmother) when two rows are labeled 'Father'
-    # (e.g. Father age 52 and Grandfather age 80 both extracted as 'Father'), or when a 'Father' row is
-    # >= 45 years older than the applicant while another parent-generation row (~45-65) exists.
-    father_rows = [x for x in cleaned_fam if (x.get("relation") or "").strip().lower() == "father"]
-    if len(father_rows) >= 2:
-        f_with_ages = [(x, _parse_age_int(x.get("age")) or 0) for x in father_rows]
-        f_with_ages.sort(key=lambda pair: pair[1])
-        younger_father, younger_age = f_with_ages[0]
-        for older_row, older_age in f_with_ages[1:]:
-            if (younger_age and older_age >= younger_age + 15) or older_age >= 68:
-                older_row["relation"] = "Grandfather"
-                # If both the Father row and Grandfather row were given the Grandfather's name
-                # (e.g. 'Bhogilal Suther' on both age 52 and age 80), restore the Father's real name
-                # from applicant_father_name (PAN/Aadhaar) or from the applicant's patronymic token!
-                if (_name_score(younger_father.get("name"), older_row.get("name")) or 0) >= 85:
-                    inferred_father_name = _clean_val(applicant_father_name)
-                    if inferred_father_name:
-                        inferred_father_name = " ".join(w.capitalize() for w in inferred_father_name.split())
-                    elif len(app_tokens) >= 3 and (app_gender == "MALE" or app_is_unmarried_or_child):
-                        if app_tokens[-1].endswith(("BHAI", "LAL", "KUMAR", "SINH", "DAS")) and not app_tokens[1].endswith(("BHAI", "LAL", "KUMAR", "SINH", "DAS")):
-                            inferred_father_name = f"{app_tokens[-1].capitalize()} {app_tokens[0].capitalize()}"
-                        else:
-                            inferred_father_name = f"{app_tokens[1].capitalize()} {app_tokens[-1].capitalize()}"
-                    if inferred_father_name and (_name_score(inferred_father_name, older_row.get("name")) or 0) < 85:
-                        younger_father["name"] = inferred_father_name
-    elif len(father_rows) == 1:
-        only_f = father_rows[0]
-        only_f_age = _parse_age_int(only_f.get("age"))
-        mother_ages = [_parse_age_int(x.get("age")) for x in cleaned_fam if (x.get("relation") or "").strip().lower() == "mother" and _parse_age_int(x.get("age"))]
-        if only_f_age and only_f_age >= 72 and app_age_num and only_f_age >= app_age_num + 45:
-            if mother_ages and min(mother_ages) <= only_f_age - 15:
-                only_f["relation"] = "Grandfather"
-
-    mother_rows = [x for x in cleaned_fam if (x.get("relation") or "").strip().lower() == "mother"]
-    if len(mother_rows) >= 2:
-        m_with_ages = [(x, _parse_age_int(x.get("age")) or 0) for x in mother_rows]
-        m_with_ages.sort(key=lambda pair: pair[1])
-        _, younger_m_age = m_with_ages[0]
-        for older_m_row, older_m_age in m_with_ages[1:]:
-            if (younger_m_age and older_m_age >= younger_m_age + 15) or older_m_age >= 68:
-                older_m_row["relation"] = "Grandmother"
-
-    # Also if a Grandfather row exists and the younger Father row still has the exact same name as Grandfather
-    gf_rows = [x for x in cleaned_fam if (x.get("relation") or "").strip().lower() == "grandfather"]
-    f_rows_now = [x for x in cleaned_fam if (x.get("relation") or "").strip().lower() == "father"]
-    if gf_rows and f_rows_now:
-        gf_row = gf_rows[0]
-        f_row = f_rows_now[0]
-        if (_name_score(f_row.get("name"), gf_row.get("name")) or 0) >= 85:
-            inferred_father_name = _clean_val(applicant_father_name)
-            if inferred_father_name:
-                inferred_father_name = " ".join(w.capitalize() for w in inferred_father_name.split())
-            elif len(app_tokens) >= 3 and (app_gender == "MALE" or app_is_unmarried_or_child):
-                if app_tokens[-1].endswith(("BHAI", "LAL", "KUMAR", "SINH", "DAS")) and not app_tokens[1].endswith(("BHAI", "LAL", "KUMAR", "SINH", "DAS")):
-                    inferred_father_name = f"{app_tokens[-1].capitalize()} {app_tokens[0].capitalize()}"
-                else:
-                    inferred_father_name = f"{app_tokens[1].capitalize()} {app_tokens[-1].capitalize()}"
-            if inferred_father_name and (_name_score(inferred_father_name, gf_row.get("name")) or 0) < 85:
-                f_row["name"] = inferred_father_name
-
-    # 5. Per CA Office requirement: Applicant 'Self' MUST always come first (row 0), followed by other family members
-    self_rows = [x for x in cleaned_fam if (x.get("relation") or "").strip().lower() == "self"]
-    other_rows = [x for x in cleaned_fam if (x.get("relation") or "").strip().lower() != "self"]
-    if self_rows:
-        primary_self = self_rows[0]
-        if not _clean_val(primary_self.get("age")) and app_age_num:
-            primary_self["age"] = str(app_age_num)
-        cleaned_fam = [primary_self] + other_rows
-    elif applicant_name and str(applicant_name).strip().lower() not in ("unknown", "na", "n/a", "pending ai identification", "pending ai scan"):
-        clean_self_name = re.sub(
-            r"^\s*(?:mr\.?|mrs\.?|miss\.?|ms\.?|smt\.?|shri\.?|shree\.?|kum\.?|kumari\.?|dr\.?)\s+",
-            "",
-            str(applicant_name).strip(),
-            flags=re.IGNORECASE,
-        ).strip() or str(applicant_name).strip()
-        occ_str = _clean_val(applicant_occupation)
-        raw_self_earn = "No" if (app_is_unmarried_or_child and not occ_str) else None
-        self_earning = _clean_earning_val(
-            raw_self_earn,
-            age_str=str(app_age_num or ""),
-            occupation_str=occ_str,
-        )
-        cleaned_fam = [
-            {
-                "name": clean_self_name,
-                "relation": "Self",
-                "age": str(app_age_num) if app_age_num else "",
-                "earning": self_earning,
-            }
-        ] + other_rows
-
-    # 6. Deduplicate family rows where a person appears twice due to slight spelling variation
-    # across multiple forms (e.g. 'Jenuttin shaikh' age 62 vs 'Jenuddin shaikh' age 62, or
-    # 'Shakilabanu shaikh' age 50 vs 'Sakilabanu shaikh' age 50)
-    deduped_fam: List[Dict[str, Any]] = []
-    for item in cleaned_fam:
-        i_name = _clean_val(item.get("name")) or ""
-        i_age = _parse_age_int(item.get("age"))
-        i_rel = _clean_val(item.get("relation")) or ""
-        i_gen = _infer_gender_from_name_or_hint(i_name)
-        matched_existing = None
-        for ex in deduped_fam:
-            ex_name = _clean_val(ex.get("name")) or ""
-            ex_age = _parse_age_int(ex.get("age"))
-            ex_gen = _infer_gender_from_name_or_hint(ex_name)
-            score = _name_score(i_name, ex_name) or 0
-            seq_ratio = difflib.SequenceMatcher(None, i_name.lower(), ex_name.lower()).ratio()
-            same_age_and_fuzzy = bool(
-                i_age and ex_age and abs(i_age - ex_age) <= 1
-                and (not i_gen or not ex_gen or i_gen == ex_gen)
-                and seq_ratio >= 0.72
-            )
-            if score >= 80 or same_age_and_fuzzy:
-                matched_existing = ex
-                break
-        if matched_existing is not None:
-            # Prefer a specific family relation (e.g. 'Father', 'Mother', 'Self') over 'Co-Applicant'/'Family Member'
-            ex_rel = _clean_val(matched_existing.get("relation")) or ""
-            if ex_rel.lower() in ("", "family member", "co-applicant", "co app") and i_rel.lower() not in ("", "family member", "co-applicant", "co app"):
-                matched_existing["relation"] = i_rel
-            if not _clean_val(matched_existing.get("age")) and _clean_val(item.get("age")):
-                matched_existing["age"] = item["age"]
-        else:
-            deduped_fam.append(item)
-
-    return deduped_fam
+    return cleaned_fam
 
 
-def _clean_val(val: Optional[Any], allow_na: bool = False) -> Optional[str]:
+def _clean_val(val: Optional[Any], allow_na: bool = False, allow_no: bool = False) -> Optional[str]:
     if val is None:
         return None
     s = str(val).strip()
     if not s:
         return None
+    if allow_no and s.lower() == "no":
+        return "No"
     if not allow_na and s.lower() in _PLACEHOLDER_STRINGS:
         return None
     return s
@@ -1004,92 +689,69 @@ def _is_valid_reference_relation(val: Optional[str]) -> bool:
 
 def _expand_and_normalize_references(
     raw_items: List[Any],
-    default_relation: str = "Neighbour",
+    default_relation: Optional[str] = None,
 ) -> List[str]:
     """
-    Takes raw reference strings or {name, relation} dicts and returns normalized
-    'Name - Relation' strings. Crucially, if two people's names were combined with
-    ' - ', ',', '&', or '/' (e.g. 'BABU RAO - RAJU BHAI' where 'RAJU BHAI' was mistaken
-    for a relation), splits them into two separate reference entries, each with `default_relation`.
+    Strictly preserves Reference details (Name and Relation) exactly as written in the Google Form PDF
+    or PWA Field Visit Form with ZERO assumptions or auto-calculated relations.
+    - If a reference has both a name and an explicit relation (e.g. '1 - Kishorbhai - Neighbour',
+      '1 - Kalpeshbhai - OS', '2 - Nikhil Panchal - Junior Clark'), outputs 'Name - Relation'.
+    - If a reference has ONLY a name and no relation was written in the form, outputs 'Name'
+      (so the report displays 'Relationship not mentioned' in the Relation column rather than guessing).
+    - If a line says 'No reference' / 'No provide' / 'NA', omits it (or if all references are
+      'No reference', returns []).
     """
-    pairs: List[tuple[str, str]] = []
+    pairs: List[tuple[str, Optional[str]]] = []
 
-    non_empty_count = sum(1 for x in (raw_items or []) if x and (isinstance(x, dict) and _clean_val(x.get("name")) or not isinstance(x, dict) and _clean_val(x)))
+    def _strip_num_prefix(s: str) -> str:
+        return re.sub(r"^\s*\d+[\.\)\-\s]+", "", s.strip()).strip(" .,-")
 
-    def _add_name_or_split(name_str: str, rel_str: Optional[str]):
-        clean_n = (_clean_val(name_str) or "").strip(" .,-")
-        clean_n = re.sub(r"^\d+[\.\)\-\s]+", "", clean_n).strip()
-        if not clean_n:
-            return
-        norm_r = _normalize_relation_or_title(rel_str) if _is_valid_reference_relation(rel_str) else None
-        # Only split a single combined string on ',' or '/' when a single reference item was passed;
-        # NEVER split on 'and' or '&' when 2 references already exist (preserves names like 'Cool and casual')
-        if non_empty_count <= 1:
-            sub_names = [
-                re.sub(r"^\d+[\.\)\-\s]+", "", p.strip(" .,-")).strip()
-                for p in re.split(r"\s*(?:,|/)\s*", clean_n, flags=re.IGNORECASE)
-                if p and p.strip(" .,-")
-            ]
-        else:
-            sub_names = [clean_n]
-        if len(sub_names) > 1:
-            for sn in sub_names:
-                if sn:
-                    pairs.append((sn, norm_r or default_relation))
-        else:
-            pairs.append((clean_n, norm_r or default_relation))
+    def _is_no_ref(s: str) -> bool:
+        low = re.sub(r"\s+", " ", s.lower().strip(" .,-"))
+        return low in _PLACEHOLDER_STRINGS or low in ("no reference", "no references", "no ref", "not provided", "no provide")
 
-    for item in raw_items:
+    for item in (raw_items or []):
         if not item:
             continue
         if isinstance(item, dict):
-            n_val = _clean_val(item.get("name"))
-            r_val = _clean_val(item.get("relation"))
-            if not n_val:
+            raw_n = str(item.get("name") or "").strip()
+            raw_r = str(item.get("relation") or "").strip()
+            clean_n = _strip_num_prefix(raw_n)
+            if not clean_n or _is_no_ref(clean_n):
                 continue
-            # Also check if n_val still contains an embedded "- relation" (e.g. "Rajnibhai- friend")
-            if not r_val and "-" in n_val:
-                h_parts = [p.strip() for p in re.split(r"\s*-\s*", n_val) if p.strip()]
-                if len(h_parts) == 2 and _is_valid_reference_relation(h_parts[1]):
-                    n_val, r_val = h_parts[0], h_parts[1]
-            if r_val and not _is_valid_reference_relation(r_val):
-                # Gemini put the 2nd person's name into 'relation' (e.g. name='BABU RAO', relation='RAJU BHAI')
-                _add_name_or_split(n_val, default_relation)
-                _add_name_or_split(r_val, default_relation)
-            else:
-                _add_name_or_split(n_val, r_val or default_relation)
+            clean_r = None
+            if raw_r and not _is_no_ref(raw_r) and raw_r.lower() not in ("relationship not mentioned", "not mentioned"):
+                clean_r = _normalize_relation_or_title(raw_r) or raw_r.strip()
+            elif " - " in clean_n:
+                parts = [p.strip() for p in clean_n.split(" - ", 1) if p.strip()]
+                if len(parts) == 2 and not _is_no_ref(parts[1]):
+                    clean_n = _strip_num_prefix(parts[0])
+                    clean_r = _normalize_relation_or_title(parts[1]) or parts[1]
+            if clean_n and not _is_no_ref(clean_n):
+                pairs.append((clean_n, clean_r))
         else:
-            s_val = _clean_val(item)
-            if not s_val:
+            raw_s = str(item).strip()
+            clean_s = _strip_num_prefix(raw_s)
+            if not clean_s or _is_no_ref(clean_s):
                 continue
-            # Check for parenthetical relation like "BABU RAO (Neighbour)"
-            m_paren = re.match(r"^(.+?)\s*\(([^)]+)\)\s*$", s_val)
-            if m_paren and _is_valid_reference_relation(m_paren.group(2)):
-                _add_name_or_split(m_paren.group(1), m_paren.group(2))
+            m_paren = re.match(r"^(.+?)\s*\(([^)]+)\)\s*$", clean_s)
+            if m_paren:
+                p_name = _strip_num_prefix(m_paren.group(1))
+                p_rel = m_paren.group(2).strip()
+                if p_name and not _is_no_ref(p_name):
+                    rel_out = None if (_is_no_ref(p_rel) or p_rel.lower() in ("relationship not mentioned", "not mentioned")) else (_normalize_relation_or_title(p_rel) or p_rel)
+                    pairs.append((p_name, rel_out))
                 continue
-            if "-" in s_val:
-                parts = [p.strip() for p in re.split(r"\s*-\s*", s_val) if p.strip()]
+            if " - " in clean_s:
+                parts = [p.strip() for p in clean_s.split(" - ", 1) if p.strip()]
                 if len(parts) == 2:
-                    left, right = parts[0], parts[1]
-                    if _is_valid_reference_relation(right):
-                        _add_name_or_split(left, right)
-                    elif " - " in s_val:
-                        # Both left and right are people's names (e.g. "BABU RAO - RAJU BHAI")!
-                        _add_name_or_split(left, default_relation)
-                        _add_name_or_split(right, default_relation)
-                    else:
-                        _add_name_or_split(s_val, default_relation)
-                else:
-                    # 3+ parts separated by "-"
-                    if _is_valid_reference_relation(parts[-1]):
-                        rel_part = parts[-1]
-                        for nm in parts[:-1]:
-                            _add_name_or_split(nm, rel_part)
-                    else:
-                        for nm in parts:
-                            _add_name_or_split(nm, default_relation)
-            else:
-                _add_name_or_split(s_val, default_relation)
+                    p_name = _strip_num_prefix(parts[0])
+                    p_rel = parts[1].strip()
+                    if p_name and not _is_no_ref(p_name):
+                        rel_out = None if (_is_no_ref(p_rel) or p_rel.lower() in ("relationship not mentioned", "not mentioned")) else (_normalize_relation_or_title(p_rel) or p_rel)
+                        pairs.append((p_name, rel_out))
+                    continue
+            pairs.append((clean_s, None))
 
     out: List[str] = []
     seen = set()
@@ -1097,7 +759,7 @@ def _expand_and_normalize_references(
         key = n.upper()
         if key not in seen:
             seen.add(key)
-            out.append(f"{n} - {r}")
+            out.append(f"{n} - {r}" if r else n)
     return out
 
 
@@ -1196,101 +858,19 @@ def reconcile_person_relation(
     family_members: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[str]:
     """
-    Reconciles a single person's relationship to the primary applicant (used for family_members,
-    person_met / 'Who did you meet', and residence/office owner_name) so a Female applicant can
-    never have someone labeled 'Wife' and a Male applicant can never have someone labeled 'Husband'.
+    Strictly preserves the person's relationship as explicitly written in the Google Form PDF
+    or PWA Field Visit Form with ZERO assumptions or age/surname calculations.
+    If no relationship was written in the form, returns None (so the report displays
+    'Relationship not mentioned').
     """
-    p_name = _clean_val(person_name)
     rel = _clean_val(raw_relation)
-    if rel:
-        rel = re.sub(r"\s*\([^)]*\)\s*$", "", rel).strip()
-        rel = re.sub(r"\s+of\s+the\s+applicant\s*$", "", rel, flags=re.IGNORECASE).strip()
-        rel = _normalize_relation_or_title(rel) or rel
-
-    if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 80:
-        return "Self"
-
-    app_gender = _infer_gender_from_name_or_hint(applicant_name, applicant_gender)
-    app_age_num: Optional[int] = _parse_age_int(applicant_age)
-    mem_age_num: Optional[int] = _parse_age_int(person_age)
-
-    app_tokens = [
-        re.sub(r"[^A-Za-z]", "", t).upper()
-        for t in (applicant_name or "").split()
-        if re.sub(r"[^A-Za-z]", "", t).upper() not in ("MR", "MRS", "MS", "MISS", "SMT", "SHRI", "DR")
-    ]
-    app_middle_token = app_tokens[1] if len(app_tokens) >= 3 else None
-
-    app_upper = (applicant_name or "").strip().upper()
-    app_is_unmarried_or_child = bool(
-        re.match(r"^(?:MISS\.?|KUM\.?|KUMARI)\b", app_upper)
-        or (app_age_num is not None and app_age_num <= 23 and not re.match(r"^(?:MRS\.?|SMT\.?)\b", app_upper))
-    )
-
-    # When the person matches a reconciled family member, that member's relation to the applicant
-    # is authoritative whenever raw_relation is missing, 'Self' (from a parent's form), or an impossible relation.
-    fm_rel = None
-    if p_name and family_members:
-        fm = next(
-            (m for m in family_members if isinstance(m, dict) and m.get("name") and (_name_score(p_name, m["name"]) or 0) >= 80),
-            None,
-        )
-        if fm and fm.get("relation"):
-            fm_rel = _normalize_relation_or_title(fm.get("relation")) or fm.get("relation")
-            if not mem_age_num and fm.get("age"):
-                mem_age_num = _parse_age_int(fm.get("age"))
-
-    if rel and rel.lower().startswith("self"):
-        if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) < 75:
-            if fm_rel and fm_rel != "Self":
-                return fm_rel
-            if app_middle_token and p_name.strip().upper().startswith(app_middle_token):
-                return "Father" if app_is_unmarried_or_child else "Husband"
-        return "Self"
-
-    mem_gender = _infer_gender_from_name_or_hint(p_name)
-    if not mem_gender and p_name and app_middle_token and p_name.strip().upper().startswith(app_middle_token):
-        mem_gender = "MALE"
-
-    rel_upper = (rel or "").upper()
-
-    if fm_rel and not (applicant_name and p_name and (_name_score(p_name, applicant_name) or 0) >= 80):
-        return fm_rel
-
-    if rel_upper in ("SON", "DAUGHTER") and app_age_num and mem_age_num and mem_age_num > app_age_num - 15:
-        return "Brother" if (rel_upper == "SON" or mem_gender == "MALE") else "Sister"
-
-    if app_is_unmarried_or_child and rel_upper in ("SON", "DAUGHTER"):
-        return "Brother" if (rel_upper == "SON" or mem_gender == "MALE") else "Sister"
-
-    if app_gender == "FEMALE" and rel_upper == "WIFE":
-        if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 65:
-            return "Self"
-        if mem_gender == "MALE":
-            return "Father" if app_is_unmarried_or_child else "Husband"
-        if app_age_num and mem_age_num and mem_age_num >= app_age_num + 16:
-            return "Mother" if app_is_unmarried_or_child else "Mother-in-law"
-        return "Sister" if app_is_unmarried_or_child else "Sister-in-law"
-
-    if app_gender == "MALE" and rel_upper == "HUSBAND":
-        if p_name and applicant_name and (_name_score(p_name, applicant_name) or 0) >= 65:
-            return "Self"
-        if mem_gender == "FEMALE":
-            return "Mother" if app_is_unmarried_or_child else "Wife"
-        if app_age_num and mem_age_num and mem_age_num >= app_age_num + 16:
-            return "Father"
-        return "Brother"
-
-    if rel_upper == "HUSBAND" and mem_gender == "FEMALE":
-        return "Wife" if app_gender == "MALE" else ("Mother" if app_is_unmarried_or_child else "Sister-in-law")
-
-    if rel_upper == "WIFE" and mem_gender == "MALE":
-        return "Husband" if app_gender == "FEMALE" else "Brother"
-
-    if not rel and p_name and app_middle_token and p_name.strip().upper().startswith(app_middle_token):
-        return "Father" if app_is_unmarried_or_child else ("Father" if app_gender == "MALE" else "Husband")
-
-    return rel or fm_rel
+    if not rel:
+        return None
+    rel = re.sub(r"\s*\([^)]*\)\s*$", "", rel).strip()
+    rel = re.sub(r"\s+of\s+the\s+applicant\s*$", "", rel, flags=re.IGNORECASE).strip()
+    if rel.lower() in ("relationship not mentioned", "not mentioned", "no provide", "not provided"):
+        return None
+    return _normalize_relation_or_title(rel) or rel
 
 
 def _clean_person_met_string(
@@ -1315,19 +895,12 @@ def _clean_person_met_string(
         m_p = re.search(r"\(([^)]+)\)", s)
         raw_rel = m_p.group(1).strip() if m_p else None
 
-    reconciled_rel = reconcile_person_relation(
-        base_name,
-        raw_rel,
-        applicant_name=applicant_name,
-        applicant_gender=applicant_gender,
-        applicant_age=applicant_age,
-        family_members=family_members,
-    )
+    explicit_rel = reconcile_person_relation(base_name, raw_rel)
     out = base_name
     if phone:
         out += f" - {phone}"
-    if reconciled_rel:
-        out += f" ({reconciled_rel})"
+    if explicit_rel:
+        out += f" ({explicit_rel})"
     return out
 
 
@@ -1340,28 +913,7 @@ def _infer_owner_relation(
     applicant_gender: Optional[str] = None,
     applicant_age: Optional[Any] = None,
 ) -> Optional[str]:
-    owner = _clean_val(owner_name)
-    reconciled = reconcile_person_relation(
-        owner,
-        explicit_relation,
-        applicant_name=applicant_name,
-        applicant_gender=applicant_gender,
-        applicant_age=applicant_age,
-        family_members=family_members,
-    )
-    if reconciled:
-        return reconciled
-    if not owner:
-        return None
-    own_lower = (ownership or "").lower()
-    if "rent" in own_lower:
-        return "Landlord"
-    # Check if shares last name / surname token with applicant or family
-    owner_tokens = {t.upper() for t in re.findall(r"[A-Za-z]{3,}", owner) if t.upper() not in {"BEN", "BHAI", "KUMAR", "SMT", "SHRI", "MRS", "MR"}}
-    app_tokens = {t.upper() for t in re.findall(r"[A-Za-z]{3,}", applicant_name or "") if t.upper() not in {"BEN", "BHAI", "KUMAR", "SMT", "SHRI", "MRS", "MR"}}
-    if (owner_tokens & app_tokens) or "own" in own_lower:
-        return "Family Member"
-    return "Property Owner"
+    return reconcile_person_relation(owner_name, explicit_relation)
 
 
 def enrich_field_form_defaults(
@@ -1413,10 +965,9 @@ def enrich_field_form_defaults(
         form_holder_age=form_person_age,
         applicant_occupation=_clean_val(ff.get("occupation")),
     )
-    if cleaned_fam:
-        ff["family_members"] = cleaned_fam
-        if isinstance(ff.get("restore"), dict):
-            ff["restore"]["family_members"] = cleaned_fam
+    ff["family_members"] = cleaned_fam
+    if isinstance(ff.get("restore"), dict):
+        ff["restore"]["family_members"] = cleaned_fam
 
     # 2. Clean & split neighbour references (e.g. "BABU RAO - RAJU BHAI" -> two separate Neighbours)
     norm_neighbours = _expand_and_normalize_references(
@@ -1499,14 +1050,12 @@ def enrich_field_form_defaults(
             off["position"] = pos
             off["designation"] = pos
 
-        # Normalize & split office references (if two names were combined with ' - ', split into reference_1 and reference_2)
+        # Normalize & split office references strictly as written in the Google Form
         norm_off_refs = _expand_and_normalize_references(
             [off.get("reference_1") or off.get("reference"), off.get("reference_2")],
-            default_relation="Colleague",
         )
-        if norm_off_refs:
-            off["reference_1"] = norm_off_refs[0]
-            off["reference_2"] = norm_off_refs[1] if len(norm_off_refs) > 1 else None
+        off["reference_1"] = norm_off_refs[0] if len(norm_off_refs) > 0 else None
+        off["reference_2"] = norm_off_refs[1] if len(norm_off_refs) > 1 else None
 
         # Normalize office who_meet
         if off.get("who_meet"):
@@ -1531,47 +1080,16 @@ def enrich_field_form_defaults(
             infra = _clean_val(off.get("infrastructure")) or "Office"
             off["area"] = f"Standard {infra} Premises"
 
-        # Premises Ownership & Owner Name (especially when occupation == "Job" and Google Form radio was "NA")
-        prem_own_raw = str(off.get("premises_ownership") or "").strip()
-        if not prem_own_raw or prem_own_raw.upper() in ("NA", "N/A", "N"):
-            if occ.lower() == "job":
-                off["premises_ownership"] = "Employer Premises (Salaried Job)"
-            else:
-                off["premises_ownership"] = "Commercial Premises"
-
+        # Premises Ownership & Owner Name strictly as written in the Google Form
         prem_owner_raw = _clean_val(off.get("premises_owner"))
-        if not prem_owner_raw:
-            # Look for an OWNER reference in reference_1 / reference_2, else firm_name
-            ref_owner = None
-            for rk in ("reference_1", "reference_2"):
-                rv = _clean_val(off.get(rk)) or ""
-                if " - " in rv:
-                    r_name, r_rel = rv.split(" - ", 1)
-                    if r_rel.strip().upper() in ("OWNER", "BOSS", "DIRECTOR", "PROPRIETOR", "PARTNER", "EMPLOYER"):
-                        ref_owner = f"({r_name.strip()}) Employer / {r_rel.strip().title()}"
-                        break
-            if ref_owner:
-                off["premises_owner"] = ref_owner
-            elif _clean_val(off.get("firm_name")):
-                rel_lbl = "Employer" if occ.lower() == "job" else "Management"
-                off["premises_owner"] = f"({_clean_val(off.get('firm_name'))}) {rel_lbl}"
-        else:
+        if prem_owner_raw:
             _po_match = re.match(r"^\s*\(([^)]+)\)\s*(.*)$", prem_owner_raw)
             if _po_match:
                 po_name = _clean_val(_po_match.group(1))
-                po_rel = _normalize_relation_or_title(_po_match.group(2))
+                po_rel = reconcile_person_relation(po_name, _po_match.group(2))
             else:
                 po_name = prem_owner_raw
                 po_rel = None
-            if po_name and not po_rel:
-                if app_name and (_name_score(po_name, app_name) or 0) >= 85:
-                    po_rel = "Self"
-                elif occ.lower() == "job":
-                    po_rel = "Employer"
-                elif "rent" in str(off.get("premises_ownership") or "").lower():
-                    po_rel = "Landlord"
-                else:
-                    po_rel = "Owner"
             if po_name:
                 off["premises_owner"] = _combine_name_relation(po_name, po_rel) or po_name
 
@@ -1598,11 +1116,9 @@ def enrich_field_form_defaults(
                 off_co["designation"] = pos_co
             norm_co_refs = _expand_and_normalize_references(
                 [off_co.get("reference_1") or off_co.get("reference"), off_co.get("reference_2")],
-                default_relation="Colleague",
             )
-            if norm_co_refs:
-                off_co["reference_1"] = norm_co_refs[0]
-                off_co["reference_2"] = norm_co_refs[1] if len(norm_co_refs) > 1 else None
+            off_co["reference_1"] = norm_co_refs[0] if len(norm_co_refs) > 0 else None
+            off_co["reference_2"] = norm_co_refs[1] if len(norm_co_refs) > 1 else None
             if not _clean_val(off_co.get("landmark")) and off_co_addr:
                 off_co["landmark"] = _extract_landmark_from_address(off_co_addr) or "Main Commercial Road"
             if not _clean_val(off_co.get("location")):
@@ -1712,7 +1228,7 @@ def build_field_form_payload(extracted: Dict[str, Any], case_applicant_name: Opt
         "work_from_home": _clean_val(e.get("work_from_home")),
         "firm_type": _clean_val(e.get("company_type")),
         "employees": _clean_val(e.get("office_number_of_workers")),
-        "nameboard": _clean_val(e.get("office_nameboard_visibility")),
+        "nameboard": _clean_val(e.get("office_nameboard_visibility"), allow_no=True),
         "infrastructure": _clean_val(e.get("office_infrastructure")),
         "premises_ownership": _clean_val(e.get("office_ownership"), allow_na=True),
         "premises_owner": office_owner,
@@ -1813,7 +1329,7 @@ def build_field_form_payload(extracted: Dict[str, Any], case_applicant_name: Opt
         "landmark": res_landmark,
         "person_met": person_met or "",
         "assets_observed": assets_observed or "",
-        "nameboard_visible": _clean_val(e.get("nameboard_visibility_residence")) or "",
+        "nameboard_visible": _clean_val(e.get("nameboard_visibility_residence"), allow_no=True) or "",
         "building_nature": "",
         "general_appearance": "",
         "locality": "",
@@ -2069,74 +1585,13 @@ def merge_field_form_payloads(
         if not _clean_val(merged.get(rk)) and _clean_val(co_ff.get(rk)):
             merged[rk] = co_ff.get(rk)
 
-    # Merge family_members and upgrade spelling/earning using Co-Applicant's own form details
-    combined_fam = [dict(x) for x in (app_ff.get("family_members") or []) if isinstance(x, dict)]
-    co_holder_raw = _clean_val(co_ff.get("form_person_name")) or _clean_val(co_ff.get("co_applicant_name"))
-    co_holder_age = _parse_age_int(co_ff.get("co_applicant_age") or co_ff.get("age_community"))
-    co_holder_occ = _clean_val(co_ff.get("co_applicant_occupation") or co_ff.get("occupation"))
-
-    # If the Co-Applicant appears in combined_fam with a misspelled name (e.g. 'Jenuttin shaikh' age 62 vs 'Jenuddin shaikh' age 62),
-    # upgrade their name to their own form's spelling and sync their earning status from their occupation
-    if co_holder_raw:
-        co_holder_clean = re.sub(r"^\s*(?:mr\.?|mrs\.?|miss\.?|ms\.?|smt\.?|shri\.?)\s+", "", co_holder_raw, flags=re.I).strip()
-        co_holder_gen = _infer_gender_from_name_or_hint(co_holder_clean)
-        for em in combined_fam:
-            em_name = _clean_val(em.get("name")) or ""
-            em_age = _parse_age_int(em.get("age"))
-            em_gen = _infer_gender_from_name_or_hint(em_name)
-            seq_r = difflib.SequenceMatcher(None, em_name.lower(), co_holder_clean.lower()).ratio()
-            if (_name_score(em_name, co_holder_clean) or 0) >= 75 or (
-                co_holder_age and em_age and abs(co_holder_age - em_age) <= 1
-                and (not co_holder_gen or not em_gen or co_holder_gen == em_gen)
-                and seq_r >= 0.72
-            ):
-                em["name"] = " ".join(w.capitalize() for w in co_holder_clean.split())
-                if co_holder_occ and any(k in co_holder_occ.lower() for k in ("house wife", "housewife", "homemaker", "home maker")):
-                    em["earning"] = "No"
-
-    primary_age_int = _parse_age_int(eff_primary_age)
-    co_is_child_of_primary = bool(primary_age_int and co_holder_age and co_holder_age <= primary_age_int - 15)
-
-    for cm in (co_ff.get("family_members") or []):
-        if isinstance(cm, dict) and _clean_val(cm.get("name")):
-            cm_copy = dict(cm)
-            cm_name = _clean_val(cm_copy.get("name")) or ""
-            cm_age = _parse_age_int(cm_copy.get("age"))
-            cm_gen = _infer_gender_from_name_or_hint(cm_name)
-            cm_rel_up = (_clean_val(cm_copy.get("relation")) or "").upper()
-            # If the Co-Applicant is the adult Son/Daughter of the Primary Applicant (e.g. Jwalant age 30 vs Father Pravinbhai age 63),
-            # translate relations written from the Co-Applicant's perspective into the Primary Applicant's perspective!
-            if co_is_child_of_primary:
-                if cm_rel_up in ("FATHER", "MOTHER"):
-                    # Already represented by the Primary Applicant ('Self') and spouse ('Wife'/'Husband')
-                    continue
-                if cm_rel_up == "WIFE" and (not cm_age or not primary_age_int or cm_age <= primary_age_int - 12):
-                    cm_copy["relation"] = "Daughter-in-law"
-                elif cm_rel_up == "HUSBAND" and (not cm_age or not primary_age_int or cm_age <= primary_age_int - 12):
-                    cm_copy["relation"] = "Son-in-law"
-                elif cm_rel_up == "DAUGHTER" and (cm_age is not None and cm_age <= 18):
-                    cm_copy["relation"] = "Granddaughter"
-                elif cm_rel_up == "SON" and (cm_age is not None and cm_age <= 18):
-                    cm_copy["relation"] = "Grandson"
-            already = False
-            for em in combined_fam:
-                em_name = _clean_val(em.get("name")) or ""
-                em_age = _parse_age_int(em.get("age"))
-                em_gen = _infer_gender_from_name_or_hint(em_name)
-                seq_r = difflib.SequenceMatcher(None, cm_name.lower(), em_name.lower()).ratio()
-                if (_name_score(cm_name, em_name) or 0) >= 75 or (
-                    cm_age and em_age and abs(cm_age - em_age) <= 1
-                    and (not cm_gen or not em_gen or cm_gen == em_gen)
-                    and seq_r >= 0.72
-                ) or (
-                    seq_r >= 0.88
-                    and (not cm_gen or not em_gen or cm_gen == em_gen)
-                ):
-                    already = True
-                    break
-            if not already:
-                combined_fam.append(cm_copy)
-    merged["family_members"] = combined_fam
+    # Preserve family_members strictly as written in the Google Form PDF (preferring Primary Applicant's form;
+    # only falling back to Co-Applicant's form if Primary Applicant's form had no family_members).
+    app_fam = [dict(x) for x in (app_ff.get("family_members") or []) if isinstance(x, dict) and _clean_val(x.get("name"))]
+    if app_fam:
+        merged["family_members"] = app_fam
+    else:
+        merged["family_members"] = [dict(x) for x in (co_ff.get("family_members") or []) if isinstance(x, dict) and _clean_val(x.get("name"))]
 
     # Merge previous_loan if app_ff had NA or generic 'Other'
     app_pl = merged.get("previous_loan") if isinstance(merged.get("previous_loan"), dict) else {}

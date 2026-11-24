@@ -902,12 +902,17 @@ def generate_certified_cpv_report(
             if isinstance(m, dict):
                 fam_grid.append([
                     Paragraph(str(m.get("name") or "-"), table_cell_style),
-                    Paragraph(str(m.get("relation") or "-"), table_cell_style),
+                    Paragraph(str(m.get("relation") or "Relationship not mentioned"), table_cell_style),
                     Paragraph(str(m.get("age") or "-"), table_cell_style),
                     Paragraph(str(m.get("earning") or "-"), table_cell_style),
                 ])
     else:
-        fam_grid.append([Paragraph(applicant_name, table_cell_style), Paragraph("Self", table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style), Paragraph(NOT_CAPTURED, table_cell_style)])
+        fam_grid.append([
+            Paragraph("Family details not provided", table_cell_style),
+            Paragraph("-", table_cell_style),
+            Paragraph("-", table_cell_style),
+            Paragraph("-", table_cell_style),
+        ])
 
     t_fam = Table(fam_grid, colWidths=[2.2 * inch, 2.0 * inch, 1.5 * inch, 1.8 * inch])
     t_fam.setStyle(TableStyle([
@@ -940,31 +945,19 @@ def generate_certified_cpv_report(
     _owner_match = re.match(r"^\s*\(([^)]+)\)\s*(.*)$", res_owner_raw)
     if _owner_match:
         res_owner = _owner_match.group(1).strip() or NOT_CAPTURED
-        res_rel = _owner_match.group(2).strip() or NOT_CAPTURED
+        res_rel = _owner_match.group(2).strip() or "Relationship not mentioned"
     else:
         res_owner = res_owner_raw.strip() or NOT_CAPTURED
-        res_rel = NOT_CAPTURED
-    # When the applicant owns the property themselves, there's no natural way to type a
-    # "(Self)" relation suffix in the Owner Name box - the owner name IS the applicant's own
-    # name. Detect that match instead of leaving a confusing NA next to the applicant's own name.
-    if res_owner != NOT_CAPTURED and res_rel == NOT_CAPTURED and applicant_name != NOT_CAPTURED and (_name_score(res_owner, applicant_name) or 0) >= 85:
-        res_rel = "Self"
+        res_rel = "Relationship not mentioned" if res_owner != NOT_CAPTURED else NOT_CAPTURED
     res_met = (field_form.get("person_met") if isinstance(field_form, dict) else None) or NOT_CAPTURED
-    # If the agent only typed a bare name (no "(Relation)" suffix) and that name matches someone
-    # already on the Family Members list, show the relation already on file instead of leaving it
-    # out just because it wasn't retyped here too - PDF has no separate relation cell for this
-    # field, so append it the same way the suggested "Name (Relation)" format would have shown it.
-    if res_met != NOT_CAPTURED and "(" not in res_met and isinstance(raw_fam, list):
-        _met_fam_match = next(
-            (m for m in raw_fam if isinstance(m, dict) and m.get("name") and (_name_score(res_met, m["name"]) or 0) >= 80),
-            None,
-        )
-        if _met_fam_match and _met_fam_match.get("relation"):
-            res_met = f"{res_met} ({_met_fam_match['relation']})"
 
     neighbour_1 = field_form.get("neighbour_1") if isinstance(field_form, dict) else None
     neighbour_2 = field_form.get("neighbour_2") if isinstance(field_form, dict) else None
-    neighbours_list = [n for n in [neighbour_1, neighbour_2] if n]
+    neighbours_list = [
+        (n if " - " in str(n) else f"{n} - Relationship not mentioned")
+        for n in [neighbour_1, neighbour_2]
+        if n and str(n).strip()
+    ]
     neighbours_val = "<br/>".join(f"{i + 1}. {n}" for i, n in enumerate(neighbours_list)) or NOT_CAPTURED
 
     def _aadhaar_address_label(aadhaar_addr: Optional[str], verified_addr: str) -> str:
@@ -1100,7 +1093,11 @@ def generate_certified_cpv_report(
         story.append(Spacer(1, 4))
         # Two named references, same pattern as the residence neighbours - back-compat with the
         # older single "reference" field for cases saved before this was split in two.
-        office_refs_list = [r for r in [office.get("reference_1") or office.get("reference"), office.get("reference_2")] if r]
+        office_refs_list = [
+            (r if " - " in str(r) else f"{r} - Relationship not mentioned")
+            for r in [office.get("reference_1") or office.get("reference"), office.get("reference_2")]
+            if r and str(r).strip()
+        ]
         office_refs_val = "<br/>".join(f"{i + 1}. {r}" for i, r in enumerate(office_refs_list)) or NOT_CAPTURED
         office_assessment = office.get("assessment") or None
         assessment_html = f"<font color='#059669'><b>{office_assessment}</b></font>" if office_assessment else "<font color='#059669'><b>POSITIVE</b></font>"
@@ -1156,7 +1153,11 @@ def generate_certified_cpv_report(
             co_anx_b_title = "Office Verification (Business Premises)" if co_is_business else "Office Verification (Salaried / Employer Premises)"
             story.append(Paragraph(f"__________Annexure ‘B’ (Co-Applicant)__________<br/>{co_anx_b_title}", anx_title_style))
             story.append(Spacer(1, 4))
-            co_office_refs_list = [r for r in [office_co.get("reference_1") or office_co.get("reference"), office_co.get("reference_2")] if r]
+            co_office_refs_list = [
+                (r if " - " in str(r) else f"{r} - Relationship not mentioned")
+                for r in [office_co.get("reference_1") or office_co.get("reference"), office_co.get("reference_2")]
+                if r and str(r).strip()
+            ]
             co_office_refs_val = "<br/>".join(f"{i + 1}. {r}" for i, r in enumerate(co_office_refs_list)) or NOT_CAPTURED
             co_office_assessment = office_co.get("assessment") or None
             co_assessment_html = f"<font color='#059669'><b>{co_office_assessment}</b></font>" if co_office_assessment else "<font color='#059669'><b>POSITIVE</b></font>"

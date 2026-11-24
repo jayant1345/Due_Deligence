@@ -437,43 +437,27 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
         if r.get("total_income") and str(r.get("total_income")).strip().upper() not in ("", "NA", "N/A", "NONE", "0")
     ][:3]
 
-    # Premises Owner Name is now suggested to the agent in the same "(Name) Relation" format as
-    # the residence Owner Name field (e.g. "( Rajesh Patel ) Landlord") - the DOCX template has a
-    # separate "Relation with Applicant" cell for the office premises owner that stayed NA even
-    # when a relation was typed, because nothing parsed it out of the combined string.
+    # Premises Owner Name & Relation strictly as written in the Google Form / PWA form
     premises_owner_raw = office_form.get("premises_owner") or ""
     _premises_owner_match = re.match(r"^\s*\(([^)]+)\)\s*(.*)$", premises_owner_raw)
     if _premises_owner_match:
         office_premises_owner = _premises_owner_match.group(1).strip() or None
-        office_owner_relation = _premises_owner_match.group(2).strip() or None
+        office_owner_relation = _premises_owner_match.group(2).strip() or "Relationship not mentioned"
     else:
         office_premises_owner = premises_owner_raw.strip() or None
-        office_owner_relation = None
-    # Same reasoning as residence's Owner Name: this person owning their own business premises
-    # has no natural "(Self)" to type - detect the name match instead of leaving NA.
-    if office_premises_owner and not office_owner_relation and name and (_name_score(office_premises_owner, name) or 0) >= 85:
-        office_owner_relation = "Self"
+        office_owner_relation = "Relationship not mentioned" if office_premises_owner else None
 
-    # Office "Who did you meet" is plain free text in the PWA (no relation dropdown like
-    # residence's) - still parse an optional "Name - Phone (Relation)" in case an agent typed
-    # one, then fall back to self-detection: a self-employed/proprietor applicant met at their
-    # own shop is routinely themselves, with no natural way to type "(Self)" after their own name.
+    # Office "Who did you meet" strictly as written in the Google Form / PWA form
     office_met_raw = office_form.get("who_meet") or ""
     _office_met_match = re.match(r"^\s*([^-()]+?)\s*(?:-\s*([\d\s+]{7,15}))?\s*(?:\(([^)]+)\))?\s*$", office_met_raw)
     if _office_met_match:
         office_met_name = _office_met_match.group(1).strip() or None
         office_met_contact = (_office_met_match.group(2) or "").strip() or None
-        office_met_relation = (_office_met_match.group(3) or "").strip() or None
+        office_met_relation = (_office_met_match.group(3) or "").strip() or ("Relationship not mentioned" if office_met_name else None)
     else:
         office_met_name = office_met_raw.strip() or None
         office_met_contact = None
-        office_met_relation = None
-    if office_met_name and not office_met_relation and name and (_name_score(office_met_name, name) or 0) >= 85:
-        office_met_relation = "Self"
-    # Same reasoning as residence: no need to make the agent write down a phone number that's
-    # already on file as this person's own contact.
-    if office_met_relation == "Self" and not office_met_contact:
-        office_met_contact = contact
+        office_met_relation = "Relationship not mentioned" if office_met_name else None
 
     computed_age = _age(dob, on)
     if computed_age is None and office_form.get("age"):
@@ -546,9 +530,14 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
             "location": office_form.get("location") or None,
             "assets": office_form.get("assets") or None,
             "references": [
-                tuple((r.split(" - ", 1) + [""])[:2]) if " - " in r else (r, "")
+                (
+                    r.split(" - ", 1)[0].strip(),
+                    r.split(" - ", 1)[1].strip() or "Relationship not mentioned",
+                )
+                if " - " in str(r)
+                else (str(r).strip(), "Relationship not mentioned")
                 for r in [office_form.get("reference_1") or office_form.get("reference"), office_form.get("reference_2")]
-                if r
+                if r and str(r).strip()
             ],
             "who_meet": office_form.get("who_meet") or None,
             "met": {"name": office_met_name, "contact": office_met_contact, "relation": office_met_relation},
@@ -846,32 +835,25 @@ async def assemble_cpv_report_data(
         agent = (await db.execute(select(User).where(User.id == loan_case.assigned_agent_id))).scalar_one_or_none()
 
     refs = [
-        (tuple(p.strip() for p in r.split(" - ", 1)) if " - " in str(r) else (str(r).strip(), "Neighbour"))
+        (
+            r.split(" - ", 1)[0].strip(),
+            r.split(" - ", 1)[1].strip() or "Relationship not mentioned",
+        )
+        if " - " in str(r)
+        else (str(r).strip(), "Relationship not mentioned")
         for r in (form.get("neighbour_1"), form.get("neighbour_2"))
         if r and str(r).strip()
     ]
-    # The PWA's Owner Name field is a single string in the form "(Name) Relation" (e.g.
-    # "(Ranjanba Vaghela) Mother in law") - there's no separate relation input. pdf_generator.py
-    # already parses this out into owner_name/owner_relation; this used to just hardcode
-    # owner_relation to None and pass the raw "(Name) Relation" string through as owner_name
-    # unparsed, printing "Relation with Applicant: NA" even when the relation was right there.
+    # Owner Name & Relation strictly as written in the Google Form / PWA form
     owner_raw = form.get("owner_name") or ""
     _owner_match = re.match(r"^\s*\(([^)]+)\)\s*(.*)$", owner_raw)
     if _owner_match:
         res_owner_name = _owner_match.group(1).strip() or None
-        res_owner_relation = _owner_match.group(2).strip() or None
+        res_owner_relation = _owner_match.group(2).strip() or "Relationship not mentioned"
     else:
         res_owner_name = owner_raw.strip() or None
-        res_owner_relation = None
-    # When the applicant owns the property themselves, there's no natural way to type a
-    # "(Self)" relation suffix in the Owner Name box - the owner name IS the applicant's own
-    # name. Detect that match instead of leaving a confusing NA next to the applicant's own name.
-    if res_owner_name and not res_owner_relation and applicant_name and (_name_score(res_owner_name, applicant_name) or 0) >= 85:
-        res_owner_relation = "Self"
+        res_owner_relation = "Relationship not mentioned" if res_owner_name else None
 
-    # Family Members is filled in separately (Module 2) and is already a reliable source of
-    # name -> relation - built here, ahead of "Who did you meet" below, so that field can fall
-    # back to it instead of requiring the agent to type the same relation twice.
     from app.services.field_form_pdf_ingest import reconcile_family_members_for_applicant, reconcile_person_relation
     fm = reconcile_family_members_for_applicant(
         form.get("family_members"),
@@ -884,45 +866,17 @@ async def assemble_cpv_report_data(
     )
     family = [{k: m.get(k) for k in ("name", "relation", "age", "earning")} for m in fm if isinstance(m, dict)]
 
-    # Reconcile Owner relation against Family Members & applicant gender/age
-    if res_owner_name:
-        res_owner_relation = reconcile_person_relation(
-            res_owner_name,
-            res_owner_relation,
-            family_members=family,
-            applicant_name=applicant.get("display_name") or applicant.get("name") or applicant_name,
-            applicant_gender=applicant.get("gender"),
-            applicant_age=applicant.get("age"),
-        )
-
-    # "Who did you meet" is suggested to the field agent as "Name - Phone (Relation)" (e.g.
-    # "Rajesh Patel - 9876543210 (Husband)") but was only ever stored/shown as one raw string -
-    # the DOCX template has separate Name/Contact/Relation cells for this (_fill_residence's
-    # met.name/contact/relation) that stayed blank even when the agent typed a relation, because
-    # nothing ever parsed it out. Same regex approach as Owner Name above.
+    # "Who did you meet" strictly as written in the Google Form / PWA form
     met_raw_str = form.get("person_met") or ""
     _met_match = re.match(r"^\s*([^-()]+?)\s*(?:-\s*([\d\s+]{7,15}))?\s*(?:\(([^)]+)\))?\s*$", met_raw_str)
     if _met_match:
         met_name = _met_match.group(1).strip() or None
         met_contact = (_met_match.group(2) or "").strip() or None
-        met_relation = (_met_match.group(3) or "").strip() or None
+        met_relation = (_met_match.group(3) or "").strip() or ("Relationship not mentioned" if met_name else None)
     else:
         met_name = met_raw_str.strip() or None
         met_contact = None
-        met_relation = None
-    if met_name:
-        met_relation = reconcile_person_relation(
-            met_name,
-            met_relation,
-            family_members=family,
-            applicant_name=applicant.get("display_name") or applicant.get("name") or applicant_name,
-            applicant_gender=applicant.get("gender"),
-            applicant_age=applicant.get("age"),
-        )
-    # The agent didn't need to write down a phone number for someone whose contact is already
-    # on file as the applicant's own - fall back to it instead of showing NA next to "Self".
-    if met_relation == "Self" and not met_contact:
-        met_contact = loan_case.applicant_phone or form.get("contact_number") or None
+        met_relation = "Relationship not mentioned" if met_name else None
 
     residence = {
         "verified_address": target_address if visited else None,
