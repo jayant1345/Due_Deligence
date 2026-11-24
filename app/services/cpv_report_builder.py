@@ -492,8 +492,10 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
     office_addr = office.get("address") or ""
     position = office.get("position") or ""
     experience = office.get("experience") or office.get("period_of_stay") or ""
-    if experience and not str(experience).lower().endswith("years") and not str(experience).lower().endswith("yrs"):
+    if experience and not re.search(r"\b(?:years?|yrs?|months?|mos?|days?|weeks?|since)\b", str(experience), flags=re.IGNORECASE):
         experience = f"{experience} years"
+    raw_emp_no = str(office.get("reg_or_emp_no") or "").strip()
+    emp_id_num = raw_emp_no if (raw_emp_no and raw_emp_no.lower() not in ("na", "n/a", "none", "verified at site")) else ""
 
     occupation_str = (applicant.get("occupation") or "").lower()
     NOT_WORKING_OCCUPATIONS = ("housewife", "house wife", "home maker", "homemaker", "retired", "student", "--")
@@ -512,8 +514,10 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
         office_addr = co_office.get("address") or ""
         position = co_office.get("position") or ""
         experience = co_office.get("experience") or co_office.get("period_of_stay") or ""
-        if experience and not str(experience).lower().endswith("years") and not str(experience).lower().endswith("yrs"):
+        if experience and not re.search(r"\b(?:years?|yrs?|months?|mos?|days?|weeks?|since)\b", str(experience), flags=re.IGNORECASE):
             experience = f"{experience} years"
+        co_raw_emp_no = str(co_office.get("reg_or_emp_no") or "").strip()
+        emp_id_num = co_raw_emp_no if (co_raw_emp_no and co_raw_emp_no.lower() not in ("na", "n/a", "none", "verified at site")) else ""
 
     itr_list = applicant.get("itr") or []
     itr_role_label = "applicant"
@@ -560,7 +564,8 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
                 _set_par_text(p, f"The applicant, {a_name}, is a Housewife / Homemaker. Workplace physical verification is not applicable.")
         elif "employment details/ business details was confirmed" in t:
             if is_working and position:
-                _set_par_text(p, f"During the verification, the {work_role_label}'s employment details/ business details was confirmed, the {work_role_label} is working as a {position}. The {work_role_label} has been associated with the organization for {experience}.")
+                emp_id_clause = f" (Employee ID / Reg. No.: {emp_id_num})" if emp_id_num else ""
+                _set_par_text(p, f"During the verification, the {work_role_label}'s employment details/ business details was confirmed, the {work_role_label} is working as a {position}{emp_id_clause}. The {work_role_label} has been associated with the organization for {experience}.")
             elif is_working:
                 _set_par_text(p, f"The {work_role_label}'s employment/business details could not be independently confirmed, as office/business premises verification was not available at the time of this report.")
             else:

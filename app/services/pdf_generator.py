@@ -208,6 +208,8 @@ def generate_certified_cpv_report(
     real_dob = _ocr_first("date_of_birth", {"AADHAAR_CARD", "PAN_CARD", "EMPLOYEE_ID_CARD"}) or _ocr_first("date_of_birth")
     real_gender = _ocr_first("gender", {"AADHAAR_CARD", "PAN_CARD"}) or _ocr_first("gender")
     real_aadhaar_address = _ocr_residential_address()
+    real_emp_code = _ocr_first("employee_code", {"EMPLOYEE_ID_CARD", "SALARY_SLIP"}) or _ocr_first("employee_code")
+    real_emp_code_co = _ocr_first("employee_code", {"EMPLOYEE_ID_CARD", "SALARY_SLIP"}, co_applicant=True) or _ocr_first("employee_code", co_applicant=True)
 
     from app.services.cpv_report_data import _age as _calc_age_pdf
     from datetime import date as _date_cls_pdf
@@ -675,10 +677,12 @@ def generate_certified_cpv_report(
 
     work_bullet = ""
     if is_working:
+        _pdf_emp_id = real_emp_code or (office.get("reg_no") if office.get("reg_no") not in (None, "", "NA", "N/A", "Verified at Site") else None)
+        _pdf_emp_clause = f" (Employee ID / Reg. No.: <b>{_pdf_emp_id}</b>)" if _pdf_emp_id else ""
         work_bullet = f"""
     <b>Working Details:</b><br/><br/>
      The applicant, <b>{applicant_name}</b>, is employed with/ has a business named <b>{firm_name or NOT_CAPTURED}</b>, located at, <b>{office_addr or NOT_CAPTURED}</b>. A physical verification was conducted on {rep_date}.<br/><br/>
-     During the verification, the applicant's employment details/ business details was confirmed, the applicant is working as a <b>{position}</b>. The applicant has been associated with the organization for <b>{experience}</b>.<br/><br/>
+     During the verification, the applicant's employment details/ business details was confirmed, the applicant is working as a <b>{position}</b>{_pdf_emp_clause}. The applicant has been associated with the organization for <b>{experience}</b>.<br/><br/>
      Based on the verification conducted, the employment details of the applicant are genuine.<br/><br/>
         """
     elif is_student:
@@ -1119,7 +1123,7 @@ def generate_certified_cpv_report(
             [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph(office.get("nameboard") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Infrastructure of premises</b>", table_cell_bold), Paragraph(office.get("infrastructure") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Number of Workers</b>", table_cell_bold), Paragraph(office.get("employees") or NOT_CAPTURED, table_cell_style)],
-            [Paragraph("<b>Reg No. / Emp No.</b>", table_cell_bold), Paragraph(office.get("reg_no") or NOT_CAPTURED, table_cell_style)],
+            [Paragraph("<b>Reg No. / Emp No.</b>", table_cell_bold), Paragraph(real_emp_code or office.get("reg_no") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Line of Business / Position at Work</b>", table_cell_bold), Paragraph(position or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph(office.get("assets") or NOT_CAPTURED, table_cell_style)],
             [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph(office_refs_val, table_cell_style)],
@@ -1179,7 +1183,7 @@ def generate_certified_cpv_report(
                 [Paragraph("<b>Name board Visibility</b>", table_cell_bold), Paragraph(office_co.get("nameboard") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Infrastructure of premises</b>", table_cell_bold), Paragraph(office_co.get("infrastructure") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Number of Workers</b>", table_cell_bold), Paragraph(office_co.get("employees") or NOT_CAPTURED, table_cell_style)],
-                [Paragraph("<b>Reg No. / Emp No.</b>", table_cell_bold), Paragraph(office_co.get("reg_no") or NOT_CAPTURED, table_cell_style)],
+                [Paragraph("<b>Reg No. / Emp No.</b>", table_cell_bold), Paragraph(real_emp_code_co or office_co.get("reg_no") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Line of Business / Position at Work</b>", table_cell_bold), Paragraph(co_position or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Assets Visible</b>", table_cell_bold), Paragraph(office_co.get("assets") or NOT_CAPTURED, table_cell_style)],
                 [Paragraph("<b>Reference</b>", table_cell_bold), Paragraph(co_office_refs_val, table_cell_style)],

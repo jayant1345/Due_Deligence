@@ -957,9 +957,12 @@ async def assemble_cpv_report_data(
 
     work = []
     if applicant["office"].get("firm_name") or applicant["office"].get("address") or applicant["_employer"] or applicant["_workplace"]:
+        app_emp_no = str(applicant["office"].get("reg_or_emp_no") or "").strip()
+        app_emp_clause = f" (Employee ID / Reg. No.: {app_emp_no})" if (app_emp_no and app_emp_no.lower() not in ("na", "n/a", "none", "verified at site")) else ""
         work.append(
             f"The applicant, {a_name}, is employed"
             + (f" as {applicant['office'].get('position') or applicant['_designation']}" if (applicant["office"].get("position") or applicant["_designation"]) else "")
+            + app_emp_clause
             + (f" with {applicant['office']['firm_name']}" if applicant["office"].get("firm_name") else "")
             + (f" ({applicant['_employer']})" if applicant["_employer"] and applicant["_employer"] != applicant["office"].get("firm_name") else "")
             + (f", since {applicant['_doj']}" if applicant["_doj"] else "")
@@ -971,9 +974,12 @@ async def assemble_cpv_report_data(
             work.append("Physical verification of the employer premises is pending.")
     if co and (co["office"].get("firm_name") or co["office"].get("address")):
         co_name = co.get("display_name") or co.get("name") or "the co-applicant"
+        co_emp_no = str(co["office"].get("reg_or_emp_no") or "").strip()
+        co_emp_clause = f" (Employee ID / Reg. No.: {co_emp_no})" if (co_emp_no and co_emp_no.lower() not in ("na", "n/a", "none", "verified at site")) else ""
         work.append(
             f"The co-applicant, {co_name}, is employed"
             + (f" as {co['office'].get('position')}" if co["office"].get("position") else "")
+            + co_emp_clause
             + (f" with {co['office']['firm_name']}" if co["office"].get("firm_name") else "")
             + "."
         )
