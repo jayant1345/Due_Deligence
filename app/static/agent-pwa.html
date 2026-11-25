@@ -2308,7 +2308,7 @@
   </nav>
 
   <!-- Interactive JavaScript Engine -->
-  <script src="/static/agent-pwa.js?v=15"></script>
+  <script src="/static/agent-pwa.js?v=16"></script>
 
   <!-- FIELD AGENT AUTHENTICATION MODAL -->
   <div id="agentLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
@@ -2401,7 +2401,7 @@
   </div>
 
   <!-- FULL-SCREEN VIEW OF AN ALREADY-SAVED SLOT PHOTO, FOR VERIFYING THE WATERMARK -->
-  <div id="pwaSlotPhotoViewModal" class="hidden fixed inset-0 z-[60] bg-black/95 flex flex-col">
+  <div id="pwaSlotPhotoViewModal" class="hidden fixed inset-0 z-50 bg-slate-900/95 flex flex-col">
     <button type="button" onclick="closeSlotPhotoFullscreen()" class="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center">
       <span class="material-symbols-outlined text-[20px]">close</span>
     </button>
@@ -2414,8 +2414,8 @@
   </div>
 
   <!-- IN-BROWSER LOW-MEMORY WEBRTC LIVE CAMERA MODAL (Prevents OS background-tab low-memory kill on iPhone & Android) -->
-  <div id="pwaLiveCameraModal" class="hidden fixed inset-0 z-[65] bg-black flex flex-col">
-    <div class="flex items-center justify-between px-4 py-3 bg-slate-950/90 text-white border-b border-white/10 shrink-0">
+  <div id="pwaLiveCameraModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex flex-col" style="z-index: 9999; background-color: #020617;">
+    <div class="flex items-center justify-between px-4 py-3 text-white border-b border-outline-variant shrink-0" style="background-color: #0f172a;">
       <div class="min-w-0 pr-2">
         <h3 id="pwaLiveCameraTitle" class="font-headline font-bold text-xs sm:text-sm text-white truncate">Capture Verification Photo</h3>
         <p id="pwaLiveCameraSubtitle" class="font-mono text-[10px] text-emerald-400 truncate">Low-Memory In-App Camera • GPS Locked</p>
@@ -2424,19 +2424,19 @@
         <span class="material-symbols-outlined text-[20px]">close</span>
       </button>
     </div>
-    <div class="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-      <video id="pwaLiveCameraVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+    <div class="flex-1 relative flex items-center justify-center overflow-hidden" style="background-color: #000000; min-height: 0;">
+      <video id="pwaLiveCameraVideo" autoplay playsinline muted class="w-full h-full object-cover" style="max-height: 100%;"></video>
     </div>
-    <div class="p-4 pb-6 bg-slate-950/95 flex items-center justify-between gap-2.5 shrink-0 border-t border-white/10">
-      <button type="button" onclick="fallbackToNativeCameraInput()" class="px-3 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-headline text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+    <div class="p-4 pb-6 flex items-center justify-between gap-2.5 shrink-0 border-t border-outline-variant" style="background-color: #0f172a;">
+      <button type="button" onclick="fallbackToNativeCameraInput()" class="px-3 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-headline text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
         <span class="material-symbols-outlined text-[18px]">photo_library</span>
         <span>Gallery / App</span>
       </button>
-      <button type="button" onclick="captureFrameFromPwaLiveCamera()" class="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-headline text-sm font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+      <button type="button" onclick="captureFrameFromPwaLiveCamera()" class="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-sm font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
         <span class="material-symbols-outlined text-[22px]">photo_camera</span>
         <span>Capture Photo</span>
       </button>
-      <button type="button" onclick="flipPwaLiveCamera()" class="px-3 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-headline text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-all">
+      <button type="button" onclick="flipPwaLiveCamera()" class="px-3 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-headline text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-all">
         <span class="material-symbols-outlined text-[18px]">flip_camera_ios</span>
         <span>Flip</span>
       </button>

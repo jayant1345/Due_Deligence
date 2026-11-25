@@ -1,6 +1,6 @@
     // Register PWA Service Worker
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js?v=16", { updateViaCache: "none" }).then((reg) => {
+      navigator.serviceWorker.register("/sw.js?v=17", { updateViaCache: "none" }).then((reg) => {
         try { reg.update(); } catch (_) {}
         console.log("CPV Service Worker Registered");
       }).catch(err => console.log("SW error:", err));
@@ -810,6 +810,7 @@
       stopPwaLiveCameraStream();
       const modal = document.getElementById("pwaLiveCameraModal");
       if (modal) modal.classList.add("hidden");
+      try { document.body.style.overflow = ""; } catch (_) {}
       cameraPickerOpenUntil = 0;
     }
 
@@ -854,6 +855,7 @@
         pwaLiveCameraStream = stream;
         videoEl.srcObject = stream;
         modal.classList.remove("hidden");
+        try { document.body.style.overflow = "hidden"; } catch (_) {}
         await videoEl.play().catch(() => {});
       } catch (err) {
         console.warn("In-app getUserMedia unavailable/denied, falling back to system picker:", err);
