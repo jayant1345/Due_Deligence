@@ -1469,6 +1469,39 @@ async def list_case_documents(
             "ocr_data": ocr_payload,
             "ca_remarks": d.ca_remarks,
         })
+
+    # Deduplicate retaken photo slots (same folder + same slot_number >= 1):
+    # Only the latest upload for a given (folder, slot_number) is returned, so older superseded
+    # retakes of Slot 1 never spill over into empty Slots 2, 3, or 4 on the CA Dashboard when the
+    # PWA shows only Slot 1 uploaded.
+    latest_slot_doc_id: Dict[tuple, str] = {}
+    for item in formatted:
+        sn = item.get("slot_number")
+        fld = item.get("folder") or "residence"
+        if sn is not None and fld != "kyc" and item.get("doc_type") != "AGENT_SELFIE":
+            try:
+                sn_int = int(sn)
+                if sn_int >= 1:
+                    # formatted is ordered by created_at ASC, so later items overwrite earlier retakes
+                    latest_slot_doc_id[(fld, sn_int)] = item["id"]
+            except (TypeError, ValueError):
+                pass
+
+    if latest_slot_doc_id:
+        deduped = []
+        for item in formatted:
+            sn = item.get("slot_number")
+            fld = item.get("folder") or "residence"
+            if sn is not None and fld != "kyc" and item.get("doc_type") != "AGENT_SELFIE":
+                try:
+                    sn_int = int(sn)
+                    if sn_int >= 1 and latest_slot_doc_id.get((fld, sn_int)) != item["id"]:
+                        continue
+                except (TypeError, ValueError):
+                    pass
+            deduped.append(item)
+        formatted = deduped
+
     return formatted
 
 

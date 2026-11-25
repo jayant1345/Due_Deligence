@@ -494,6 +494,34 @@ async def zero_lag_upload_document(
     if slot_number is not None:
         ocr_meta["slot_number"] = slot_number
 
+    # When a specific photo slot (slot_number >= 1) in a non-KYC folder is retaken/re-uploaded,
+    # remove any earlier superseded CaseDocument rows for that exact same (case_id, folder, slot_number)
+    # so the database, CA Dashboard, and Mobile PWA always stay 100% in sync with 1 photo per slot.
+    if slot_number is not None and norm_folder != "kyc" and resolved_doc_type != DocumentType.AGENT_SELFIE:
+        try:
+            existing_docs_res = await db.execute(
+                select(CaseDocument).where(CaseDocument.case_id == loan_case.id)
+            )
+            for ex_doc in existing_docs_res.scalars().all():
+                ex_ocr = ex_doc.ocr_data if isinstance(ex_doc.ocr_data, dict) else {}
+                if ex_ocr.get("source") == "pdf_ingest":
+                    continue
+                ex_slot = ex_ocr.get("slot_number")
+                try:
+                    ex_slot_int = int(ex_slot) if ex_slot is not None else None
+                except (TypeError, ValueError):
+                    ex_slot_int = None
+                if ex_slot_int != int(slot_number):
+                    continue
+                ex_folder = str(ex_ocr.get("folder") or "").strip().lower()
+                if not ex_folder:
+                    ex_dt = (ex_doc.doc_type.value if hasattr(ex_doc.doc_type, "value") else str(ex_doc.doc_type)).upper()
+                    ex_folder = "work" if any(w in ex_dt for w in ["OFFICE", "WORK", "FACADE", "NAMEBOARD", "DESK"]) else "residence"
+                if ex_folder == norm_folder:
+                    await db.delete(ex_doc)
+        except Exception:
+            pass
+
     # Persist document record
     doc = CaseDocument(
         case_id=loan_case.id,
