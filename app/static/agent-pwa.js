@@ -1,6 +1,6 @@
     // Register PWA Service Worker
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js?v=15", { updateViaCache: "none" }).then((reg) => {
+      navigator.serviceWorker.register("/sw.js?v=16", { updateViaCache: "none" }).then((reg) => {
         try { reg.update(); } catch (_) {}
         console.log("CPV Service Worker Registered");
       }).catch(err => console.log("SW error:", err));
@@ -781,6 +781,155 @@
       }
     }
 
+    // ==========================================
+    // IN-BROWSER WEBRTC LIVE CAMERA ENGINE (Prevents iOS/Android low-memory tab eviction)
+    // ==========================================
+    let pwaLiveCameraStream = null;
+    let pwaLiveCameraFacing = "environment"; // "environment" | "user"
+    let pwaLiveCameraMode = "slot";          // "slot" | "selfie"
+
+    function stopPwaLiveCameraStream() {
+      if (pwaLiveCameraStream) {
+        try {
+          pwaLiveCameraStream.getTracks().forEach((t) => {
+            try { t.stop(); } catch (_) {}
+          });
+        } catch (_) {}
+        pwaLiveCameraStream = null;
+      }
+      const videoEl = document.getElementById("pwaLiveCameraVideo");
+      if (videoEl) {
+        try {
+          videoEl.pause();
+          videoEl.srcObject = null;
+        } catch (_) {}
+      }
+    }
+
+    function closePwaLiveCamera() {
+      stopPwaLiveCameraStream();
+      const modal = document.getElementById("pwaLiveCameraModal");
+      if (modal) modal.classList.add("hidden");
+      cameraPickerOpenUntil = 0;
+    }
+
+    function fallbackToNativeCameraInput() {
+      const mode = pwaLiveCameraMode;
+      closePwaLiveCamera();
+      cameraPickerOpenUntil = Date.now() + 25000;
+      if (mode === "selfie") {
+        const sInp = document.getElementById("selfieInput");
+        if (sInp) sInp.click();
+      } else {
+        const cInp = document.getElementById("cameraInput");
+        if (cInp) cInp.click();
+      }
+    }
+
+    async function openPwaLiveCamera(mode, facing, titleText) {
+      pwaLiveCameraMode = mode || "slot";
+      pwaLiveCameraFacing = facing || (mode === "selfie" ? "user" : "environment");
+      if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+        fallbackToNativeCameraInput();
+        return;
+      }
+      stopPwaLiveCameraStream();
+      const modal = document.getElementById("pwaLiveCameraModal");
+      const videoEl = document.getElementById("pwaLiveCameraVideo");
+      const titleEl = document.getElementById("pwaLiveCameraTitle");
+      if (!modal || !videoEl) {
+        fallbackToNativeCameraInput();
+        return;
+      }
+      if (titleEl && titleText) titleEl.textContent = titleText;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: pwaLiveCameraFacing },
+            width: { ideal: 1280 },
+            height: { ideal: 960 },
+          },
+          audio: false,
+        });
+        pwaLiveCameraStream = stream;
+        videoEl.srcObject = stream;
+        modal.classList.remove("hidden");
+        await videoEl.play().catch(() => {});
+      } catch (err) {
+        console.warn("In-app getUserMedia unavailable/denied, falling back to system picker:", err);
+        fallbackToNativeCameraInput();
+      }
+    }
+
+    async function flipPwaLiveCamera() {
+      const nextFacing = pwaLiveCameraFacing === "user" ? "environment" : "user";
+      const titleEl = document.getElementById("pwaLiveCameraTitle");
+      await openPwaLiveCamera(
+        pwaLiveCameraMode,
+        nextFacing,
+        titleEl ? titleEl.textContent : "Capture Verification Photo"
+      );
+    }
+
+    function captureFrameFromPwaLiveCamera() {
+      const videoEl = document.getElementById("pwaLiveCameraVideo");
+      if (!videoEl || !videoEl.videoWidth || !videoEl.videoHeight) {
+        fallbackToNativeCameraInput();
+        return;
+      }
+      const maxDim = 1024;
+      let w = videoEl.videoWidth;
+      let h = videoEl.videoHeight;
+      if (w > maxDim || h > maxDim) {
+        if (w >= h) {
+          h = Math.max(1, Math.round((h * maxDim) / w));
+          w = maxDim;
+        } else {
+          w = Math.max(1, Math.round((w * maxDim) / h));
+          h = maxDim;
+        }
+      }
+      const snapCanvas = document.createElement("canvas");
+      snapCanvas.width = w;
+      snapCanvas.height = h;
+      const ctx = snapCanvas.getContext("2d");
+      ctx.drawImage(videoEl, 0, 0, w, h);
+      const mode = pwaLiveCameraMode;
+      // Stop live stream immediately before processing blob to free 100% of camera buffer RAM
+      closePwaLiveCamera();
+
+      snapCanvas.toBlob((blob) => {
+        try {
+          snapCanvas.width = 0;
+          snapCanvas.height = 0;
+        } catch (_) {}
+        if (!blob) return;
+        const fileName = mode === "selfie"
+          ? `agent_selfie_${sampleCaseId || Date.now()}.jpg`
+          : `photo_slot_${activeUploadSlot || 1}_${Date.now()}.jpg`;
+        let capturedFile = blob;
+        try {
+          capturedFile = new File([blob], fileName, { type: "image/jpeg" });
+        } catch (_) {
+          capturedFile.name = fileName;
+        }
+        if (mode === "selfie") {
+          handleAgentSelfieCapture({ target: { files: [capturedFile], value: "" } });
+        } else {
+          handlePhotoUpload({ target: { files: [capturedFile], value: "" } });
+        }
+      }, "image/jpeg", 0.82);
+    }
+
+    function openPwaSelfieCamera() {
+      if (!sampleCaseId) {
+        alert("This case is still loading. Please wait a moment for the case details to finish loading, then try the selfie again.");
+        return;
+      }
+      if (typeof savePwaFormDraftLocally === "function") savePwaFormDraftLocally();
+      openPwaLiveCamera("selfie", "user", "Field Staff Attendance Selfie (સેલ્ફી લો)");
+    }
+
     // Dedicated Slot Capture Trigger with Folder Awareness
     function triggerSlotCapture(slotNum, docType, folder) {
       if (capturePending) {
@@ -801,10 +950,12 @@
       activeUploadSlot = slotNum;
       activeDocType = docType;
       if (folder) currentPwaFolder = folder;
-      const camInput = document.getElementById("cameraInput");
-      if (camInput) {
-        camInput.click();
-      }
+      const info = PWA_FOLDER_INFO[currentPwaFolder] || PWA_FOLDER_INFO.residence;
+      const slotTitle = slotNum > 4
+        ? `${info.label} — Additional Photo #${slotNum - 4}`
+        : `${info.label} — Slot ${slotNum}`;
+      const preferFront = String(docType || "").toUpperCase().includes("SELFIE");
+      openPwaLiveCamera("slot", preferFront ? "user" : "environment", slotTitle);
     }
 
     // "+ Add More Photos" - captures an unlimited number of additional photos per section
@@ -820,7 +971,7 @@
     // Renders/updates one tile in a section's "Additional Photos" gallery strip. Unlike the 4
     // mandatory slots, these don't have pre-existing DOM elements (unbounded count), so the tile
     // is created on first use and just has its image swapped on a retake.
-    function addOrUpdateExtraPhotoThumb(folder, slotNum, previewUrl) {
+    function addOrUpdateExtraPhotoThumb(folder, slotNum, previewUrl, fullUrl) {
       const gallery = document.getElementById(`extraGallery_${folder}`);
       if (!gallery) return;
       let tile = document.getElementById(`extraThumb_${folder}_${slotNum}`);
@@ -831,7 +982,8 @@
         tile.onclick = () => viewSlotPhotoFullscreen(tile);
         gallery.appendChild(tile);
       }
-      tile.innerHTML = `<img src="${previewUrl}" class="w-full h-full object-cover"/><span class="absolute bottom-0 right-0 bg-emerald-600 text-white text-[8px] px-1 leading-tight">✓</span>`;
+      const fullAttr = fullUrl ? ` data-full-src="${fullUrl}"` : "";
+      tile.innerHTML = `<img src="${previewUrl}"${fullAttr} loading="lazy" decoding="async" class="w-full h-full object-cover"/><span class="absolute bottom-0 right-0 bg-emerald-600 text-white text-[8px] px-1 leading-tight">✓</span>`;
       updateExtraPhotoCount(folder);
     }
 
@@ -866,7 +1018,8 @@
         let sNum = d.slot_number > 4 ? d.slot_number : ((d.ocr_data && d.ocr_data.slot_number > 4) ? d.ocr_data.slot_number : null);
         if (!sNum) sNum = 5 + idx;
         if (sNum > maxSlot) maxSlot = sNum;
-        addOrUpdateExtraPhotoThumb(folder, sNum, d.url);
+        const thumbSrc = d.id ? `/api/v1/cases/documents/${d.id}/thumb` : d.url;
+        addOrUpdateExtraPhotoThumb(folder, sNum, thumbSrc, d.url);
       });
       extraPhotoNextSlot[folder] = maxSlot;
     }
@@ -988,9 +1141,9 @@
         cleanupObjUrl();
         try {
           const canvas = document.createElement("canvas");
-          const maxDim = 1280;
-          let w = rawImg.width || 1280;
-          let h = rawImg.height || 960;
+          const maxDim = 1024;
+          let w = rawImg.width || 1024;
+          let h = rawImg.height || 768;
           if (w > maxDim || h > maxDim) {
             if (w >= h) {
               h = Math.max(1, Math.round((h * maxDim) / w));
@@ -1004,10 +1157,16 @@
           canvas.height = h;
           const ctx = canvas.getContext("2d");
           ctx.drawImage(rawImg, 0, 0, w, h);
+          // Immediately release the 12MP-48MP raw image bitmap from mobile browser memory
+          try {
+            rawImg.onload = null;
+            rawImg.onerror = null;
+            rawImg.src = "";
+          } catch (_) {}
 
-          const finalPreviewUrl = canvas.toDataURL("image/jpeg", 0.85);
+          const finalPreviewUrl = canvas.toDataURL("image/jpeg", 0.80);
 
-          // Compact 240px thumbnail (~8KB) for localStorage so 4+ photos never hit the 5MB mobile quota
+          // Compact 240px thumbnail (~8KB) for DOM thumbnails, inMemory cache, and localStorage
           let thumbPreviewUrl = finalPreviewUrl;
           try {
             const thumbCanvas = document.createElement("canvas");
@@ -1026,7 +1185,7 @@
             canvas, file, finalPreviewUrl, thumbPreviewUrl, slotNum, docType, folderAtCapture,
             caseIdAtCapture, caseKeyAtCapture, latAtCapture, lonAtCapture, timeStr, finish,
           };
-          // Immediately confirm & upload the captured photo (native phone camera already showed its own ✓ confirmation)
+          // Immediately confirm & upload the captured photo
           finalizePhotoCapture();
         } catch (err) {
           console.warn("Image canvas compression fallback:", err);
@@ -1067,13 +1226,15 @@
       if (!img || !img.src) return; // empty/pending slot - nothing to view yet
       const viewImg = document.getElementById("pwaSlotPhotoViewImg");
       const viewModal = document.getElementById("pwaSlotPhotoViewModal");
-      if (viewImg) viewImg.src = img.src;
+      if (viewImg) viewImg.src = img.dataset.fullSrc || img.src;
       if (viewModal) viewModal.classList.remove("hidden");
       resetSlotPhotoZoom();
     }
     function closeSlotPhotoFullscreen() {
       const viewModal = document.getElementById("pwaSlotPhotoViewModal");
       if (viewModal) viewModal.classList.add("hidden");
+      const viewImg = document.getElementById("pwaSlotPhotoViewImg");
+      if (viewImg) viewImg.src = "";
       resetSlotPhotoZoom();
     }
 
@@ -1209,12 +1370,13 @@
       alertText.textContent = isExtra ? `Uploading ${info.label} additional photo...` : `Uploading ${info.label} Slot ${slotNum} photo...`;
       setUploadAlertIcon(true, "text-blue-600", "autorenew");
 
+      const lightPreviewUrl = thumbPreviewUrl || finalPreviewUrl;
       const previewImgEl = document.getElementById("previewPhotoImg");
-      if (previewImgEl) previewImgEl.src = finalPreviewUrl;
+      if (previewImgEl) previewImgEl.src = lightPreviewUrl;
 
       if (!isExtra) info.slotsMap[slotNum] = true;
       const slotPayloadObj = {
-        src: finalPreviewUrl,
+        src: lightPreviewUrl,
         timestamp: timeStr,
         lat: latAtCapture,
         lon: lonAtCapture,
@@ -1229,14 +1391,14 @@
         info.storageKey,
         slotNum,
         slotPayloadObj,
-        thumbPreviewUrl || finalPreviewUrl
+        lightPreviewUrl
       );
 
       if (isExtra) {
-        addOrUpdateExtraPhotoThumb(folderAtCapture, slotNum, finalPreviewUrl);
+        addOrUpdateExtraPhotoThumb(folderAtCapture, slotNum, lightPreviewUrl);
       } else {
         const thumbEl = document.getElementById(`${info.slotIdPrefix}${slotNum}Thumb`);
-        if (thumbEl) thumbEl.innerHTML = `<img src="${finalPreviewUrl}" class="w-full h-full object-cover rounded-lg"/>`;
+        if (thumbEl) thumbEl.innerHTML = `<img src="${lightPreviewUrl}" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
         const badgeEl = document.getElementById(`${info.slotIdPrefix}${slotNum}Badge`);
         if (badgeEl) {
           badgeEl.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
@@ -1550,117 +1712,157 @@
     // ==========================================
     let agentSelfieDataUrl = null;
     function handleAgentSelfieCapture(event) {
-      const file = event.target.files[0];
+      const file = event.target && event.target.files ? event.target.files[0] : null;
+      if (event.target) event.target.value = "";
       if (!file) return;
       // See submitDueDiligenceForm's matching guard - don't let a selfie taken while a
       // just-switched-to case is still loading get attached to no case (or cached under a
       // literal "undefined" key that can never be restored/synced).
       if (!sampleCaseId) {
         alert("This case is still loading. Please wait a moment for the case details to finish loading, then try the selfie again.");
-        event.target.value = "";
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          // Canvas watermarking with hardware GPS
-          const canvas = document.createElement("canvas");
-          const w = Math.min(img.width, 1080);
-          const scale = w / img.width;
-          const h = img.height * scale;
-          canvas.width = w;
-          canvas.height = h;
-
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, w, h);
-          // No text is drawn here — the server stamps the single authoritative watermark banner
-          // from the case record (same /upload endpoint as evidence photos). Drawing one here too
-          // used to produce two stacked banners on every attendance selfie.
-
-          const now = new Date();
-          const timeStr = now.toLocaleDateString("en-GB") + " " + now.toLocaleTimeString("en-GB") + " IST";
-          const agentName = (document.getElementById("agentNameDisplay") || {}).textContent || "Field Officer";
-
-          agentSelfieDataUrl = canvas.toDataURL("image/jpeg", 0.88);
-          try {
-            localStorage.setItem("selfie_" + sampleCaseId, agentSelfieDataUrl);
-            localStorage.setItem("selfie_timestamp_" + sampleCaseId, timeStr);
-            localStorage.setItem("selfie_agent_" + sampleCaseId, agentName);
-          } catch(e){}
-          updateAttestationProgress();
-
-          // Update Preview UI
-          const previewImg = document.getElementById("agentSelfiePreview");
-          const placeholder = document.getElementById("agentSelfiePlaceholder");
-          const wmTag = document.getElementById("selfieWatermarkTag");
-          const badge = document.getElementById("selfieStatusBadge");
-          const btnText = document.getElementById("selfieBtnText");
-          const metaInfo = document.getElementById("selfieMetaInfo");
-          const agentText = document.getElementById("selfieAgentNameText");
-          const timeText = document.getElementById("selfieTimestampText");
-
-          if (previewImg) {
-            previewImg.src = agentSelfieDataUrl;
-            previewImg.classList.remove("hidden");
-          }
-          if (placeholder) placeholder.classList.add("hidden");
-          if (wmTag) wmTag.classList.remove("hidden");
-          if (badge) {
-            badge.className = "font-mono text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-2xs";
-            badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span><span>SELFIE VERIFIED (સર્વે શરૂ)</span>`;
-          }
-          if (btnText) btnText.textContent = "Re-take Selfie (ફરીથી લો)";
-          if (metaInfo) metaInfo.classList.remove("hidden");
-          if (agentText) agentText.textContent = agentName;
-          if (timeText) timeText.textContent = timeStr;
-
-          // ZERO-LAG UPLOAD TO SERVER AS AGENT_SELFIE DOCUMENT
-          canvas.toBlob(async (blob) => {
-            if (!blob) return;
-            try {
-              const formData = new FormData();
-              formData.append("doc_type", "AGENT_SELFIE");
-              formData.append("latitude", currentDeviceLat);
-              formData.append("longitude", currentDeviceLon);
-              formData.append("file", blob, `agent_selfie_${sampleCaseId}.jpg`);
-
-              const token = localStorage.getItem("pwa_token");
-              const headers = {};
-              if (token && token !== "demo-pwa-token") {
-                headers["Authorization"] = `Bearer ${token}`;
-              }
-
-              const res = await fetch(`/api/v1/visits/cases/${sampleCaseId}/upload`, {
-                method: "POST",
-                headers: headers,
-                body: formData
-              });
-              const sData = await res.json().catch(() => ({}));
-              if (res.ok && sData.status !== "offline_queued") {
-                console.log("[✓] Field staff attendance selfie uploaded to CA Portal successfully!");
-              } else {
-                throw new Error(sData.status === "offline_queued" ? "offline_queued" : `HTTP ${res.status}`);
-              }
-            } catch (err) {
-              console.warn("Selfie upload background retry queued:", err);
-              await enqueueOfflinePhoto({
-                sampleCaseId: sampleCaseId,
-                dataUrl: agentSelfieDataUrl,
-                fileName: `agent_selfie_${sampleCaseId}.jpg`,
-                docType: "AGENT_SELFIE",
-                slotNumber: null,
-                folder: "residence",
-                latitude: currentDeviceLat,
-                longitude: currentDeviceLon,
-              });
-            }
-          }, "image/jpeg", 0.88);
-        };
-        img.src = e.target.result;
+      let selfieObjUrl = null;
+      const cleanupSelfieObjUrl = () => {
+        if (selfieObjUrl) {
+          try { URL.revokeObjectURL(selfieObjUrl); } catch (_) {}
+          selfieObjUrl = null;
+        }
       };
-      reader.readAsDataURL(file);
+
+      const img = new Image();
+      img.onload = () => {
+        cleanupSelfieObjUrl();
+        const canvas = document.createElement("canvas");
+        const w = Math.min(img.width || 960, 960);
+        const scale = w / (img.width || 960);
+        const h = Math.max(1, Math.round((img.height || 720) * scale));
+        canvas.width = w;
+        canvas.height = h;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        try {
+          img.onload = null;
+          img.onerror = null;
+          img.src = "";
+        } catch (_) {}
+
+        const now = new Date();
+        const timeStr = now.toLocaleDateString("en-GB") + " " + now.toLocaleTimeString("en-GB") + " IST";
+        const agentName = (document.getElementById("agentNameDisplay") || {}).textContent || "Field Officer";
+
+        const fullSelfieDataUrl = canvas.toDataURL("image/jpeg", 0.80);
+        // Generate compact 240px selfie thumbnail (~8KB) for DOM preview & localStorage
+        let thumbSelfieUrl = fullSelfieDataUrl;
+        try {
+          const tCan = document.createElement("canvas");
+          const tw = 240;
+          const th = Math.max(1, Math.round((h * tw) / w));
+          tCan.width = tw;
+          tCan.height = th;
+          tCan.getContext("2d").drawImage(canvas, 0, 0, tw, th);
+          thumbSelfieUrl = tCan.toDataURL("image/jpeg", 0.65);
+          tCan.width = 0;
+          tCan.height = 0;
+        } catch (_) {}
+
+        agentSelfieDataUrl = thumbSelfieUrl;
+        try {
+          localStorage.setItem("selfie_" + sampleCaseId, thumbSelfieUrl);
+          localStorage.setItem("selfie_timestamp_" + sampleCaseId, timeStr);
+          localStorage.setItem("selfie_agent_" + sampleCaseId, agentName);
+        } catch (e) {}
+        updateAttestationProgress();
+
+        // Update Preview UI
+        const previewImg = document.getElementById("agentSelfiePreview");
+        const placeholder = document.getElementById("agentSelfiePlaceholder");
+        const wmTag = document.getElementById("selfieWatermarkTag");
+        const badge = document.getElementById("selfieStatusBadge");
+        const btnText = document.getElementById("selfieBtnText");
+        const metaInfo = document.getElementById("selfieMetaInfo");
+        const agentText = document.getElementById("selfieAgentNameText");
+        const timeText = document.getElementById("selfieTimestampText");
+
+        if (previewImg) {
+          previewImg.src = thumbSelfieUrl;
+          previewImg.classList.remove("hidden");
+        }
+        if (placeholder) placeholder.classList.add("hidden");
+        if (wmTag) wmTag.classList.remove("hidden");
+        if (badge) {
+          badge.className = "font-mono text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-2xs";
+          badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span><span>SELFIE VERIFIED (સર્વે શરૂ)</span>`;
+        }
+        if (btnText) btnText.textContent = "Re-take Selfie (ફરીથી લો)";
+        if (metaInfo) metaInfo.classList.remove("hidden");
+        if (agentText) agentText.textContent = agentName;
+        if (timeText) timeText.textContent = timeStr;
+
+        // ZERO-LAG UPLOAD TO SERVER AS AGENT_SELFIE DOCUMENT
+        canvas.toBlob(async (blob) => {
+          try {
+            canvas.width = 0;
+            canvas.height = 0;
+          } catch (_) {}
+          if (!blob) return;
+          try {
+            const formData = new FormData();
+            formData.append("doc_type", "AGENT_SELFIE");
+            formData.append("latitude", currentDeviceLat);
+            formData.append("longitude", currentDeviceLon);
+            formData.append("file", blob, `agent_selfie_${sampleCaseId}.jpg`);
+
+            const token = localStorage.getItem("pwa_token");
+            const headers = {};
+            if (token && token !== "demo-pwa-token") {
+              headers["Authorization"] = `Bearer ${token}`;
+            }
+
+            const res = await fetch(`/api/v1/visits/cases/${sampleCaseId}/upload`, {
+              method: "POST",
+              headers: headers,
+              body: formData
+            });
+            const sData = await res.json().catch(() => ({}));
+            if (res.ok && sData.status !== "offline_queued") {
+              console.log("[✓] Field staff attendance selfie uploaded to CA Portal successfully!");
+            } else {
+              throw new Error(sData.status === "offline_queued" ? "offline_queued" : `HTTP ${res.status}`);
+            }
+          } catch (err) {
+            console.warn("Selfie upload background retry queued:", err);
+            await enqueueOfflinePhoto({
+              sampleCaseId: sampleCaseId,
+              dataUrl: fullSelfieDataUrl,
+              fileName: `agent_selfie_${sampleCaseId}.jpg`,
+              docType: "AGENT_SELFIE",
+              slotNumber: null,
+              folder: "residence",
+              latitude: currentDeviceLat,
+              longitude: currentDeviceLon,
+            });
+          }
+        }, "image/jpeg", 0.80);
+      };
+      img.onerror = () => cleanupSelfieObjUrl();
+
+      try {
+        if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+          selfieObjUrl = URL.createObjectURL(file);
+          img.src = selfieObjUrl;
+        } else {
+          const reader = new FileReader();
+          reader.onload = (e) => { img.src = e.target.result; };
+          reader.readAsDataURL(file);
+        }
+      } catch (_) {
+        const reader = new FileReader();
+        reader.onload = (e) => { img.src = e.target.result; };
+        reader.readAsDataURL(file);
+      }
     }
 
     // ==========================================
@@ -3165,17 +3367,21 @@
         document.getElementById("pwaDocUtilityMeter").textContent = c.meter_name || "";
       }
 
-      // Update All Document Image Sources for the Active Case
-      const aadhImg = document.getElementById("pwaDocInlineAadhaarImg");
-      if (aadhImg) aadhImg.src = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
-      const panImg = document.getElementById("pwaDocInlinePanImg");
-      if (panImg) panImg.src = c.pan_front_img || "/static/placeholders/doc_pending.svg";
-      const utilImg = document.getElementById("pwaDocInlineUtilityImg");
-      if (utilImg) utilImg.src = c.utility_front_img || "/static/placeholders/doc_pending.svg";
-      const f16Img = document.getElementById("pwaDocInlineForm16Img");
-      if (f16Img) f16Img.src = c.form16_img || "/static/placeholders/doc_pending.svg";
-      const deedImg = document.getElementById("pwaDocInlineSaleDeedImg");
-      if (deedImg) deedImg.src = c.sale_deed_img || "/static/placeholders/doc_pending.svg";
+      // Only decode CA-provided KYC inline images if #caDocsSection is actually visible
+      // (it is hidden on the Field Agent PWA, so skipping 5 full-page 2000px scans saves ~100MB of RAM)
+      const caDocsSecEl = document.getElementById("caDocsSection");
+      if (caDocsSecEl && !caDocsSecEl.classList.contains("hidden")) {
+        const aadhImg = document.getElementById("pwaDocInlineAadhaarImg");
+        if (aadhImg) aadhImg.src = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
+        const panImg = document.getElementById("pwaDocInlinePanImg");
+        if (panImg) panImg.src = c.pan_front_img || "/static/placeholders/doc_pending.svg";
+        const utilImg = document.getElementById("pwaDocInlineUtilityImg");
+        if (utilImg) utilImg.src = c.utility_front_img || "/static/placeholders/doc_pending.svg";
+        const f16Img = document.getElementById("pwaDocInlineForm16Img");
+        if (f16Img) f16Img.src = c.form16_img || "/static/placeholders/doc_pending.svg";
+        const deedImg = document.getElementById("pwaDocInlineSaleDeedImg");
+        if (deedImg) deedImg.src = c.sale_deed_img || "/static/placeholders/doc_pending.svg";
+      }
 
       if (document.getElementById("pwaDocIncomeName")) {
         document.getElementById("pwaDocIncomeName").textContent = `Form 16 • ${c.applicant}`;
@@ -4362,16 +4568,19 @@
             document.getElementById("pwaDocUtilityNo").textContent = c.utility_no || "";
             document.getElementById("pwaDocUtilityMeter").textContent = c.meter_name || "";
           }
-          const aadhImg = document.getElementById("pwaDocInlineAadhaarImg");
-          if (aadhImg) aadhImg.src = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
-          const panImg = document.getElementById("pwaDocInlinePanImg");
-          if (panImg) panImg.src = c.pan_front_img || "/static/placeholders/doc_pending.svg";
-          const utilImg = document.getElementById("pwaDocInlineUtilityImg");
-          if (utilImg) utilImg.src = c.utility_front_img || "/static/placeholders/doc_pending.svg";
-          const f16Img = document.getElementById("pwaDocInlineForm16Img");
-          if (f16Img) f16Img.src = c.form16_img || "/static/placeholders/doc_pending.svg";
-          const deedImg = document.getElementById("pwaDocInlineSaleDeedImg");
-          if (deedImg) deedImg.src = c.sale_deed_img || "/static/placeholders/doc_pending.svg";
+          const caDocsSecEl2 = document.getElementById("caDocsSection");
+          if (caDocsSecEl2 && !caDocsSecEl2.classList.contains("hidden")) {
+            const aadhImg = document.getElementById("pwaDocInlineAadhaarImg");
+            if (aadhImg) aadhImg.src = c.aadhaar_front_img || "/static/placeholders/doc_pending.svg";
+            const panImg = document.getElementById("pwaDocInlinePanImg");
+            if (panImg) panImg.src = c.pan_front_img || "/static/placeholders/doc_pending.svg";
+            const utilImg = document.getElementById("pwaDocInlineUtilityImg");
+            if (utilImg) utilImg.src = c.utility_front_img || "/static/placeholders/doc_pending.svg";
+            const f16Img = document.getElementById("pwaDocInlineForm16Img");
+            if (f16Img) f16Img.src = c.form16_img || "/static/placeholders/doc_pending.svg";
+            const deedImg = document.getElementById("pwaDocInlineSaleDeedImg");
+            if (deedImg) deedImg.src = c.sale_deed_img || "/static/placeholders/doc_pending.svg";
+          }
           const fFirm = document.getElementById("formFirmName");
           if (fFirm && !fFirm.value && c.employer_name) fFirm.value = c.employer_name;
           const salaryEl = document.getElementById("pwaDocIncomeSalary");
@@ -4519,9 +4728,10 @@
               bRes.textContent = "✓ UPLOADED";
             }
             if (btnRes) btnRes.textContent = "Re-take Photo";
-            if (thumbRes) thumbRes.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
+            const resThumbUrl = d.id ? `/api/v1/cases/documents/${d.id}/thumb` : d.url;
+            if (thumbRes) thumbRes.innerHTML = `<img src="${resThumbUrl}" data-full-src="${d.url}" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
             safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, "slot", s, {
-              src: d.url,
+              src: resThumbUrl,
               timestamp: d.created_at || "Verified on Server",
               lat: d.latitude || 23.2154,
               lon: d.longitude || 72.6367,
@@ -4624,9 +4834,10 @@
               bOff.textContent = "✓ UPLOADED";
             }
             if (btnOff) btnOff.textContent = "Re-take Photo";
-            if (thumbOff) thumbOff.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
+            const offThumbUrl = d.id ? `/api/v1/cases/documents/${d.id}/thumb` : d.url;
+            if (thumbOff) thumbOff.innerHTML = `<img src="${offThumbUrl}" data-full-src="${d.url}" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
             safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, "office_slot", s, {
-              src: d.url,
+              src: offThumbUrl,
               timestamp: d.created_at || "Verified on Server",
               lat: d.latitude || 23.2154,
               lon: d.longitude || 72.6367,
@@ -4711,9 +4922,10 @@
               bCoOff.textContent = "✓ UPLOADED";
             }
             if (btnCoOff) btnCoOff.textContent = "Re-take Photo";
-            if (thumbCoOff) thumbCoOff.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
+            const coOffThumbUrl = d.id ? `/api/v1/cases/documents/${d.id}/thumb` : d.url;
+            if (thumbCoOff) thumbCoOff.innerHTML = `<img src="${coOffThumbUrl}" data-full-src="${d.url}" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
             safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, "co_office_slot", s, {
-              src: d.url,
+              src: coOffThumbUrl,
               timestamp: d.created_at || "Verified on Server",
               lat: d.latitude || 23.2154,
               lon: d.longitude || 72.6367,
@@ -4798,9 +5010,10 @@
               bCoRes.textContent = "✓ UPLOADED";
             }
             if (btnCoRes) btnCoRes.textContent = "Re-take Photo";
-            if (thumbCoRes) thumbCoRes.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
+            const coResThumbUrl = d.id ? `/api/v1/cases/documents/${d.id}/thumb` : d.url;
+            if (thumbCoRes) thumbCoRes.innerHTML = `<img src="${coResThumbUrl}" data-full-src="${d.url}" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
             safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, "co_residence_slot", s, {
-              src: d.url,
+              src: coResThumbUrl,
               timestamp: d.created_at || "Verified on Server",
               lat: d.latitude || 23.2154,
               lon: d.longitude || 72.6367,
@@ -4888,9 +5101,10 @@
                 bHome.textContent = "✓ UPLOADED";
               }
               if (btnHome) btnHome.textContent = "Re-take Photo";
-              if (thumbHome) thumbHome.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
+              const homeThumbUrl = d.id ? `/api/v1/cases/documents/${d.id}/thumb` : d.url;
+              if (thumbHome) thumbHome.innerHTML = `<img src="${homeThumbUrl}" data-full-src="${d.url}" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
               safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, `home_${slotNum}_slot`, s, {
-                src: d.url,
+                src: homeThumbUrl,
                 timestamp: d.created_at || "Verified on Server",
                 lat: d.latitude || 23.2154,
                 lon: d.longitude || 72.6367,
@@ -4945,7 +5159,8 @@
         // Exact match only - see the officeDocs/selfieDocs comment above for why.
         const serverSelfie = (docs || []).find(d => d.doc_type === "AGENT_SELFIE");
         if (serverSelfie) {
-          agentSelfieDataUrl = serverSelfie.url;
+          const selfieThumbUrl = serverSelfie.id ? `/api/v1/cases/documents/${serverSelfie.id}/thumb` : serverSelfie.url;
+          agentSelfieDataUrl = selfieThumbUrl;
           const previewImg = document.getElementById("agentSelfiePreview") || document.getElementById("selfiePreview");
           const placeholder = document.getElementById("agentSelfiePlaceholder") || document.getElementById("selfiePlaceholder");
           const wmTag = document.getElementById("selfieWatermarkTag");
@@ -4956,7 +5171,7 @@
           const agentText = document.getElementById("selfieAgentNameText");
 
           if (previewImg) {
-            previewImg.src = serverSelfie.url;
+            previewImg.src = selfieThumbUrl;
             previewImg.classList.remove("hidden");
           }
           if (placeholder) placeholder.classList.add("hidden");

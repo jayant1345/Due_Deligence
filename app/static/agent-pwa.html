@@ -482,11 +482,11 @@
               </p>
               
               <div class="flex flex-wrap items-center gap-2">
-                <label class="cursor-pointer px-3.5 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow flex items-center gap-1.5 active:scale-95 transition-all">
+                <button type="button" onclick="openPwaSelfieCamera()" class="cursor-pointer px-3.5 py-2 rounded-lg bg-primary-container hover:bg-primary text-white font-headline text-xs font-bold shadow flex items-center gap-1.5 active:scale-95 transition-all">
                   <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
                   <span id="selfieBtnText">Capture Own Selfie (સેલ્ફી લો)</span>
-                  <input type="file" accept="image/*" capture="user" onchange="handleAgentSelfieCapture(event)" class="hidden"/>
-                </label>
+                </button>
+                <input type="file" id="selfieInput" accept="image/*" onchange="handleAgentSelfieCapture(event)" class="hidden"/>
               </div>
 
               <div id="selfieMetaInfo" class="hidden text-[10px] font-mono text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
@@ -1451,11 +1451,11 @@
       </button>
 
       <!-- Primary Action: Geotagged Camera Capture -->
-      <label for="cameraInput" class="cursor-pointer flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-primary-container text-white font-headline text-sm font-semibold shadow hover:bg-primary active:scale-95 transition-all">
+      <button type="button" onclick="triggerSlotCapture(activeUploadSlot || 1, activeDocType || 'PROPERTY_EXTERIOR', currentPwaFolder || 'residence')" class="cursor-pointer flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-primary-container text-white font-headline text-sm font-semibold shadow hover:bg-primary active:scale-95 transition-all">
         <span class="material-symbols-outlined text-[20px]">photo_camera</span>
         <span>Take Geotagged Photo</span>
-      </label>
-      <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoUpload(event)"/>
+      </button>
+      <input type="file" id="cameraInput" accept="image/*" class="hidden" onchange="handlePhotoUpload(event)"/>
 
       <!-- Secondary Action: Notes -->
       <button onclick="promptInspectionNotes()" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container-low font-headline text-sm font-semibold active:scale-95 transition-all">
@@ -1488,7 +1488,7 @@
 
       <!-- Photo Stage with Overlaid Tamper-Proof Cryptographic Banner -->
       <div class="relative bg-slate-900 overflow-hidden">
-        <img id="previewPhotoImg" alt="Main Exterior Gate at Imperial Heights" class="w-full h-64 sm:h-72 object-cover object-center block" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2bBEQxJ_NWU33FldJN4PDgV9Ro26Km5X4_9YcdW9aUp1tYTQVV-8Uz6tAmlrYDQa3GefsedyfA8MnpcdJ2qk_lZ9Bm14BmkRV7HO28xXmtvrGWM8imN4mAH4ZgmDM4JwE3QDzw3C45Je8LtM66Ue6sjESqCca28JWb3ZkxjTK31_PJFhhmJ0ux-SIjz-IV6tTssBfPrgqmnM5bt1DhocwsZ6u55ZtyHbQd3L29iJbhhixbdZMgj_5vBBQtFQbwmQkvjrr_XbHcfY"/>
+        <img id="previewPhotoImg" alt="Main Exterior Gate" class="w-full h-64 sm:h-72 object-cover object-center block" src="/static/placeholders/doc_pending.svg" loading="lazy" decoding="async"/>
         
         <!-- Live HUD Tag -->
         <div class="absolute top-2.5 left-2.5 bg-black/80 backdrop-blur-md text-white px-2.5 py-1 rounded border border-white/20 text-[10px] font-mono">
@@ -2308,7 +2308,7 @@
   </nav>
 
   <!-- Interactive JavaScript Engine -->
-  <script src="/static/agent-pwa.js?v=14"></script>
+  <script src="/static/agent-pwa.js?v=15"></script>
 
   <!-- FIELD AGENT AUTHENTICATION MODAL -->
   <div id="agentLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
@@ -2410,6 +2410,36 @@
     </div>
     <div id="pwaSlotPhotoViewWrap" class="flex-1 overflow-hidden flex items-center justify-center p-3" style="touch-action: none;">
       <img id="pwaSlotPhotoViewImg" src="" alt="Saved evidence photo" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl select-none" style="transform-origin: center center;" draggable="false"/>
+    </div>
+  </div>
+
+  <!-- IN-BROWSER LOW-MEMORY WEBRTC LIVE CAMERA MODAL (Prevents OS background-tab low-memory kill on iPhone & Android) -->
+  <div id="pwaLiveCameraModal" class="hidden fixed inset-0 z-[65] bg-black flex flex-col">
+    <div class="flex items-center justify-between px-4 py-3 bg-slate-950/90 text-white border-b border-white/10 shrink-0">
+      <div class="min-w-0 pr-2">
+        <h3 id="pwaLiveCameraTitle" class="font-headline font-bold text-xs sm:text-sm text-white truncate">Capture Verification Photo</h3>
+        <p id="pwaLiveCameraSubtitle" class="font-mono text-[10px] text-emerald-400 truncate">Low-Memory In-App Camera • GPS Locked</p>
+      </div>
+      <button type="button" onclick="closePwaLiveCamera()" class="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+    <div class="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+      <video id="pwaLiveCameraVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+    </div>
+    <div class="p-4 pb-6 bg-slate-950/95 flex items-center justify-between gap-2.5 shrink-0 border-t border-white/10">
+      <button type="button" onclick="fallbackToNativeCameraInput()" class="px-3 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-headline text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-[18px]">photo_library</span>
+        <span>Gallery / App</span>
+      </button>
+      <button type="button" onclick="captureFrameFromPwaLiveCamera()" class="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-headline text-sm font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-[22px]">photo_camera</span>
+        <span>Capture Photo</span>
+      </button>
+      <button type="button" onclick="flipPwaLiveCamera()" class="px-3 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-headline text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-[18px]">flip_camera_ios</span>
+        <span>Flip</span>
+      </button>
     </div>
   </div>
 
