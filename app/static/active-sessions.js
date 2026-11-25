@@ -419,7 +419,7 @@
   enforceTwoEmpanelledBanks();
 
   // ==========================================
-  // WHATSAPP HANDOVER MESSAGE WITH CO-APPLICANT OFFICE ADDRESS
+  // WHATSAPP HANDOVER MESSAGE WITH APPLICANT/CO-APPLICANT MOBILES & CO-APPLICANT OFFICE ADDRESS
   // ==========================================
   window.generateHandoverMessage = function () {
     const c =
@@ -448,6 +448,12 @@
       ffdObj && typeof ffdObj.office_details_co === "object" && ffdObj.office_details_co
         ? ffdObj.office_details_co
         : {};
+    const applicantPhone = String(
+      c.phone || c.applicant_phone || ffdObj.contact_number || ""
+    ).trim();
+    const coApplicantPhone = String(
+      c.co_applicant_phone || ffdObj.co_applicant_contact || offCoObj.contact_number || ""
+    ).trim();
     const coApplicantOfficeAddress = String(
       c.co_applicant_office_address || offCoObj.address || offCoObj.firm_name || ""
     ).trim();
@@ -462,12 +468,34 @@
       ? document.getElementById("hoCredPass").textContent
       : "agent1@123";
     const pwaLink = `${window.location.origin}/pwa?case=${encodeURIComponent(caseNo)}`;
-    const instructions = document.getElementById("hoInstructions")
-      ? document.getElementById("hoInstructions").value.trim()
+
+    const applicantPhoneLine = applicantPhone
+      ? `📞 *Applicant Mobile:* ${applicantPhone}\n`
       : "";
     const coLine = c.co_applicant_name
       ? `👥 *Co-Applicant:* ${c.co_applicant_name} (separate office verification required)\n`
       : "";
+    const coPhoneLine =
+      isMultiApplicant && coApplicantPhone
+        ? `📞 *Co-Applicant Mobile:* ${coApplicantPhone}\n`
+        : "";
+
+    let extraCoApplicantsLines = "";
+    [3, 4, 5].forEach((slotNum) => {
+      const sName = String(c[`applicant_${slotNum}_name`] || "").trim();
+      const sPhone = String(c[`applicant_${slotNum}_phone`] || "").trim();
+      const sAddr = String(c[`applicant_${slotNum}_address`] || "").trim();
+      if (sName) {
+        extraCoApplicantsLines += `👥 *Co-Applicant ${slotNum - 1}:* ${sName}\n`;
+        if (sPhone) {
+          extraCoApplicantsLines += `📞 *Co-Applicant ${slotNum - 1} Mobile:* ${sPhone}\n`;
+        }
+        if (sAddr) {
+          extraCoApplicantsLines += `🏠 *Co-Applicant ${slotNum - 1} Residence Address:* ${sAddr}\n`;
+        }
+      }
+    });
+
     const officeLine = officeAddress ? `🏢 *Office / Workplace Address:* ${officeAddress}\n` : "";
     const coResidenceLine = coApplicantAddress
       ? `🏠 *Co-Applicant Residence Address (separate from applicant):* ${coApplicantAddress}\n`
@@ -476,18 +504,15 @@
       isMultiApplicant && coApplicantOfficeAddress
         ? `🏢 *Co-Applicant Office / Workplace Address:* ${coApplicantOfficeAddress}\n`
         : "";
-    const extraPhotoNote = [
-      c.co_applicant_name ? "+4 co-applicant office photos" : "",
-      coApplicantAddress ? "+4 co-applicant residence photos" : "",
-    ]
-      .filter(Boolean)
-      .join(", ");
 
     return (
       `🏛️ *NAIMISH N. SHAH & CO. CHARTERED ACCOUNTANTS*\n*Contact Point Verification (CPV) Order*\n\n` +
       `📋 *Case No:* ${caseNo}\n` +
       `👤 *Borrower:* ${applicant}\n` +
+      applicantPhoneLine +
       coLine +
+      coPhoneLine +
+      extraCoApplicantsLines +
       `🏦 *Bank:* ${bank} (${branch})\n` +
       `🏠 *Residence Address:* ${address}\n` +
       officeLine +
@@ -497,11 +522,7 @@
       `📲 *Open Field Agent Mobile PWA Link:*\n${pwaLink}\n\n` +
       `🔑 *Agent Login Credentials:*\n` +
       `• *Username:* ${user}\n` +
-      `• *Password:* ${pass}\n\n` +
-      `📝 *Inspection Instructions:*\n${instructions}\n\n` +
-      `⚠️ *Notice:* Live GNSS geofencing (<150m) and timestamp watermarking are active. Please capture 4 site photos${
-        extraPhotoNote ? ` (${extraPhotoNote})` : ""
-      }, upload verification docs, and submit.`
+      `• *Password:* ${pass}`
     );
   };
 
