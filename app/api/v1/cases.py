@@ -906,7 +906,7 @@ async def update_case(
         case_id=loan_case.id,
         user_id=current_user.id,
         action="CASE_UPDATED",
-        extra_metadata=update_data,
+        extra_metadata=req.model_dump(mode="json", exclude_unset=True),
     )
     db.add(audit)
     await db.commit()
