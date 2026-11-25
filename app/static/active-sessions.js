@@ -418,6 +418,93 @@
   }
   enforceTwoEmpanelledBanks();
 
+  // ==========================================
+  // WHATSAPP HANDOVER MESSAGE WITH CO-APPLICANT OFFICE ADDRESS
+  // ==========================================
+  window.generateHandoverMessage = function () {
+    const c =
+      typeof caseRegistry !== "undefined" &&
+      typeof activeCaseId !== "undefined" &&
+      caseRegistry[activeCaseId]
+        ? caseRegistry[activeCaseId]
+        : {};
+    const caseNo = c.case_no || "CASE-2026-001";
+    const applicant = c.applicant_name || "Applicant";
+    const bank = c.bank || "Empanelled Bank";
+    const branch = c.branch || "";
+    const address = c.address || "";
+    const officeAddress = c.office_address || "";
+    const coApplicantAddress = c.co_applicant_address || "";
+    let ffdObj = {};
+    try {
+      ffdObj =
+        typeof c.field_form_data === "string"
+          ? JSON.parse(c.field_form_data || "{}")
+          : c.field_form_data || {};
+    } catch (_) {
+      ffdObj = {};
+    }
+    const offCoObj =
+      ffdObj && typeof ffdObj.office_details_co === "object" && ffdObj.office_details_co
+        ? ffdObj.office_details_co
+        : {};
+    const coApplicantOfficeAddress = String(
+      c.co_applicant_office_address || offCoObj.address || offCoObj.firm_name || ""
+    ).trim();
+    const isMultiApplicant = Boolean(
+      String(c.co_applicant_name || "").trim() || coApplicantAddress || coApplicantOfficeAddress
+    );
+
+    const user = document.getElementById("hoCredUser")
+      ? document.getElementById("hoCredUser").textContent
+      : "agent1";
+    const pass = document.getElementById("hoCredPass")
+      ? document.getElementById("hoCredPass").textContent
+      : "agent1@123";
+    const pwaLink = `${window.location.origin}/pwa?case=${encodeURIComponent(caseNo)}`;
+    const instructions = document.getElementById("hoInstructions")
+      ? document.getElementById("hoInstructions").value.trim()
+      : "";
+    const coLine = c.co_applicant_name
+      ? `👥 *Co-Applicant:* ${c.co_applicant_name} (separate office verification required)\n`
+      : "";
+    const officeLine = officeAddress ? `🏢 *Office / Workplace Address:* ${officeAddress}\n` : "";
+    const coResidenceLine = coApplicantAddress
+      ? `🏠 *Co-Applicant Residence Address (separate from applicant):* ${coApplicantAddress}\n`
+      : "";
+    const coOfficeLine =
+      isMultiApplicant && coApplicantOfficeAddress
+        ? `🏢 *Co-Applicant Office / Workplace Address:* ${coApplicantOfficeAddress}\n`
+        : "";
+    const extraPhotoNote = [
+      c.co_applicant_name ? "+4 co-applicant office photos" : "",
+      coApplicantAddress ? "+4 co-applicant residence photos" : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    return (
+      `🏛️ *NAIMISH N. SHAH & CO. CHARTERED ACCOUNTANTS*\n*Contact Point Verification (CPV) Order*\n\n` +
+      `📋 *Case No:* ${caseNo}\n` +
+      `👤 *Borrower:* ${applicant}\n` +
+      coLine +
+      `🏦 *Bank:* ${bank} (${branch})\n` +
+      `🏠 *Residence Address:* ${address}\n` +
+      officeLine +
+      coResidenceLine +
+      coOfficeLine +
+      `\n` +
+      `📲 *Open Field Agent Mobile PWA Link:*\n${pwaLink}\n\n` +
+      `🔑 *Agent Login Credentials:*\n` +
+      `• *Username:* ${user}\n` +
+      `• *Password:* ${pass}\n\n` +
+      `📝 *Inspection Instructions:*\n${instructions}\n\n` +
+      `⚠️ *Notice:* Live GNSS geofencing (<150m) and timestamp watermarking are active. Please capture 4 site photos${
+        extraPhotoNote ? ` (${extraPhotoNote})` : ""
+      }, upload verification docs, and submit.`
+    );
+  };
+
   setTimeout(() => {
     enforceTwoEmpanelledBanks();
     const bannerDateInp = document.getElementById("mgmtDailyReportDateInput");
