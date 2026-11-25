@@ -1,6 +1,6 @@
-    // Register PWA Service Worker
+      // Register PWA Service Worker
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js?v=17", { updateViaCache: "none" }).then((reg) => {
+      navigator.serviceWorker.register("/sw.js?v=18", { updateViaCache: "none" }).then((reg) => {
         try { reg.update(); } catch (_) {}
         console.log("CPV Service Worker Registered");
       }).catch(err => console.log("SW error:", err));
@@ -385,6 +385,10 @@
       for (const k of keys) {
         const memParsed = inMemorySlotEvidence[k];
         if (memParsed && memParsed.src) {
+          if (typeof memParsed.src === "string" && memParsed.src.startsWith("/api/v1/cases/documents/")) {
+            delete inMemorySlotEvidence[k];
+            continue;
+          }
           if (
             (!memParsed.caseId || !caseId || String(memParsed.caseId) === String(caseId)) &&
             (!memParsed.caseNo || !caseNo || String(memParsed.caseNo).toUpperCase() === String(caseNo).toUpperCase())
@@ -399,6 +403,10 @@
           if (!raw) continue;
           const parsed = JSON.parse(raw);
           if (!parsed || !parsed.src) continue;
+          if (typeof parsed.src === "string" && parsed.src.startsWith("/api/v1/cases/documents/")) {
+            localStorage.removeItem(k);
+            continue;
+          }
           // Strict cross-case ownership verification:
           // 1. If explicit caseId or caseNo was stamped on the cached payload, it MUST match this case.
           if (parsed.caseId && caseId && String(parsed.caseId) !== String(caseId)) {
@@ -984,7 +992,7 @@
         tile.onclick = () => viewSlotPhotoFullscreen(tile);
         gallery.appendChild(tile);
       }
-      const fullAttr = fullUrl ? ` data-full-src="${fullUrl}"` : "";
+      const fullAttr = fullUrl ? ` data-full-src="${fullUrl}" onerror="if(this.dataset.fullSrc && this.src!==this.dataset.fullSrc)this.src=this.dataset.fullSrc;"` : "";
       tile.innerHTML = `<img src="${previewUrl}"${fullAttr} loading="lazy" decoding="async" class="w-full h-full object-cover"/><span class="absolute bottom-0 right-0 bg-emerald-600 text-white text-[8px] px-1 leading-tight">✓</span>`;
       updateExtraPhotoCount(folder);
     }
@@ -1020,7 +1028,7 @@
         let sNum = d.slot_number > 4 ? d.slot_number : ((d.ocr_data && d.ocr_data.slot_number > 4) ? d.ocr_data.slot_number : null);
         if (!sNum) sNum = 5 + idx;
         if (sNum > maxSlot) maxSlot = sNum;
-        const thumbSrc = d.id ? `/api/v1/cases/documents/${d.id}/thumb` : d.url;
+        const thumbSrc = toPwaThumbUrl(d.url, 180);
         addOrUpdateExtraPhotoThumb(folder, sNum, thumbSrc, d.url);
       });
       extraPhotoNextSlot[folder] = maxSlot;
@@ -4730,8 +4738,8 @@
               bRes.textContent = "✓ UPLOADED";
             }
             if (btnRes) btnRes.textContent = "Re-take Photo";
-            const resThumbUrl = d.id ? `/api/v1/cases/documents/${d.id}/thumb` : d.url;
-            if (thumbRes) thumbRes.innerHTML = `<img src="${resThumbUrl}" data-full-src="${d.url}" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
+            const resThumbUrl = toPwaThumbUrl(d.url, 180);
+            if (thumbRes) thumbRes.innerHTML = `<img src="${resThumbUrl}" data-full-src="${d.url}" onerror="if(this.dataset.fullSrc && this.src!==this.dataset.fullSrc)this.src=this.dataset.fullSrc;" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
             safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, "slot", s, {
               src: resThumbUrl,
               timestamp: d.created_at || "Verified on Server",
@@ -4836,8 +4844,8 @@
               bOff.textContent = "✓ UPLOADED";
             }
             if (btnOff) btnOff.textContent = "Re-take Photo";
-            const offThumbUrl = d.id ? `/api/v1/cases/documents/${d.id}/thumb` : d.url;
-            if (thumbOff) thumbOff.innerHTML = `<img src="${offThumbUrl}" data-full-src="${d.url}" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
+            const offThumbUrl = toPwaThumbUrl(d.url, 180);
+            if (thumbOff) thumbOff.innerHTML = `<img src="${offThumbUrl}" data-full-src="${d.url}" onerror="if(this.dataset.fullSrc && this.src!==this.dataset.fullSrc)this.src=this.dataset.fullSrc;" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
             safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, "office_slot", s, {
               src: offThumbUrl,
               timestamp: d.created_at || "Verified on Server",
@@ -4924,8 +4932,8 @@
               bCoOff.textContent = "✓ UPLOADED";
             }
             if (btnCoOff) btnCoOff.textContent = "Re-take Photo";
-            const coOffThumbUrl = d.id ? `/api/v1/cases/documents/${d.id}/thumb` : d.url;
-            if (thumbCoOff) thumbCoOff.innerHTML = `<img src="${coOffThumbUrl}" data-full-src="${d.url}" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
+            const coOffThumbUrl = toPwaThumbUrl(d.url, 180);
+            if (thumbCoOff) thumbCoOff.innerHTML = `<img src="${coOffThumbUrl}" data-full-src="${d.url}" onerror="if(this.dataset.fullSrc && this.src!==this.dataset.fullSrc)this.src=this.dataset.fullSrc;" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
             safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, "co_office_slot", s, {
               src: coOffThumbUrl,
               timestamp: d.created_at || "Verified on Server",
@@ -5012,8 +5020,8 @@
               bCoRes.textContent = "✓ UPLOADED";
             }
             if (btnCoRes) btnCoRes.textContent = "Re-take Photo";
-            const coResThumbUrl = d.id ? `/api/v1/cases/documents/${d.id}/thumb` : d.url;
-            if (thumbCoRes) thumbCoRes.innerHTML = `<img src="${coResThumbUrl}" data-full-src="${d.url}" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
+            const coResThumbUrl = toPwaThumbUrl(d.url, 180);
+            if (thumbCoRes) thumbCoRes.innerHTML = `<img src="${coResThumbUrl}" data-full-src="${d.url}" onerror="if(this.dataset.fullSrc && this.src!==this.dataset.fullSrc)this.src=this.dataset.fullSrc;" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
             safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, "co_residence_slot", s, {
               src: coResThumbUrl,
               timestamp: d.created_at || "Verified on Server",
@@ -5103,8 +5111,8 @@
                 bHome.textContent = "✓ UPLOADED";
               }
               if (btnHome) btnHome.textContent = "Re-take Photo";
-              const homeThumbUrl = d.id ? `/api/v1/cases/documents/${d.id}/thumb` : d.url;
-              if (thumbHome) thumbHome.innerHTML = `<img src="${homeThumbUrl}" data-full-src="${d.url}" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
+              const homeThumbUrl = toPwaThumbUrl(d.url, 180);
+              if (thumbHome) thumbHome.innerHTML = `<img src="${homeThumbUrl}" data-full-src="${d.url}" onerror="if(this.dataset.fullSrc && this.src!==this.dataset.fullSrc)this.src=this.dataset.fullSrc;" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-lg"/>`;
               safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, `home_${slotNum}_slot`, s, {
                 src: homeThumbUrl,
                 timestamp: d.created_at || "Verified on Server",
@@ -5161,7 +5169,7 @@
         // Exact match only - see the officeDocs/selfieDocs comment above for why.
         const serverSelfie = (docs || []).find(d => d.doc_type === "AGENT_SELFIE");
         if (serverSelfie) {
-          const selfieThumbUrl = serverSelfie.id ? `/api/v1/cases/documents/${serverSelfie.id}/thumb` : serverSelfie.url;
+          const selfieThumbUrl = toPwaThumbUrl(serverSelfie.url, 180);
           agentSelfieDataUrl = selfieThumbUrl;
           const previewImg = document.getElementById("agentSelfiePreview") || document.getElementById("selfiePreview");
           const placeholder = document.getElementById("agentSelfiePlaceholder") || document.getElementById("selfiePlaceholder");
@@ -5174,6 +5182,9 @@
 
           if (previewImg) {
             previewImg.src = selfieThumbUrl;
+            previewImg.onerror = function() {
+              if (serverSelfie.url && this.src !== serverSelfie.url) this.src = serverSelfie.url;
+            };
             previewImg.classList.remove("hidden");
           }
           if (placeholder) placeholder.classList.add("hidden");
@@ -5191,8 +5202,8 @@
           }
 
           try {
-            localStorage.setItem("selfie_" + sampleCaseId, serverSelfie.url);
-            localStorage.setItem("selfie_" + activeCaseKey, serverSelfie.url);
+            localStorage.setItem("selfie_" + sampleCaseId, selfieThumbUrl);
+            localStorage.setItem("selfie_" + activeCaseKey, selfieThumbUrl);
             localStorage.setItem("selfie_timestamp_" + sampleCaseId, serverSelfie.created_at || "Verified on Server");
             localStorage.setItem("selfie_timestamp_" + activeCaseKey, serverSelfie.created_at || "Verified on Server");
           } catch(e) {}

@@ -1473,8 +1473,8 @@
       <button onclick="document.getElementById('uploadAlert').classList.add('hidden')" class="text-blue-600 font-bold">×</button>
     </div>
 
-    <!-- Live Watermark Photo Preview Card -->
-    <section class="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden shadow-sm">
+    <!-- Live Watermark Photo Preview Card (Hidden so field agents see only the dedicated Residence/Office photo slots) -->
+    <section class="hidden bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden shadow-sm">
       <div class="p-3 bg-surface-container-low border-b border-outline-variant flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="material-symbols-outlined text-[18px] text-primary-container">photo_library</span>
@@ -2308,7 +2308,7 @@
   </nav>
 
   <!-- Interactive JavaScript Engine -->
-  <script src="/static/agent-pwa.js?v=16"></script>
+  <script src="/static/agent-pwa.js?v=17"></script>
 
   <!-- FIELD AGENT AUTHENTICATION MODAL -->
   <div id="agentLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
