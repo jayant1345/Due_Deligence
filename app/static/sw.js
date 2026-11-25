@@ -1,11 +1,11 @@
 // Service Worker for VALUEX CA CPV Field Agent PWA
 // Bump on every release that changes the PWA page so old cached copies are purged.
-const CACHE_NAME = "valuex-cpv-v14";
+const CACHE_NAME = "valuex-cpv-v15";
 const STATIC_ASSETS = [
   "/pwa",
   "/manifest.json",
   "/static/tailwind-built.css?v=2",
-  "/static/agent-pwa.js?v=13",
+  "/static/agent-pwa.js?v=14",
   "/static/geofence-map.js?v=3",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js",
@@ -41,7 +41,16 @@ self.addEventListener("activate", (event) => {
 
 // Fetch Strategy: Network First with Cache Fallback for dynamic views, Cache First for static fonts/scripts
 self.addEventListener("fetch", (event) => {
+  // Never intercept non-GET requests (such as multipart FormData photo uploads) in the Service Worker:
+  // Android Chrome can fail streaming FormData bodies through SW fetch(), and client JS already has
+  // its own try/catch + IndexedDB offline queue for POST/PATCH requests.
+  if (event.request.method !== "GET") {
+    return;
+  }
   const url = new URL(event.request.url);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return;
+  }
 
   // For API calls, try network first, handle offline queue in client JS
   if (url.pathname.startsWith("/api/")) {

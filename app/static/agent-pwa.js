@@ -1,6 +1,7 @@
     // Register PWA Service Worker
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").then(() => {
+      navigator.serviceWorker.register("/sw.js?v=15", { updateViaCache: "none" }).then((reg) => {
+        try { reg.update(); } catch (_) {}
         console.log("CPV Service Worker Registered");
       }).catch(err => console.log("SW error:", err));
     }
@@ -295,11 +296,103 @@
       if (typeof updateEvidenceProgress === "function") updateEvidenceProgress();
     }
 
+    // In-memory active slot evidence cache so even when mobile localStorage hits its 5MB quota
+    // on the 4th photo, or while an upload is in flight / queued offline, loadCaseDocumentsIntoPwa()
+    // never resets a captured slot back to PENDING.
+    const inMemorySlotEvidence = {};
+    let cameraPickerOpenUntil = 0;
+
+    function pruneOversizedPwaLocalStorage(keepCaseId, keepCaseNo) {
+      try {
+        const toRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k) continue;
+          if (k.startsWith("pwa_evidence_") || k.startsWith("selfie_")) {
+            const raw = localStorage.getItem(k) || "";
+            const matchesCurrent =
+              (keepCaseId && k.includes(String(keepCaseId))) ||
+              (keepCaseNo && k.toUpperCase().includes(String(keepCaseNo).toUpperCase()));
+            // Remove any stale evidence from other cases or oversized (>80KB) legacy 1600px base64 entries
+            if (!matchesCurrent || raw.length > 80000) {
+              toRemove.push(k);
+            }
+          }
+        }
+        toRemove.forEach((k) => {
+          try {
+            localStorage.removeItem(k);
+          } catch (_) {}
+        });
+      } catch (_) {}
+    }
+    // Clean up any legacy 5MB-clogging base64 entries immediately on script load
+    pruneOversizedPwaLocalStorage(
+      localStorage.getItem("pwa_active_case_id"),
+      localStorage.getItem("pwa_active_case_key")
+    );
+
+    function safeSetSlotEvidenceCache(caseId, caseNo, storageKey, slotIdx, payloadObj, thumbSrc) {
+      const memPayload = Object.assign({}, payloadObj);
+      if (caseId) {
+        inMemorySlotEvidence[`pwa_evidence_${caseId}_${storageKey}_${slotIdx}`] = memPayload;
+      }
+      if (caseNo) {
+        inMemorySlotEvidence[`pwa_evidence_${caseNo}_${storageKey}_${slotIdx}`] = memPayload;
+      }
+      const lsPayloadObj = Object.assign({}, payloadObj, {
+        src: thumbSrc || payloadObj.src,
+      });
+      const serialized = JSON.stringify(lsPayloadObj);
+      const writeLs = () => {
+        if (caseId) localStorage.setItem(`pwa_evidence_${caseId}_${storageKey}_${slotIdx}`, serialized);
+        if (caseNo) localStorage.setItem(`pwa_evidence_${caseNo}_${storageKey}_${slotIdx}`, serialized);
+      };
+      try {
+        writeLs();
+      } catch (quotaErr) {
+        pruneOversizedPwaLocalStorage(caseId, caseNo);
+        try {
+          writeLs();
+        } catch (_) {}
+      }
+    }
+
+    function dataUrlToBlob(dataUrl) {
+      try {
+        if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) return null;
+        const parts = dataUrl.split(",");
+        if (parts.length < 2) return null;
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
+      } catch (_) {
+        return null;
+      }
+    }
+
     function getValidCachedSlotEvidence(caseId, caseNo, storageKey, slotIdx) {
       const keys = [
         caseId ? `pwa_evidence_${caseId}_${storageKey}_${slotIdx}` : null,
         caseNo ? `pwa_evidence_${caseNo}_${storageKey}_${slotIdx}` : null,
       ].filter(Boolean);
+      for (const k of keys) {
+        const memParsed = inMemorySlotEvidence[k];
+        if (memParsed && memParsed.src) {
+          if (
+            (!memParsed.caseId || !caseId || String(memParsed.caseId) === String(caseId)) &&
+            (!memParsed.caseNo || !caseNo || String(memParsed.caseNo).toUpperCase() === String(caseNo).toUpperCase())
+          ) {
+            return memParsed;
+          }
+        }
+      }
       for (const k of keys) {
         try {
           const raw = localStorage.getItem(k);
@@ -704,6 +797,7 @@
       // Auto-persist any questionnaire answers typed so far before launching the mobile camera
       // (Android/iOS can evict background tabs while the camera app is open).
       if (typeof savePwaFormDraftLocally === "function") savePwaFormDraftLocally();
+      cameraPickerOpenUntil = Date.now() + 25000;
       activeUploadSlot = slotNum;
       activeDocType = docType;
       if (folder) currentPwaFolder = folder;
@@ -858,8 +952,9 @@
     }
 
     async function handlePhotoUpload(event) {
-      const file = event.target.files[0];
-      event.target.value = ""; // allow capturing the same slot again without a no-op change event
+      cameraPickerOpenUntil = 0;
+      const file = event.target && event.target.files ? event.target.files[0] : null;
+      if (event.target) event.target.value = ""; // allow capturing the same slot again without a no-op change event
       if (!file) return;
       if (capturePending) {
         alert("Still processing the previous photo — please wait a moment before capturing the next one.");
@@ -879,43 +974,89 @@
 
       const finish = () => { capturePending = false; };
 
-      // Read file and draw onto a resized canvas (compression only — no text is drawn; the
-      // server applies the one authoritative watermark banner from the case record), then let
-      // the agent look at the actual shot before it's saved to the slot - a blurry/badly-framed
-      // photo can be discarded and retaken right away instead of only being noticed later.
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const rawImg = new Image();
-        rawImg.onload = () => {
+      // Decode image via URL.createObjectURL (zero 15MB base64 heap spike on mobile Chrome)
+      // and immediately save & upload the slot upon camera return.
+      let objUrl = null;
+      const cleanupObjUrl = () => {
+        if (objUrl) {
+          try { URL.revokeObjectURL(objUrl); } catch (_) {}
+          objUrl = null;
+        }
+      };
+
+      const processDecodedImg = (rawImg) => {
+        cleanupObjUrl();
+        try {
           const canvas = document.createElement("canvas");
-          const maxDim = 1600;
-          let w = rawImg.width;
-          let h = rawImg.height;
-          if (w > maxDim) {
-            h = Math.round((h * maxDim) / w);
-            w = maxDim;
+          const maxDim = 1280;
+          let w = rawImg.width || 1280;
+          let h = rawImg.height || 960;
+          if (w > maxDim || h > maxDim) {
+            if (w >= h) {
+              h = Math.max(1, Math.round((h * maxDim) / w));
+              w = maxDim;
+            } else {
+              w = Math.max(1, Math.round((w * maxDim) / h));
+              h = maxDim;
+            }
           }
           canvas.width = w;
           canvas.height = h;
           const ctx = canvas.getContext("2d");
           ctx.drawImage(rawImg, 0, 0, w, h);
 
-          const finalPreviewUrl = canvas.toDataURL("image/jpeg", 0.92);
+          const finalPreviewUrl = canvas.toDataURL("image/jpeg", 0.85);
+
+          // Compact 240px thumbnail (~8KB) for localStorage so 4+ photos never hit the 5MB mobile quota
+          let thumbPreviewUrl = finalPreviewUrl;
+          try {
+            const thumbCanvas = document.createElement("canvas");
+            const tw = 240;
+            const th = Math.max(1, Math.round((h * tw) / w));
+            thumbCanvas.width = tw;
+            thumbCanvas.height = th;
+            const tCtx = thumbCanvas.getContext("2d");
+            tCtx.drawImage(canvas, 0, 0, tw, th);
+            thumbPreviewUrl = thumbCanvas.toDataURL("image/jpeg", 0.65);
+            thumbCanvas.width = 0;
+            thumbCanvas.height = 0;
+          } catch (_) {}
 
           pendingPhotoCapture = {
-            canvas, file, finalPreviewUrl, slotNum, docType, folderAtCapture,
+            canvas, file, finalPreviewUrl, thumbPreviewUrl, slotNum, docType, folderAtCapture,
             caseIdAtCapture, caseKeyAtCapture, latAtCapture, lonAtCapture, timeStr, finish,
           };
-          const reviewImg = document.getElementById("pwaPhotoReviewImg");
-          const reviewModal = document.getElementById("pwaPhotoReviewModal");
-          if (reviewImg) reviewImg.src = finalPreviewUrl;
-          if (reviewModal) reviewModal.classList.remove("hidden");
-        };
-        rawImg.onerror = finish;
-        rawImg.src = e.target.result;
+          // Immediately confirm & upload the captured photo (native phone camera already showed its own ✓ confirmation)
+          finalizePhotoCapture();
+        } catch (err) {
+          console.warn("Image canvas compression fallback:", err);
+          finish();
+        }
       };
-      reader.onerror = finish;
-      reader.readAsDataURL(file);
+
+      const rawImg = new Image();
+      rawImg.onload = () => processDecodedImg(rawImg);
+      rawImg.onerror = () => {
+        cleanupObjUrl();
+        finish();
+      };
+
+      try {
+        if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+          objUrl = URL.createObjectURL(file);
+          rawImg.src = objUrl;
+        } else {
+          const reader = new FileReader();
+          reader.onload = (e) => { rawImg.src = e.target.result; };
+          reader.onerror = finish;
+          reader.readAsDataURL(file);
+        }
+      } catch (_) {
+        const reader = new FileReader();
+        reader.onload = (e) => { rawImg.src = e.target.result; };
+        reader.onerror = finish;
+        reader.readAsDataURL(file);
+      }
     }
 
     // Tap a slot's small thumbnail to inspect the actual saved photo full-screen - lets the
@@ -1050,7 +1191,7 @@
     function finalizePhotoCapture() {
       if (!pendingPhotoCapture) return;
       const {
-        canvas, file, finalPreviewUrl, slotNum, docType, folderAtCapture,
+        canvas, file, finalPreviewUrl, thumbPreviewUrl, slotNum, docType, folderAtCapture,
         caseIdAtCapture, caseKeyAtCapture, latAtCapture, lonAtCapture, timeStr, finish,
       } = pendingPhotoCapture;
       pendingPhotoCapture = null;
@@ -1065,29 +1206,32 @@
       alertBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-200 text-primary-container text-xs flex items-center justify-between";
       alertBox.classList.remove("hidden");
       const isExtra = slotNum > 4;
-      alertText.textContent = isExtra ? `Processing ${info.label} additional photo...` : `Processing ${info.label} Slot ${slotNum} photo...`;
+      alertText.textContent = isExtra ? `Uploading ${info.label} additional photo...` : `Uploading ${info.label} Slot ${slotNum} photo...`;
       setUploadAlertIcon(true, "text-blue-600", "autorenew");
 
       const previewImgEl = document.getElementById("previewPhotoImg");
       if (previewImgEl) previewImgEl.src = finalPreviewUrl;
 
       if (!isExtra) info.slotsMap[slotNum] = true;
-      try {
-        const slotPayload = JSON.stringify({
-          src: finalPreviewUrl,
-          timestamp: timeStr,
-          lat: latAtCapture,
-          lon: lonAtCapture,
-          doc_type: docType,
-          caseId: caseIdAtCapture,
-          caseNo: caseKeyAtCapture,
-          pendingOffline: true,
-        });
-        if (caseIdAtCapture) localStorage.setItem(`pwa_evidence_${caseIdAtCapture}_${info.storageKey}_${slotNum}`, slotPayload);
-        if (caseKeyAtCapture) localStorage.setItem(`pwa_evidence_${caseKeyAtCapture}_${info.storageKey}_${slotNum}`, slotPayload);
-      } catch (storageErr) {
-        console.warn("Storage quota limit or private browsing:", storageErr);
-      }
+      const slotPayloadObj = {
+        src: finalPreviewUrl,
+        timestamp: timeStr,
+        lat: latAtCapture,
+        lon: lonAtCapture,
+        doc_type: docType,
+        caseId: caseIdAtCapture,
+        caseNo: caseKeyAtCapture,
+        pendingOffline: true,
+      };
+      safeSetSlotEvidenceCache(
+        caseIdAtCapture,
+        caseKeyAtCapture,
+        info.storageKey,
+        slotNum,
+        slotPayloadObj,
+        thumbPreviewUrl || finalPreviewUrl
+      );
+
       if (isExtra) {
         addOrUpdateExtraPhotoThumb(folderAtCapture, slotNum, finalPreviewUrl);
       } else {
@@ -1107,73 +1251,105 @@
       // without tapping the Save Questionnaire button, all form answers are already saved on the server.
       if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
 
-          // Unlock capture right away - the slot is already saved locally (preview + localStorage)
-          // and the server upload below runs in the background. The agent must never be made to
-          // wait for a network round-trip before taking the next photo.
-          finish();
+      // Unlock capture right away - the slot is already saved locally (preview + inMemory + localStorage)
+      // and the server upload below runs in the background.
+      finish();
 
-          // Stream the resized photo to the server, which applies the single correct watermark.
-          canvas.toBlob(async (blob) => {
-            const uploadFile = blob || file;
-            const formData = new FormData();
-            formData.append("file", uploadFile, file.name || `photo_slot_${slotNum}.jpg`);
-            formData.append("doc_type", docType || info.defaultDocType);
-            formData.append("slot_number", slotNum);
-            formData.append("folder", info.uploadFolder);
-            formData.append("latitude", latAtCapture);
-            formData.append("longitude", lonAtCapture);
+      // Stream the resized photo to the server, which applies the single correct watermark.
+      canvas.toBlob(async (blob) => {
+        try {
+          if (canvas) {
+            canvas.width = 0;
+            canvas.height = 0;
+          }
+        } catch (_) {}
+        const uploadFile = blob || dataUrlToBlob(finalPreviewUrl) || file;
 
-            try {
-              const token = localStorage.getItem("pwa_token");
-              const headers = {};
-              if (token && token !== "demo-pwa-token") {
-                headers["Authorization"] = `Bearer ${token}`;
-              }
-              // A slow (not outright failed) connection must not hang forever - after 15s,
-              // treat it the same as offline and queue it for background retry.
-              const uploadController = new AbortController();
-              const uploadTimeout = setTimeout(() => uploadController.abort(), 15000);
-              const response = await fetch(`/api/v1/visits/cases/${caseIdAtCapture}/upload`, {
-                method: "POST",
-                headers: headers,
-                body: formData,
-                signal: uploadController.signal
-              });
-              clearTimeout(uploadTimeout);
+        const attemptUpload = async (timeoutMs) => {
+          const formData = new FormData();
+          formData.append("file", uploadFile, (file && file.name) || `photo_slot_${slotNum}.jpg`);
+          formData.append("doc_type", docType || info.defaultDocType);
+          formData.append("slot_number", slotNum);
+          formData.append("folder", info.uploadFolder);
+          formData.append("latitude", latAtCapture);
+          formData.append("longitude", lonAtCapture);
 
-              if (response.status === 202 || response.status === 200) {
-                const data = await response.json();
-                if (data && data.status === "offline_queued") {
-                  throw new Error("offline_queued");
-                }
-                alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
-                alertText.innerHTML = `✅ <b>Data Uploaded Successfully!</b> ${info.label} Slot ${slotNum} transmitted to CA Scrutiny Desk.<br/>GPS: ${latAtCapture.toFixed(4)}°N, ${lonAtCapture.toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>N.N. SHAH & CO. watermark applied server-side and synced in real time.</i>`;
-                setUploadAlertIcon(false, "text-emerald-600", "check_circle");
-                loadCaseDocumentsIntoPwa(caseIdAtCapture);
-              } else {
-                const errData = await response.json().catch(() => ({}));
-                alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
-                alertText.textContent = `Upload Notice: ${errData.detail || 'Photo saved locally'}`;
-                setUploadAlertIcon(false, "text-amber-600", "warning");
-              }
-            } catch (netErr) {
-              await enqueueOfflinePhoto({
-                sampleCaseId: caseIdAtCapture,
-                dataUrl: finalPreviewUrl,
-                fileName: file.name || `photo_slot_${slotNum}.jpg`,
-                docType: docType || info.defaultDocType,
-                slotNumber: slotNum,
-                folder: info.uploadFolder,
-                latitude: latAtCapture,
-                longitude: lonAtCapture,
-              });
-              alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
-              alertText.innerHTML = `<b>📦 Offline Saved:</b> Photo queued in device memory. <b>It will upload automatically to CA Desk as soon as network is available</b>.`;
-              setUploadAlertIcon(false, "text-amber-600", "cloud_off");
-            } finally {
-              finish();
+          const token = localStorage.getItem("pwa_token");
+          const headers = {};
+          if (token && token !== "demo-pwa-token") {
+            headers["Authorization"] = `Bearer ${token}`;
+          }
+          const uploadController = new AbortController();
+          const uploadTimeout = setTimeout(() => uploadController.abort(), timeoutMs);
+          try {
+            const response = await fetch(`/api/v1/visits/cases/${caseIdAtCapture}/upload`, {
+              method: "POST",
+              headers: headers,
+              body: formData,
+              signal: uploadController.signal,
+            });
+            clearTimeout(uploadTimeout);
+            return response;
+          } catch (err) {
+            clearTimeout(uploadTimeout);
+            throw err;
+          }
+        };
+
+        try {
+          let response = null;
+          try {
+            response = await attemptUpload(45000);
+          } catch (firstErr) {
+            // Automatic 1.5s retry on transient mobile data drop before falling back to offline queue
+            await new Promise((r) => setTimeout(r, 1500));
+            response = await attemptUpload(45000);
+          }
+
+          if (response.status === 202 || response.status === 200) {
+            const data = await response.json();
+            if (data && data.status === "offline_queued") {
+              throw new Error("offline_queued");
             }
-          }, "image/jpeg", 0.92);
+            safeSetSlotEvidenceCache(
+              caseIdAtCapture,
+              caseKeyAtCapture,
+              info.storageKey,
+              slotNum,
+              Object.assign({}, slotPayloadObj, {
+                pendingOffline: false,
+                uploadedOnServer: true,
+              }),
+              thumbPreviewUrl || finalPreviewUrl
+            );
+            alertBox.className = "p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-mono shadow-sm animate-fade-in";
+            alertText.innerHTML = `✅ <b>Data Uploaded Successfully!</b> ${info.label} Slot ${slotNum} transmitted to CA Scrutiny Desk.<br/>GPS: ${Number(latAtCapture || 0).toFixed(4)}°N, ${Number(lonAtCapture || 0).toFixed(4)}°E | Doc ID: <code>${(data.document_id || data.task_id || '').slice(0, 12)}...</code><br/><i>N.N. SHAH & CO. watermark applied server-side and synced in real time.</i>`;
+            setUploadAlertIcon(false, "text-emerald-600", "check_circle");
+            loadCaseDocumentsIntoPwa(caseIdAtCapture);
+          } else {
+            const errData = await response.json().catch(() => ({}));
+            alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
+            alertText.textContent = `Upload Notice: ${errData.detail || 'Photo saved locally'}`;
+            setUploadAlertIcon(false, "text-amber-600", "warning");
+          }
+        } catch (netErr) {
+          await enqueueOfflinePhoto({
+            sampleCaseId: caseIdAtCapture,
+            dataUrl: finalPreviewUrl,
+            fileName: (file && file.name) || `photo_slot_${slotNum}.jpg`,
+            docType: docType || info.defaultDocType,
+            slotNumber: slotNum,
+            folder: info.uploadFolder,
+            latitude: latAtCapture,
+            longitude: lonAtCapture,
+          });
+          alertBox.className = "p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono shadow-sm";
+          alertText.innerHTML = `<b>📦 Offline Saved:</b> Photo queued in device memory. <b>It will upload automatically to CA Desk as soon as network is available</b>.`;
+          setUploadAlertIcon(false, "text-amber-600", "cloud_off");
+        } finally {
+          finish();
+        }
+      }, "image/jpeg", 0.85);
     }
 
     // Inline Document Flips
@@ -1974,8 +2150,11 @@
             try {
               let uploadBlob = null;
               if (item.dataUrl) {
-                const bRes = await fetch(item.dataUrl);
-                uploadBlob = await bRes.blob();
+                uploadBlob = dataUrlToBlob(item.dataUrl);
+                if (!uploadBlob) {
+                  const bRes = await fetch(item.dataUrl);
+                  uploadBlob = await bRes.blob();
+                }
               }
               if (!uploadBlob) continue;
 
@@ -2778,6 +2957,9 @@
       if (isSwitchingPwaCase || !sampleCaseId) return;
       const payload = savePwaFormDraftLocally();
       if (!payload) return;
+      // If the native mobile camera app is currently being launched by triggerSlotCapture(),
+      // skip the background network POST so Chrome doesn't compete with the camera activity.
+      if (Date.now() < cameraPickerOpenUntil) return;
       try {
         const bodyStr = JSON.stringify({ form_data: Object.assign({}, payload, { agent_selfie: null }) });
         fetch(`/api/v1/visits/cases/${sampleCaseId}/field-form`, {
@@ -4307,11 +4489,10 @@
         });
 
         // Any unassigned residence docs fill remaining empty slots - except a doc explicitly
-        // tagged slot_number > 4, which is a genuine "Additional Photo" and must never steal a
-        // mandatory slot just because that slot happens to still be empty.
+        // tagged with a slot_number (either 1..4 retake or > 4 "Additional Photo").
         residenceDocs.forEach(d => {
           const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
-          if (explicitSlot && explicitSlot > 4) return;
+          if (explicitSlot) return;
           const isAssigned = Object.values(serverResSlotMap).some(assigned => assigned && assigned.id === d.id);
           if (!isAssigned) {
             for (let s = 1; s <= 4; s++) {
@@ -4339,25 +4520,40 @@
             }
             if (btnRes) btnRes.textContent = "Re-take Photo";
             if (thumbRes) thumbRes.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
-            try {
-              const resPayload = JSON.stringify({
-                src: d.url,
-                timestamp: d.created_at || "Verified on Server",
-                lat: d.latitude || 23.2154,
-                lon: d.longitude || 72.6367,
-                doc_type: d.doc_type,
-                caseId: sampleCaseId,
-                caseNo: activeCaseKey,
-              });
-              localStorage.setItem(cacheKey1, resPayload);
-              localStorage.setItem(cacheKey2, resPayload);
-            } catch(e) {}
+            safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, "slot", s, {
+              src: d.url,
+              timestamp: d.created_at || "Verified on Server",
+              lat: d.latitude || 23.2154,
+              lon: d.longitude || 72.6367,
+              doc_type: d.doc_type,
+              caseId: sampleCaseId,
+              caseNo: activeCaseKey,
+            });
           } else {
-            // Server returned no photo for this slot on this case. Only preserve a local cache entry
-            // if it is explicitly tagged pendingOffline === true for THIS exact caseId/caseNo.
+            // Server returned no photo for this slot on this case. Preserve a local/in-memory capture
+            // if it is tagged pendingOffline or uploadedOnServer for THIS exact caseId/caseNo.
             const validCached = getValidCachedSlotEvidence(sampleCaseId, activeCaseKey, "slot", s);
-            const keepOffline = Boolean(validCached && validCached.pendingOffline && ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) || (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey))));
-            if (!keepOffline) {
+            const keepOffline = Boolean(
+              validCached &&
+              (validCached.pendingOffline || validCached.uploadedOnServer) &&
+              ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) ||
+                (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey)))
+            );
+            if (keepOffline && validCached) {
+              uploadedResidenceSlots[s] = true;
+              uploadedSlots[s] = true;
+              const bRes = document.getElementById(`slot${s}Badge`);
+              const btnRes = document.getElementById(`slot${s}BtnText`);
+              const thumbRes = document.getElementById(`slot${s}Thumb`);
+              if (bRes) {
+                bRes.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+                bRes.textContent = "✓ UPLOADED";
+              }
+              if (btnRes) btnRes.textContent = "Re-take Photo";
+              if (thumbRes && validCached.src) {
+                thumbRes.innerHTML = `<img src="${validCached.src}" class="w-full h-full object-cover rounded-lg"/>`;
+              }
+            } else {
               localStorage.removeItem(cacheKey1);
               localStorage.removeItem(cacheKey2);
               uploadedResidenceSlots[s] = false;
@@ -4399,11 +4595,10 @@
           }
         });
 
-        // Any unassigned workplace docs fill remaining empty slots - except explicit "Additional
-        // Photo" uploads (slot_number > 4), which must never steal a still-empty mandatory slot.
+        // Any unassigned workplace docs fill remaining empty slots - except explicit slot uploads.
         officeDocs.forEach(d => {
           const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
-          if (explicitSlot && explicitSlot > 4) return;
+          if (explicitSlot) return;
           const isAssigned = Object.values(serverOffSlotMap).some(assigned => assigned && assigned.id === d.id);
           if (!isAssigned) {
             for (let s = 1; s <= 4; s++) {
@@ -4430,23 +4625,37 @@
             }
             if (btnOff) btnOff.textContent = "Re-take Photo";
             if (thumbOff) thumbOff.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
-            try {
-              const offPayload = JSON.stringify({
-                src: d.url,
-                timestamp: d.created_at || "Verified on Server",
-                lat: d.latitude || 23.2154,
-                lon: d.longitude || 72.6367,
-                doc_type: d.doc_type,
-                caseId: sampleCaseId,
-                caseNo: activeCaseKey,
-              });
-              localStorage.setItem(offCacheKey1, offPayload);
-              localStorage.setItem(offCacheKey2, offPayload);
-            } catch(e) {}
+            safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, "office_slot", s, {
+              src: d.url,
+              timestamp: d.created_at || "Verified on Server",
+              lat: d.latitude || 23.2154,
+              lon: d.longitude || 72.6367,
+              doc_type: d.doc_type,
+              caseId: sampleCaseId,
+              caseNo: activeCaseKey,
+            });
           } else {
             const validCached = getValidCachedSlotEvidence(sampleCaseId, activeCaseKey, "office_slot", s);
-            const keepOffline = Boolean(validCached && validCached.pendingOffline && ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) || (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey))));
-            if (!keepOffline) {
+            const keepOffline = Boolean(
+              validCached &&
+              (validCached.pendingOffline || validCached.uploadedOnServer) &&
+              ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) ||
+                (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey)))
+            );
+            if (keepOffline && validCached) {
+              uploadedOfficeSlots[s] = true;
+              const bOff = document.getElementById(`slotOffice${s}Badge`);
+              const btnOff = document.getElementById(`slotOffice${s}BtnText`);
+              const thumbOff = document.getElementById(`slotOffice${s}Thumb`);
+              if (bOff) {
+                bOff.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+                bOff.textContent = "✓ UPLOADED";
+              }
+              if (btnOff) btnOff.textContent = "Re-take Photo";
+              if (thumbOff && validCached.src) {
+                thumbOff.innerHTML = `<img src="${validCached.src}" class="w-full h-full object-cover rounded-lg"/>`;
+              }
+            } else {
               localStorage.removeItem(offCacheKey1);
               localStorage.removeItem(offCacheKey2);
               uploadedOfficeSlots[s] = false;
@@ -4476,7 +4685,7 @@
         });
         coOfficeDocs.forEach(d => {
           const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
-          if (explicitSlot && explicitSlot > 4) return;
+          if (explicitSlot) return;
           const isAssigned = Object.values(serverCoOffSlotMap).some(assigned => assigned && assigned.id === d.id);
           if (!isAssigned) {
             for (let s = 1; s <= 4; s++) {
@@ -4503,23 +4712,37 @@
             }
             if (btnCoOff) btnCoOff.textContent = "Re-take Photo";
             if (thumbCoOff) thumbCoOff.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
-            try {
-              const coOffPayload = JSON.stringify({
-                src: d.url,
-                timestamp: d.created_at || "Verified on Server",
-                lat: d.latitude || 23.2154,
-                lon: d.longitude || 72.6367,
-                doc_type: d.doc_type,
-                caseId: sampleCaseId,
-                caseNo: activeCaseKey,
-              });
-              localStorage.setItem(coOffCacheKey1, coOffPayload);
-              localStorage.setItem(coOffCacheKey2, coOffPayload);
-            } catch(e) {}
+            safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, "co_office_slot", s, {
+              src: d.url,
+              timestamp: d.created_at || "Verified on Server",
+              lat: d.latitude || 23.2154,
+              lon: d.longitude || 72.6367,
+              doc_type: d.doc_type,
+              caseId: sampleCaseId,
+              caseNo: activeCaseKey,
+            });
           } else {
             const validCached = getValidCachedSlotEvidence(sampleCaseId, activeCaseKey, "co_office_slot", s);
-            const keepOffline = Boolean(validCached && validCached.pendingOffline && ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) || (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey))));
-            if (!keepOffline) {
+            const keepOffline = Boolean(
+              validCached &&
+              (validCached.pendingOffline || validCached.uploadedOnServer) &&
+              ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) ||
+                (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey)))
+            );
+            if (keepOffline && validCached) {
+              uploadedCoOfficeSlots[s] = true;
+              const bCoOff = document.getElementById(`slotCoOffice${s}Badge`);
+              const btnCoOff = document.getElementById(`slotCoOffice${s}BtnText`);
+              const thumbCoOff = document.getElementById(`slotCoOffice${s}Thumb`);
+              if (bCoOff) {
+                bCoOff.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+                bCoOff.textContent = "✓ UPLOADED";
+              }
+              if (btnCoOff) btnCoOff.textContent = "Re-take Photo";
+              if (thumbCoOff && validCached.src) {
+                thumbCoOff.innerHTML = `<img src="${validCached.src}" class="w-full h-full object-cover rounded-lg"/>`;
+              }
+            } else {
               localStorage.removeItem(coOffCacheKey1);
               localStorage.removeItem(coOffCacheKey2);
               uploadedCoOfficeSlots[s] = false;
@@ -4549,7 +4772,7 @@
         });
         coResidenceDocs.forEach(d => {
           const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
-          if (explicitSlot && explicitSlot > 4) return;
+          if (explicitSlot) return;
           const isAssigned = Object.values(serverCoResSlotMap).some(assigned => assigned && assigned.id === d.id);
           if (!isAssigned) {
             for (let s = 1; s <= 4; s++) {
@@ -4576,23 +4799,37 @@
             }
             if (btnCoRes) btnCoRes.textContent = "Re-take Photo";
             if (thumbCoRes) thumbCoRes.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
-            try {
-              const coResPayload = JSON.stringify({
-                src: d.url,
-                timestamp: d.created_at || "Verified on Server",
-                lat: d.latitude || 23.2154,
-                lon: d.longitude || 72.6367,
-                doc_type: d.doc_type,
-                caseId: sampleCaseId,
-                caseNo: activeCaseKey,
-              });
-              localStorage.setItem(coResCacheKey1, coResPayload);
-              localStorage.setItem(coResCacheKey2, coResPayload);
-            } catch(e) {}
+            safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, "co_residence_slot", s, {
+              src: d.url,
+              timestamp: d.created_at || "Verified on Server",
+              lat: d.latitude || 23.2154,
+              lon: d.longitude || 72.6367,
+              doc_type: d.doc_type,
+              caseId: sampleCaseId,
+              caseNo: activeCaseKey,
+            });
           } else {
             const validCached = getValidCachedSlotEvidence(sampleCaseId, activeCaseKey, "co_residence_slot", s);
-            const keepOffline = Boolean(validCached && validCached.pendingOffline && ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) || (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey))));
-            if (!keepOffline) {
+            const keepOffline = Boolean(
+              validCached &&
+              (validCached.pendingOffline || validCached.uploadedOnServer) &&
+              ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) ||
+                (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey)))
+            );
+            if (keepOffline && validCached) {
+              uploadedCoResidenceSlots[s] = true;
+              const bCoRes = document.getElementById(`slotCoResidence${s}Badge`);
+              const btnCoRes = document.getElementById(`slotCoResidence${s}BtnText`);
+              const thumbCoRes = document.getElementById(`slotCoResidence${s}Thumb`);
+              if (bCoRes) {
+                bCoRes.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+                bCoRes.textContent = "✓ UPLOADED";
+              }
+              if (btnCoRes) btnCoRes.textContent = "Re-take Photo";
+              if (thumbCoRes && validCached.src) {
+                thumbCoRes.innerHTML = `<img src="${validCached.src}" class="w-full h-full object-cover rounded-lg"/>`;
+              }
+            } else {
               localStorage.removeItem(coResCacheKey1);
               localStorage.removeItem(coResCacheKey2);
               uploadedCoResidenceSlots[s] = false;
@@ -4624,7 +4861,7 @@
           });
           slotDocs.forEach(d => {
             const explicitSlot = d.slot_number || (d.ocr_data && d.ocr_data.slot_number);
-            if (explicitSlot && explicitSlot > 4) return;
+            if (explicitSlot) return;
             const isAssigned = Object.values(serverHomeSlotMap).some(assigned => assigned && assigned.id === d.id);
             if (!isAssigned) {
               for (let s = 1; s <= 4; s++) {
@@ -4652,23 +4889,37 @@
               }
               if (btnHome) btnHome.textContent = "Re-take Photo";
               if (thumbHome) thumbHome.innerHTML = `<img src="${d.url}" class="w-full h-full object-cover rounded-lg"/>`;
-              try {
-                const homePayload = JSON.stringify({
-                  src: d.url,
-                  timestamp: d.created_at || "Verified on Server",
-                  lat: d.latitude || 23.2154,
-                  lon: d.longitude || 72.6367,
-                  doc_type: d.doc_type,
-                  caseId: sampleCaseId,
-                  caseNo: activeCaseKey,
-                });
-                localStorage.setItem(homeCacheKey1, homePayload);
-                localStorage.setItem(homeCacheKey2, homePayload);
-              } catch(e) {}
+              safeSetSlotEvidenceCache(sampleCaseId, activeCaseKey, `home_${slotNum}_slot`, s, {
+                src: d.url,
+                timestamp: d.created_at || "Verified on Server",
+                lat: d.latitude || 23.2154,
+                lon: d.longitude || 72.6367,
+                doc_type: d.doc_type,
+                caseId: sampleCaseId,
+                caseNo: activeCaseKey,
+              });
             } else {
               const validCached = getValidCachedSlotEvidence(sampleCaseId, activeCaseKey, `home_${slotNum}_slot`, s);
-              const keepOffline = Boolean(validCached && validCached.pendingOffline && ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) || (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey))));
-              if (!keepOffline) {
+              const keepOffline = Boolean(
+                validCached &&
+                (validCached.pendingOffline || validCached.uploadedOnServer) &&
+                ((validCached.caseId && String(validCached.caseId) === String(sampleCaseId)) ||
+                  (validCached.caseNo && String(validCached.caseNo) === String(activeCaseKey)))
+              );
+              if (keepOffline && validCached) {
+                homeSlotsMapRef[s] = true;
+                const bHome = document.getElementById(`slotHome${slotNum}${s}Badge`);
+                const btnHome = document.getElementById(`slotHome${slotNum}${s}BtnText`);
+                const thumbHome = document.getElementById(`slotHome${slotNum}${s}Thumb`);
+                if (bHome) {
+                  bHome.className = "font-mono text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 font-bold";
+                  bHome.textContent = "✓ UPLOADED";
+                }
+                if (btnHome) btnHome.textContent = "Re-take Photo";
+                if (thumbHome && validCached.src) {
+                  thumbHome.innerHTML = `<img src="${validCached.src}" class="w-full h-full object-cover rounded-lg"/>`;
+                }
+              } else {
                 localStorage.removeItem(homeCacheKey1);
                 localStorage.removeItem(homeCacheKey2);
                 homeSlotsMapRef[s] = false;
