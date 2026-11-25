@@ -2443,7 +2443,7 @@
   </div>
 
   <script src="/static/ca-portal.js?v=42"></script>
-  <script src="/static/active-sessions.js?v=5"></script>
+  <script src="/static/active-sessions.js?v=6"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
@@ -3570,25 +3570,25 @@
           </div>
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Branch Name</label>
-            <input id="ecBranch" type="text" required list="existingBranchesList" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            <input id="ecBranch" type="text" list="existingBranchesList" class="w-full text-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Permanent Account Number (PAN)</label>
-            <input id="ecPan" type="text" required class="w-full text-xs font-mono font-bold uppercase bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            <input id="ecPan" type="text" class="w-full text-xs font-mono font-bold uppercase bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Masked Aadhaar (આધાર નંબર)</label>
-            <input id="ecAadhaar" type="text" required class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            <input id="ecAadhaar" type="text" class="w-full text-xs font-mono font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Date of Birth (DOB - જન્મ તારીખ)</label>
-            <input id="ecDob" type="text" required class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
+            <input id="ecDob" type="text" class="w-full text-xs font-mono bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container"/>
           </div>
           <div>
             <label class="block font-mono text-[10px] font-bold text-on-surface uppercase mb-1">Gender (જાતિ)</label>
             <select id="ecGender" class="w-full text-xs font-bold bg-surface-container-lowest border border-outline-variant rounded-lg p-2 focus:ring-primary-container">
+              <option value="Male" selected>Male (પુરૂષ)</option>
               <option value="Female">Female (સ્ત્રી)</option>
-              <option value="Male">Male (પુરૂષ)</option>
             </select>
           </div>
         </div>

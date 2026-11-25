@@ -526,6 +526,137 @@
     );
   };
 
+  // ==========================================
+  // UNLOCK GENDER IN EDIT CASE MODAL & AUTO-SYNC WITH MR. / MRS. / MISS. SALUTATION
+  // ==========================================
+  function inferGenderFromApplicantName(nameStr, fallbackGender) {
+    const clean = String(nameStr || "").trim();
+    if (/^(?:mrs\.?|miss\.?|ms\.?|smt\.?|kum\.?|kumari\.?)\s+/i.test(clean)) {
+      return "Female";
+    }
+    if (/^(?:mr\.?|shri\.?)\s+/i.test(clean)) {
+      return "Male";
+    }
+    if (fallbackGender && /^(?:male|female)$/i.test(String(fallbackGender).trim())) {
+      return String(fallbackGender).trim().toLowerCase() === "female" ? "Female" : "Male";
+    }
+    return "Male";
+  }
+
+  function installEditModalGenderEnhancements() {
+    const origOpenEditCaseModal = window.openEditCaseModal;
+    if (typeof origOpenEditCaseModal === "function" && !origOpenEditCaseModal._genderEnhanced) {
+      const wrappedOpen = async function (caseId) {
+        const res = await origOpenEditCaseModal.apply(this, arguments);
+        try {
+          const cId = caseId || (typeof activeCaseId !== "undefined" ? activeCaseId : null);
+          const c = (typeof caseRegistry !== "undefined" && cId && caseRegistry[cId]) ? caseRegistry[cId] : {};
+          let ffObj = {};
+          try {
+            ffObj = typeof c.field_form_data === "string" ? JSON.parse(c.field_form_data || "{}") : (c.field_form_data || {});
+          } catch (_) {
+            ffObj = {};
+          }
+          const genderEl = document.getElementById("ecGender");
+          const nameEl = document.getElementById("ecApplicantName");
+          if (genderEl) {
+            genderEl.disabled = false;
+            const savedGender = c.gender || ffObj.gender || ffObj.applicant_gender || null;
+            const currentName = (nameEl && nameEl.value) || c.applicant_name || "";
+            genderEl.value = inferGenderFromApplicantName(currentName, savedGender);
+          }
+          ["ecPan", "ecAadhaar", "ecDob"].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.readOnly = false;
+          });
+        } catch (_) {}
+        return res;
+      };
+      wrappedOpen._genderEnhanced = true;
+      window.openEditCaseModal = wrappedOpen;
+    }
+
+    const origSetSalutation = window.setEditNameSalutation;
+    if (typeof origSetSalutation === "function" && !origSetSalutation._genderEnhanced) {
+      const wrappedSalutation = function (inputId, salutation) {
+        const res = origSetSalutation.apply(this, arguments);
+        try {
+          if (inputId === "ecApplicantName") {
+            const genderEl = document.getElementById("ecGender");
+            if (genderEl) {
+              genderEl.disabled = false;
+              const sal = String(salutation || "").toLowerCase();
+              if (sal.startsWith("mr.") || sal === "mr") {
+                genderEl.value = "Male";
+              } else if (sal.startsWith("mrs") || sal.startsWith("miss") || sal.startsWith("ms")) {
+                genderEl.value = "Female";
+              }
+            }
+          }
+        } catch (_) {}
+        return res;
+      };
+      wrappedSalutation._genderEnhanced = true;
+      window.setEditNameSalutation = wrappedSalutation;
+    }
+
+    const origHandleSaveCaseEdit = window.handleSaveCaseEdit;
+    if (typeof origHandleSaveCaseEdit === "function" && !origHandleSaveCaseEdit._genderEnhanced) {
+      const wrappedSave = async function (e) {
+        const cId = document.getElementById("ecCaseId") ? document.getElementById("ecCaseId").value : null;
+        const genderEl = document.getElementById("ecGender");
+        const chosenGender = genderEl ? genderEl.value : null;
+        const panEl = document.getElementById("ecPan");
+        const aadhaarEl = document.getElementById("ecAadhaar");
+        const dobEl = document.getElementById("ecDob");
+        const chosenPan = panEl ? panEl.value.trim() : "";
+        const chosenAadhaar = aadhaarEl ? aadhaarEl.value.trim() : "";
+        const chosenDob = dobEl ? dobEl.value.trim() : "";
+
+        const res = await origHandleSaveCaseEdit.apply(this, arguments);
+        try {
+          const c = (typeof caseRegistry !== "undefined" && cId && caseRegistry[cId]) ? caseRegistry[cId] : null;
+          if (c) {
+            if (chosenGender) c.gender = chosenGender;
+            if (chosenPan) c.pan = chosenPan;
+            if (chosenAadhaar) c.aadhaar_masked = chosenAadhaar;
+            if (chosenDob) c.dob = chosenDob;
+            const serverId = (typeof gfServerId === "function" && gfServerId(c)) || c.db_id || cId;
+            if (serverId && chosenGender && typeof authHeaders === "function") {
+              fetch(`/api/v1/cases/${encodeURIComponent(serverId)}/report-fields`, {
+                method: "PATCH",
+                headers: authHeaders({ "Content-Type": "application/json" }),
+                body: JSON.stringify({ gender: chosenGender, applicant_gender: chosenGender }),
+              }).catch(() => {});
+            }
+            if (typeof activeCaseId !== "undefined" && cId === activeCaseId && typeof onCaseSelected === "function") {
+              onCaseSelected(cId);
+            }
+          }
+        } catch (_) {}
+        return res;
+      };
+      wrappedSave._genderEnhanced = true;
+      window.handleSaveCaseEdit = wrappedSave;
+    }
+
+    const nameInput = document.getElementById("ecApplicantName");
+    if (nameInput && !nameInput._genderSyncBound) {
+      nameInput._genderSyncBound = true;
+      nameInput.addEventListener("input", () => {
+        const genderEl = document.getElementById("ecGender");
+        if (!genderEl) return;
+        const val = nameInput.value.trim();
+        if (/^(?:mrs\.?|miss\.?|ms\.?|smt\.?|kum\.?|kumari\.?)\s+/i.test(val)) {
+          genderEl.value = "Female";
+        } else if (/^(?:mr\.?|shri\.?)\s+/i.test(val)) {
+          genderEl.value = "Male";
+        }
+      });
+    }
+  }
+  installEditModalGenderEnhancements();
+
   setTimeout(() => {
     enforceTwoEmpanelledBanks();
     const bannerDateInp = document.getElementById("mgmtDailyReportDateInput");
