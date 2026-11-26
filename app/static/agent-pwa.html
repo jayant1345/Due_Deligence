@@ -486,6 +486,10 @@
                   <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
                   <span id="selfieBtnText">Capture Own Selfie (સેલ્ફી લો)</span>
                 </button>
+                <button type="button" onclick="rotatePwaSelfie90()" class="cursor-pointer px-2.5 py-2 rounded-lg bg-white border border-outline-variant hover:bg-surface-container-low text-on-surface font-headline text-xs font-bold shadow-2xs flex items-center gap-1 active:scale-95 transition-all" title="Rotate Selfie 90° if slanted">
+                  <span class="material-symbols-outlined text-[16px] text-primary-container">rotate_right</span>
+                  <span>Rotate 90°</span>
+                </button>
                 <input type="file" id="selfieInput" accept="image/*" onchange="handleAgentSelfieCapture(event)" class="hidden"/>
               </div>
 
@@ -2308,7 +2312,7 @@
   </nav>
 
   <!-- Interactive JavaScript Engine -->
-  <script src="/static/agent-pwa.js?v=17"></script>
+  <script src="/static/agent-pwa.js?v=18"></script>
 
   <!-- FIELD AGENT AUTHENTICATION MODAL -->
   <div id="agentLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
@@ -2425,7 +2429,7 @@
       </button>
     </div>
     <div class="flex-1 relative flex items-center justify-center overflow-hidden" style="background-color: #000000; min-height: 0;">
-      <video id="pwaLiveCameraVideo" autoplay playsinline muted class="w-full h-full object-cover" style="max-height: 100%;"></video>
+      <video id="pwaLiveCameraVideo" autoplay playsinline muted class="w-full h-full" style="max-height: 100%; object-fit: contain;"></video>
     </div>
     <div class="p-4 pb-6 flex items-center justify-between gap-2.5 shrink-0 border-t border-outline-variant" style="background-color: #0f172a;">
       <button type="button" onclick="fallbackToNativeCameraInput()" class="px-3 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-headline text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">

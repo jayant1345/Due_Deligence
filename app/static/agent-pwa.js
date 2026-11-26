@@ -1,6 +1,6 @@
       // Register PWA Service Worker
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js?v=18", { updateViaCache: "none" }).then((reg) => {
+      navigator.serviceWorker.register("/sw.js?v=19", { updateViaCache: "none" }).then((reg) => {
         try { reg.update(); } catch (_) {}
         console.log("CPV Service Worker Registered");
       }).catch(err => console.log("SW error:", err));
@@ -810,6 +810,7 @@
         try {
           videoEl.pause();
           videoEl.srcObject = null;
+          videoEl.style.transform = "none";
         } catch (_) {}
       }
     }
@@ -852,16 +853,19 @@
       }
       if (titleEl && titleText) titleEl.textContent = titleText;
       try {
+        // Do NOT force landscape 1280x960 constraints on mobile devices (Vivo/Oppo/Xiaomi front cameras
+        // return a sideways/slanted sensor buffer when forced to landscape width>height in portrait hold).
+        // Letting the mobile camera use its natural sensor orientation keeps selfies and photos upright.
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: pwaLiveCameraFacing },
-            width: { ideal: 1280 },
-            height: { ideal: 960 },
           },
           audio: false,
         });
         pwaLiveCameraStream = stream;
         videoEl.srcObject = stream;
+        // Natural mirror preview for front-facing selfie camera so agent can align face comfortably
+        videoEl.style.transform = pwaLiveCameraFacing === "user" ? "scaleX(-1)" : "none";
         modal.classList.remove("hidden");
         try { document.body.style.overflow = "hidden"; } catch (_) {}
         await videoEl.play().catch(() => {});
@@ -1721,6 +1725,44 @@
     // FIELD STAFF OWN SELFIE WATERMARK & ATTESTATION
     // ==========================================
     let agentSelfieDataUrl = null;
+    let lastFullSelfieDataUrl = null;
+
+    function rotatePwaSelfie90() {
+      if (!sampleCaseId) return;
+      const srcToRotate = lastFullSelfieDataUrl || agentSelfieDataUrl || localStorage.getItem("selfie_" + sampleCaseId);
+      if (!srcToRotate) {
+        alert("Please capture or upload your selfie first, then tap Rotate 90° if needed.");
+        return;
+      }
+      const rotImg = new Image();
+      rotImg.crossOrigin = "anonymous";
+      rotImg.onload = () => {
+        const sw = rotImg.naturalWidth || rotImg.width || 720;
+        const sh = rotImg.naturalHeight || rotImg.height || 960;
+        const can = document.createElement("canvas");
+        // Rotate 90 degrees clockwise: new width = old height, new height = old width
+        can.width = sh;
+        can.height = sw;
+        const rCtx = can.getContext("2d");
+        rCtx.translate(sh / 2, sw / 2);
+        rCtx.rotate(Math.PI / 2);
+        rCtx.drawImage(rotImg, -sw / 2, -sh / 2, sw, sh);
+        can.toBlob((blob) => {
+          try { can.width = 0; can.height = 0; } catch (_) {}
+          if (!blob) return;
+          const fileName = `agent_selfie_${sampleCaseId}_${Date.now()}.jpg`;
+          let rotFile = blob;
+          try {
+            rotFile = new File([blob], fileName, { type: "image/jpeg" });
+          } catch (_) {
+            rotFile.name = fileName;
+          }
+          handleAgentSelfieCapture({ target: { files: [rotFile], value: "" } });
+        }, "image/jpeg", 0.85);
+      };
+      rotImg.src = srcToRotate;
+    }
+
     function handleAgentSelfieCapture(event) {
       const file = event.target && event.target.files ? event.target.files[0] : null;
       if (event.target) event.target.value = "";
@@ -1745,9 +1787,18 @@
       img.onload = () => {
         cleanupSelfieObjUrl();
         const canvas = document.createElement("canvas");
-        const w = Math.min(img.width || 960, 960);
-        const scale = w / (img.width || 960);
-        const h = Math.max(1, Math.round((img.height || 720) * scale));
+        const maxDim = 960;
+        let w = img.naturalWidth || img.width || 720;
+        let h = img.naturalHeight || img.height || 960;
+        if (w > maxDim || h > maxDim) {
+          if (w >= h) {
+            h = Math.max(1, Math.round((h * maxDim) / w));
+            w = maxDim;
+          } else {
+            w = Math.max(1, Math.round((w * maxDim) / h));
+            h = maxDim;
+          }
+        }
         canvas.width = w;
         canvas.height = h;
 
@@ -1764,6 +1815,7 @@
         const agentName = (document.getElementById("agentNameDisplay") || {}).textContent || "Field Officer";
 
         const fullSelfieDataUrl = canvas.toDataURL("image/jpeg", 0.80);
+        lastFullSelfieDataUrl = fullSelfieDataUrl;
         // Generate compact 240px selfie thumbnail (~8KB) for DOM preview & localStorage
         let thumbSelfieUrl = fullSelfieDataUrl;
         try {
@@ -1937,7 +1989,7 @@
             </div>
             <div>
               <label class="font-mono text-[9px] text-outline block mb-0.5">Occupation (વ્યવસાય)*</label>
-              <select onchange="updateFamilyMember(${idx}, 'occupation', this.value)" class="w-full text-xs font-semibold rounded border border-outline-variant bg-white p-1.5 text-on-surface">
+              <select id="familyMemberOcc_${idx}" onchange="updateFamilyMember(${idx}, 'occupation', this.value)" class="w-full text-xs font-semibold rounded border border-outline-variant bg-white p-1.5 text-on-surface">
                 ${occOptions}
               </select>
             </div>
@@ -1973,11 +2025,13 @@
         familyMembers[idx][field] = val;
         if (field === "age") {
           const ageNum = parseInt(val, 10);
-          if (ageNum > 0 && ageNum < 18 && (familyMembers[idx].occupation || "").startsWith("Job")) {
+          // Only auto-default to Student when a full 2-digit minor age (10..17) or 0-year value is entered,
+          // and update the dropdown in-place WITHOUT calling renderFamilyMembers() (which destroyed the active
+          // <input> DOM node after typing the first digit "2" of "25", causing the cursor to disappear!).
+          if (String(val).trim().length >= 2 && ageNum > 0 && ageNum < 18 && (familyMembers[idx].occupation || "").startsWith("Job")) {
             familyMembers[idx].occupation = "Student (વિદ્યાર્થી)";
-            renderFamilyMembers();
-            if (typeof schedulePwaFormAutoSave === "function") schedulePwaFormAutoSave();
-            return;
+            const occSel = document.getElementById(`familyMemberOcc_${idx}`);
+            if (occSel) occSel.value = "Student (વિદ્યાર્થી)";
           }
         }
         syncFamilyTextarea();
