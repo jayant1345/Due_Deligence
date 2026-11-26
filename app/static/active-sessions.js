@@ -461,6 +461,31 @@
     "REJECTED",
   ]);
 
+  const HARDCODED_DEMO_CASE_IDS = new Set([
+    "b901fc63-12a8-4e32-9c02-e20984cfb001",
+    "c102ad74-23b9-4f43-ad13-f31095d0c002",
+    "d203be85-34ca-4a54-be24-a42106e1d003",
+    "e304cf96-45db-4b65-cf35-b53217f2e004",
+    "f405da07-56ec-4c76-da46-c64328a3f005",
+  ]);
+
+  function hasFieldFormSubmissionOnCase(c) {
+    if (!c) return false;
+    if (c.stay_period && c.stay_period !== "Not yet verified on site") return true;
+    if (c.person_met && c.person_met !== "Not yet visited") return true;
+    if (c.field_form_data) {
+      try {
+        const ffd = typeof c.field_form_data === "string" ? JSON.parse(c.field_form_data) : c.field_form_data;
+        if (ffd && typeof ffd === "object") {
+          if (ffd.person_met || ffd.period_of_stay || ffd.ownership || ffd.neighbour_1 || (ffd.office_details && ffd.office_details.firm_name)) {
+            return true;
+          }
+        }
+      } catch (_) {}
+    }
+    return false;
+  }
+
   function isFieldVisitCompleted(c) {
     if (!c) return false;
     const st = String(c.status || "").trim().toUpperCase();
@@ -468,6 +493,7 @@
     // Also treat as visit-completed if real GPS capture distance or field form submission is already on record
     if (typeof c.distance_m === "number" && !isNaN(c.distance_m)) return true;
     if (c.capture_lat && c.capture_lat !== "—" && c.capture_lon && c.capture_lon !== "—") return true;
+    if (hasFieldFormSubmissionOnCase(c)) return true;
     return false;
   }
 
@@ -482,22 +508,68 @@
     return true;
   }
 
+  // Update the 4 options inside #filterVisitStatusSelect with live counts for the current Bank/Branch/LoanType
+  function updateVisitStatusOptionCounts(entries, bankName, branchName, loanType) {
+    const visitSel = document.getElementById("filterVisitStatusSelect");
+    if (!visitSel) return;
+    const normBank = (bankName || "ALL").trim().toLowerCase();
+    const normBranch = (branchName || "ALL").trim().toLowerCase();
+    let total = 0;
+    let completed = 0;
+    let notCompleted = 0;
+    let readyForScrutiny = 0;
+    let certified = 0;
+
+    for (const [, c] of entries) {
+      if (bankName !== "ALL" && (c.bank || "").trim().toLowerCase() !== normBank) continue;
+      if (branchName !== "ALL" && (c.branch || "").trim().toLowerCase() !== normBranch) continue;
+      if (!caseMatchesLoanTypeFilter(c, loanType)) continue;
+      total++;
+      const done = isFieldVisitCompleted(c);
+      const st = String(c.status || "").trim().toUpperCase();
+      if (done) {
+        completed++;
+        if (st === "CERTIFIED") certified++;
+        else readyForScrutiny++;
+      } else {
+        notCompleted++;
+      }
+    }
+
+    const labels = {
+      ALL: `All Visits (${total})`,
+      VISIT_COMPLETED: `✅ Visit Completed by Agent (${completed})`,
+      VISIT_NOT_COMPLETED: `⏳ Visit Not Completed (${notCompleted})`,
+      READY_FOR_SCRUTINY: `🔍 Visit Done — Pending CA Review (${readyForScrutiny})`,
+      CERTIFIED_ONLY: `🏅 Report Certified — UDIN (${certified})`,
+    };
+    Array.from(visitSel.options).forEach((opt) => {
+      if (labels[opt.value]) {
+        opt.textContent = labels[opt.value];
+      }
+    });
+  }
+
   // Returns each unique case once (keyed by canonical UUID db_id/id, NEVER both UUID and case_no alias).
-  // Previously, loadDbCasesIntoRegistry() stored both caseRegistry[dc.id] = entry AND
-  // caseRegistry[dc.case_no] = entry, so iterating Object.entries(caseRegistry) in
-  // onBankFilterChanged() / onBranchFilterChanged() rendered every case TWICE and doubled Total Cases!
+  // Also strips out the 5 hardcoded demo seed cases once real database cases have loaded so fake
+  // Mumbai/SBI/HDFC/ICICI demo cases never pollute real CA office filters.
   function getDeduplicatedRegistryEntries() {
     if (typeof caseRegistry === "undefined" || !caseRegistry) return [];
     const deletedSet = typeof getDeletedCasesSet === "function" ? getDeletedCasesSet() : new Set();
+    const allEntries = Object.entries(caseRegistry);
+    const hasRealDbCases = allEntries.some(([, c]) => c && c.db_id && !HARDCODED_DEMO_CASE_IDS.has(String(c.db_id)));
+
     const seenObjects = new Set();
     const seenCaseIds = new Set();
     const seenCaseNos = new Set();
     const result = [];
 
-    // Pass 1: Prefer canonical UUID / db_id keys first
-    for (const [key, c] of Object.entries(caseRegistry)) {
+    for (const [key, c] of allEntries) {
       if (!c || typeof c !== "object") continue;
       const canonicalId = String(c.db_id || c.server_id || c.id || key).trim();
+      if (hasRealDbCases && HARDCODED_DEMO_CASE_IDS.has(canonicalId) && !c.server_id && !c.db_id) {
+        continue;
+      }
       const cNo = String(c.case_no || "").trim().toUpperCase();
       if (
         deletedSet.has(canonicalId.toUpperCase()) ||
@@ -555,10 +627,11 @@
     branchSel.value = matchExisting || "ALL";
   }
 
-  // Unified combined filter for Scrutiny Desk top ribbon: Bank + Branch + Type of Loan + Visit Status (deduplicated!)
-  function applyScrutinyTopFilters(triggerSource) {
+  // Unified combined filter for Scrutiny Desk top ribbon: Bank + Branch + Type of Loan + Visit Status (instant & deduplicated!)
+  function applyScrutinyTopFilters(triggerSource, opts) {
+    const options = opts || {};
     const bankName = document.getElementById("filterBankSelect")?.value || "ALL";
-    if (triggerSource === "bank") {
+    if (triggerSource === "bank" || triggerSource === "dbRefresh" || triggerSource === "init") {
       updateBranchDropdownForSelectedBank(bankName);
     }
     const branchName = document.getElementById("filterBranchSelect")?.value || "ALL";
@@ -567,16 +640,12 @@
 
     const caseSelect = document.getElementById("caseSelectorSelect");
     if (!caseSelect) return;
-    const prevSelectedCaseId = caseSelect.value || (typeof activeCaseId !== "undefined" ? activeCaseId : null);
-    caseSelect.innerHTML = "";
-
-    const normBank = bankName.trim().toLowerCase();
-    const normBranch = branchName.trim().toLowerCase();
-    let count = 0;
-    let firstMatch = null;
-    let stillHasPrev = false;
+    const prevActiveId = typeof activeCaseId !== "undefined" ? activeCaseId : caseSelect.value;
 
     const entries = getDeduplicatedRegistryEntries();
+    // Update live counts inside the Visit Status dropdown options
+    updateVisitStatusOptionCounts(entries, bankName, branchName, loanType);
+
     // Sort newest first so latest cases appear at the top of the dropdown
     entries.sort(([, a], [, b]) => {
       const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -584,6 +653,13 @@
       return tB - tA;
     });
 
+    const normBank = bankName.trim().toLowerCase();
+    const normBranch = branchName.trim().toLowerCase();
+    let count = 0;
+    let firstMatch = null;
+    let stillHasPrev = false;
+
+    const frag = document.createDocumentFragment();
     for (const [id, c] of entries) {
       if (bankName !== "ALL" && (c.bank || "").trim().toLowerCase() !== normBank) continue;
       if (branchName !== "ALL" && (c.branch || "").trim().toLowerCase() !== normBranch) continue;
@@ -599,19 +675,26 @@
         ? (String(c.status || "").toUpperCase() === "CERTIFIED" ? " [🏅 Certified]" : " [✓ Visit Done]")
         : " [⏳ Visit Pending]";
       opt.textContent = `[${c.case_no}] - ${c.applicant_name}${dateStr} | ${c.bank} (${c.branch})${ltShort}${visitTag}`;
-      caseSelect.appendChild(opt);
+      frag.appendChild(opt);
       if (!firstMatch) firstMatch = id;
-      if (prevSelectedCaseId && id === prevSelectedCaseId) stillHasPrev = true;
+      if (prevActiveId && id === prevActiveId) stillHasPrev = true;
       count++;
     }
+
+    caseSelect.innerHTML = "";
+    caseSelect.appendChild(frag);
 
     const totalEl = document.getElementById("totalCaseCount");
     if (totalEl) totalEl.textContent = count;
 
-    const targetCaseId = stillHasPrev ? prevSelectedCaseId : firstMatch;
+    const targetCaseId = stillHasPrev ? prevActiveId : firstMatch;
     if (targetCaseId) {
       caseSelect.value = targetCaseId;
-      if (typeof onCaseSelected === "function") {
+      // Only trigger full network reload of case documents when the active case actually changed!
+      // Previously, calling onCaseSelected(targetCaseId) unconditionally on every filter change
+      // fired 4 heavy network requests (documents, separated-documents, auto-locate, geofence)
+      // even when the same case remained selected, causing the 1–3 second delay on filter change.
+      if (!options.skipCaseLoad && targetCaseId !== prevActiveId && typeof onCaseSelected === "function") {
         onCaseSelected(targetCaseId);
       }
     } else {
@@ -632,6 +715,11 @@
         fillBranchSelect("filterBankSelect", `All Empanelled Banks (${banks.length})`, banks);
         fillBranchSelect("mgmtFilterBank", "All Empanelled Banks (બધી બેંક)", banks);
       }
+      // Every time loadDbCasesIntoRegistry() finishes (on initial load and every 45s poll),
+      // it calls rebuildBankFilterOptions(). Re-apply the Scrutiny Desk top filters here
+      // (with skipCaseLoad=true so the open case isn't interrupted) so any active Visit Status /
+      // Bank / Branch / Loan Type filter stays 100% enforced and never gets wiped by newly arrived DB cases!
+      applyScrutinyTopFilters("dbRefresh", { skipCaseLoad: true });
     };
     window.onBankFilterChanged = function () {
       applyScrutinyTopFilters("bank");
@@ -645,6 +733,23 @@
     window.onVisitStatusFilterChanged = function () {
       applyScrutinyTopFilters("visitStatus");
     };
+
+    // Directly bind native 'change' event listeners on all 4 Scrutiny Desk filter <select> elements
+    // as a rock-solid guarantee that selecting any filter fires immediately with zero delay.
+    [
+      ["filterBankSelect", "bank"],
+      ["filterBranchSelect", "branch"],
+      ["filterLoanTypeSelect", "loanType"],
+      ["filterVisitStatusSelect", "visitStatus"],
+    ].forEach(([elId, src]) => {
+      const el = document.getElementById(elId);
+      if (el && !el._scrutinyFilterBound) {
+        el._scrutinyFilterBound = true;
+        el.onchange = function () {
+          applyScrutinyTopFilters(src);
+        };
+      }
+    });
 
     // Also enhance Management Portal filter & reset to support #mgmtFilterLoanType and Visit Completed / Not Completed
     if (typeof window.applyManagementFilters === "function" && !window.applyManagementFilters._loanTypeEnhanced) {
