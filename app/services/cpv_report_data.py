@@ -638,6 +638,107 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
     }
 
 
+def _short_bank_branch_name(raw_branch: Optional[str], ifsc_code: Optional[str] = None) -> Optional[str]:
+    """
+    Extract ONLY the short branch name (e.g. 'Ranip', 'Ratanpur', 'Navrangpura', 'Gota') from a
+    bank statement's branch field or full branch address string — never the entire multi-line
+    building/street/pincode address.
+    """
+    if not raw_branch:
+        return f"IFSC {ifsc_code}" if ifsc_code else None
+    s = re.sub(r"\s+", " ", str(raw_branch)).strip()
+    if not s or s.upper() in ("NA", "N/A", "NONE", "NULL"):
+        return f"IFSC {ifsc_code}" if ifsc_code else None
+    if re.match(r"^IFSC\s+[A-Z]{4}0[A-Z0-9]{6}$", s, re.I):
+        return s.upper()
+
+    # 1. Explicit '<Name> Branch' pattern anywhere in the string (e.g. 'Ranip Branch, Opp. Bus Stand...')
+    m_br = re.search(r"\b([A-Za-z][A-Za-z0-9\s.\-&]{1,28}?)\s+Branch\b", s, flags=re.IGNORECASE)
+    if m_br:
+        cand = m_br.group(1).strip(" ,.-:/")
+        # If cand still has comma-separated prefixes, keep the last segment before 'Branch'
+        if "," in cand:
+            cand = cand.split(",")[-1].strip()
+        cand = re.sub(r"^(?:branch|br\.?|at|the|bank|of|india|union|state|hdfc|icici|axis|kotak|bob|baroda)\s+", "", cand, flags=re.I).strip()
+        if cand and len(cand) >= 2:
+            return _title(cand)
+
+    # 2. Explicit 'Branch : <Name>' or 'Branch Name - <Name>' prefix
+    m_lbl = re.search(r"(?:Branch\s*(?:Name)?|Br\.?)\s*[:\-]\s*([^,;(\n]+)", s, flags=re.IGNORECASE)
+    if m_lbl:
+        cand = m_lbl.group(1).strip(" ,.-:/")
+        if cand and not re.search(r"\b(?:floor|shop|plot|complex|tower|chamber|building|opp|near|nr\.?)\b", cand, re.I):
+            return _title(cand)
+
+    # 3. Split by comma / newline / semicolon and filter out street/building/city/state/pincode parts
+    STREET_NOISE = re.compile(
+        r"\b(?:floor|flr|shop|office|plot|survey|block|flat|unit|no\.?|bldg|building|complex|arcade|plaza|tower|"
+        r"chambers?|centre|center|mall|estate|park|house|bhavan|opp\.?|opposite|near|nr\.?|beside|behind|next\s+to|"
+        r"above|below|ground|first|second|third|1st|2nd|3rd|4th|cross\s+road|circle|char\s+rasta|chowk|highway|"
+        r"marg|street|st\.?|lane|avenue|dist\.?|district|taluka|tal\.?|gujarat|india|pin|pincode)\b",
+        flags=re.IGNORECASE,
+    )
+    CITY_STATE_ONLY = {
+        "AHMEDABAD", "AMDAVAD", "GANDHINAGAR", "SURAT", "VADODARA", "BARODA", "RAJKOT",
+        "BHAVNAGAR", "JAMNAGAR", "JUNAGADH", "ANAND", "NADIAD", "MEHSANA", "MAHESANA",
+        "HIMMATNAGAR", "PALANPUR", "BHUJ", "VALSAD", "VAPI", "NAVSARI", "BHARUCH",
+        "ANKLESHWAR", "GODHRA", "DAHOD", "MORBI", "SURENDRANAGAR", "AMRELI", "PORBANDAR",
+        "BOTAD", "PATAN", "MODASA", "KALOL", "SANAND", "VIRAMGAM", "DHOLKA", "BAVLA",
+        "GUJARAT", "INDIA", "MUMBAI", "DELHI", "PUNE", "JAIPUR", "INDORE",
+    }
+
+    raw_parts = [p.strip(" ,.-:/") for p in re.split(r"[,;\n]+", s) if p.strip(" ,.-:/")]
+    # Strip trailing 6-digit pincodes and parenthetical branch codes from each segment
+    cleaned_parts = []
+    for p in raw_parts:
+        p_clean = re.sub(r"\b\d{6}\b", "", p)
+        p_clean = re.sub(r"\([^)]*\)", "", p_clean)
+        p_clean = re.sub(r"\b(?:dist|district|tal|taluka|state|pin|code)\b.*", "", p_clean, flags=re.I)
+        p_clean = p_clean.strip(" ,.-:/")
+        if p_clean:
+            cleaned_parts.append(p_clean)
+
+    # If the whole string was already a short 1-3 word branch name (no street noise, <= 30 chars)
+    if len(cleaned_parts) == 1 and len(cleaned_parts[0]) <= 32 and not STREET_NOISE.search(cleaned_parts[0]):
+        return _title(cleaned_parts[0])
+
+    # Search from the end backwards (in Indian addresses, locality/area is right before City/District/Pin)
+    locality_candidates = []
+    city_fallback = None
+    for part in reversed(cleaned_parts):
+        up = part.upper().strip()
+        if not up or up.isdigit() or len(up) < 2:
+            continue
+        if up in CITY_STATE_ONLY:
+            if not city_fallback and up not in ("GUJARAT", "INDIA"):
+                city_fallback = _title(part)
+            continue
+        # If segment is 'Ranip Ahmedabad' (locality + city in same segment), strip the trailing city
+        tokens = part.split()
+        if len(tokens) >= 2 and tokens[-1].upper() in CITY_STATE_ONLY:
+            without_city = " ".join(tokens[:-1]).strip(" ,.-:/")
+            if without_city and not STREET_NOISE.search(without_city) and not re.search(r"\d", without_city):
+                return _title(without_city)
+        if STREET_NOISE.search(part):
+            # Check if the segment ends with ' <Locality> Road' e.g. 'C.G. Road' or 'Ashram Road' or 'S.G. Highway'
+            if len(tokens) <= 3 and not re.search(r"\b(?:floor|shop|plot|complex|opp|near|nr|bldg|tower|plaza|arcade)\b", part, re.I) and not re.search(r"\d", part):
+                locality_candidates.append(_title(part))
+            continue
+        if re.search(r"\d", part):
+            continue
+        if len(tokens) <= 4:
+            locality_candidates.append(_title(part))
+
+    if locality_candidates:
+        return locality_candidates[0]
+    if city_fallback:
+        return city_fallback
+    if ifsc_code:
+        return f"IFSC {ifsc_code}"
+    # Final fallback: first clean short segment
+    return _title(cleaned_parts[0][:30]) if cleaned_parts else None
+
+
 def _bank(all_pages: List[Dict[str, Any]], summary_bank: Optional[Dict[str, Any]], account_status: Optional[str] = None, account_type: Optional[str] = None) -> Dict[str, Any]:
     # A manually-entered account_status (from the field visit form) must still show up even
     # when no bank statement was ever OCR'd - returning {} here discarded it entirely, which
@@ -647,12 +748,17 @@ def _bank(all_pages: List[Dict[str, Any]], summary_bank: Optional[Dict[str, Any]
         return {}
     summary_bank = summary_bank or {}
     bank_pages = [p for p in all_pages if p.get("doc_type") == "BANK_STATEMENT"]
-    branch = next((p.get("extracted_address") for p in bank_pages if p.get("address_type") == "BRANCH" and p.get("extracted_address")), None)
+    raw_branch = (
+        summary_bank.get("bank_branch")
+        or next((p.get("bank_branch") for p in bank_pages if p.get("bank_branch")), None)
+        or next((p.get("extracted_address") for p in bank_pages if p.get("address_type") == "BRANCH" and p.get("extracted_address")), None)
+    )
+    branch = _short_bank_branch_name(raw_branch, summary_bank.get("ifsc_code"))
     has_account = bool(summary_bank.get("account_number") or summary_bank.get("bank_name"))
     return {
         "bank_name": _title(summary_bank.get("bank_name")) if summary_bank else None,
         "account_number": summary_bank.get("account_number") if summary_bank else None,
-        "branch": (branch or (f"IFSC {summary_bank['ifsc_code']}" if summary_bank.get("ifsc_code") else None)) if summary_bank else None,
+        "branch": branch if summary_bank else None,
         "account_status": account_status,
         "account_type": account_type or ("Savings / Operative Account" if has_account else None),
     }

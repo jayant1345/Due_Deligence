@@ -513,6 +513,7 @@ Return ONLY a JSON object with exactly these keys:
   "annual_tax_payable": "string or null",
   "itr_acknowledgement_number": "string or null (ITR_ACKNOWLEDGEMENT / COMPUTATION_OF_INCOME / Return Assessment: the 15-digit e-filing Acknowledgement Number; FORM_16: the TRACES Certificate Number or Q4 Receipt Number, never the PAN)",
   "bank_name": "string or null",
+  "bank_branch": "short branch name ONLY from a bank statement (e.g. 'Ranip', 'Ratanpur', 'Navrangpura', 'Gota'), NEVER the full street/building address of the bank, or null",
   "account_number": "string or null",
   "ifsc_code": "string or null",
   "loan_branch": "string or null",
@@ -676,6 +677,7 @@ def _normalize_extraction(raw: Dict[str, Any], applicant_name: str, target_addre
             else None
         ),
         "bank_name": r.get("bank_name"),
+        "bank_branch": r.get("bank_branch"),
         "account_number": r.get("account_number"),
         "ifsc_code": _validate_ifsc(r.get("ifsc_code")),
         "opening_balance": _to_amount(r.get("opening_balance")),
@@ -1243,6 +1245,7 @@ def reconcile_case_documents(items: List[Dict[str, Any]], applicant_name: str = 
     if all_bank_sources:
         applicant["bank_account"] = {
             "bank_name": next((p["bank_name"] for p in all_bank_sources if p.get("bank_name")), None),
+            "bank_branch": next((p["bank_branch"] for p in all_bank_sources if p.get("bank_branch")), None),
             "account_number": next((p["account_number"] for p in all_bank_sources if p.get("account_number")), None),
             "ifsc_code": next((p["ifsc_code"] for p in all_bank_sources if p.get("ifsc_code")), None),
             "statement_period": next((p["document_period"] for p in bank_pages if p.get("document_period")), None),

@@ -1389,12 +1389,17 @@ def generate_certified_cpv_report(
             bank_docs = [od for od in bank_docs if od.get("relationship_to_applicant") == "DIFFERENT_PERSON"]
         else:
             bank_docs.sort(key=lambda od: 0 if od.get("relationship_to_applicant") in (None, "SELF") else 1)
+        from app.services.cpv_report_data import _short_bank_branch_name, _title as _title_bank_pdf
         all_bank_docs = bank_docs + secondary_bank_docs
-        name = next((od["bank_name"] for od in all_bank_docs if od.get("bank_name")), None)
+        raw_name = next((od["bank_name"] for od in all_bank_docs if od.get("bank_name")), None)
+        name = _title_bank_pdf(raw_name) if raw_name else None
         ifsc = next((od["ifsc_code"] for od in all_bank_docs if od.get("ifsc_code")), None)
         account_no = next((od["account_number"] for od in all_bank_docs if od.get("account_number")), None)
-        branch_addr = next(((od.get("extracted_address") or od.get("address")) for od in bank_docs if od.get("address_type") == "BRANCH" and (od.get("extracted_address") or od.get("address"))), None)
-        branch_val = branch_addr or (f"IFSC {ifsc}" if ifsc else None)
+        raw_branch = (
+            next((od.get("bank_branch") for od in bank_docs if od.get("bank_branch")), None)
+            or next(((od.get("extracted_address") or od.get("address")) for od in bank_docs if od.get("address_type") == "BRANCH" and (od.get("extracted_address") or od.get("address"))), None)
+        )
+        branch_val = _short_bank_branch_name(raw_branch, ifsc)
         parts = [p for p in (name, branch_val) if p]
         name_branch = ", ".join(parts) if parts else NOT_CAPTURED
         return name_branch, (account_no or NOT_CAPTURED)
