@@ -397,9 +397,195 @@
   window.exportDateWiseReportCsv = exportDateWiseReportCsv;
 
   // ==========================================
-  // STRICT TWO EMPANELLED BANKS (Union Bank of India & Bank of Baroda)
+  // STRICT TWO EMPANELLED BANKS & DEDUPLICATED MULTI-FILTER (Bank + Branch + Type of Loan)
   // ==========================================
   const EMPANELLED_BANKS_ONLY = ["Union Bank of India", "Bank of Baroda"];
+
+  const CANONICAL_LOAN_TYPES = [
+    "Vehicle Loan",
+    "Home Loan",
+    "Education Loan",
+    "Personal Loan",
+    "Business Takeover",
+    "Quotation Verification",
+    "Pension Loan",
+    "BT TOP UP",
+    "Machinery Loan",
+    "Builder Tie Up",
+    "MSME Loan",
+    "Cash Credit Loan",
+    "Mudra Loan",
+    "Others",
+  ];
+
+  // Normalize a case's loan_type or case_no prefix into one of the canonical loan types
+  function resolveCaseLoanType(c) {
+    if (!c) return "";
+    const rawLt = String(c.loan_type || c.loan_facility || "").trim();
+    const rawCaseNo = String(c.case_no || "").trim().toUpperCase();
+    const low = rawLt.toLowerCase();
+    if (low.includes("vehicle") || /\bVL\b/.test(rawLt.toUpperCase()) || /-VL[-_\d]/.test(rawCaseNo)) return "Vehicle Loan";
+    if (low.includes("home") || low.includes("housing") || /\bHL\b/.test(rawLt.toUpperCase()) || /-HL[-_\d]/.test(rawCaseNo)) return "Home Loan";
+    if (low.includes("education") || /\bEL\b/.test(rawLt.toUpperCase()) || /-EL[-_\d]/.test(rawCaseNo)) return "Education Loan";
+    if (low.includes("personal") || /\bPL\b/.test(rawLt.toUpperCase()) || /-PL[-_\d]/.test(rawCaseNo)) return "Personal Loan";
+    if (low.includes("takeover")) return "Business Takeover";
+    if (low.includes("quotation")) return "Quotation Verification";
+    if (low.includes("pension")) return "Pension Loan";
+    if (low.includes("bt top") || low.includes("top up") || low.includes("top-up")) return "BT TOP UP";
+    if (low.includes("machinery")) return "Machinery Loan";
+    if (low.includes("builder")) return "Builder Tie Up";
+    if (low.includes("msme")) return "MSME Loan";
+    if (low.includes("cash credit") || /\bCC\b/.test(rawLt.toUpperCase())) return "Cash Credit Loan";
+    if (low.includes("mudra")) return "Mudra Loan";
+    for (const t of CANONICAL_LOAN_TYPES) {
+      if (t.toLowerCase() === low) return t;
+    }
+    return rawLt && rawLt.toLowerCase() !== "loan" ? rawLt : "Others";
+  }
+
+  function caseMatchesLoanTypeFilter(c, loanTypeFilter) {
+    if (!loanTypeFilter || loanTypeFilter === "ALL") return true;
+    const normFilter = String(loanTypeFilter).trim().toLowerCase();
+    const resolved = resolveCaseLoanType(c).toLowerCase();
+    if (resolved === normFilter) return true;
+    const rawLt = String((c && (c.loan_type || c.loan_facility)) || "").toLowerCase();
+    return rawLt.includes(normFilter);
+  }
+
+  // Returns each unique case once (keyed by canonical UUID db_id/id, NEVER both UUID and case_no alias).
+  // Previously, loadDbCasesIntoRegistry() stored both caseRegistry[dc.id] = entry AND
+  // caseRegistry[dc.case_no] = entry, so iterating Object.entries(caseRegistry) in
+  // onBankFilterChanged() / onBranchFilterChanged() rendered every case TWICE and doubled Total Cases!
+  function getDeduplicatedRegistryEntries() {
+    if (typeof caseRegistry === "undefined" || !caseRegistry) return [];
+    const deletedSet = typeof getDeletedCasesSet === "function" ? getDeletedCasesSet() : new Set();
+    const seenObjects = new Set();
+    const seenCaseIds = new Set();
+    const seenCaseNos = new Set();
+    const result = [];
+
+    // Pass 1: Prefer canonical UUID / db_id keys first
+    for (const [key, c] of Object.entries(caseRegistry)) {
+      if (!c || typeof c !== "object") continue;
+      const canonicalId = String(c.db_id || c.server_id || c.id || key).trim();
+      const cNo = String(c.case_no || "").trim().toUpperCase();
+      if (
+        deletedSet.has(canonicalId.toUpperCase()) ||
+        deletedSet.has(String(key).toUpperCase()) ||
+        (c.db_id && deletedSet.has(String(c.db_id).toUpperCase()))
+      ) {
+        continue;
+      }
+      // Skip alias key when key === c.case_no and canonical db_id key also exists in caseRegistry
+      if (c.db_id && key !== c.db_id && caseRegistry[c.db_id]) {
+        continue;
+      }
+      if (seenObjects.has(c) || seenCaseIds.has(canonicalId.toUpperCase()) || (cNo && seenCaseNos.has(cNo))) {
+        continue;
+      }
+      seenObjects.add(c);
+      seenCaseIds.add(canonicalId.toUpperCase());
+      if (cNo) seenCaseNos.add(cNo);
+      result.push([c.db_id || key, c]);
+    }
+    return result;
+  }
+
+  // Rebuild Branch dropdown options dynamically scoped to the currently selected Bank (or all banks if ALL)
+  function updateBranchDropdownForSelectedBank(selectedBank) {
+    const bankVal = selectedBank || (document.getElementById("filterBankSelect")?.value) || "ALL";
+    const branchSel = document.getElementById("filterBranchSelect");
+    if (!branchSel) return;
+    const prevBranch = branchSel.value || "ALL";
+    const seen = new Set();
+    const branches = [];
+    getDeduplicatedRegistryEntries().forEach(([, c]) => {
+      if (bankVal !== "ALL" && (c.bank || "").trim().toLowerCase() !== bankVal.trim().toLowerCase()) {
+        return;
+      }
+      const b = (c.branch || "").trim();
+      if (b && !seen.has(b.toLowerCase())) {
+        seen.add(b.toLowerCase());
+        branches.push(b);
+      }
+    });
+    branches.sort((a, b) => a.localeCompare(b));
+    branchSel.innerHTML = "";
+    const allOpt = document.createElement("option");
+    allOpt.value = "ALL";
+    allOpt.textContent = bankVal === "ALL" ? `All Branches (${branches.length})` : `All ${bankVal.includes("Union") ? "UBI" : "BOB"} Branches (${branches.length})`;
+    branchSel.appendChild(allOpt);
+    branches.forEach((b) => {
+      const opt = document.createElement("option");
+      opt.value = b;
+      opt.textContent = b;
+      branchSel.appendChild(opt);
+    });
+    const matchExisting = branches.find((b) => b.toLowerCase() === prevBranch.trim().toLowerCase());
+    branchSel.value = matchExisting || "ALL";
+  }
+
+  // Unified combined filter for Scrutiny Desk top ribbon: Bank + Branch + Type of Loan (deduplicated!)
+  function applyScrutinyTopFilters(triggerSource) {
+    const bankName = document.getElementById("filterBankSelect")?.value || "ALL";
+    if (triggerSource === "bank") {
+      updateBranchDropdownForSelectedBank(bankName);
+    }
+    const branchName = document.getElementById("filterBranchSelect")?.value || "ALL";
+    const loanType = document.getElementById("filterLoanTypeSelect")?.value || "ALL";
+
+    const caseSelect = document.getElementById("caseSelectorSelect");
+    if (!caseSelect) return;
+    const prevSelectedCaseId = caseSelect.value || (typeof activeCaseId !== "undefined" ? activeCaseId : null);
+    caseSelect.innerHTML = "";
+
+    const normBank = bankName.trim().toLowerCase();
+    const normBranch = branchName.trim().toLowerCase();
+    let count = 0;
+    let firstMatch = null;
+    let stillHasPrev = false;
+
+    const entries = getDeduplicatedRegistryEntries();
+    // Sort newest first so latest cases appear at the top of the dropdown
+    entries.sort(([, a], [, b]) => {
+      const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return tB - tA;
+    });
+
+    for (const [id, c] of entries) {
+      if (bankName !== "ALL" && (c.bank || "").trim().toLowerCase() !== normBank) continue;
+      if (branchName !== "ALL" && (c.branch || "").trim().toLowerCase() !== normBranch) continue;
+      if (!caseMatchesLoanTypeFilter(c, loanType)) continue;
+
+      const opt = document.createElement("option");
+      opt.value = id;
+      const dateStr = c.created_at && typeof fmtCaseOptDate === "function" ? ` (${fmtCaseOptDate(c.created_at)})` : "";
+      const ltLabel = resolveCaseLoanType(c);
+      const ltShort = ltLabel && ltLabel !== "Others" ? ` • ${ltLabel}` : "";
+      opt.textContent = `[${c.case_no}] - ${c.applicant_name}${dateStr} | ${c.bank} (${c.branch})${ltShort}`;
+      caseSelect.appendChild(opt);
+      if (!firstMatch) firstMatch = id;
+      if (prevSelectedCaseId && id === prevSelectedCaseId) stillHasPrev = true;
+      count++;
+    }
+
+    const totalEl = document.getElementById("totalCaseCount");
+    if (totalEl) totalEl.textContent = count;
+
+    const targetCaseId = stillHasPrev ? prevSelectedCaseId : firstMatch;
+    if (targetCaseId) {
+      caseSelect.value = targetCaseId;
+      if (typeof onCaseSelected === "function") {
+        onCaseSelected(targetCaseId);
+      }
+    } else {
+      const emptyOpt = document.createElement("option");
+      emptyOpt.value = "";
+      emptyOpt.textContent = "— No cases match the selected Bank / Branch / Loan Type filter —";
+      caseSelect.appendChild(emptyOpt);
+    }
+  }
 
   function enforceTwoEmpanelledBanks() {
     window.getDistinctCaseBanks = function () {
@@ -412,9 +598,64 @@
         fillBranchSelect("mgmtFilterBank", "All Empanelled Banks (બધી બેંક)", banks);
       }
     };
+    window.onBankFilterChanged = function () {
+      applyScrutinyTopFilters("bank");
+    };
+    window.onBranchFilterChanged = function () {
+      applyScrutinyTopFilters("branch");
+    };
+    window.onLoanTypeFilterChanged = function () {
+      applyScrutinyTopFilters("loanType");
+    };
+
+    // Also enhance Management Portal filter & reset to support #mgmtFilterLoanType
+    if (typeof window.applyManagementFilters === "function" && !window.applyManagementFilters._loanTypeEnhanced) {
+      const origApplyMgmt = window.applyManagementFilters;
+      const wrappedApplyMgmt = function () {
+        origApplyMgmt.apply(this, arguments);
+        try {
+          const ltFilter = document.getElementById("mgmtFilterLoanType")?.value || "ALL";
+          if (ltFilter === "ALL") return;
+          const tbody = document.getElementById("mgmtTableBody");
+          if (!tbody) return;
+          const rows = Array.from(tbody.querySelectorAll("tr"));
+          let visibleCount = 0;
+          rows.forEach((tr) => {
+            const text = (tr.textContent || "").toLowerCase();
+            if (text.includes("no case records match")) return;
+            const normLt = ltFilter.trim().toLowerCase();
+            const shortCode =
+              normLt === "vehicle loan" ? "-vl-" :
+              normLt === "home loan" ? "-hl-" :
+              normLt === "education loan" ? "-el-" :
+              normLt === "personal loan" ? "-pl-" : "";
+            const matches = text.includes(normLt) || (shortCode && text.includes(shortCode));
+            tr.style.display = matches ? "" : "none";
+            if (matches) visibleCount++;
+          });
+          const countBadge = document.getElementById("mgmtFilteredCount");
+          if (countBadge) countBadge.textContent = `${visibleCount} Cases Found`;
+        } catch (_) {}
+      };
+      wrappedApplyMgmt._loanTypeEnhanced = true;
+      window.applyManagementFilters = wrappedApplyMgmt;
+    }
+
+    if (typeof window.resetManagementFilters === "function" && !window.resetManagementFilters._loanTypeEnhanced) {
+      const origResetMgmt = window.resetManagementFilters;
+      const wrappedResetMgmt = function () {
+        const ltEl = document.getElementById("mgmtFilterLoanType");
+        if (ltEl) ltEl.value = "ALL";
+        return origResetMgmt.apply(this, arguments);
+      };
+      wrappedResetMgmt._loanTypeEnhanced = true;
+      window.resetManagementFilters = wrappedResetMgmt;
+    }
+
     if (typeof window.rebuildBankFilterOptions === "function") {
       window.rebuildBankFilterOptions();
     }
+    applyScrutinyTopFilters("init");
   }
   enforceTwoEmpanelledBanks();
 

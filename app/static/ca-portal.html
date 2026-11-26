@@ -213,6 +213,28 @@
             </select>
           </div>
 
+          <!-- Filter 3: Type of Loan Dropdown -->
+          <div class="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 shadow-sm">
+            <span class="material-symbols-outlined text-outline text-[15px]">category</span>
+            <select id="filterLoanTypeSelect" onchange="onLoanTypeFilterChanged(this.value)" class="text-xs bg-transparent border-0 font-semibold text-on-surface focus:ring-0 cursor-pointer pr-4" title="Filter cases by Type of Loan (Vehicle Loan, Home Loan, Education Loan, etc.)">
+              <option value="ALL">All Loan Types</option>
+              <option value="Vehicle Loan">Vehicle Loan (VL)</option>
+              <option value="Home Loan">Home Loan (HL)</option>
+              <option value="Education Loan">Education Loan (EL)</option>
+              <option value="Personal Loan">Personal Loan (PL)</option>
+              <option value="Business Takeover">Business Takeover</option>
+              <option value="Quotation Verification">Quotation Verification</option>
+              <option value="Pension Loan">Pension Loan</option>
+              <option value="BT TOP UP">BT TOP UP</option>
+              <option value="Machinery Loan">Machinery Loan</option>
+              <option value="Builder Tie Up">Builder Tie Up</option>
+              <option value="MSME Loan">MSME Loan</option>
+              <option value="Cash Credit Loan">Cash Credit Loan</option>
+              <option value="Mudra Loan">Mudra Loan</option>
+              <option value="Others">Others</option>
+            </select>
+          </div>
+
           <!-- Master Case & Applicant Dropdown -->
           <div class="flex items-center gap-1 bg-surface-container-lowest border-2 border-primary-container/60 rounded-lg px-2.5 py-1 shadow-sm">
             <span class="material-symbols-outlined text-primary-container text-[16px]">person_search</span>
@@ -1619,7 +1641,7 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
         <!-- 1. Month-wise Filter -->
         <div class="bg-surface-container-low border border-outline-variant rounded-lg p-1.5">
           <label class="block font-mono text-[9px] font-bold text-outline uppercase mb-0.5">Month (મહિનો)</label>
@@ -1652,6 +1674,28 @@
             <option value="Navrangpura Branch">Navrangpura Branch</option>
             <option value="Ashram Road Branch">Ashram Road Branch</option>
             <option value="Sector 11 Branch">Sector 11 Branch</option>
+          </select>
+        </div>
+
+        <!-- 3B. Type of Loan Filter -->
+        <div class="bg-surface-container-low border border-outline-variant rounded-lg p-1.5">
+          <label class="block font-mono text-[9px] font-bold text-outline uppercase mb-0.5">Type of Loan (લોનનો પ્રકાર)</label>
+          <select id="mgmtFilterLoanType" onchange="applyManagementFilters()" class="w-full text-xs font-bold text-on-surface bg-transparent border-0 p-0 focus:ring-0 cursor-pointer">
+            <option value="ALL">All Loan Types (બધી લોન)</option>
+            <option value="Vehicle Loan">Vehicle Loan (VL)</option>
+            <option value="Home Loan">Home Loan (HL)</option>
+            <option value="Education Loan">Education Loan (EL)</option>
+            <option value="Personal Loan">Personal Loan (PL)</option>
+            <option value="Business Takeover">Business Takeover</option>
+            <option value="Quotation Verification">Quotation Verification</option>
+            <option value="Pension Loan">Pension Loan</option>
+            <option value="BT TOP UP">BT TOP UP</option>
+            <option value="Machinery Loan">Machinery Loan</option>
+            <option value="Builder Tie Up">Builder Tie Up</option>
+            <option value="MSME Loan">MSME Loan</option>
+            <option value="Cash Credit Loan">Cash Credit Loan</option>
+            <option value="Mudra Loan">Mudra Loan</option>
+            <option value="Others">Others</option>
           </select>
         </div>
 
@@ -2443,7 +2487,7 @@
   </div>
 
   <script src="/static/ca-portal.js?v=42"></script>
-  <script src="/static/active-sessions.js?v=6"></script>
+  <script src="/static/active-sessions.js?v=7"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
