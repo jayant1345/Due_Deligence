@@ -452,6 +452,36 @@
     return rawLt.includes(normFilter);
   }
 
+  // Determines whether the Field Agent has completed the site visit for a case
+  const VISIT_COMPLETED_STATUSES = new Set([
+    "PENDING_CA_REVIEW",
+    "APPROVED",
+    "CERTIFIED",
+    "FLAGGED",
+    "REJECTED",
+  ]);
+
+  function isFieldVisitCompleted(c) {
+    if (!c) return false;
+    const st = String(c.status || "").trim().toUpperCase();
+    if (VISIT_COMPLETED_STATUSES.has(st)) return true;
+    // Also treat as visit-completed if real GPS capture distance or field form submission is already on record
+    if (typeof c.distance_m === "number" && !isNaN(c.distance_m)) return true;
+    if (c.capture_lat && c.capture_lat !== "—" && c.capture_lon && c.capture_lon !== "—") return true;
+    return false;
+  }
+
+  function caseMatchesVisitStatusFilter(c, visitFilter) {
+    if (!visitFilter || visitFilter === "ALL") return true;
+    const st = String((c && c.status) || "").trim().toUpperCase();
+    const done = isFieldVisitCompleted(c);
+    if (visitFilter === "VISIT_COMPLETED") return done;
+    if (visitFilter === "VISIT_NOT_COMPLETED") return !done;
+    if (visitFilter === "READY_FOR_SCRUTINY") return done && st !== "CERTIFIED";
+    if (visitFilter === "CERTIFIED_ONLY") return st === "CERTIFIED";
+    return true;
+  }
+
   // Returns each unique case once (keyed by canonical UUID db_id/id, NEVER both UUID and case_no alias).
   // Previously, loadDbCasesIntoRegistry() stored both caseRegistry[dc.id] = entry AND
   // caseRegistry[dc.case_no] = entry, so iterating Object.entries(caseRegistry) in
@@ -525,7 +555,7 @@
     branchSel.value = matchExisting || "ALL";
   }
 
-  // Unified combined filter for Scrutiny Desk top ribbon: Bank + Branch + Type of Loan (deduplicated!)
+  // Unified combined filter for Scrutiny Desk top ribbon: Bank + Branch + Type of Loan + Visit Status (deduplicated!)
   function applyScrutinyTopFilters(triggerSource) {
     const bankName = document.getElementById("filterBankSelect")?.value || "ALL";
     if (triggerSource === "bank") {
@@ -533,6 +563,7 @@
     }
     const branchName = document.getElementById("filterBranchSelect")?.value || "ALL";
     const loanType = document.getElementById("filterLoanTypeSelect")?.value || "ALL";
+    const visitStatus = document.getElementById("filterVisitStatusSelect")?.value || "ALL";
 
     const caseSelect = document.getElementById("caseSelectorSelect");
     if (!caseSelect) return;
@@ -557,13 +588,17 @@
       if (bankName !== "ALL" && (c.bank || "").trim().toLowerCase() !== normBank) continue;
       if (branchName !== "ALL" && (c.branch || "").trim().toLowerCase() !== normBranch) continue;
       if (!caseMatchesLoanTypeFilter(c, loanType)) continue;
+      if (!caseMatchesVisitStatusFilter(c, visitStatus)) continue;
 
       const opt = document.createElement("option");
       opt.value = id;
       const dateStr = c.created_at && typeof fmtCaseOptDate === "function" ? ` (${fmtCaseOptDate(c.created_at)})` : "";
       const ltLabel = resolveCaseLoanType(c);
       const ltShort = ltLabel && ltLabel !== "Others" ? ` • ${ltLabel}` : "";
-      opt.textContent = `[${c.case_no}] - ${c.applicant_name}${dateStr} | ${c.bank} (${c.branch})${ltShort}`;
+      const visitTag = isFieldVisitCompleted(c)
+        ? (String(c.status || "").toUpperCase() === "CERTIFIED" ? " [🏅 Certified]" : " [✓ Visit Done]")
+        : " [⏳ Visit Pending]";
+      opt.textContent = `[${c.case_no}] - ${c.applicant_name}${dateStr} | ${c.bank} (${c.branch})${ltShort}${visitTag}`;
       caseSelect.appendChild(opt);
       if (!firstMatch) firstMatch = id;
       if (prevSelectedCaseId && id === prevSelectedCaseId) stillHasPrev = true;
@@ -582,7 +617,7 @@
     } else {
       const emptyOpt = document.createElement("option");
       emptyOpt.value = "";
-      emptyOpt.textContent = "— No cases match the selected Bank / Branch / Loan Type filter —";
+      emptyOpt.textContent = "— No cases match the selected Bank / Branch / Loan Type / Visit filter —";
       caseSelect.appendChild(emptyOpt);
     }
   }
@@ -607,15 +642,34 @@
     window.onLoanTypeFilterChanged = function () {
       applyScrutinyTopFilters("loanType");
     };
+    window.onVisitStatusFilterChanged = function () {
+      applyScrutinyTopFilters("visitStatus");
+    };
 
-    // Also enhance Management Portal filter & reset to support #mgmtFilterLoanType
+    // Also enhance Management Portal filter & reset to support #mgmtFilterLoanType and Visit Completed / Not Completed
     if (typeof window.applyManagementFilters === "function" && !window.applyManagementFilters._loanTypeEnhanced) {
       const origApplyMgmt = window.applyManagementFilters;
       const wrappedApplyMgmt = function () {
-        origApplyMgmt.apply(this, arguments);
+        const statusSel = document.getElementById("mgmtFilterStatus");
+        const specialVisitFilter =
+          statusSel && (statusSel.value === "VISIT_COMPLETED" || statusSel.value === "VISIT_NOT_COMPLETED")
+            ? statusSel.value
+            : null;
+        if (specialVisitFilter && statusSel) {
+          // Temporarily set to ALL so origApplyMgmt renders all rows matching Month/Bank/Branch/Staff/Search,
+          // then filter rows by Visit Completed vs Not Completed + Loan Type below.
+          statusSel.value = "ALL";
+        }
+        try {
+          origApplyMgmt.apply(this, arguments);
+        } finally {
+          if (specialVisitFilter && statusSel) {
+            statusSel.value = specialVisitFilter;
+          }
+        }
         try {
           const ltFilter = document.getElementById("mgmtFilterLoanType")?.value || "ALL";
-          if (ltFilter === "ALL") return;
+          if (ltFilter === "ALL" && !specialVisitFilter) return;
           const tbody = document.getElementById("mgmtTableBody");
           if (!tbody) return;
           const rows = Array.from(tbody.querySelectorAll("tr"));
@@ -623,15 +677,31 @@
           rows.forEach((tr) => {
             const text = (tr.textContent || "").toLowerCase();
             if (text.includes("no case records match")) return;
-            const normLt = ltFilter.trim().toLowerCase();
-            const shortCode =
-              normLt === "vehicle loan" ? "-vl-" :
-              normLt === "home loan" ? "-hl-" :
-              normLt === "education loan" ? "-el-" :
-              normLt === "personal loan" ? "-pl-" : "";
-            const matches = text.includes(normLt) || (shortCode && text.includes(shortCode));
-            tr.style.display = matches ? "" : "none";
-            if (matches) visibleCount++;
+            let matchesLt = true;
+            if (ltFilter !== "ALL") {
+              const normLt = ltFilter.trim().toLowerCase();
+              const shortCode =
+                normLt === "vehicle loan" ? "-vl-" :
+                normLt === "home loan" ? "-hl-" :
+                normLt === "education loan" ? "-el-" :
+                normLt === "personal loan" ? "-pl-" : "";
+              matchesLt = text.includes(normLt) || Boolean(shortCode && text.includes(shortCode));
+            }
+            let matchesVisit = true;
+            if (specialVisitFilter) {
+              const isRowVisitCompleted =
+                text.includes("pending ca review") ||
+                text.includes("certified") ||
+                text.includes("approved") ||
+                text.includes("flagged") ||
+                text.includes("rejected") ||
+                text.includes("compliant") ||
+                text.includes("breach");
+              matchesVisit = specialVisitFilter === "VISIT_COMPLETED" ? isRowVisitCompleted : !isRowVisitCompleted;
+            }
+            const show = matchesLt && matchesVisit;
+            tr.style.display = show ? "" : "none";
+            if (show) visibleCount++;
           });
           const countBadge = document.getElementById("mgmtFilteredCount");
           if (countBadge) countBadge.textContent = `${visibleCount} Cases Found`;
