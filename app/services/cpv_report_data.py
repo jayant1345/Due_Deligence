@@ -1298,20 +1298,33 @@ async def assemble_cpv_report_data(
 
     raw_exec = form.get("verifier_agent_name") or form.get("executive") or form.get("executive_name") or (agent.full_name if agent else None)
     dealing_clerk = form.get("ca_dealing_clerk") or form.get("dealing_clerk") or None
-    resolved_verifiers: List[str] = []
+
+    # Per explicit CA office instruction:
+    # Under "Verifier Executive":
+    #   1st subfield (Name row 1) = CA Office Dealing Clerk / Executive
+    #   2nd subfield (Name row 2) = Field Visit Executive (Field Agent)
+    resolved_verifiers: List[str] = ["", ""]
     if verifier_names:
-        resolved_verifiers = [str(n).strip() for n in verifier_names if str(n).strip()]
-    elif raw_exec:
-        parts = [p.strip() for p in re.split(r"\s*(?:&|/|,|\band\b)\s*", str(raw_exec), flags=re.IGNORECASE) if p.strip()]
-        resolved_verifiers = [_title(p) or p for p in parts]
-    if dealing_clerk and str(dealing_clerk).strip():
-        clerk_str = _title(str(dealing_clerk).strip()) or str(dealing_clerk).strip()
-        if not resolved_verifiers:
-            resolved_verifiers = ["", clerk_str]
-        elif len(resolved_verifiers) == 1:
-            resolved_verifiers.append(clerk_str)
-        else:
-            resolved_verifiers[1] = clerk_str
+        v_list = [str(n).strip() for n in verifier_names if str(n).strip()]
+        if len(v_list) >= 2:
+            resolved_verifiers = [v_list[0], v_list[1]]
+        elif len(v_list) == 1:
+            resolved_verifiers = ["", v_list[0]]
+    else:
+        clerk_str = (_title(str(dealing_clerk).strip()) or str(dealing_clerk).strip()) if (dealing_clerk and str(dealing_clerk).strip()) else ""
+        field_exec_str = ""
+        if raw_exec:
+            parts = [p.strip() for p in re.split(r"\s*(?:&|/|,|\band\b)\s*", str(raw_exec), flags=re.IGNORECASE) if p.strip()]
+            formatted_parts = [_title(p) or p for p in parts]
+            if clerk_str:
+                field_exec_str = ", ".join(formatted_parts)
+            elif len(formatted_parts) >= 2:
+                # If two names were entered together in raw_exec and no separate dealing_clerk was set
+                clerk_str = formatted_parts[0]
+                field_exec_str = ", ".join(formatted_parts[1:])
+            elif len(formatted_parts) == 1:
+                field_exec_str = formatted_parts[0]
+        resolved_verifiers = [clerk_str, field_exec_str]
 
     resolved_allotted_by = (
         file_allotted_by

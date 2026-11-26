@@ -453,17 +453,28 @@ def generate_certified_cpv_report(
                 s_nm = ec_match.get("name")
         if s_nm and str(s_nm).strip():
             loan_persons_text += f"<br/>Co-Applicant {slot_i - 1}: <b>{str(s_nm).strip()}</b>"
-    verifier_name = (
+    # Per explicit CA office instruction:
+    # Under "Verifier Executive":
+    #   1st subfield = CA Office Dealing Clerk / Executive
+    #   2nd subfield = Field Visit Executive (Field Agent)
+    field_visit_exec_name = (
         field_form.get("verifier_agent_name")
         or field_form.get("executive")
         or field_form.get("executive_name")
         or case_data.get("agent_name")
-        or NOT_CAPTURED
+        or ""
     )
-    dealing_clerk_name = field_form.get("ca_dealing_clerk") or field_form.get("dealing_clerk") or ""
-    verifier_display = f"Name: {verifier_name}"
-    if dealing_clerk_name and str(dealing_clerk_name).strip():
-        verifier_display += f"<br/>Name: {str(dealing_clerk_name).strip()}"
+    dealing_clerk_name = str(field_form.get("ca_dealing_clerk") or field_form.get("dealing_clerk") or "").strip()
+    field_visit_exec_clean = str(field_visit_exec_name or "").strip()
+    if not dealing_clerk_name and field_visit_exec_clean:
+        exec_parts = [p.strip() for p in re.split(r"\s*(?:&|/|,|\band\b)\s*", field_visit_exec_clean, flags=re.IGNORECASE) if p.strip()]
+        if len(exec_parts) >= 2:
+            dealing_clerk_name = exec_parts[0]
+            field_visit_exec_clean = ", ".join(exec_parts[1:])
+    verifier_display = (
+        f"Name: {dealing_clerk_name}<br/>"
+        f"Name: {field_visit_exec_clean}"
+    )
     allotted_by_name = (
         field_form.get("file_allotted_by")
         or field_form.get("allotted_by")
