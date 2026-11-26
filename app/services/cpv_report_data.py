@@ -101,6 +101,35 @@ def _short_ay(ay: Optional[str]) -> Optional[str]:
     return ay
 
 
+def _full_ay_label(ay: Optional[str]) -> str:
+    """
+    Convert an Assessment Year string like '2025-26' or '2025-2026' into the full
+    TRACES remark format 'A.Y.2025-2026'.
+    """
+    if not ay:
+        return ""
+    s = re.sub(r"^\s*A\.?\s*Y\.?\s*", "", str(ay).strip(), flags=re.I)
+    m = re.match(r"^(20\d{2})\s*[-–/]\s*(\d{2}|\d{4})$", s)
+    if m:
+        y1 = int(m.group(1))
+        y2_raw = m.group(2)
+        y2 = int(y2_raw) if len(y2_raw) == 4 else (y1 // 100) * 100 + int(y2_raw)
+        return f"A.Y.{y1}-{y2}"
+    return f"A.Y.{s}" if s else ""
+
+
+def _format_traces_form16_remark(ays: List[str]) -> str:
+    """
+    Build the exact remark required when no ITR Acknowledgement document is provided and
+    only Form 16 is provided:
+    'Form No: 16 A.Y.2025-2026, A.Y.2024-2025, A.Y.2023-2024, Was Provided for Our Verification from Traces Website.'
+    """
+    clean_ays = [a for a in (_full_ay_label(x) for x in ays if x and str(x).upper() != "NA") if a]
+    if not clean_ays:
+        return "Form No: 16 Was Provided for Our Verification from Traces Website."
+    return f"Form No: 16 {', '.join(clean_ays)}, Was Provided for Our Verification from Traces Website."
+
+
 def _ay_of(page: Dict[str, Any]) -> Optional[str]:
     """Assessment year of a Form 16 / ITR / Computation page; Part B often states only the financial year (AY = FY + 1)."""
     for candidate in (page.get("assessment_year"), page.get("document_period"), page.get("document_title"), page.get("forensic_summary")):
@@ -382,9 +411,18 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
         return None
 
     itr: Dict[str, Dict[str, Any]] = {}
+    def _itr_doc_priority(p: Dict[str, Any]) -> Tuple[int, int]:
+        dt = (p.get("doc_type") or "").upper()
+        p_num = p.get("page_number") if isinstance(p.get("page_number"), int) else 0
+        if dt == "ITR_ACKNOWLEDGEMENT":
+            return (0, p_num)
+        if dt in ("COMPUTATION_OF_INCOME", "PROFIT_LOSS_BALANCE_SHEET"):
+            return (1, p_num)
+        return (2, p_num)
+
     itr_pages = sorted(
         (p for p in pages if p.get("doc_type") in ITR_INCOME_DOC_TYPES),
-        key=lambda p: p.get("page_number") if isinstance(p.get("page_number"), int) else 0,
+        key=_itr_doc_priority,
     )
     known_ays = [_ay_of(p) for p in itr_pages if _ay_of(p)]
     default_ay = known_ays[0] if len(set(known_ays)) == 1 else None
@@ -404,38 +442,71 @@ def _person(pages: List[Dict[str, Any]], all_pages: List[Dict[str, Any]], on: da
             "ack_no": None,
             "filed_on": None,
             "total_income": None,
+            "ack_income": None,
+            "return_income": None,
+            "form16_income": None,
+            "ack_filed_on": None,
+            "return_filed_on": None,
+            "form16_filed_on": None,
+            "has_itr_ack_doc": False,
             "has_itr_return_doc": False,
             "has_form16_doc": False,
             "only_form16": False,
             "status": "Income Tax Return / Form 16 / Assessment Statement Verified",
         })
-        if p_dt in ITR_RETURN_DOC_TYPES:
+        if p_dt == "ITR_ACKNOWLEDGEMENT":
+            row["has_itr_ack_doc"] = True
             row["has_itr_return_doc"] = True
+            if inc_val and not row["ack_income"]:
+                row["ack_income"] = inc_val
+            if dt_val and not row["ack_filed_on"]:
+                row["ack_filed_on"] = dt_val
+        elif p_dt in ITR_RETURN_DOC_TYPES:
+            row["has_itr_return_doc"] = True
+            if inc_val and not row["return_income"]:
+                row["return_income"] = inc_val
+            if dt_val and not row["return_filed_on"]:
+                row["return_filed_on"] = dt_val
         elif p_dt == "FORM_16":
             row["has_form16_doc"] = True
-        row["total_income"] = row["total_income"] or inc_val
+            if inc_val and not row["form16_income"]:
+                row["form16_income"] = inc_val
+            if dt_val and not row["form16_filed_on"]:
+                row["form16_filed_on"] = dt_val
         row["ack_no"] = row["ack_no"] or ack_val or valid_manual_ack
-        row["filed_on"] = row["filed_on"] or dt_val or itr_filing_date
 
     for r in itr.values():
-        if not r["has_itr_return_doc"] and r["has_form16_doc"] and not r["ack_no"]:
-            r["only_form16"] = True
-            r["ack_no"] = "No ITR Return Found (Only Form 16 Found)"
-            r["status"] = "No Income Tax Return (ITR) documents found; only Form No. 16 found and verified"
-        else:
+        # Rule 1 & Rule 2: Whenever ITR Return Acknowledgement is available for that year,
+        # take Total Income, Acknowledgement Number, and Filing Date strictly from the
+        # ITR Return Acknowledgement document (falling back to Computation of Income only if
+        # the ITR Acknowledgement sheet omitted the figure, and never letting Form 16 overwrite it).
+        if r["has_itr_ack_doc"] or r["has_itr_return_doc"] or r["ack_no"]:
             r["only_form16"] = False
+            r["total_income"] = r["ack_income"] or r["return_income"] or r["form16_income"]
+            r["filed_on"] = r["ack_filed_on"] or r["return_filed_on"] or itr_filing_date or r["form16_filed_on"]
             if not r["ack_no"]:
                 r["ack_no"] = "No ITR Ack. Copy (Computation of Income Only)"
             if r["total_income"]:
-                r["status"] = "Income Tax Return / Computation of Income Verified"
+                r["status"] = "Income Tax Return Acknowledgement Verified" if (r["has_itr_ack_doc"] or (r["ack_no"] and r["ack_no"].isdigit())) else "Income Tax Return / Computation of Income Verified"
+        else:
+            # Rule 3: No ITR Return Acknowledgement provided and only Form 16 provided
+            r["only_form16"] = True
+            r["total_income"] = r["form16_income"]
+            r["filed_on"] = r["form16_filed_on"] or itr_filing_date
+            r["ack_no"] = "No ITR Return Found (Only Form 16 Found)"
+            r["status"] = _format_traces_form16_remark([r["ay"]])
 
-    # Per explicit CA office instruction: any ITR / Form 16 / Assessment record where the
-    # Total Income / Amount is not available (None / NA / 0) must be omitted from the report
-    # in both PDF and DOCX (never print a row with "Rs. NA").
+    # Rule 1 & Rule 2 strict enforcement across years: if this person has ITR Return
+    # Acknowledgement documents for some years and also a stray Form 16 for another year,
+    # or if all years are Form 16 only, ensure the multi-year TRACES remark lists all Form 16 years.
     valid_itr_rows = [
         r for r in sorted(itr.values(), key=lambda r: r["ay"], reverse=True)
         if r.get("total_income") and str(r.get("total_income")).strip().upper() not in ("", "NA", "N/A", "NONE", "0")
     ][:3]
+    if valid_itr_rows and all(r.get("only_form16") for r in valid_itr_rows):
+        combined_traces_remark = _format_traces_form16_remark([r["ay"] for r in valid_itr_rows])
+        for r in valid_itr_rows:
+            r["status"] = combined_traces_remark
 
     # Premises Owner Name & Relation strictly as written in the Google Form / PWA form
     premises_owner_raw = office_form.get("premises_owner") or ""
@@ -985,13 +1056,25 @@ async def assemble_cpv_report_data(
         )
         work.append("Physical verification of the co-applicant's employer premises was conducted." if co["office"].get("address") else "Physical verification of the co-applicant's employer premises is pending.")
 
-    itr_lines = ["No Income Tax Return acknowledgements were included in the documents provided."]
-    f16 = []
-    for label, person in (("the applicant", applicant), ("the co-applicant", co)):
-        if person and person["itr"]:
-            f16.append(f"for {label}, {person['name']}, for A.Y. " + ", ".join(r["ay"] for r in person["itr"]))
-    if f16:
-        itr_lines.append("Form No. 16 was provided for our verification " + "; and ".join(f16) + ".")
+    itr_lines = []
+    primary_itr_person = applicant if (applicant and applicant.get("itr")) else (co if (co and co.get("itr")) else None)
+    primary_itr_label = "applicant" if primary_itr_person is applicant else "co-applicant"
+    if primary_itr_person and primary_itr_person.get("itr"):
+        p_rows = primary_itr_person["itr"]
+        p_ays = [r["ay"] for r in p_rows if r.get("ay") and r.get("ay") != "NA"]
+        if len(p_ays) >= 2:
+            p_ay_join = ", ".join(p_ays[:-1]) + " and " + p_ays[-1]
+        elif len(p_ays) == 1:
+            p_ay_join = p_ays[0]
+        else:
+            p_ay_join = ""
+        if all(bool(r.get("only_form16")) for r in p_rows):
+            itr_lines.append(_format_traces_form16_remark(p_ays))
+        else:
+            if p_ay_join:
+                itr_lines.append(f"The {primary_itr_label} has submitted Income Tax Returns (ITRs) for the Assessment years {p_ay_join}, as proof of income.")
+    if not itr_lines:
+        itr_lines = ["No Income Tax Returns or Form No. 16 were provided for our verification."]
 
     def _kyc(label: str, person: Dict[str, Any]) -> str:
         docs = []

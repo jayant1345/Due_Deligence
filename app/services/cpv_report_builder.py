@@ -519,6 +519,7 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
         co_raw_emp_no = str(co_office.get("reg_or_emp_no") or "").strip()
         emp_id_num = co_raw_emp_no if (co_raw_emp_no and co_raw_emp_no.lower() not in ("na", "n/a", "none", "verified at site")) else ""
 
+    from app.services.cpv_report_data import _format_traces_form16_remark
     itr_list = applicant.get("itr") or []
     itr_role_label = "applicant"
     if not itr_list and co and (co.get("itr") or []):
@@ -533,7 +534,7 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
     else:
         itr_ay_str = ""
 
-    form16_ay_str = ", ".join(f"A.Y.{ay}" if not str(ay).startswith("A.Y.") else str(ay) for ay in ays) if ays else ""
+    traces_form16_remark = _format_traces_form16_remark(ays) if ays else ""
     is_student_or_unmarried = (
         "student" in occupation_str
         or occupation_str == "--"
@@ -577,18 +578,22 @@ def _fill_summary_narrative(doc, data: Dict[str, Any], persons: int) -> None:
                 _set_par_text(p, "Based on the verification conducted, the applicant's profile details are genuine.")
         elif "submitted Income Tax Returns" in t and "Assessment years" in t:
             if itr_ay_str and all_only_form16:
-                _set_par_text(p, f"No Income Tax Return (ITR) documents were found for the {itr_role_label}; only Form No. 16 for the Assessment year(s) {itr_ay_str} was provided for our verification as proof of income.")
+                _set_par_text(p, traces_form16_remark)
             elif itr_ay_str:
-                _set_par_text(p, f"The {itr_role_label} has submitted Income Tax Return(s) / Form No. 16 for the Assessment year(s) {itr_ay_str} as proof of income, provided for our verification.")
+                _set_par_text(p, f"The {itr_role_label} has submitted Income Tax Returns (ITRs) for the Assessment years {itr_ay_str}, as proof of income.")
             else:
                 _set_par_text(p, "No Income Tax Returns or Form No. 16 were provided for our verification.")
         elif "Form No: 16" in t and "Was Provided for Our Verification" in t:
-            if form16_ay_str and all_only_form16:
-                _set_par_text(p, f"Only Form No. 16 ({form16_ay_str}) was found and verified from the records provided (Income Tax Return Acknowledgement not submitted).")
-            elif form16_ay_str:
-                _set_par_text(p, f"Income Tax Return / Computation of Income ({form16_ay_str}) was verified from the records provided.")
+            if traces_form16_remark and all_only_form16:
+                # Paragraph 33/32 already contains the exact TRACES Form 16 remark when only Form 16 was provided;
+                # remove the second bullet paragraph so it doesn't print twice.
+                if p._p.getparent() is not None:
+                    p._p.getparent().remove(p._p)
             else:
-                _set_par_text(p, "")
+                # Rule 1 & Rule 2: When ITR Return Acknowledgement is available (either with Form 16 or alone),
+                # use ITR Acknowledgement details only and do not print the Form 16 TRACES line.
+                if p._p.getparent() is not None:
+                    p._p.getparent().remove(p._p)
         elif "The applicant," in t and "has submitted the KYC documents" in t:
             _set_par_text(p, f"The applicant, {a_name}, has submitted the KYC documents.")
         elif "The co applicant," in t and "has submitted the KYC documents" in t:
