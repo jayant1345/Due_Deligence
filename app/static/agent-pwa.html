@@ -698,19 +698,39 @@
               <option value="Self">Self / Applicant (પોતે / અરજદાર)</option>
               <option value="Husband">Husband (પતિ)</option>
               <option value="Wife">Wife (પત્ની)</option>
-              <option value="Son">Son (પુત્ર)</option>
-              <option value="Daughter">Daughter (પુત્રી)</option>
+              <option value="Spouse">Spouse (જીવનસાથી)</option>
               <option value="Father">Father (પિતા)</option>
               <option value="Mother">Mother (માતા)</option>
-              <option value="Father in law">Father in law (સસરા)</option>
-              <option value="Mother in law">Mother in law (સાસુ)</option>
+              <option value="Son">Son (પુત્ર)</option>
+              <option value="Daughter">Daughter (પુત્રી)</option>
               <option value="Brother">Brother (ભાઈ)</option>
               <option value="Sister">Sister (બહેન)</option>
-              <option value="Grandfather">Grandfather (દાદા)</option>
-              <option value="Grandmother">Grandmother (દાદી)</option>
-              <option value="Uncle">Uncle (કાકા / મામા)</option>
-              <option value="Aunt">Aunt (કાકી / મામી)</option>
-              <option value="Relative / Other">Relative / Other (અન્ય)</option>
+              <option value="Father in law">Father in law (સસરા)</option>
+              <option value="Mother in law">Mother in law (સાસુ)</option>
+              <option value="Brother in law">Brother in law (જીજાજી / સાળો / દિયર / જેઠ)</option>
+              <option value="Sister in law">Sister in law (ભાભી / સાળી / નણંદ / દેરાણી / જેઠાણી)</option>
+              <option value="Son in law">Son in law (જમાઈ)</option>
+              <option value="Daughter in law">Daughter in law (પુત્રવધૂ / વહુ)</option>
+              <option value="Uncle">Uncle (કાકા / મામા / માસા / ફુવા)</option>
+              <option value="Aunt">Aunt / Aunty (કાકી / મામી / માસી / ફોઈ)</option>
+              <option value="Nephew">Nephew (ભત્રીજો / ભાણો)</option>
+              <option value="Niece">Niece (ભત્રીજી / ભાણી)</option>
+              <option value="Cousin">Cousin (પિતરાઈ / મસિયાઈ ભાઈ-બહેન)</option>
+              <option value="Cousin Brother">Cousin Brother (પિતરાઈ ભાઈ)</option>
+              <option value="Cousin Sister">Cousin Sister (પિતરાઈ બહેન)</option>
+              <option value="Grandfather">Grandfather (દાદા / નાના)</option>
+              <option value="Grandmother">Grandmother (દાદી / નાની)</option>
+              <option value="Grandson">Grandson (પૌત્ર / દોહિત્ર)</option>
+              <option value="Granddaughter">Granddaughter (પૌત્રી / દોહિત્રી)</option>
+              <option value="Fiance / Fiancee">Fiance / Fiancee (મંગેતર)</option>
+              <option value="Friend">Friend (મિત્ર)</option>
+              <option value="Neighbour">Neighbour (પાડોશી)</option>
+              <option value="Business Partner">Business Partner (ધંધાકીય ભાગીદાર)</option>
+              <option value="Employer / Colleague">Employer / Colleague (માલિક / સહકર્મી)</option>
+              <option value="Landlord / Owner">Landlord / Owner (મકાન માલિક)</option>
+              <option value="Tenant">Tenant (ભાડુઆત)</option>
+              <option value="Guarantor">Guarantor (જામીનદાર)</option>
+              <option value="Relative / Other">Relative / Other (અન્ય સંબંધી)</option>
             </select>
           </div>
           <div class="sm:col-span-2">
@@ -1025,7 +1045,39 @@
           </div>
           <div>
             <label class="font-mono text-[10px] text-outline block mb-1">Relation to Applicant*</label>
-            <input id="formCoRelationToApplicant" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="e.g. Spouse, Brother, Partner"/>
+            <input id="formCoRelationToApplicant" list="pwaRelationsDatalist" value="" class="w-full text-xs font-semibold rounded-lg border border-outline-variant bg-white p-2 text-on-surface" placeholder="Select or type e.g. Wife, Brother in law, Niece"/>
+            <datalist id="pwaRelationsDatalist">
+              <option value="Husband">Husband (પતિ)</option>
+              <option value="Wife">Wife (પત્ની)</option>
+              <option value="Spouse">Spouse (જીવનસાથી)</option>
+              <option value="Father">Father (પિતા)</option>
+              <option value="Mother">Mother (માતા)</option>
+              <option value="Son">Son (પુત્ર)</option>
+              <option value="Daughter">Daughter (પુત્રી)</option>
+              <option value="Brother">Brother (ભાઈ)</option>
+              <option value="Sister">Sister (બહેન)</option>
+              <option value="Father in law">Father in law (સસરા)</option>
+              <option value="Mother in law">Mother in law (સાસુ)</option>
+              <option value="Brother in law">Brother in law (જીજાજી / સાળો / દિયર / જેઠ)</option>
+              <option value="Sister in law">Sister in law (ભાભી / સાળી / નણંદ / દેરાણી / જેઠાણી)</option>
+              <option value="Son in law">Son in law (જમાઈ)</option>
+              <option value="Daughter in law">Daughter in law (પુત્રવધૂ / વહુ)</option>
+              <option value="Uncle">Uncle (કાકા / મામા / માસા / ફુવા)</option>
+              <option value="Aunt">Aunt / Aunty (કાકી / મામી / માસી / ફોઈ)</option>
+              <option value="Nephew">Nephew (ભત્રીજો / ભાણો)</option>
+              <option value="Niece">Niece (ભત્રીજી / ભાણી)</option>
+              <option value="Cousin">Cousin (પિતરાઈ / મસિયાઈ ભાઈ-બહેન)</option>
+              <option value="Cousin Brother">Cousin Brother (પિતરાઈ ભાઈ)</option>
+              <option value="Cousin Sister">Cousin Sister (પિતરાઈ બહેન)</option>
+              <option value="Grandfather">Grandfather (દાદા / નાના)</option>
+              <option value="Grandmother">Grandmother (દાદી / નાની)</option>
+              <option value="Grandson">Grandson (પૌત્ર / દોહિત્ર)</option>
+              <option value="Granddaughter">Granddaughter (પૌત્રી / દોહિત્રી)</option>
+              <option value="Business Partner">Business Partner (ધંધાકીય ભાગીદાર)</option>
+              <option value="Co-Applicant">Co-Applicant (સહ-અરજદાર)</option>
+              <option value="Guarantor">Guarantor (જામીનદાર)</option>
+              <option value="Relative / Other">Relative / Other (અન્ય સંબંધી)</option>
+            </datalist>
           </div>
         </div>
 
@@ -2312,7 +2364,7 @@
   </nav>
 
   <!-- Interactive JavaScript Engine -->
-  <script src="/static/agent-pwa.js?v=18"></script>
+  <script src="/static/agent-pwa.js?v=19"></script>
 
   <!-- FIELD AGENT AUTHENTICATION MODAL -->
   <div id="agentLoginModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">

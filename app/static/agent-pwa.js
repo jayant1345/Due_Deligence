@@ -1,6 +1,6 @@
       // Register PWA Service Worker
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js?v=19", { updateViaCache: "none" }).then((reg) => {
+      navigator.serviceWorker.register("/sw.js?v=20", { updateViaCache: "none" }).then((reg) => {
         try { reg.update(); } catch (_) {}
         console.log("CPV Service Worker Registered");
       }).catch(err => console.log("SW error:", err));
@@ -1934,10 +1934,46 @@
 
     const familyRelations = [
       "Self / Applicant (પોતે / અરજદાર)",
-      "Husband (પતિ)", "Wife (પત્ની)", "Son (પુત્ર)", "Daughter (પુત્રી)",
-      "Father (પિતા)", "Mother (માતા)", "Father in law (સસરા)", "Mother in law (સાસુ)",
-      "Brother (ભાઈ)", "Sister (બહેન)", "Grandfather (દાદા)", "Grandmother (દાદી)",
-      "Uncle (કાકા / મામા)", "Aunt (કાકી / મામી)", "Relative / Other (અન્ય)"
+      "Husband (પતિ)",
+      "Wife (પત્ની)",
+      "Spouse (જીવનસાથી)",
+      "Father (પિતા)",
+      "Mother (માતા)",
+      "Son (પુત્ર)",
+      "Daughter (પુત્રી)",
+      "Brother (ભાઈ)",
+      "Sister (બહેન)",
+      "Father in law (સસરા)",
+      "Mother in law (સાસુ)",
+      "Brother in law (જીજાજી / સાળો / દિયર / જેઠ)",
+      "Sister in law (ભાભી / સાળી / નણંદ / દેરાણી / જેઠાણી)",
+      "Son in law (જમાઈ)",
+      "Daughter in law (પુત્રવધૂ / વહુ)",
+      "Uncle (કાકા / મામા / માસા / ફુવા)",
+      "Aunt / Aunty (કાકી / મામી / માસી / ફોઈ)",
+      "Nephew (ભત્રીજો / ભાણો)",
+      "Niece (ભત્રીજી / ભાણી)",
+      "Cousin (પિતરાઈ / મસિયાઈ ભાઈ-બહેન)",
+      "Cousin Brother (પિતરાઈ ભાઈ)",
+      "Cousin Sister (પિતરાઈ બહેન)",
+      "Grandfather (દાદા / નાના)",
+      "Grandmother (દાદી / નાની)",
+      "Grandson (પૌત્ર / દોહિત્ર)",
+      "Granddaughter (પૌત્રી / દોહિત્રી)",
+      "Great Grandfather (પરદાદા)",
+      "Great Grandmother (પરદાદી)",
+      "Step Father (સાવકા પિતા)",
+      "Step Mother (સાવકી માતા)",
+      "Step Son (સાવકો પુત્ર)",
+      "Step Daughter (સાવકી પુત્રી)",
+      "Step Brother (સાવકો ભાઈ)",
+      "Step Sister (સાવકી બહેન)",
+      "Fiance / Fiancee (મંગેતર)",
+      "Friend (મિત્ર)",
+      "Neighbour (પાડોશી)",
+      "Business Partner (ધંધાકીય ભાગીદાર)",
+      "Guarantor (જામીનદાર)",
+      "Relative / Other (અન્ય સંબંધી)"
     ];
 
     const familyOccupations = [
@@ -1957,12 +1993,17 @@
         const occStr = String(m.occupation || (m.earning === "No" ? "Dependent (આધારિત)" : "Job / Salaried (નોકરી)"));
         if (!m.relation) m.relation = relStr;
         if (!m.occupation) m.occupation = occStr;
-        const relWord = relStr.split(" ")[0] || "Relative";
+        const normRel = (s) => String(s || "").split(" (")[0].replace(/\s*\/\s*.*$/, "").replace(/-/g, " ").trim().toLowerCase();
+        const targetRelNorm = normRel(relStr);
         const occWord = occStr.split(" ")[0] || "Job";
         const row = document.createElement("div");
         row.className = "p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant shadow-2xs space-y-2";
         
-        let relOptions = familyRelations.map(r => `<option value="${r}" ${r.startsWith(relWord) || relStr === r ? 'selected' : ''}>${r}</option>`).join("");
+        let relOptions = familyRelations.map(r => {
+          const optNorm = normRel(r);
+          const isSel = relStr === r || optNorm === targetRelNorm || (targetRelNorm === "aunty" && optNorm === "aunt");
+          return `<option value="${r}" ${isSel ? 'selected' : ''}>${r}</option>`;
+        }).join("");
         let occOptions = familyOccupations.map(o => `<option value="${o}" ${o.startsWith(occWord) || occStr === o ? 'selected' : ''}>${o}</option>`).join("");
 
         row.innerHTML = `
@@ -2068,8 +2109,8 @@
       const textarea = document.getElementById("formFamily");
       if (!textarea) return;
       const lines = familyMembers.map((m, i) => {
-        const cleanRel = (m.relation || "").split(" ")[0];
-        const cleanOcc = (m.occupation || "").split(" ")[0];
+        const cleanRel = (m.relation || "").split(" (")[0].trim();
+        const cleanOcc = (m.occupation || "").split(" (")[0].trim();
         return `${i + 1} - ${m.name || 'Member'} - ${m.age || '0'} - ${cleanRel} - ${cleanOcc}`;
       });
       textarea.value = lines.join("\n");
@@ -2595,7 +2636,7 @@
               </div>
               <div>
                 <label class="font-mono text-[9px] text-outline block mb-0.5">Relation to Applicant</label>
-                <input type="text" value="${esc(ec.relation_to_applicant)}" oninput="updateExtraCoApplicantPwa(${idx}, 'relation_to_applicant', this.value)" placeholder="e.g. Mother, Brother" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5"/>
+                <input type="text" list="pwaRelationsDatalist" value="${esc(ec.relation_to_applicant)}" oninput="updateExtraCoApplicantPwa(${idx}, 'relation_to_applicant', this.value)" placeholder="Select or type e.g. Mother, Brother in law, Niece" class="w-full text-xs font-semibold rounded border border-outline-variant p-1.5"/>
               </div>
               <div>
                 <label class="font-mono text-[9px] text-outline block mb-0.5">Occupation</label>
@@ -3504,7 +3545,12 @@
       if (fMet) fMet.value = metSplit ? metSplit[1].trim() : metRawVal;
       if (fMetRelation) {
         const metRelationVal = metSplit ? metSplit[2].trim() : "";
-        fMetRelation.value = Array.from(fMetRelation.options).some(o => o.value === metRelationVal) ? metRelationVal : "";
+        const normMetRel = metRelationVal.replace(/-/g, " ").trim().toLowerCase();
+        const matchedOpt = Array.from(fMetRelation.options).find(o => {
+          const oVal = (o.value || "").replace(/-/g, " ").trim().toLowerCase();
+          return oVal === normMetRel || (normMetRel === "aunty" && oVal === "aunt");
+        });
+        fMetRelation.value = matchedOpt ? matchedOpt.value : "";
       }
       const fRefs = document.getElementById("formReferences");
       if (fRefs) fRefs.value = (c.neighbors || []).join(", ");
