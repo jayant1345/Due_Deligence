@@ -497,26 +497,39 @@
     return false;
   }
 
+  function isCaseNotHandedOverToAgent(c) {
+    if (!c) return false;
+    if (isFieldVisitCompleted(c)) return false;
+    const st = String(c.status || "").trim().toUpperCase();
+    const agentStr = String(c.agent || "").trim().toLowerCase();
+    const hasNoAssignedAgent =
+      !c.assigned_agent_id &&
+      (!agentStr || agentStr === "not yet allotted" || agentStr === "unassigned" || agentStr === "—");
+    return st === "DRAFT" || hasNoAssignedAgent;
+  }
+
   function caseMatchesVisitStatusFilter(c, visitFilter) {
     if (!visitFilter || visitFilter === "ALL") return true;
     const st = String((c && c.status) || "").trim().toUpperCase();
     const done = isFieldVisitCompleted(c);
+    const notHandedOver = isCaseNotHandedOverToAgent(c);
+    if (visitFilter === "NOT_HANDED_OVER") return notHandedOver;
     if (visitFilter === "VISIT_COMPLETED") return done;
-    if (visitFilter === "VISIT_NOT_COMPLETED") return !done;
+    if (visitFilter === "VISIT_NOT_COMPLETED") return !done && !notHandedOver;
     if (visitFilter === "READY_FOR_SCRUTINY") return done && st !== "CERTIFIED";
     if (visitFilter === "CERTIFIED_ONLY") return st === "CERTIFIED";
     return true;
   }
 
-  // Update the 4 options inside #filterVisitStatusSelect with live counts for the current Bank/Branch/LoanType
+  // Update the options inside #filterVisitStatusSelect with live counts for the current Bank/Branch/LoanType
   function updateVisitStatusOptionCounts(entries, bankName, branchName, loanType) {
     const visitSel = document.getElementById("filterVisitStatusSelect");
     if (!visitSel) return;
     const normBank = (bankName || "ALL").trim().toLowerCase();
     const normBranch = (branchName || "ALL").trim().toLowerCase();
     let total = 0;
-    let completed = 0;
-    let notCompleted = 0;
+    let notHandedOverCount = 0;
+    let visitPendingCount = 0;
     let readyForScrutiny = 0;
     let certified = 0;
 
@@ -528,18 +541,19 @@
       const done = isFieldVisitCompleted(c);
       const st = String(c.status || "").trim().toUpperCase();
       if (done) {
-        completed++;
         if (st === "CERTIFIED") certified++;
         else readyForScrutiny++;
+      } else if (isCaseNotHandedOverToAgent(c)) {
+        notHandedOverCount++;
       } else {
-        notCompleted++;
+        visitPendingCount++;
       }
     }
 
     const labels = {
-      ALL: `All Visits (${total})`,
-      VISIT_COMPLETED: `✅ Visit Completed by Agent (${completed})`,
-      VISIT_NOT_COMPLETED: `⏳ Visit Not Completed (${notCompleted})`,
+      ALL: `All Cases (${total})`,
+      NOT_HANDED_OVER: `📋 Cases Not Handover to Agent (${notHandedOverCount})`,
+      VISIT_NOT_COMPLETED: `⏳ Visit Not Completed — Pending Visit (${visitPendingCount})`,
       READY_FOR_SCRUTINY: `🔍 Visit Done — Pending CA Review (${readyForScrutiny})`,
       CERTIFIED_ONLY: `🏅 Report Certified — UDIN (${certified})`,
     };
@@ -673,7 +687,7 @@
       const ltShort = ltLabel && ltLabel !== "Others" ? ` • ${ltLabel}` : "";
       const visitTag = isFieldVisitCompleted(c)
         ? (String(c.status || "").toUpperCase() === "CERTIFIED" ? " [🏅 Certified]" : " [✓ Visit Done]")
-        : " [⏳ Visit Pending]";
+        : (isCaseNotHandedOverToAgent(c) ? " [📋 Not Handover]" : " [⏳ Visit Pending]");
       opt.textContent = `[${c.case_no}] - ${c.applicant_name}${dateStr} | ${c.bank} (${c.branch})${ltShort}${visitTag}`;
       frag.appendChild(opt);
       if (!firstMatch) firstMatch = id;
@@ -751,18 +765,21 @@
       }
     });
 
-    // Also enhance Management Portal filter & reset to support #mgmtFilterLoanType and Visit Completed / Not Completed
+    // Also enhance Management Portal filter & reset to support #mgmtFilterLoanType and NOT_HANDED_OVER / VISIT_NOT_COMPLETED
     if (typeof window.applyManagementFilters === "function" && !window.applyManagementFilters._loanTypeEnhanced) {
       const origApplyMgmt = window.applyManagementFilters;
       const wrappedApplyMgmt = function () {
         const statusSel = document.getElementById("mgmtFilterStatus");
         const specialVisitFilter =
-          statusSel && (statusSel.value === "VISIT_COMPLETED" || statusSel.value === "VISIT_NOT_COMPLETED")
+          statusSel &&
+          (statusSel.value === "NOT_HANDED_OVER" ||
+            statusSel.value === "VISIT_COMPLETED" ||
+            statusSel.value === "VISIT_NOT_COMPLETED")
             ? statusSel.value
             : null;
         if (specialVisitFilter && statusSel) {
           // Temporarily set to ALL so origApplyMgmt renders all rows matching Month/Bank/Branch/Staff/Search,
-          // then filter rows by Visit Completed vs Not Completed + Loan Type below.
+          // then filter rows by Handover / Visit Completed vs Not Completed + Loan Type below.
           statusSel.value = "ALL";
         }
         try {
@@ -802,7 +819,16 @@
                 text.includes("rejected") ||
                 text.includes("compliant") ||
                 text.includes("breach");
-              matchesVisit = specialVisitFilter === "VISIT_COMPLETED" ? isRowVisitCompleted : !isRowVisitCompleted;
+              const isRowNotHandedOver =
+                !isRowVisitCompleted &&
+                (text.includes("not yet started") || text.includes("not yet allotted"));
+              if (specialVisitFilter === "NOT_HANDED_OVER") {
+                matchesVisit = isRowNotHandedOver;
+              } else if (specialVisitFilter === "VISIT_NOT_COMPLETED") {
+                matchesVisit = !isRowVisitCompleted && !isRowNotHandedOver;
+              } else {
+                matchesVisit = isRowVisitCompleted;
+              }
             }
             const show = matchesLt && matchesVisit;
             tr.style.display = show ? "" : "none";

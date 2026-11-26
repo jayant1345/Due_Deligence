@@ -235,13 +235,13 @@
             </select>
           </div>
 
-          <!-- Filter 4: Field Visit Status Dropdown (Completed vs Not Completed) -->
+          <!-- Filter 4: Field Visit & Handover Status Dropdown -->
           <div class="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 shadow-sm">
             <span class="material-symbols-outlined text-emerald-700 text-[15px]">fact_check</span>
-            <select id="filterVisitStatusSelect" onchange="onVisitStatusFilterChanged(this.value)" class="text-xs bg-transparent border-0 font-semibold text-on-surface focus:ring-0 cursor-pointer pr-4" title="Filter cases by whether Field Agent has completed the site visit or not">
-              <option value="ALL">All Visits (Completed &amp; Pending)</option>
-              <option value="VISIT_COMPLETED">✅ Visit Completed by Agent</option>
-              <option value="VISIT_NOT_COMPLETED">⏳ Visit Not Completed (Pending Visit)</option>
+            <select id="filterVisitStatusSelect" onchange="onVisitStatusFilterChanged(this.value)" class="text-xs bg-transparent border-0 font-semibold text-on-surface focus:ring-0 cursor-pointer pr-4" title="Filter cases by Handover &amp; Field Visit Status">
+              <option value="ALL">All Cases (All Stages)</option>
+              <option value="NOT_HANDED_OVER">📋 Cases Not Handover to Agent</option>
+              <option value="VISIT_NOT_COMPLETED">⏳ Handed Over — Visit Not Completed (Pending Visit)</option>
               <option value="READY_FOR_SCRUTINY">🔍 Visit Done — Pending CA Review</option>
               <option value="CERTIFIED_ONLY">🏅 Report Certified (UDIN)</option>
             </select>
@@ -1729,12 +1729,12 @@
           <label class="block font-mono text-[9px] font-bold text-outline uppercase mb-0.5">Visit / Case Status (સ્થિતિ)</label>
           <select id="mgmtFilterStatus" onchange="applyManagementFilters()" class="w-full text-xs font-bold text-on-surface bg-transparent border-0 p-0 focus:ring-0 cursor-pointer">
             <option value="ALL">All Statuses (બધી સ્થિતિ)</option>
-            <option value="VISIT_COMPLETED">✅ Visit Completed by Agent (વિઝિટ પૂર્ણ)</option>
+            <option value="NOT_HANDED_OVER">📋 Cases Not Handover to Agent (હસ્તાંતરણ બાકી)</option>
             <option value="VISIT_NOT_COMPLETED">⏳ Visit Not Completed (વિઝિટ બાકી)</option>
-            <option value="PENDING_CA_REVIEW">PENDING CA REVIEW (ચકાસણી પેન્ડિંગ)</option>
+            <option value="PENDING_CA_REVIEW">🔍 Visit Done — Pending CA Review (ચકાસણી પેન્ડિંગ)</option>
             <option value="ASSIGNED">ASSIGNED (સોંપેલ)</option>
             <option value="IN_PROGRESS">IN_PROGRESS (ચાલુ)</option>
-            <option value="CERTIFIED">CERTIFIED (UDIN પ્રમાણિત)</option>
+            <option value="CERTIFIED">🏅 CERTIFIED (UDIN પ્રમાણિત)</option>
           </select>
         </div>
       </div>
@@ -2501,7 +2501,7 @@
   </div>
 
   <script src="/static/ca-portal.js?v=42"></script>
-  <script src="/static/active-sessions.js?v=9"></script>
+  <script src="/static/active-sessions.js?v=10"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
