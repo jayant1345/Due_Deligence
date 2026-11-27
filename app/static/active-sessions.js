@@ -452,15 +452,6 @@
     return rawLt.includes(normFilter);
   }
 
-  // Determines whether the Field Agent has completed the site visit for a case
-  const VISIT_COMPLETED_STATUSES = new Set([
-    "PENDING_CA_REVIEW",
-    "APPROVED",
-    "CERTIFIED",
-    "FLAGGED",
-    "REJECTED",
-  ]);
-
   const HARDCODED_DEMO_CASE_IDS = new Set([
     "b901fc63-12a8-4e32-9c02-e20984cfb001",
     "c102ad74-23b9-4f43-ad13-f31095d0c002",
@@ -469,32 +460,183 @@
     "f405da07-56ec-4c76-da46-c64328a3f005",
   ]);
 
-  function hasFieldFormSubmissionOnCase(c) {
-    if (!c) return false;
-    if (c.stay_period && c.stay_period !== "Not yet verified on site") return true;
-    if (c.person_met && c.person_met !== "Not yet visited") return true;
-    if (c.field_form_data) {
+  // Authoritative server-side visit telemetry map keyed by canonical UUID and uppercase case_no.
+  // Populated synchronously whenever /api/v1/cases or /api/v1/cases/{id}/documents responds.
+  const SERVER_CASE_VISIT_TELEMETRY = new Map();
+
+  function recordServerCaseTelemetry(dc) {
+    if (!dc || typeof dc !== "object") return;
+    const idStr = dc.id ? String(dc.id).trim() : "";
+    const cNoStr = dc.case_no ? String(dc.case_no).trim().toUpperCase() : "";
+    if (!idStr && !cNoStr) return;
+    const info = {
+      site_photos_count: typeof dc.site_photos_count === "number" ? dc.site_photos_count : 0,
+      has_agent_selfie: Boolean(dc.has_agent_selfie),
+      status: dc.status ? String(dc.status).trim().toUpperCase() : null,
+      capture_lat: dc.capture_lat != null ? dc.capture_lat : null,
+      capture_lon: dc.capture_lon != null ? dc.capture_lon : null,
+      distance_m: dc.distance_m != null ? dc.distance_m : null,
+    };
+    if (idStr) SERVER_CASE_VISIT_TELEMETRY.set(idStr, info);
+    if (cNoStr) SERVER_CASE_VISIT_TELEMETRY.set(cNoStr, info);
+  }
+
+  // Hook window.fetch so every /api/v1/cases response records site_photos_count & has_agent_selfie
+  // before loadDbCasesIntoRegistry() or buildMgmtEntriesFromApi() processes the returned JSON.
+  if (typeof window.fetch === "function" && !window.fetch._visitTelemetryHooked) {
+    const origFetch = window.fetch;
+    const NON_SITE_PHOTO_DOC_TYPES = new Set([
+      "AGENT_SELFIE",
+      "AADHAAR_CARD",
+      "PAN_CARD",
+      "PAN_VERIFICATION_REPORT",
+      "UTILITY_BILL",
+      "SALARY_SLIP",
+      "FORM_16",
+      "ITR_ACKNOWLEDGEMENT",
+      "COMPUTATION_OF_INCOME",
+      "PROFIT_LOSS_BALANCE_SHEET",
+      "PROPERTY_TITLE_DEED",
+      "BANK_STATEMENT",
+      "OTHER",
+    ]);
+    const hookedFetch = async function (input, init) {
+      const res = await origFetch.apply(this, arguments);
       try {
-        const ffd = typeof c.field_form_data === "string" ? JSON.parse(c.field_form_data) : c.field_form_data;
-        if (ffd && typeof ffd === "object") {
-          if (ffd.person_met || ffd.period_of_stay || ffd.ownership || ffd.neighbour_1 || (ffd.office_details && ffd.office_details.firm_name)) {
-            return true;
-          }
+        const urlStr = typeof input === "string" ? input : (input && input.url) || "";
+        if (urlStr.includes("/api/v1/cases") && res && res.ok) {
+          const origJson = res.json.bind(res);
+          res.json = async function () {
+            const data = await origJson();
+            try {
+              if (Array.isArray(data)) {
+                // Check if this is /api/v1/cases/{id}/documents or /api/v1/cases list
+                const docMatch = urlStr.match(/\/api\/v1\/cases\/([^/?#]+)\/documents/);
+                if (docMatch) {
+                  const cid = decodeURIComponent(docMatch[1]);
+                  let livePhotos = 0;
+                  let hasSelfie = false;
+                  for (const d of data) {
+                    if (!d || typeof d !== "object") continue;
+                    const dt = String(d.doc_type || "").toUpperCase();
+                    if (dt === "AGENT_SELFIE") {
+                      hasSelfie = true;
+                    } else if (
+                      !(d.ocr_data && d.ocr_data.source === "pdf_ingest") &&
+                      String(d.folder || "").toLowerCase() !== "kyc" &&
+                      !NON_SITE_PHOTO_DOC_TYPES.has(dt)
+                    ) {
+                      livePhotos++;
+                    }
+                  }
+                  const existingInfo = SERVER_CASE_VISIT_TELEMETRY.get(cid) || {};
+                  const updatedInfo = Object.assign({}, existingInfo, {
+                    site_photos_count: livePhotos,
+                    has_agent_selfie: hasSelfie,
+                  });
+                  SERVER_CASE_VISIT_TELEMETRY.set(cid, updatedInfo);
+                  if (typeof caseRegistry !== "undefined" && caseRegistry && caseRegistry[cid]) {
+                    const cObj = caseRegistry[cid];
+                    cObj.site_photos_count = livePhotos;
+                    cObj.has_agent_selfie = hasSelfie;
+                    if (cObj.case_no) {
+                      SERVER_CASE_VISIT_TELEMETRY.set(String(cObj.case_no).trim().toUpperCase(), updatedInfo);
+                    }
+                    syncTelemetryOntoCaseEntry(cObj);
+                  }
+                } else {
+                  data.forEach(recordServerCaseTelemetry);
+                }
+              } else if (data && typeof data === "object" && data.id && data.case_no) {
+                recordServerCaseTelemetry(data);
+              }
+            } catch (_) {}
+            return data;
+          };
         }
       } catch (_) {}
+      return res;
+    };
+    hookedFetch._visitTelemetryHooked = true;
+    window.fetch = hookedFetch;
+  }
+
+  function syncTelemetryOntoCaseEntry(c) {
+    if (!c || typeof c !== "object") return;
+    const idKey = String(c.db_id || c.server_id || c.id || "").trim();
+    const cNoKey = String(c.case_no || "").trim().toUpperCase();
+    const info =
+      (idKey && SERVER_CASE_VISIT_TELEMETRY.get(idKey)) ||
+      (cNoKey && SERVER_CASE_VISIT_TELEMETRY.get(cNoKey)) ||
+      null;
+    if (info) {
+      if (typeof info.site_photos_count === "number") {
+        c.site_photos_count = info.site_photos_count;
+      }
+      if (typeof info.has_agent_selfie === "boolean") {
+        c.has_agent_selfie = info.has_agent_selfie;
+      }
+      if (info.status) {
+        c.status = info.status;
+      }
+      if (c.site_photos_count === 0 && !c.has_agent_selfie) {
+        c.distance_m = null;
+        c.capture_lat = "—";
+        c.capture_lon = "—";
+        const st = String(c.status || "").trim().toUpperCase();
+        if (st === "IN_PROGRESS" || st === "PENDING_CA_REVIEW") {
+          const agentStr = String(c.agent || "").trim().toLowerCase();
+          const hasAgent =
+            Boolean(c.assigned_agent_id) ||
+            Boolean(agentStr && agentStr !== "not yet allotted" && agentStr !== "unassigned" && agentStr !== "—");
+          c.status = hasAgent ? "ASSIGNED" : "DRAFT";
+        }
+      } else if (c.site_photos_count === 0 && c.has_agent_selfie) {
+        const st = String(c.status || "").trim().toUpperCase();
+        if (st === "PENDING_CA_REVIEW") {
+          c.status = "IN_PROGRESS";
+        }
+      }
     }
-    return false;
+  }
+
+  function getCaseSitePhotosCount(c) {
+    if (!c || typeof c !== "object") return 0;
+    syncTelemetryOntoCaseEntry(c);
+    const countLive = (arr) =>
+      (arr || []).filter(
+        (item) =>
+          item &&
+          item.is_live &&
+          item.src &&
+          !String(item.src).includes("photo_pending.svg") &&
+          !String(item.src).includes("doc_pending.svg")
+      ).length;
+    const inMemoryLive =
+      countLive(c.residence_photos) +
+      countLive(c.work_photos) +
+      countLive(c.co_work_photos) +
+      (Array.isArray(c.residence_photos_extra) ? c.residence_photos_extra.length : 0) +
+      (Array.isArray(c.work_photos_extra) ? c.work_photos_extra.length : 0) +
+      (Array.isArray(c.co_work_photos_extra) ? c.co_work_photos_extra.length : 0);
+    if (inMemoryLive > 0) return inMemoryLive;
+    if (typeof c.site_photos_count === "number" && !isNaN(c.site_photos_count)) {
+      return c.site_photos_count;
+    }
+    return 0;
   }
 
   function isFieldVisitCompleted(c) {
     if (!c) return false;
+    syncTelemetryOntoCaseEntry(c);
     const st = String(c.status || "").trim().toUpperCase();
-    if (VISIT_COMPLETED_STATUSES.has(st)) return true;
-    // Also treat as visit-completed if real GPS capture distance or field form submission is already on record
-    if (typeof c.distance_m === "number" && !isNaN(c.distance_m)) return true;
-    if (c.capture_lat && c.capture_lat !== "—" && c.capture_lon && c.capture_lon !== "—") return true;
-    if (hasFieldFormSubmissionOnCase(c)) return true;
-    return false;
+    // Already certified report with UDIN
+    if (st === "CERTIFIED") return true;
+    // For any non-certified case, the field visit is ONLY completed and ready for CA review
+    // when actual site/office visit photographs have been uploaded (site_photos_count > 0).
+    // Any case where photos are NOT uploaded (0 site photos) must NEVER come under
+    // "Visit Done — Pending CA Review".
+    return getCaseSitePhotosCount(c) > 0;
   }
 
   function isCaseNotHandedOverToAgent(c) {
@@ -704,11 +846,20 @@
     const targetCaseId = stillHasPrev ? prevActiveId : firstMatch;
     if (targetCaseId) {
       caseSelect.value = targetCaseId;
-      // Only trigger full network reload of case documents when the active case actually changed!
-      // Previously, calling onCaseSelected(targetCaseId) unconditionally on every filter change
-      // fired 4 heavy network requests (documents, separated-documents, auto-locate, geofence)
-      // even when the same case remained selected, causing the 1–3 second delay on filter change.
-      if (!options.skipCaseLoad && targetCaseId !== prevActiveId && typeof onCaseSelected === "function") {
+      // Keep the displayed status badge on the Scrutiny Desk in sync if the open case's status was healed
+      if (typeof caseRegistry !== "undefined" && caseRegistry && caseRegistry[targetCaseId]) {
+        syncTelemetryOntoCaseEntry(caseRegistry[targetCaseId]);
+        if (targetCaseId === prevActiveId) {
+          const statusEl = document.getElementById("dispCaseStatus");
+          if (statusEl && caseRegistry[targetCaseId].status) {
+            statusEl.textContent = caseRegistry[targetCaseId].status;
+          }
+        }
+      }
+      // Whenever the active case actually changes (e.g. the previous case does not match the active filter),
+      // load the newly selected firstMatch case onto the Scrutiny Desk so the desk always matches the dropdown!
+      // When targetCaseId === prevActiveId (same case stays open), skip onCaseSelected so filtering is instant.
+      if (targetCaseId !== prevActiveId && typeof onCaseSelected === "function") {
         onCaseSelected(targetCaseId);
       }
     } else {
@@ -811,17 +962,22 @@
             }
             let matchesVisit = true;
             if (specialVisitFilter) {
-              const isRowVisitCompleted =
-                text.includes("pending ca review") ||
-                text.includes("certified") ||
-                text.includes("approved") ||
-                text.includes("flagged") ||
-                text.includes("rejected") ||
-                text.includes("compliant") ||
-                text.includes("breach");
-              const isRowNotHandedOver =
-                !isRowVisitCompleted &&
-                (text.includes("not yet started") || text.includes("not yet allotted"));
+              const rowCaseNo = (tr.querySelector("td div")?.textContent || "").trim();
+              const rowCaseObj =
+                rowCaseNo && typeof caseRegistry !== "undefined" && caseRegistry
+                  ? caseRegistry[rowCaseNo]
+                  : null;
+              let isRowVisitCompleted = false;
+              let isRowNotHandedOver = false;
+              if (rowCaseObj) {
+                isRowVisitCompleted = isFieldVisitCompleted(rowCaseObj);
+                isRowNotHandedOver = isCaseNotHandedOverToAgent(rowCaseObj);
+              } else {
+                isRowVisitCompleted = text.includes("certified (udin)");
+                isRowNotHandedOver =
+                  !isRowVisitCompleted &&
+                  (text.includes("not yet started") || text.includes("not yet allotted"));
+              }
               if (specialVisitFilter === "NOT_HANDED_OVER") {
                 matchesVisit = isRowNotHandedOver;
               } else if (specialVisitFilter === "VISIT_NOT_COMPLETED") {

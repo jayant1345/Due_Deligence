@@ -58,6 +58,225 @@ async def resolve_loan_case(db: AsyncSession, case_id: str) -> Optional[LoanCase
 
 _HEALED_CASE_SIGNATURES: set = set()
 
+SITE_VISIT_PHOTO_DOC_TYPES = (
+    DocumentType.PROPERTY_EXTERIOR,
+    DocumentType.PROPERTY_INTERIOR,
+    DocumentType.ELECTRICITY_METER,
+    DocumentType.SOCIETY_BOARD,
+    DocumentType.NEIGHBOR_VERIFICATION,
+    DocumentType.OFFICE_FACADE,
+    DocumentType.OFFICE_NAMEBOARD,
+    DocumentType.OFFICE_INTERIOR,
+    DocumentType.OFFICE_SELFIE,
+    DocumentType.WORK_FACADE,
+    DocumentType.WORK_OFFICE,
+    DocumentType.WORK_DESK,
+    DocumentType.WORK_APPROACH,
+    DocumentType.CO_OFFICE_FACADE,
+    DocumentType.CO_OFFICE_NAMEBOARD,
+    DocumentType.CO_OFFICE_INTERIOR,
+    DocumentType.CO_OFFICE_SELFIE,
+)
+ALL_FIELD_VISIT_DOC_TYPES = SITE_VISIT_PHOTO_DOC_TYPES + (DocumentType.AGENT_SELFIE,)
+
+
+def _field_visit_photo_exists_on_disk(raw_url: Optional[str]) -> bool:
+    if not raw_url:
+        return False
+    if os.path.exists(raw_url):
+        return True
+    norm_url = str(raw_url).replace("\\", "/").strip()
+    if "/static/extracted_pages/" in norm_url:
+        norm_url = norm_url.replace("/static/extracted_pages/", "/storage/separated_docs/")
+    if "storage_uploads/" in norm_url:
+        clean_url = "/storage/" + norm_url.split("storage_uploads/")[-1]
+    elif norm_url.startswith("http://") or norm_url.startswith("https://"):
+        return True
+    elif norm_url.startswith("/"):
+        clean_url = norm_url
+    else:
+        clean_url = f"/storage/{norm_url}"
+    if clean_url.startswith("/storage/"):
+        rel_file = clean_url[len("/storage/"):]
+        local_path = os.path.join("storage_uploads", rel_file)
+        if os.path.exists(local_path):
+            return True
+        alt1 = os.path.join("storage_uploads", "separated_docs", rel_file)
+        alt2 = os.path.join("app", "static", "extracted_pages", rel_file)
+        if os.path.exists(alt1) or os.path.exists(alt2):
+            return True
+        return False
+    return True
+
+
+def _has_meaningful_field_form_answers(ff: Any) -> bool:
+    """
+    Returns True only when a field_form_data dictionary contains genuine field visit findings
+    entered by a field agent or extracted from a Field Visit Google Form PDF — NOT merely
+    untouched HTML <select> defaults ('Owned', '3 BHK Flat', 'Job') auto-saved when a case
+    was opened and closed on the PWA without visiting the site.
+    """
+    if not isinstance(ff, dict) or not ff:
+        return False
+    if ff.get("form_person_name") or ff.get("_forms_merged_count"):
+        return True
+    for k in (
+        "person_met",
+        "period_of_stay",
+        "neighbour_1",
+        "neighbour_2",
+        "owner_name",
+        "age_community",
+        "age",
+        "qualification",
+    ):
+        val = str(ff.get(k) or "").strip()
+        if val and val.lower() not in ("not yet visited", "not yet verified on site", "na", "n/a", "—", "-"):
+            return True
+    off = ff.get("office_details")
+    if isinstance(off, dict):
+        for ok in ("firm_name", "who_meet", "reference_1", "reference_2", "established_since", "designation", "position", "employees", "reg_no"):
+            val = str(off.get(ok) or "").strip()
+            if val and val.lower() not in ("na", "n/a", "—", "-"):
+                return True
+    off_co = ff.get("office_details_co")
+    if isinstance(off_co, dict):
+        for ok in ("firm_name", "who_meet", "reference_1", "reference_2", "established_since", "designation", "position", "employees", "reg_no"):
+            val = str(off_co.get(ok) or "").strip()
+            if val and val.lower() not in ("na", "n/a", "—", "-"):
+                return True
+    res_co = ff.get("residence_details_co")
+    if isinstance(res_co, dict):
+        for rk in ("period_of_stay", "owner_name", "person_met", "neighbour_1", "neighbour_2"):
+            val = str(res_co.get(rk) or "").strip()
+            if val and val.lower() not in ("na", "n/a", "—", "-"):
+                return True
+    fam = ff.get("family_members")
+    if isinstance(fam, list):
+        for m in fam:
+            if not isinstance(m, dict):
+                continue
+            m_name = str(m.get("name") or "").strip()
+            m_rel = str(m.get("relation") or "").strip().lower()
+            m_age = str(m.get("age") or "").strip()
+            if (m_name and m_rel and m_rel != "self") or m_age:
+                return True
+    return False
+
+
+async def _compute_and_heal_case_visit_telemetry(db: AsyncSession, cases: List[LoanCase]) -> bool:
+    """
+    Computes exact `site_photos_count`, `has_agent_selfie`, and latest site capture coordinates
+    (`capture_lat`, `capture_lon`, `distance_m`) for each case in `cases` from actual on-disk
+    site visit photos and attendance selfies (never counting AI-ingested KYC PDF pages or
+    manual KYC uploads as site visit photos).
+
+    Also auto-heals any case that has 0 site visit photos and 0 attendance selfie so it never
+    falsely sits in `IN_PROGRESS` or `PENDING_CA_REVIEW`.
+    """
+    if not cases:
+        return False
+    case_ids = [c.id for c in cases]
+    docs_result = await db.execute(
+        select(
+            CaseDocument.case_id,
+            CaseDocument.doc_type,
+            CaseDocument.latitude,
+            CaseDocument.longitude,
+            CaseDocument.distance_from_target,
+            CaseDocument.storage_url,
+            CaseDocument.watermarked_url,
+        )
+        .where(
+            CaseDocument.case_id.in_(case_ids),
+            CaseDocument.doc_type.in_(ALL_FIELD_VISIT_DOC_TYPES),
+        )
+        .order_by(CaseDocument.captured_at.desc())
+    )
+    latest_by_case: Dict[uuid.UUID, tuple] = {}
+    photo_count_by_case: Dict[uuid.UUID, int] = {}
+    selfie_by_case: Dict[uuid.UUID, bool] = {}
+
+    for row in docs_result.all():
+        raw_url = row.watermarked_url or row.storage_url or ""
+        if not _field_visit_photo_exists_on_disk(raw_url):
+            continue
+        if row.doc_type == DocumentType.AGENT_SELFIE:
+            selfie_by_case[row.case_id] = True
+        else:
+            photo_count_by_case[row.case_id] = photo_count_by_case.get(row.case_id, 0) + 1
+        if (
+            row.latitude is not None
+            and row.longitude is not None
+            and row.case_id not in latest_by_case
+        ):
+            latest_by_case[row.case_id] = (row.latitude, row.longitude, row.distance_from_target)
+
+    dirty = False
+    CA_PRESERVED_FF_KEYS = (
+        "ca_dealing_clerk",
+        "dealing_clerk",
+        "verifier_agent_name",
+        "file_allotted_by",
+        "allotted_by",
+        "co_applicant_relation",
+        "audit_checks",
+        "itr_acknowledgement_no",
+        "itr_filing_date",
+        "bank_account_status",
+        "bank_account_status_co",
+        "co_applicant_name",
+        "co_applicant_contact",
+        "applicant_3_name",
+        "applicant_3_phone",
+        "applicant_4_name",
+        "applicant_4_phone",
+        "applicant_5_name",
+        "applicant_5_phone",
+        "extra_co_applicants",
+        "pdf_ingest",
+    )
+
+    for c in cases:
+        site_cnt = photo_count_by_case.get(c.id, 0)
+        has_selfie = bool(selfie_by_case.get(c.id, False))
+        coords = latest_by_case.get(c.id)
+
+        c.site_photos_count = site_cnt
+        c.has_agent_selfie = has_selfie
+        c.capture_lat = coords[0] if coords else None
+        c.capture_lon = coords[1] if coords else None
+        c.distance_m = coords[2] if coords else None
+
+        if site_cnt == 0 and not has_selfie:
+            # Neither site visit photos nor attendance selfie uploaded:
+            # Case must NOT be IN_PROGRESS or PENDING_CA_REVIEW
+            if c.status in (CaseStatus.IN_PROGRESS, CaseStatus.PENDING_CA_REVIEW):
+                c.status = CaseStatus.ASSIGNED if c.assigned_agent_id else CaseStatus.DRAFT
+                dirty = True
+            # Strip any accidental untouched PWA auto-draft defaults from field_form_data
+            if c.field_form_data:
+                try:
+                    parsed_ff = json.loads(c.field_form_data)
+                    if (
+                        isinstance(parsed_ff, dict)
+                        and parsed_ff
+                        and not _has_meaningful_field_form_answers(parsed_ff)
+                        and any(k in parsed_ff for k in ("_updated_at", "ownership", "building_type", "restore"))
+                    ):
+                        kept_ff = {k: parsed_ff[k] for k in CA_PRESERVED_FF_KEYS if parsed_ff.get(k) not in (None, "", [], {})}
+                        c.field_form_data = json.dumps(kept_ff) if kept_ff else None
+                        dirty = True
+                except Exception:
+                    pass
+        elif site_cnt == 0 and has_selfie:
+            # Only attendance selfie captured, 0 site photos uploaded -> visit is IN_PROGRESS, not completed
+            if c.status == CaseStatus.PENDING_CA_REVIEW:
+                c.status = CaseStatus.IN_PROGRESS
+                dirty = True
+
+    return dirty
+
 
 @router.get("", response_model=List[CaseResponse])
 async def list_cases(
@@ -92,32 +311,7 @@ async def list_cases(
     result = await db.execute(query)
     cases = result.scalars().all()
 
-    # Fetch only the 4 lightweight coordinate columns instead of full CaseDocument ORM rows (which carry large ocr_data JSONB blobs)
-    case_ids = [c.id for c in cases]
-    if case_ids:
-        docs_result = await db.execute(
-            select(
-                CaseDocument.case_id,
-                CaseDocument.latitude,
-                CaseDocument.longitude,
-                CaseDocument.distance_from_target,
-            )
-            .where(
-                CaseDocument.case_id.in_(case_ids),
-                CaseDocument.latitude.isnot(None),
-                CaseDocument.longitude.isnot(None),
-            )
-            .order_by(CaseDocument.captured_at.desc())
-        )
-        latest_by_case: Dict[uuid.UUID, tuple] = {}
-        for row in docs_result.all():
-            if row.case_id not in latest_by_case:
-                latest_by_case[row.case_id] = (row.latitude, row.longitude, row.distance_from_target)
-        for c in cases:
-            coords = latest_by_case.get(c.id)
-            c.capture_lat = coords[0] if coords else None
-            c.capture_lon = coords[1] if coords else None
-            c.distance_m = coords[2] if coords else None
+    healed_visit_telemetry = await _compute_and_heal_case_visit_telemetry(db, cases)
 
     # Auto-heal any case whose loan_amount was stored with a stripped Lakh decimal (e.g. 2035 from "20.35 LAC")
     # or whose neighbour_1 combined two neighbour names (e.g. "BABU RAO - RAJU BHAI")
@@ -128,7 +322,7 @@ async def list_cases(
         reconcile_family_members_for_applicant,
         enrich_field_form_defaults,
     )
-    healed_any = False
+    healed_any = healed_visit_telemetry
     for c in cases:
         sig = (c.id, getattr(c, "updated_at", None), c.applicant_name, c.loan_amount)
         if sig in _HEALED_CASE_SIGNATURES:
@@ -695,6 +889,8 @@ async def get_date_wise_case_entry_report(
         q = q.where(LoanCase.assigned_agent_id == current_user.id)
     res = await db.execute(q)
     all_cases = res.scalars().all()
+    if await _compute_and_heal_case_visit_telemetry(db, all_cases):
+        await db.commit()
 
     agent_res = await db.execute(select(User.id, User.full_name))
     agent_map = {row[0]: row[1] for row in agent_res.all()}
@@ -869,6 +1065,9 @@ async def get_case_detail(
 
     if current_user.role == UserRole.FIELD_AGENT and loan_case.assigned_agent_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this case.")
+
+    if await _compute_and_heal_case_visit_telemetry(db, [loan_case]):
+        await db.commit()
 
     return loan_case
 

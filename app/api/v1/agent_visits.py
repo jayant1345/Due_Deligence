@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_current_user_optional
+from app.api.v1.cases import ALL_FIELD_VISIT_DOC_TYPES, _has_meaningful_field_form_answers
 from app.core.database import get_db
 from app.models.document import CaseDocument, DocumentType, VerificationStatus
 from app.models.loan_case import CaseStatus, LoanCase, VisitRecord
@@ -79,7 +80,16 @@ async def check_in_site(
     # or just re-testing) silently reverted its status, undoing the certification even though no
     # one actually un-certified it.
     if loan_case.status in (CaseStatus.DRAFT, CaseStatus.ASSIGNED):
-        loan_case.status = CaseStatus.IN_PROGRESS
+        photo_check = await db.execute(
+            select(CaseDocument.id)
+            .where(
+                CaseDocument.case_id == loan_case.id,
+                CaseDocument.doc_type.in_(ALL_FIELD_VISIT_DOC_TYPES),
+            )
+            .limit(1)
+        )
+        if photo_check.scalar_one_or_none() is not None:
+            loan_case.status = CaseStatus.IN_PROGRESS
 
     audit = AuditLog(
         case_id=loan_case.id,
@@ -119,6 +129,7 @@ async def submit_field_visit_form(
     acting_user = await _resolve_agent_or_default(db, current_user, loan_case)
 
     import json
+    from app.api.v1.cases import ALL_FIELD_VISIT_DOC_TYPES, _has_meaningful_field_form_answers
     from app.services.field_form_pdf_ingest import enrich_field_form_defaults
 
     try:
@@ -129,6 +140,12 @@ async def submit_field_visit_form(
         existing_ff = {}
 
     incoming_ff = dict(req.form_data or {})
+
+    # Ignore untouched background PWA auto-drafts (e.g. triggered on pagehide/visibilitychange when
+    # an agent merely viewed a case without filling any visit details) so they never pollute
+    # field_form_data with default dropdowns ('Owned', '3 BHK Flat') or flip status to IN_PROGRESS.
+    if not _has_meaningful_field_form_answers(incoming_ff) and not _has_meaningful_field_form_answers(existing_ff):
+        return {"status": "SKIPPED_EMPTY_DRAFT", "message": "Ignored untouched auto-draft"}
 
     # Preserve server-side & multi-applicant keys (pdf_ingest, extra_co_applicants, applicant_3..5,
     # CA-entered ITR/bank status, field_form_locked, etc.) so saving the mobile PWA form never wipes them out.
@@ -235,7 +252,16 @@ async def submit_field_visit_form(
             loan_case.co_applicant_office_address = off_co["address"].strip()
 
     if loan_case.status in (CaseStatus.DRAFT, CaseStatus.ASSIGNED):
-        loan_case.status = CaseStatus.IN_PROGRESS
+        photo_check = await db.execute(
+            select(CaseDocument.id)
+            .where(
+                CaseDocument.case_id == loan_case.id,
+                CaseDocument.doc_type.in_(ALL_FIELD_VISIT_DOC_TYPES),
+            )
+            .limit(1)
+        )
+        if photo_check.scalar_one_or_none() is not None:
+            loan_case.status = CaseStatus.IN_PROGRESS
 
     audit = AuditLog(
         case_id=loan_case.id,
@@ -539,10 +565,9 @@ async def zero_lag_upload_document(
     )
     db.add(doc)
 
-    # Advance case status to IN_PROGRESS - same guard as check-in above: a later document
-    # upload (retake, correction, an "Additional Photos" test) must never silently undo an
-    # already-certified case's status.
-    if loan_case.status in (CaseStatus.DRAFT, CaseStatus.ASSIGNED):
+    # Advance case status to IN_PROGRESS only for genuine field visit photo / selfie uploads
+    # (never for manual KYC uploads in norm_folder == 'kyc', and never downgrading an already-certified case).
+    if norm_folder != "kyc" and resolved_doc_type in ALL_FIELD_VISIT_DOC_TYPES and loan_case.status in (CaseStatus.DRAFT, CaseStatus.ASSIGNED):
         loan_case.status = CaseStatus.IN_PROGRESS
 
     audit = AuditLog(

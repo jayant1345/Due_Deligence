@@ -1,6 +1,6 @@
       // Register PWA Service Worker
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js?v=20", { updateViaCache: "none" }).then((reg) => {
+      navigator.serviceWorker.register("/sw.js?v=21", { updateViaCache: "none" }).then((reg) => {
         try { reg.update(); } catch (_) {}
         console.log("CPV Service Worker Registered");
       }).catch(err => console.log("SW error:", err));
@@ -2765,6 +2765,38 @@
     // ==========================================
     let isSwitchingPwaCase = false;
     let pwaFormAutoSyncTimer = null;
+    let pwaFormDirtyForActiveCase = false;
+
+    function isMeaningfulPwaFormDraft(p) {
+      if (!p || typeof p !== "object") return false;
+      for (const k of ["person_met", "period_of_stay", "neighbour_1", "neighbour_2", "owner_name", "age_community", "qualification"]) {
+        const v = String(p[k] || "").trim();
+        if (v && v.toLowerCase() !== "not yet visited" && v.toLowerCase() !== "not yet verified on site") return true;
+      }
+      const off = p.office_details;
+      if (off && typeof off === "object") {
+        for (const ok of ["firm_name", "who_meet", "reference_1", "reference_2", "established_since", "designation", "position"]) {
+          if (String(off[ok] || "").trim()) return true;
+        }
+      }
+      const offCo = p.office_details_co;
+      if (offCo && typeof offCo === "object") {
+        for (const ok of ["firm_name", "who_meet", "reference_1", "reference_2", "established_since", "designation", "position"]) {
+          if (String(offCo[ok] || "").trim()) return true;
+        }
+      }
+      if (Array.isArray(p.family_members)) {
+        for (const m of p.family_members) {
+          if (m && typeof m === "object") {
+            const nm = String(m.name || "").trim();
+            const rl = String(m.relation || "").trim().toLowerCase();
+            const ag = String(m.age || "").trim();
+            if ((nm && rl && rl !== "self") || ag) return true;
+          }
+        }
+      }
+      return false;
+    }
 
     function collectPwaDueDiligencePayload() {
       const exec = document.getElementById("formExecutive") ? document.getElementById("formExecutive").value : "";
@@ -3205,6 +3237,10 @@
           if (!raw) continue;
           const parsed = JSON.parse(raw);
           if (parsed && typeof parsed === "object") {
+            if (!isMeaningfulPwaFormDraft(parsed)) {
+              localStorage.removeItem(k);
+              continue;
+            }
             if (!bestDraft || (parsed._updated_at || 0) > (bestDraft._updated_at || 0)) {
               bestDraft = parsed;
             }
@@ -3251,19 +3287,20 @@
 
     function schedulePwaFormAutoSave() {
       if (isSwitchingPwaCase || !sampleCaseId) return;
+      pwaFormDirtyForActiveCase = true;
       savePwaFormDraftLocally();
       if (pwaFormAutoSyncTimer) clearTimeout(pwaFormAutoSyncTimer);
       pwaFormAutoSyncTimer = setTimeout(() => {
-        if (!isSwitchingPwaCase && sampleCaseId) {
+        if (!isSwitchingPwaCase && sampleCaseId && pwaFormDirtyForActiveCase) {
           submitDueDiligenceForm({ silent: true, autoDraft: true });
         }
       }, 1800);
     }
 
     function flushPwaFormWithKeepalive() {
-      if (isSwitchingPwaCase || !sampleCaseId) return;
+      if (isSwitchingPwaCase || !sampleCaseId || !pwaFormDirtyForActiveCase) return;
       const payload = savePwaFormDraftLocally();
-      if (!payload) return;
+      if (!payload || !isMeaningfulPwaFormDraft(payload)) return;
       // If the native mobile camera app is currently being launched by triggerSlotCapture(),
       // skip the background network POST so Chrome doesn't compete with the camera activity.
       if (Date.now() < cameraPickerOpenUntil) return;
@@ -3390,10 +3427,11 @@
     function switchPwaCase(key) {
       const isActualSwitch = key !== activeCaseKey;
       // Before switching away from the currently active case, persist its latest form draft into
-      // localStorage and caseRegistryPwa so no typed home/office details are ever lost.
-      if (isActualSwitch && sampleCaseId && !isSwitchingPwaCase) {
+      // localStorage and caseRegistryPwa only if the agent actually edited the form on this case.
+      if (isActualSwitch && sampleCaseId && !isSwitchingPwaCase && pwaFormDirtyForActiveCase) {
         savePwaFormDraftLocally();
       }
+      pwaFormDirtyForActiveCase = false;
       isSwitchingPwaCase = true;
       try {
       let c = caseRegistryPwa[key];

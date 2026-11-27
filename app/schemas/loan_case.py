@@ -115,6 +115,8 @@ class CaseResponse(BaseModel):
     capture_lat: Optional[float] = None
     capture_lon: Optional[float] = None
     distance_m: Optional[float] = None
+    site_photos_count: int = 0
+    has_agent_selfie: bool = False
 
     class Config:
         from_attributes = True
