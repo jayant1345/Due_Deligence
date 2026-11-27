@@ -370,7 +370,7 @@ def _clean_public_doc_url(raw_url: Optional[str]) -> str:
 async def get_agent_wise_activity_trace(
     agent_id: Optional[uuid.UUID] = Query(None, description="Optional field agent UUID filter"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_ca_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ) -> Dict[str, Any]:
     """
     Purely additive Field Agent-wise Activity Trace endpoint.

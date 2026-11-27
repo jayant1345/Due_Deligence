@@ -1846,7 +1846,121 @@
       .join("");
   }
 
+  function buildFallbackAgentTraceFromRegistry() {
+    const entries = getDeduplicatedRegistryEntries();
+    const agentsList = Array.isArray(window.allAgents) ? window.allAgents : [];
+    const agentStats = new Map();
+    agentsList.forEach((a) => {
+      if (!a || !a.id) return;
+      agentStats.set(String(a.id), {
+        agent_id: String(a.id),
+        agent_name: a.full_name || "Field Agent",
+        username: (a.email || "").split("@")[0] || "",
+        designation: a.designation || "Field Verification Officer",
+        is_online_now: false,
+        total_cases_taken: 0,
+        visits_completed: 0,
+        visits_pending: 0,
+        forms_submitted: 0,
+        total_photos_uploaded: 0,
+        total_selfies_uploaded: 0,
+        last_active_ist: "—",
+        latest_case_no: "—",
+      });
+    });
+
+    const casesTrace = [];
+    for (const [id, c] of entries) {
+      if (!c) continue;
+      const photosCount = getCaseSitePhotosCount(c);
+      const hasSelfie = Boolean(c.has_agent_selfie || c.selfie_verified);
+      let ff = {};
+      try {
+        ff = typeof c.field_form_data === "string" ? JSON.parse(c.field_form_data || "{}") : (c.field_form_data || {});
+      } catch (_) {}
+      const off = (ff && ff.office_details) || {};
+      const hasForm = Boolean(
+        (ff && (ff.person_met || ff.period_of_stay || ff.neighbour_1 || off.firm_name)) ||
+        (c.person_met && c.person_met !== "Not yet visited")
+      );
+      const agId = c.assigned_agent_id ? String(c.assigned_agent_id) : null;
+      const agObj = agId ? agentStats.get(agId) : null;
+      const isDone = isFieldVisitCompleted(c);
+      if (agObj) {
+        agObj.total_cases_taken++;
+        if (isDone) agObj.visits_completed++;
+        else agObj.visits_pending++;
+        if (hasForm) agObj.forms_submitted++;
+        agObj.total_photos_uploaded += photosCount;
+        if (hasSelfie) agObj.total_selfies_uploaded++;
+        if (agObj.latest_case_no === "—") agObj.latest_case_no = c.case_no || "—";
+      }
+      const fmtDt = c.created_at && typeof fmtAalDate === "function" ? fmtAalDate(c.created_at) : "—";
+      casesTrace.push({
+        case_id: String(c.db_id || id),
+        case_no: c.case_no || "—",
+        applicant_name: c.applicant_name || "—",
+        co_applicant_name: c.co_applicant_name || "",
+        bank_name: c.bank || "—",
+        branch: c.branch || "",
+        loan_type: c.loan_type || "Loan",
+        loan_amount: c.loan_amount,
+        target_address: c.address || "",
+        status: c.status || "DRAFT",
+        is_visit_done: isDone,
+        agent_id: agId,
+        agent_name: agObj ? agObj.agent_name : (c.agent || "Not Yet Allotted"),
+        assigned_at_ist: agId ? fmtDt : "Not Allotted",
+        last_activity_ist: fmtDt,
+        selfie: {
+          uploaded: hasSelfie,
+          url: c.agent_selfie || "/static/placeholders/photo_pending.svg",
+          thumb_url: c.agent_selfie || "/static/placeholders/photo_pending.svg",
+          captured_at_ist: c.visit_date && c.visit_date !== "Not yet visited" ? c.visit_date : null,
+          distance_m: c.distance_m,
+        },
+        photos: {
+          total_site_photos: photosCount,
+          residence_count: photosCount,
+          work_count: 0,
+          co_work_count: 0,
+          residence_slots: [],
+          work_slots: [],
+          co_work_slots: [],
+          latest_photo_at_ist: null,
+        },
+        form: {
+          submitted: hasForm,
+          submitted_at_ist: null,
+          source: "PWA Field Form",
+          person_met: (ff && ff.person_met) || c.person_met || "",
+          period_of_stay: (ff && ff.period_of_stay) || c.stay_period || "",
+          ownership: (ff && ff.ownership) || c.ownership || "",
+          building_type: (ff && ff.building_type) || "",
+          neighbours: [ff && ff.neighbour_1, ff && ff.neighbour_2].filter(Boolean).join(" • "),
+          occupation: (ff && ff.occupation) || off.occupation || "",
+          firm_name: off.firm_name || "",
+          designation: off.position || off.designation || "",
+        },
+        recent_events: [],
+      });
+    }
+    return {
+      agents: Array.from(agentStats.values()),
+      cases_trace: casesTrace,
+      agent_events: [],
+    };
+  }
+
   async function loadAgentWiseActivityTrace() {
+    if (!_agentTraceData) {
+      _agentTraceData = buildFallbackAgentTraceFromRegistry();
+      populateAlAgentFilterOptions();
+      renderAgentSummaryCardsStrip();
+      renderAlAgentTraceTable();
+      renderAalAgentCards();
+      renderEnhancedAgentTraceInAal();
+    }
     try {
       const res = await fetch("/api/v1/activity-log/agent-wise-trace", {
         headers: _getAuthHeaders(),
@@ -1905,6 +2019,17 @@
     };
     wrappedLoadAl._agentTraceWrapped = true;
     window.loadActivityLog = wrappedLoadAl;
+  }
+
+  if (typeof window.openActivityLog === "function" && !window.openActivityLog._agentTraceWrapped) {
+    const origOpenAl = window.openActivityLog;
+    const wrappedOpenAl = function () {
+      const r = origOpenAl.apply(this, arguments);
+      loadAgentWiseActivityTrace();
+      return r;
+    };
+    wrappedOpenAl._agentTraceWrapped = true;
+    window.openActivityLog = wrappedOpenAl;
   }
 
   if (typeof window.openAgentActivityLog === "function" && !window.openAgentActivityLog._agentTraceWrapped) {
