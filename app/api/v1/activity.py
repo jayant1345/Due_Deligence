@@ -460,9 +460,20 @@ async def get_agent_wise_activity_trace(
         "APPLICANT_LOCATION_SHARED": "Shared applicant location",
     }
 
+    def _to_utc_ts(dt_val: Optional[datetime]) -> float:
+        if not dt_val:
+            return 0.0
+        try:
+            if dt_val.tzinfo is None:
+                return dt_val.replace(tzinfo=timezone.utc).timestamp()
+            return dt_val.timestamp()
+        except Exception:
+            return 0.0
+
     assigned_time_by_case: Dict[uuid.UUID, datetime] = {}
     form_submit_time_by_case: Dict[uuid.UUID, datetime] = {}
     last_event_time_by_case: Dict[uuid.UUID, datetime] = {}
+    latest_agent_by_case: Dict[uuid.UUID, User] = {}
     events_by_case: Dict[uuid.UUID, List[Dict[str, Any]]] = {}
     agent_events: List[Dict[str, Any]] = []
     last_active_by_agent: Dict[uuid.UUID, tuple] = {}  # agent_id -> (datetime, case_no)
@@ -501,6 +512,8 @@ async def get_agent_wise_activity_trace(
         if log_row.case_id:
             if log_row.case_id not in last_event_time_by_case:
                 last_event_time_by_case[log_row.case_id] = log_row.timestamp
+            if target_agent and log_row.case_id not in latest_agent_by_case:
+                latest_agent_by_case[log_row.case_id] = target_agent
             if log_row.action == "CASE_ASSIGNED" and log_row.case_id not in assigned_time_by_case:
                 assigned_time_by_case[log_row.case_id] = log_row.timestamp
             if log_row.action in ("FIELD_FORM_SUBMITTED", "FIELD_FORM_PDF_INGESTED") and log_row.case_id not in form_submit_time_by_case:
@@ -575,7 +588,7 @@ async def get_agent_wise_activity_trace(
             "agent_id": str(ag.id),
             "agent_name": ag.full_name,
             "username": (ag.email or "").split("@")[0],
-            "designation": ag.designation or "Field Verification Officer",
+            "designation": getattr(ag, "designation", None) or "Field Verification Officer",
             "is_online_now": is_on,
             "total_cases_taken": 0,
             "visits_completed": 0,
@@ -585,14 +598,14 @@ async def get_agent_wise_activity_trace(
             "total_selfies_uploaded": 0,
             "last_active_ist": format_ist(last_tup[0]) if last_tup and last_tup[0] else "—",
             "latest_case_no": last_tup[1] if last_tup and last_tup[1] else "—",
-            "_last_dt": last_tup[0] if last_tup else None,
+            "_last_ts": _to_utc_ts(last_tup[0]) if last_tup else 0.0,
         }
 
     cases_trace: List[Dict[str, Any]] = []
 
     for c in all_cases:
         # Resolve which agent owns/worked on this case
-        c_agent = user_by_id.get(c.assigned_agent_id) if c.assigned_agent_id else None
+        c_agent = (user_by_id.get(c.assigned_agent_id) if c.assigned_agent_id else None) or latest_agent_by_case.get(c.id)
         ff_dict: Dict[str, Any] = {}
         if c.field_form_data:
             try:
@@ -724,9 +737,10 @@ async def get_agent_wise_activity_trace(
                 or c.updated_at
                 or c.created_at
             )
-            prev_dt = st_ag.get("_last_dt")
-            if cand_dt and (prev_dt is None or cand_dt > prev_dt):
-                st_ag["_last_dt"] = cand_dt
+            cand_ts = _to_utc_ts(cand_dt)
+            prev_ts = float(st_ag.get("_last_ts") or 0.0)
+            if cand_dt and cand_ts > prev_ts:
+                st_ag["_last_ts"] = cand_ts
                 st_ag["last_active_ist"] = format_ist(cand_dt)
                 st_ag["latest_case_no"] = c.case_no
 
@@ -759,7 +773,7 @@ async def get_agent_wise_activity_trace(
             "agent_name": c_agent.full_name if c_agent else "Not Yet Allotted",
             "assigned_at_ist": format_ist(assigned_dt) if c_agent else "Not Allotted",
             "last_activity_ist": format_ist(last_act_dt),
-            "last_activity_ts": last_act_dt.timestamp() if last_act_dt else 0,
+            "last_activity_ts": _to_utc_ts(last_act_dt),
             "selfie": selfie_info,
             "photos": {
                 "total_site_photos": total_site_photos,
@@ -795,7 +809,7 @@ async def get_agent_wise_activity_trace(
     agents_out = []
     for ag_info in agent_stats.values():
         ag_copy = dict(ag_info)
-        ag_copy.pop("_last_dt", None)
+        ag_copy.pop("_last_ts", None)
         agents_out.append(ag_copy)
     agents_out.sort(key=lambda a: (a["total_cases_taken"], a["total_photos_uploaded"]), reverse=True)
 
