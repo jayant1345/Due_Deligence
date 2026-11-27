@@ -1255,6 +1255,690 @@
   }
   installEditModalGenderEnhancements();
 
+  // ==========================================
+  // PURELY ADDITIVE: FIELD AGENT-WISE ACTIVITY, CASE, FORM & PHOTO TRACE
+  // ==========================================
+  let _agentTraceData = null; // { agents: [], cases_trace: [], agent_events: [] }
+  let _alViewMode = "timeline"; // "timeline" | "agent_trace"
+  let _rawTimelineEntries = [];
+
+  const _escHtml = (s) =>
+    String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+
+  function switchActivityLogViewMode(mode) {
+    _alViewMode = mode === "agent_trace" ? "agent_trace" : "timeline";
+    const timelineWrap = document.getElementById("alTimelineViewWrap");
+    const traceWrap = document.getElementById("alAgentTraceViewWrap");
+    const btnTimeline = document.getElementById("alViewBtnTimeline");
+    const btnTrace = document.getElementById("alViewBtnAgentTrace");
+    const actionFilter = document.getElementById("alActionFilter");
+
+    if (timelineWrap) timelineWrap.style.display = _alViewMode === "timeline" ? "block" : "none";
+    if (traceWrap) traceWrap.style.display = _alViewMode === "agent_trace" ? "block" : "none";
+    if (actionFilter) actionFilter.style.display = _alViewMode === "timeline" ? "" : "none";
+
+    if (btnTimeline) {
+      btnTimeline.className =
+        _alViewMode === "timeline"
+          ? "px-2.5 py-1 rounded-md font-bold bg-primary-container text-white shadow-2xs transition-all cursor-pointer"
+          : "px-2.5 py-1 rounded-md font-semibold text-on-surface-variant hover:text-on-surface transition-all cursor-pointer";
+    }
+    if (btnTrace) {
+      btnTrace.className =
+        _alViewMode === "agent_trace"
+          ? "px-2.5 py-1 rounded-md font-bold bg-primary-container text-white shadow-2xs transition-all cursor-pointer"
+          : "px-2.5 py-1 rounded-md font-semibold text-on-surface-variant hover:text-on-surface transition-all cursor-pointer";
+    }
+
+    if (_alViewMode === "agent_trace") {
+      if (!_agentTraceData) {
+        loadAgentWiseActivityTrace();
+      } else {
+        renderAlAgentTraceTable();
+      }
+    } else {
+      renderFilteredTimelineRows();
+    }
+  }
+
+  function selectFieldAgentInActivityLog(agentId) {
+    const sel = document.getElementById("alAgentFilter");
+    if (sel) {
+      // Toggle back to ALL if clicking the already-selected agent card while in agent_trace mode
+      if (sel.value === agentId && _alViewMode === "agent_trace") {
+        sel.value = "ALL";
+      } else {
+        sel.value = agentId || "ALL";
+      }
+    }
+    switchActivityLogViewMode("agent_trace");
+    renderAgentSummaryCardsStrip();
+    renderAlAgentTraceTable();
+  }
+
+  function selectFieldAgentInAalModal(agentId) {
+    const sel = document.getElementById("aalAgentFilter");
+    if (sel) {
+      sel.value = sel.value === agentId ? "ALL" : (agentId || "ALL");
+    }
+    renderAalAgentCards();
+    renderEnhancedAgentTraceInAal();
+  }
+
+  function openCaseFromActivityTrace(caseId) {
+    if (!caseId) return;
+    if (typeof closeActivityLog === "function") closeActivityLog();
+    if (typeof closeAgentActivityLog === "function") closeAgentActivityLog();
+    try {
+      if (typeof activeCaseId !== "undefined") activeCaseId = caseId;
+      if (typeof onCaseSelected === "function") onCaseSelected(caseId);
+      if (typeof switchMainPortalView === "function") switchMainPortalView("scrutiny");
+    } catch (_) {}
+  }
+
+  function _buildAgentCardHtml(ag, selectedAgentId, clickFnName) {
+    const isSel = selectedAgentId && String(selectedAgentId) === String(ag.agent_id);
+    const borderCls = isSel
+      ? "border-2 border-primary-container bg-blue-50/90 ring-2 ring-primary-container/20 shadow-sm"
+      : "border border-outline-variant bg-white hover:border-primary-container/60 hover:bg-surface-container-low/60 shadow-2xs";
+    const onlineBadge = ag.is_online_now
+      ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono text-[9px] font-bold"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>Online</span>`
+      : `<span class="font-mono text-[9px] text-outline">${_escHtml(ag.username)}</span>`;
+    return `
+      <div onclick="${clickFnName}('${_escHtml(ag.agent_id)}')" class="p-2.5 rounded-xl ${borderCls} cursor-pointer transition-all space-y-1.5">
+        <div class="flex items-center justify-between gap-1">
+          <div class="font-headline font-bold text-xs text-on-surface truncate">👤 ${_escHtml(ag.agent_name)}</div>
+          ${onlineBadge}
+        </div>
+        <div class="grid grid-cols-3 gap-1 text-center font-mono text-[10px]">
+          <div class="p-1 rounded bg-slate-100 border border-slate-200">
+            <div class="font-bold text-slate-900 text-xs">${ag.total_cases_taken || 0}</div>
+            <div class="text-[8px] text-slate-600 uppercase">Cases Taken</div>
+          </div>
+          <div class="p-1 rounded bg-emerald-50 border border-emerald-200">
+            <div class="font-bold text-emerald-800 text-xs">${ag.visits_completed || 0}</div>
+            <div class="text-[8px] text-emerald-700 uppercase">Visit Done</div>
+          </div>
+          <div class="p-1 rounded bg-amber-50 border border-amber-200">
+            <div class="font-bold text-amber-800 text-xs">${ag.visits_pending || 0}</div>
+            <div class="text-[8px] text-amber-700 uppercase">Pending</div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between text-[10px] font-mono pt-0.5 border-t border-slate-200/80 text-slate-700">
+          <span>📝 Forms: <strong>${ag.forms_submitted || 0}</strong></span>
+          <span>📸 Photos: <strong>${ag.total_photos_uploaded || 0}</strong></span>
+          <span>🤳 Selfies: <strong>${ag.total_selfies_uploaded || 0}</strong></span>
+        </div>
+        <div class="text-[9px] font-mono text-outline truncate">
+          Last: <span class="text-on-surface font-semibold">${_escHtml(ag.last_active_ist)}</span>${ag.latest_case_no && ag.latest_case_no !== "—" ? ` • <span class="text-primary-container font-bold">${_escHtml(ag.latest_case_no)}</span>` : ""}
+        </div>
+      </div>`;
+  }
+
+  function renderAgentSummaryCardsStrip() {
+    const strip = document.getElementById("alAgentCardsStrip");
+    const totalsBadge = document.getElementById("alAgentSummaryTotalsBadge");
+    const sel = document.getElementById("alAgentFilter");
+    if (!strip || !_agentTraceData) return;
+    const agents = _agentTraceData.agents || [];
+    const selectedId = sel ? sel.value : "ALL";
+
+    const totCases = agents.reduce((s, a) => s + (a.total_cases_taken || 0), 0);
+    const totDone = agents.reduce((s, a) => s + (a.visits_completed || 0), 0);
+    const totForms = agents.reduce((s, a) => s + (a.forms_submitted || 0), 0);
+    const totPhotos = agents.reduce((s, a) => s + (a.total_photos_uploaded || 0), 0);
+    if (totalsBadge) {
+      totalsBadge.textContent = `${agents.length} Field Agents • ${totCases} Cases Allotted • ${totDone} Visits Done • ${totForms} Forms • ${totPhotos} Photos Uploaded`;
+    }
+
+    if (!agents.length) {
+      strip.innerHTML = `<div class="col-span-4 text-center py-3 text-xs font-mono text-outline">No field agents registered.</div>`;
+      return;
+    }
+    strip.innerHTML = agents.map((ag) => _buildAgentCardHtml(ag, selectedId, "selectFieldAgentInActivityLog")).join("");
+  }
+
+  function renderAalAgentCards() {
+    const box = document.getElementById("aalAgentCardsContainer");
+    const sel = document.getElementById("aalAgentFilter");
+    if (!box || !_agentTraceData) return;
+    const agents = _agentTraceData.agents || [];
+    const selectedId = sel ? sel.value : "ALL";
+    box.innerHTML = agents.map((ag) => _buildAgentCardHtml(ag, selectedId, "selectFieldAgentInAalModal")).join("");
+  }
+
+  function populateAlAgentFilterOptions() {
+    if (!_agentTraceData) return;
+    const agents = _agentTraceData.agents || [];
+    const alSel = document.getElementById("alAgentFilter");
+    if (alSel) {
+      const prev = alSel.value || "ALL";
+      alSel.innerHTML =
+        `<option value="ALL">👤 All Users &amp; Field Agents</option>` +
+        `<option value="ONLY_AGENTS">⚡ All Field Agents (PWA Activity)</option>` +
+        agents
+          .map(
+            (a) =>
+              `<option value="${_escHtml(a.agent_id)}">👤 ${_escHtml(a.agent_name)} (${a.total_cases_taken || 0} Cases • ${a.total_photos_uploaded || 0} Photos)</option>`
+          )
+          .join("");
+      if (Array.from(alSel.options).some((o) => o.value === prev)) {
+        alSel.value = prev;
+      }
+    }
+
+    const aalSel = document.getElementById("aalAgentFilter");
+    if (aalSel) {
+      const prevAal = aalSel.value || "ALL";
+      aalSel.innerHTML =
+        `<option value="ALL">All Field Agents (${agents.length})</option>` +
+        agents
+          .map(
+            (a) =>
+              `<option value="${_escHtml(a.agent_id)}">👤 ${_escHtml(a.agent_name)} (${a.total_cases_taken || 0} Cases • ${a.visits_completed || 0} Done)</option>`
+          )
+          .join("") +
+        `<option value="UNASSIGNED">📋 Cases Not Handover to Agent</option>`;
+      if (Array.from(aalSel.options).some((o) => o.value === prevAal)) {
+        aalSel.value = prevAal;
+      }
+    }
+  }
+
+  function _renderTraceTableRowsHtml(casesList) {
+    if (!casesList || !casesList.length) {
+      return `<tr><td colspan="7" class="py-8 text-center font-mono text-xs text-outline">No matching cases found for the selected Field Agent / filter.</td></tr>`;
+    }
+    return casesList
+      .map((c) => {
+        const selfie = c.selfie || {};
+        const photos = c.photos || {};
+        const form = c.form || {};
+
+        // 1. Selfie Column HTML
+        let selfieHtml = "";
+        if (selfie.uploaded) {
+          const distBadge =
+            typeof selfie.distance_m === "number"
+              ? `<div class="text-[10px] font-mono ${selfie.distance_m <= 150 ? "text-emerald-700" : "text-rose-700"} font-bold">● ${selfie.distance_m}m (${selfie.distance_m <= 150 ? "COMPLIANT" : "BREACH"})</div>`
+              : "";
+          selfieHtml = `
+            <div class="flex items-start gap-2">
+              <img src="${_escHtml(selfie.thumb_url || selfie.url)}" onclick="window.open('${_escHtml(selfie.url)}', '_blank')" class="w-10 h-10 rounded-lg object-cover border border-emerald-400 cursor-pointer shrink-0 shadow-2xs" title="Click to inspect full Attendance Selfie"/>
+              <div class="min-w-0">
+                <span class="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300 font-mono text-[9px] font-bold">✓ SELFIE UPLOADED</span>
+                <div class="font-mono text-[10px] text-outline mt-0.5">${_escHtml(selfie.captured_at_ist || "")}</div>
+                ${distBadge}
+              </div>
+            </div>`;
+        } else {
+          selfieHtml = `
+            <span class="inline-block px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-300 font-mono text-[9px] font-bold">⏳ NO SELFIE YET</span>
+            <div class="font-mono text-[10px] text-outline mt-0.5">Not yet captured</div>`;
+        }
+
+        // 2. Photos Uploaded Column HTML
+        const totPhotos = photos.total_site_photos || 0;
+        const resSlots = photos.residence_slots || [];
+        const workSlots = photos.work_slots || [];
+        const coWorkSlots = photos.co_work_slots || [];
+        const allSlots = [...resSlots, ...workSlots, ...coWorkSlots];
+
+        let photosHtml = "";
+        if (totPhotos > 0) {
+          const resPills = [1, 2, 3, 4]
+            .map((s) => {
+              const found = resSlots.find((x) => x.slot === s);
+              return found
+                ? `<a href="${_escHtml(found.url)}" target="_blank" class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300 font-mono text-[9px] font-bold hover:bg-emerald-200" title="Residence Slot ${s}: ${_escHtml(found.filename)} (${_escHtml(found.captured_at_ist)})">H${s}✓</a>`
+                : `<span class="px-1 py-0.5 rounded bg-slate-100 text-slate-400 font-mono text-[9px]">H${s}</span>`;
+            })
+            .join(" ");
+          const workPills =
+            workSlots.length > 0
+              ? `<div class="flex items-center gap-1 flex-wrap mt-1"><span class="font-mono text-[9px] text-outline">Office (${workSlots.length}/4):</span>` +
+                [1, 2, 3, 4]
+                  .map((s) => {
+                    const found = workSlots.find((x) => x.slot === s);
+                    return found
+                      ? `<a href="${_escHtml(found.url)}" target="_blank" class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-900 border border-blue-300 font-mono text-[9px] font-bold hover:bg-blue-200" title="Office Slot ${s}: ${_escHtml(found.filename)} (${_escHtml(found.captured_at_ist)})">W${s}✓</a>`
+                      : `<span class="px-1 py-0.5 rounded bg-slate-100 text-slate-400 font-mono text-[9px]">W${s}</span>`;
+                  })
+                  .join(" ") +
+                `</div>`
+              : "";
+          const thumbsRow = allSlots
+            .slice(0, 6)
+            .map(
+              (sl) =>
+                `<img src="${_escHtml(sl.thumb_url || sl.url)}" onclick="window.open('${_escHtml(sl.url)}', '_blank')" class="w-8 h-8 rounded object-cover border border-outline-variant cursor-pointer hover:scale-105 transition-transform" title="${_escHtml(sl.folder)} Slot ${sl.slot} • ${_escHtml(sl.filename)} • ${_escHtml(sl.captured_at_ist)}"/>`
+            )
+            .join("");
+
+          photosHtml = `
+            <div class="space-y-1">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="px-1.5 py-0.5 rounded bg-emerald-700 text-white font-mono text-[9px] font-bold">📸 ${totPhotos} Photo${totPhotos === 1 ? "" : "s"} Uploaded</span>
+                <span class="font-mono text-[9px] text-outline">Home: <b>${resSlots.length}/4</b>${workSlots.length ? ` • Office: <b>${workSlots.length}/4</b>` : ""}${coWorkSlots.length ? ` • Co-Off: <b>${coWorkSlots.length}/4</b>` : ""}</span>
+              </div>
+              <div class="flex items-center gap-1 flex-wrap"><span class="font-mono text-[9px] text-outline">Home:</span> ${resPills}</div>
+              ${workPills}
+              <div class="flex items-center gap-1 pt-0.5">${thumbsRow}</div>
+              ${photos.latest_photo_at_ist ? `<div class="font-mono text-[9px] text-outline">Uploaded: ${_escHtml(photos.latest_photo_at_ist)}</div>` : ""}
+            </div>`;
+        } else {
+          photosHtml = `
+            <span class="inline-block px-1.5 py-0.5 rounded bg-rose-50 text-rose-800 border border-rose-200 font-mono text-[9px] font-bold">❌ 0 Photos Uploaded</span>
+            <div class="font-mono text-[10px] text-outline mt-0.5">Home: 0/4 • Office: 0/4</div>`;
+        }
+
+        // 3. Form Submitted Column HTML
+        let formHtml = "";
+        if (form.submitted) {
+          const stayOwn = [
+            form.period_of_stay ? `${form.period_of_stay} stay` : "",
+            form.ownership || "",
+            form.building_type ? `(${form.building_type})` : "",
+          ]
+            .filter(Boolean)
+            .join(" • ");
+          const workInfo = [form.occupation, form.firm_name, form.designation].filter(Boolean).join(" — ");
+          formHtml = `
+            <div class="space-y-0.5 max-w-[250px]">
+              <div class="flex items-center gap-1 flex-wrap">
+                <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-900 border border-blue-300 font-mono text-[9px] font-bold">✓ FORM SUBMITTED</span>
+                <span class="font-mono text-[9px] text-outline">${_escHtml(form.source || "PWA")}</span>
+              </div>
+              ${form.person_met ? `<div class="text-[11px] text-on-surface truncate" title="Person Met: ${_escHtml(form.person_met)}"><b>Met:</b> ${_escHtml(form.person_met)}</div>` : ""}
+              ${stayOwn ? `<div class="text-[10px] font-mono text-on-surface-variant truncate" title="${_escHtml(stayOwn)}">${_escHtml(stayOwn)}</div>` : ""}
+              ${form.neighbours ? `<div class="text-[10px] font-mono text-emerald-800 truncate" title="Neighbours: ${_escHtml(form.neighbours)}"><b>Neigh:</b> ${_escHtml(form.neighbours)}</div>` : ""}
+              ${workInfo ? `<div class="text-[10px] font-mono text-indigo-800 truncate" title="Work: ${_escHtml(workInfo)}"><b>Work:</b> ${_escHtml(workInfo)}</div>` : ""}
+              ${form.submitted_at_ist ? `<div class="font-mono text-[9px] text-outline">${_escHtml(form.submitted_at_ist)}</div>` : ""}
+            </div>`;
+        } else {
+          formHtml = `
+            <span class="inline-block px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-300 font-mono text-[9px] font-bold">⏳ FORM NOT SUBMITTED</span>
+            <div class="font-mono text-[10px] text-outline mt-0.5">Awaiting questionnaire</div>`;
+        }
+
+        const coLine = c.co_applicant_name
+          ? `<div class="text-[10px] font-mono text-purple-700">Co-App: ${_escHtml(c.co_applicant_name)}</div>`
+          : "";
+        const visitStatusPill =
+          c.status === "CERTIFIED"
+            ? `<span class="px-2 py-0.5 rounded-full font-mono text-[9px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">🏅 CERTIFIED (UDIN)</span>`
+            : totPhotos > 0
+              ? `<span class="px-2 py-0.5 rounded-full font-mono text-[9px] font-bold bg-blue-100 text-primary-container border border-blue-300">✓ VISIT DONE (${totPhotos} PHOTOS)</span>`
+              : !c.agent_id
+                ? `<span class="px-2 py-0.5 rounded-full font-mono text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-300">📋 NOT HANDOVER</span>`
+                : `<span class="px-2 py-0.5 rounded-full font-mono text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-300">⏳ VISIT PENDING</span>`;
+
+        return `
+          <tr class="hover:bg-surface-container-low/60 transition-colors align-top">
+            <td class="py-2.5 px-3 whitespace-nowrap">
+              <div class="font-headline font-bold text-xs text-on-surface">👤 ${_escHtml(c.agent_name)}</div>
+              <div class="font-mono text-[10px] text-outline mt-0.5">Allotted: ${_escHtml(c.assigned_at_ist)}</div>
+              <div class="font-mono text-[10px] text-primary-container font-semibold">Last Act: ${_escHtml(c.last_activity_ist)}</div>
+            </td>
+            <td class="py-2.5 px-3">
+              <button type="button" onclick="openCaseFromActivityTrace('${_escHtml(c.case_id)}')" class="font-mono text-xs font-bold text-primary-container hover:underline cursor-pointer">${_escHtml(c.case_no)}</button>
+              <div class="font-bold text-on-surface text-xs mt-0.5">${_escHtml(c.applicant_name)}</div>
+              ${coLine}
+              <div class="text-[10px] text-on-surface-variant font-medium mt-0.5">${_escHtml(c.bank_name)}${c.branch ? ` (${_escHtml(c.branch)})` : ""} • ${_escHtml(c.loan_type)}</div>
+            </td>
+            <td class="py-2.5 px-3">${selfieHtml}</td>
+            <td class="py-2.5 px-3">${photosHtml}</td>
+            <td class="py-2.5 px-3">${formHtml}</td>
+            <td class="py-2.5 px-3 whitespace-nowrap">
+              ${visitStatusPill}
+              <div class="mt-1">${_renderStatusPill(c.status)}</div>
+            </td>
+            <td class="py-2.5 px-3 text-right whitespace-nowrap">
+              <button type="button" onclick="openCaseFromActivityTrace('${_escHtml(c.case_id)}')" class="px-2.5 py-1 rounded-lg bg-primary-container hover:bg-primary text-white font-mono text-[10px] font-bold cursor-pointer shadow-2xs">Open Case</button>
+            </td>
+          </tr>`;
+      })
+      .join("");
+  }
+
+  function renderAlAgentTraceTable() {
+    const tbody = document.getElementById("alAgentTraceTableBody");
+    const banner = document.getElementById("alAgentTraceBannerText");
+    if (!tbody || !_agentTraceData) return;
+
+    const agentSel = document.getElementById("alAgentFilter")?.value || "ALL";
+    const statusSel = document.getElementById("alTraceStatusFilter")?.value || "ALL";
+    const q = (document.getElementById("alSearchInput")?.value || "").toLowerCase().trim();
+
+    let rows = (_agentTraceData.cases_trace || []).slice();
+    if (agentSel === "ONLY_AGENTS") {
+      rows = rows.filter((c) => Boolean(c.agent_id));
+    } else if (agentSel !== "ALL") {
+      rows = rows.filter((c) => String(c.agent_id) === String(agentSel));
+    } else {
+      // Default to showing agent-allotted cases first
+      rows = rows.filter((c) => Boolean(c.agent_id) || (c.photos && c.photos.total_site_photos > 0) || (c.form && c.form.submitted));
+    }
+
+    if (statusSel === "PHOTOS_UPLOADED") {
+      rows = rows.filter((c) => (c.photos && c.photos.total_site_photos > 0) || c.status === "CERTIFIED");
+    } else if (statusSel === "FORM_SUBMITTED") {
+      rows = rows.filter((c) => c.form && c.form.submitted);
+    } else if (statusSel === "PENDING_PHOTOS") {
+      rows = rows.filter((c) => (!c.photos || c.photos.total_site_photos === 0) && c.status !== "CERTIFIED");
+    }
+
+    if (q) {
+      rows = rows.filter(
+        (c) =>
+          (c.case_no || "").toLowerCase().includes(q) ||
+          (c.applicant_name || "").toLowerCase().includes(q) ||
+          (c.co_applicant_name || "").toLowerCase().includes(q) ||
+          (c.bank_name || "").toLowerCase().includes(q) ||
+          (c.branch || "").toLowerCase().includes(q) ||
+          (c.agent_name || "").toLowerCase().includes(q) ||
+          (c.form && c.form.person_met || "").toLowerCase().includes(q) ||
+          (c.form && c.form.firm_name || "").toLowerCase().includes(q)
+      );
+    }
+
+    const doneCnt = rows.filter((c) => c.photos && c.photos.total_site_photos > 0).length;
+    const formCnt = rows.filter((c) => c.form && c.form.submitted).length;
+    const photoSum = rows.reduce((s, c) => s + ((c.photos && c.photos.total_site_photos) || 0), 0);
+    const agObj = (_agentTraceData.agents || []).find((a) => String(a.agent_id) === String(agentSel));
+    if (banner) {
+      const whoText = agObj ? `Field Agent: ${agObj.agent_name}` : "All Field Agents";
+      banner.innerHTML = `${_escHtml(whoText)} — <span class="text-primary-container">${rows.length} Case(s)</span> • <span class="text-emerald-700">${doneCnt} with Photos Uploaded (${photoSum} Photos)</span> • <span class="text-blue-800">${formCnt} Form(s) Submitted</span>`;
+    }
+
+    tbody.innerHTML = _renderTraceTableRowsHtml(rows);
+  }
+
+  function renderEnhancedAgentTraceInAal() {
+    const tbody = document.getElementById("aalTableBody");
+    const summary = document.getElementById("aalSummaryBar");
+    if (!tbody || !_agentTraceData) return;
+
+    const agentSel = document.getElementById("aalAgentFilter")?.value || "ALL";
+    const visitSel = document.getElementById("aalVisitFilter")?.value || "ALL";
+    const q = (document.getElementById("aalSearchInput")?.value || "").toLowerCase().trim();
+
+    let rows = (_agentTraceData.cases_trace || []).slice();
+    if (agentSel === "UNASSIGNED") {
+      rows = rows.filter((c) => !c.agent_id);
+    } else if (agentSel !== "ALL") {
+      rows = rows.filter((c) => String(c.agent_id) === String(agentSel));
+    }
+
+    if (visitSel === "PHOTOS_UPLOADED") {
+      rows = rows.filter((c) => (c.photos && c.photos.total_site_photos > 0) || c.status === "CERTIFIED");
+    } else if (visitSel === "FORM_SUBMITTED") {
+      rows = rows.filter((c) => c.form && c.form.submitted);
+    } else if (visitSel === "PENDING_PHOTOS") {
+      rows = rows.filter((c) => (!c.photos || c.photos.total_site_photos === 0) && c.status !== "CERTIFIED");
+    }
+
+    if (q) {
+      rows = rows.filter(
+        (c) =>
+          (c.case_no || "").toLowerCase().includes(q) ||
+          (c.applicant_name || "").toLowerCase().includes(q) ||
+          (c.co_applicant_name || "").toLowerCase().includes(q) ||
+          (c.bank_name || "").toLowerCase().includes(q) ||
+          (c.branch || "").toLowerCase().includes(q) ||
+          (c.agent_name || "").toLowerCase().includes(q)
+      );
+    }
+
+    const doneCnt = rows.filter((c) => (c.photos && c.photos.total_site_photos > 0) || c.status === "CERTIFIED").length;
+    const formCnt = rows.filter((c) => c.form && c.form.submitted).length;
+    const photoSum = rows.reduce((s, c) => s + ((c.photos && c.photos.total_site_photos) || 0), 0);
+    if (summary) {
+      summary.classList.remove("hidden");
+      summary.innerHTML = `<strong>${rows.length}</strong> case(s) shown · <strong class="text-emerald-700">${doneCnt}</strong> visits completed (<strong>${photoSum}</strong> photos uploaded) · <strong class="text-blue-800">${formCnt}</strong> forms submitted`;
+    }
+
+    tbody.innerHTML = _renderTraceTableRowsHtml(rows);
+  }
+
+  // Enhance the chronological timeline table (#alTableBody) so it can be filtered by Field Agent & Search
+  // and resolves raw agent_id UUIDs to human-readable Field Agent names
+  function renderFilteredTimelineRows() {
+    const tbody = document.getElementById("alTableBody");
+    if (!tbody || !_rawTimelineEntries.length) return;
+    const agentSel = document.getElementById("alAgentFilter")?.value || "ALL";
+    const q = (document.getElementById("alSearchInput")?.value || "").toLowerCase().trim();
+
+    const agentMapById = new Map();
+    const agentMapByAlias = new Map();
+    if (_agentTraceData && Array.isArray(_agentTraceData.agents)) {
+      _agentTraceData.agents.forEach((a) => {
+        agentMapById.set(String(a.agent_id), a.agent_name);
+        if (a.username) agentMapByAlias.set(String(a.username).toLowerCase(), a);
+        if (a.agent_name) {
+          agentMapByAlias.set(String(a.agent_name).toLowerCase(), a);
+          agentMapByAlias.set(String(a.agent_name).split(/\s+/)[0].toLowerCase(), a);
+        }
+      });
+    }
+    const caseAgentMap = new Map();
+    if (_agentTraceData && Array.isArray(_agentTraceData.cases_trace)) {
+      _agentTraceData.cases_trace.forEach((ct) => {
+        if (ct.case_no && ct.agent_id) {
+          caseAgentMap.set(String(ct.case_no).toUpperCase(), {
+            agent_id: String(ct.agent_id),
+            agent_name: ct.agent_name,
+            applicant_name: ct.applicant_name,
+          });
+        }
+      });
+    }
+
+    const PWA_AGENT_ACTIONS = new Set([
+      "CASE_ASSIGNED",
+      "DOCUMENT_UPLOADED",
+      "FIELD_FORM_SUBMITTED",
+      "AGENT_CHECK_IN",
+      "AGENT_CHECK_OUT",
+    ]);
+
+    const filtered = _rawTimelineEntries.filter((e) => {
+      const m = e.extra_metadata || {};
+      const cInfo = e.case_no ? caseAgentMap.get(String(e.case_no).toUpperCase()) : null;
+      const metaAgentId = m.agent_id ? String(m.agent_id) : null;
+      const metaAgentAlias = String(m.agent || m.agent_name || "").toLowerCase();
+      const matchedAliasAg = metaAgentAlias ? agentMapByAlias.get(metaAgentAlias) : null;
+      const resolvedAgId =
+        (agentMapById.has(String(e.user_id)) ? String(e.user_id) : null) ||
+        (metaAgentId && agentMapById.has(metaAgentId) ? metaAgentId : null) ||
+        (matchedAliasAg ? String(matchedAliasAg.agent_id) : null) ||
+        (cInfo ? cInfo.agent_id : null);
+
+      if (agentSel === "ONLY_AGENTS") {
+        if (!resolvedAgId && !PWA_AGENT_ACTIONS.has(e.action)) return false;
+      } else if (agentSel !== "ALL") {
+        if (String(resolvedAgId) !== String(agentSel)) return false;
+      }
+
+      if (q) {
+        const hay = `${e.action || ""} ${e.user_name || ""} ${e.case_no || ""} ${cInfo ? cInfo.applicant_name : ""} ${JSON.stringify(m)}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-on-surface-variant font-mono text-xs">No activity entries match the selected Field Agent / search filter.</td></tr>`;
+      return;
+    }
+
+    const ACTION_LABELS =
+      typeof ACTIVITY_ACTION_LABELS !== "undefined"
+        ? ACTIVITY_ACTION_LABELS
+        : {
+            USER_LOGIN: "Logged in",
+            CASE_CREATED: "Created case",
+            CASE_UPDATED: "Edited case details",
+            CASE_DELETED: "Deleted case",
+            CASE_ASSIGNED: "Assigned case to agent",
+            DOCUMENT_UPLOADED: "Uploaded a document (PWA)",
+            FIELD_FORM_SUBMITTED: "Submitted field form (PWA)",
+            AGENT_CHECK_IN: "Checked in on-site (PWA)",
+            AGENT_CHECK_OUT: "Checked out on-site (PWA)",
+          };
+
+    tbody.innerHTML = filtered
+      .map((e) => {
+        const when = new Date(e.timestamp).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+        const label = ACTION_LABELS[e.action] || e.action;
+        const who = _escHtml(e.user_name || "Unknown user");
+        const cInfo = e.case_no ? caseAgentMap.get(String(e.case_no).toUpperCase()) : null;
+        const caseCell = e.case_no
+          ? `<button type="button" onclick="openCaseFromActivityTrace('${_escHtml(e.case_id || e.case_no)}')" class="font-mono text-[11px] font-bold text-primary-container hover:underline cursor-pointer">${_escHtml(e.case_no)}</button>${cInfo && cInfo.applicant_name ? `<div class="text-[10px] text-outline truncate max-w-[160px]">${_escHtml(cInfo.applicant_name)}</div>` : ""}`
+          : "—";
+
+        const m = e.extra_metadata || {};
+        let detailsHtml = "";
+        if (e.action === "CASE_ASSIGNED") {
+          const aid = m.agent_id ? String(m.agent_id) : "";
+          const agFull =
+            (aid && agentMapById.get(aid)) ||
+            (m.agent && agentMapByAlias.get(String(m.agent).toLowerCase())?.agent_name) ||
+            m.agent ||
+            "Field Agent";
+          detailsHtml = `<span class="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-900 border border-indigo-200 font-mono text-[10px] font-bold">👉 Allotted to Field Agent: ${_escHtml(agFull)}</span>`;
+        } else if (e.action === "DOCUMENT_UPLOADED") {
+          const fname = m.filename || "photo.jpg";
+          const gps =
+            m.lat != null && m.lon != null
+              ? ` • GPS: ${Number(m.lat).toFixed(4)}°N, ${Number(m.lon).toFixed(4)}°E`
+              : "";
+          const dist = m.distance_m != null ? ` (${Math.round(Number(m.distance_m))}m)` : "";
+          detailsHtml = `<span class="text-emerald-800 font-semibold">📸 Uploaded Photo:</span> <code class="bg-slate-100 px-1 rounded">${_escHtml(fname)}</code><span class="font-mono text-[10px] text-outline">${_escHtml(gps + dist)}</span>`;
+        } else if (e.action === "FIELD_FORM_SUBMITTED") {
+          const agName = m.agent_name || e.user_name || "Field Agent";
+          detailsHtml = `<span class="text-blue-800 font-semibold">📝 Due Diligence Form Submitted</span> by <b>${_escHtml(agName)}</b>`;
+        } else {
+          const rawSum =
+            typeof activityLogMetaSummary === "function"
+              ? activityLogMetaSummary(e.action, m)
+              : Object.keys(m)
+                  .slice(0, 3)
+                  .map((k) => `${k}: ${m[k]}`)
+                  .join(" • ");
+          detailsHtml = _escHtml(rawSum);
+        }
+
+        const isDelete = (e.action || "").includes("DELETED");
+        return `
+          <tr class="border-b border-outline-variant/50 hover:bg-surface-container-low/50 ${isDelete ? "bg-rose-50/50" : ""}">
+            <td class="py-2 pr-3 font-mono text-[11px] whitespace-nowrap">${_escHtml(when)}</td>
+            <td class="py-2 pr-3 font-semibold ${isDelete ? "text-rose-700" : "text-on-surface"}">${_escHtml(label)}</td>
+            <td class="py-2 pr-3 font-medium">${who}</td>
+            <td class="py-2 pr-3">${caseCell}</td>
+            <td class="py-2 pr-3 text-on-surface-variant text-[11px]">${detailsHtml}</td>
+          </tr>`;
+      })
+      .join("");
+  }
+
+  async function loadAgentWiseActivityTrace() {
+    try {
+      const res = await fetch("/api/v1/activity-log/agent-wise-trace", {
+        headers: _getAuthHeaders(),
+      });
+      if (!res.ok) return;
+      _agentTraceData = await res.json();
+      populateAlAgentFilterOptions();
+      renderAgentSummaryCardsStrip();
+      renderAlAgentTraceTable();
+      renderAalAgentCards();
+      renderEnhancedAgentTraceInAal();
+      if (_rawTimelineEntries.length > 0 && _alViewMode === "timeline") {
+        renderFilteredTimelineRows();
+      }
+    } catch (_) {}
+  }
+
+  function onActivityLogAgentOrSearchChanged() {
+    renderAgentSummaryCardsStrip();
+    if (_alViewMode === "agent_trace") {
+      renderAlAgentTraceTable();
+    } else {
+      renderFilteredTimelineRows();
+    }
+  }
+
+  async function refreshActivityLogAndAgentTrace() {
+    await Promise.all([
+      typeof window.loadActivityLog === "function" ? window.loadActivityLog() : Promise.resolve(),
+      loadAgentWiseActivityTrace(),
+    ]);
+  }
+
+  // Wrap loadActivityLog & openAgentActivityLog additively without modifying ca-portal.js
+  if (typeof window.loadActivityLog === "function" && !window.loadActivityLog._agentTraceWrapped) {
+    const origLoadAl = window.loadActivityLog;
+    const wrappedLoadAl = async function () {
+      const actionFilter = document.getElementById("alActionFilter");
+      const qs = new URLSearchParams({ limit: "300" });
+      if (actionFilter && actionFilter.value) qs.set("action", actionFilter.value);
+      try {
+        const loading = document.getElementById("alLoadingState");
+        if (loading) loading.style.display = "flex";
+        const [logRes] = await Promise.all([
+          fetch(`/api/v1/activity-log?${qs.toString()}`, { headers: _getAuthHeaders() }),
+          loadAgentWiseActivityTrace(),
+        ]);
+        if (loading) loading.style.display = "none";
+        if (logRes && logRes.ok) {
+          _rawTimelineEntries = await logRes.json();
+          renderFilteredTimelineRows();
+          return;
+        }
+      } catch (_) {}
+      return origLoadAl.apply(this, arguments);
+    };
+    wrappedLoadAl._agentTraceWrapped = true;
+    window.loadActivityLog = wrappedLoadAl;
+  }
+
+  if (typeof window.openAgentActivityLog === "function" && !window.openAgentActivityLog._agentTraceWrapped) {
+    const origOpenAal = window.openAgentActivityLog;
+    const wrappedOpenAal = async function () {
+      const modal = document.getElementById("modalAgentActivityLog");
+      const loading = document.getElementById("aalLoadingState");
+      if (modal) modal.style.display = "flex";
+      if (loading) loading.style.display = "flex";
+      await loadAgentWiseActivityTrace();
+      if (loading) loading.style.display = "none";
+    };
+    wrappedOpenAal._agentTraceWrapped = true;
+    window.openAgentActivityLog = wrappedOpenAal;
+  }
+
+  if (typeof window.renderAgentActivityLog === "function" && !window.renderAgentActivityLog._agentTraceWrapped) {
+    const wrappedRenderAal = function () {
+      renderAalAgentCards();
+      renderEnhancedAgentTraceInAal();
+    };
+    wrappedRenderAal._agentTraceWrapped = true;
+    window.renderAgentActivityLog = wrappedRenderAal;
+  }
+
+  window.switchActivityLogViewMode = switchActivityLogViewMode;
+  window.selectFieldAgentInActivityLog = selectFieldAgentInActivityLog;
+  window.selectFieldAgentInAalModal = selectFieldAgentInAalModal;
+  window.openCaseFromActivityTrace = openCaseFromActivityTrace;
+  window.renderAlAgentTraceTable = renderAlAgentTraceTable;
+  window.renderEnhancedAgentTraceInAal = renderEnhancedAgentTraceInAal;
+  window.onActivityLogAgentOrSearchChanged = onActivityLogAgentOrSearchChanged;
+  window.refreshActivityLogAndAgentTrace = refreshActivityLogAndAgentTrace;
+
   setTimeout(() => {
     enforceTwoEmpanelledBanks();
     const bannerDateInp = document.getElementById("mgmtDailyReportDateInput");

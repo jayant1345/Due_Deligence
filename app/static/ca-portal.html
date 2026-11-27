@@ -2501,7 +2501,7 @@
   </div>
 
   <script src="/static/ca-portal.js?v=42"></script>
-  <script src="/static/active-sessions.js?v=11"></script>
+  <script src="/static/active-sessions.js?v=12"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
@@ -2964,9 +2964,9 @@
     </div>
   </div>
 
-  <!-- AGENT ACTIVITY LOG: which agent did which case, and when, all in one sortable table -->
+  <!-- AGENT ACTIVITY LOG: which agent did which case, form submitted, photos uploaded, and when -->
   <div id="modalAgentActivityLog" style="z-index: 99999; display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
-    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-5xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fadeIn">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-6xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-fadeIn">
       <!-- Header -->
       <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between flex-wrap gap-2">
         <div class="flex items-center gap-2">
@@ -2974,39 +2974,46 @@
             <span class="material-symbols-outlined text-[20px]">fact_check</span>
           </div>
           <div>
-            <h3 class="font-headline font-bold text-sm text-on-surface">Agent Activity Log</h3>
-            <p class="font-mono text-[10px] text-outline">Every case, which agent it's with, and when they finished their part — live from the server</p>
+            <h3 class="font-headline font-bold text-sm text-on-surface">Field Agent-wise Activity &amp; Case Trace</h3>
+            <p class="font-mono text-[10px] text-outline">Which agent took which case, what form was submitted, and which photos were uploaded — live from the server</p>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="aalSearchInput" type="text" oninput="if(typeof renderEnhancedAgentTraceInAal==='function') renderEnhancedAgentTraceInAal();" placeholder="Search Case No, Applicant, Branch..." class="text-xs bg-surface-container-lowest border border-outline-variant rounded-lg px-2.5 py-1.5 font-body text-on-surface w-48"/>
           <select id="aalAgentFilter" onchange="renderAgentActivityLog()" class="text-xs bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 font-semibold text-on-surface">
-            <option value="ALL">All Agents</option>
+            <option value="ALL">All Field Agents</option>
+          </select>
+          <select id="aalVisitFilter" onchange="if(typeof renderEnhancedAgentTraceInAal==='function') renderEnhancedAgentTraceInAal();" class="text-xs bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 font-semibold text-on-surface">
+            <option value="ALL">All Cases (Done &amp; Pending)</option>
+            <option value="PHOTOS_UPLOADED">📸 Photos Uploaded (Visit Done)</option>
+            <option value="FORM_SUBMITTED">📝 Form Submitted</option>
+            <option value="PENDING_PHOTOS">⏳ Pending Photos (Visit Pending)</option>
           </select>
           <button onclick="closeAgentActivityLog()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant">
             <span class="material-symbols-outlined text-[18px]">close</span>
-
           </button>
         </div>
       </div>
 
       <!-- Body -->
-      <div class="p-5 overflow-y-auto">
+      <div class="p-5 overflow-y-auto space-y-3">
         <div id="aalLoadingState" class="text-center py-6 font-mono text-xs text-outline flex items-center justify-center gap-2">
           <span class="material-symbols-outlined animate-spin text-[18px]">sync</span>
           <span>Loading agent activity...</span>
         </div>
-        <div id="aalSummaryBar" class="hidden mb-3 text-xs font-mono text-on-surface-variant"></div>
-        <div class="overflow-x-auto">
+        <div id="aalAgentCardsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5"></div>
+        <div id="aalSummaryBar" class="hidden mb-2 text-xs font-mono text-on-surface-variant"></div>
+        <div class="overflow-x-auto border border-outline-variant rounded-xl">
           <table class="w-full text-xs border-collapse">
             <thead>
-              <tr class="text-left font-mono text-[10px] text-outline uppercase border-b border-outline-variant">
-                <th class="py-2 pr-3">Agent</th>
-                <th class="py-2 pr-3">Case No</th>
-                <th class="py-2 pr-3">Applicant</th>
-                <th class="py-2 pr-3">Address</th>
-                <th class="py-2 pr-3">Status</th>
-                <th class="py-2 pr-3">Assigned</th>
-                <th class="py-2 pr-3">Completed</th>
+              <tr class="text-left font-mono text-[10px] text-outline uppercase border-b border-outline-variant bg-surface-container-low">
+                <th class="py-2.5 px-3">Field Agent &amp; Timestamps</th>
+                <th class="py-2.5 px-3">Case Taken &amp; Applicant</th>
+                <th class="py-2.5 px-3">Attendance Selfie &amp; GPS</th>
+                <th class="py-2.5 px-3">Photos Uploaded (Slots &amp; Previews)</th>
+                <th class="py-2.5 px-3">What Form Submitted</th>
+                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody id="aalTableBody"></tbody>
@@ -3016,21 +3023,31 @@
     </div>
   </div>
 
-  <!-- ACTIVITY LOG: full audit trail - every login, create/edit/delete/upload, from both the
-       dashboard and the PWA, with who did it and when -->
+  <!-- ACTIVITY LOG: full audit trail + Add-on Field Agent-wise Case, Form & Photo Trace -->
   <div id="modalActivityLog" style="z-index: 99999; display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
-    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-5xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fadeIn">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-6xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-fadeIn">
       <div class="px-5 py-3.5 border-b border-outline-variant bg-surface-container-low flex items-center justify-between flex-wrap gap-2">
         <div class="flex items-center gap-2">
           <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center">
             <span class="material-symbols-outlined text-[20px]">history</span>
           </div>
           <div>
-            <h3 class="font-headline font-bold text-sm text-on-surface">Activity Log</h3>
-            <p class="font-mono text-[10px] text-outline">Every login, case change, document action and field visit event, dashboard and PWA alike — who, what, when</p>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h3 class="font-headline font-bold text-sm text-on-surface">Activity Log &amp; Field Agent-wise Trace</h3>
+              <div class="inline-flex items-center bg-surface-container p-0.5 rounded-lg border border-outline-variant font-headline text-[11px]">
+                <button type="button" id="alViewBtnTimeline" onclick="switchActivityLogViewMode('timeline')" class="px-2.5 py-1 rounded-md font-bold bg-primary-container text-white shadow-2xs transition-all cursor-pointer">🕒 All Activity Log</button>
+                <button type="button" id="alViewBtnAgentTrace" onclick="switchActivityLogViewMode('agent_trace')" class="px-2.5 py-1 rounded-md font-semibold text-on-surface-variant hover:text-on-surface transition-all cursor-pointer">👤 Field Agent-wise Trace (Cases • Forms • Photos)</button>
+              </div>
+            </div>
+            <p class="font-mono text-[10px] text-outline mt-0.5">Every login, case change, document action and field visit event — plus complete agent-wise trace of cases taken, forms submitted &amp; photos uploaded</p>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="alSearchInput" type="text" oninput="onActivityLogAgentOrSearchChanged()" placeholder="Search Case No, Applicant, Photo..." class="text-xs bg-surface-container-lowest border border-outline-variant rounded-lg px-2.5 py-1.5 font-body text-on-surface w-44"/>
+          <select id="alAgentFilter" onchange="onActivityLogAgentOrSearchChanged()" class="text-xs bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 font-semibold text-primary-container">
+            <option value="ALL">👤 All Users &amp; Field Agents</option>
+            <option value="ONLY_AGENTS">⚡ All Field Agents (PWA Only)</option>
+          </select>
           <select id="alActionFilter" onchange="loadActivityLog()" class="text-xs bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 font-semibold text-on-surface">
             <option value="">All Actions</option>
             <option value="USER_LOGIN">Login</option>
@@ -3049,7 +3066,7 @@
             <option value="FIELD_FORM_SUBMITTED">Field Form Submitted (PWA)</option>
             <option value="APPLICANT_LOCATION_SHARED">Applicant Location Shared</option>
           </select>
-          <button onclick="loadActivityLog()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant" title="Refresh">
+          <button onclick="refreshActivityLogAndAgentTrace()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant" title="Refresh">
             <span class="material-symbols-outlined text-[18px]">refresh</span>
           </button>
           <button onclick="closeActivityLog()" class="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant">
@@ -3101,23 +3118,69 @@
           </div>
         </div>
 
-        <div id="alLoadingState" class="text-center py-6 font-mono text-xs text-outline flex items-center justify-center gap-2">
-          <span class="material-symbols-outlined animate-spin text-[18px]">sync</span>
-          <span>Loading activity log...</span>
+        <!-- ADD-ON: FIELD AGENT QUICK SUMMARY CARDS STRIP (Click any agent card to trace all their cases, forms & uploaded photos) -->
+        <div class="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3 space-y-2">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-primary-container text-[18px]">engineering</span>
+              <span class="font-headline font-bold text-xs text-primary-container">Field Agent-wise Live Summary (Click any Agent to trace Cases Taken, Forms Submitted &amp; Photos Uploaded)</span>
+            </div>
+            <span id="alAgentSummaryTotalsBadge" class="font-mono text-[10px] font-bold text-indigo-900 bg-white px-2 py-0.5 rounded border border-indigo-200">Loading agents...</span>
+          </div>
+          <div id="alAgentCardsStrip" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5"></div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs border-collapse">
-            <thead>
-              <tr class="text-left font-mono text-[10px] text-outline uppercase border-b border-outline-variant">
-                <th class="py-2 pr-3">When</th>
-                <th class="py-2 pr-3">Action</th>
-                <th class="py-2 pr-3">By</th>
-                <th class="py-2 pr-3">Case</th>
-                <th class="py-2 pr-3">Details</th>
-              </tr>
-            </thead>
-            <tbody id="alTableBody"></tbody>
-          </table>
+
+        <!-- VIEW 1 (DEFAULT): CHRONOLOGICAL ACTIVITY LOG TABLE -->
+        <div id="alTimelineViewWrap" class="space-y-2">
+          <div id="alLoadingState" class="text-center py-6 font-mono text-xs text-outline flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined animate-spin text-[18px]">sync</span>
+            <span>Loading activity log...</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs border-collapse">
+              <thead>
+                <tr class="text-left font-mono text-[10px] text-outline uppercase border-b border-outline-variant">
+                  <th class="py-2 pr-3">When</th>
+                  <th class="py-2 pr-3">Action</th>
+                  <th class="py-2 pr-3">By</th>
+                  <th class="py-2 pr-3">Case</th>
+                  <th class="py-2 pr-3">Details</th>
+                </tr>
+              </thead>
+              <tbody id="alTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- VIEW 2 (ADD-ON): FIELD AGENT-WISE CASE, FORM SUBMITTED & PHOTOS UPLOADED TRACE -->
+        <div id="alAgentTraceViewWrap" style="display: none;" class="space-y-3">
+          <div class="flex items-center justify-between flex-wrap gap-2 bg-surface-container-low px-3.5 py-2 rounded-xl border border-outline-variant">
+            <div id="alAgentTraceBannerText" class="font-headline font-bold text-xs text-on-surface">Showing all cases allotted to Field Agents</div>
+            <div class="flex items-center gap-2">
+              <select id="alTraceStatusFilter" onchange="renderAlAgentTraceTable()" class="text-xs bg-white border border-outline-variant rounded-lg px-2.5 py-1 font-semibold text-on-surface">
+                <option value="ALL">All Agent Cases (Done &amp; Pending)</option>
+                <option value="PHOTOS_UPLOADED">📸 Photos Uploaded (Visit Done)</option>
+                <option value="FORM_SUBMITTED">📝 Form Submitted</option>
+                <option value="PENDING_PHOTOS">⏳ Pending Photos (Visit Not Done)</option>
+              </select>
+            </div>
+          </div>
+          <div class="overflow-x-auto border border-outline-variant rounded-xl">
+            <table class="w-full text-xs border-collapse">
+              <thead>
+                <tr class="text-left font-mono text-[10px] text-outline uppercase border-b border-outline-variant bg-surface-container-low">
+                  <th class="py-2.5 px-3">Field Agent &amp; Timestamps</th>
+                  <th class="py-2.5 px-3">Case Taken &amp; Applicant</th>
+                  <th class="py-2.5 px-3">Attendance Selfie &amp; GPS</th>
+                  <th class="py-2.5 px-3">Which Photos Uploaded (Slots &amp; Previews)</th>
+                  <th class="py-2.5 px-3">What Form Submitted</th>
+                  <th class="py-2.5 px-3">Status</th>
+                  <th class="py-2.5 px-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="alAgentTraceTableBody" class="divide-y divide-outline-variant/60"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
