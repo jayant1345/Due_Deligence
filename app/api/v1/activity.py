@@ -806,12 +806,26 @@ async def get_agent_wise_activity_trace(
         })
 
     cases_trace.sort(key=lambda x: x.get("last_activity_ts") or 0, reverse=True)
-    agents_out = []
+    raw_agents = []
     for ag_info in agent_stats.values():
         ag_copy = dict(ag_info)
         ag_copy.pop("_last_ts", None)
-        agents_out.append(ag_copy)
-    agents_out.sort(key=lambda a: (a["total_cases_taken"], a["total_photos_uploaded"]), reverse=True)
+        raw_agents.append(ag_copy)
+    raw_agents.sort(key=lambda a: (a["total_cases_taken"], a["total_photos_uploaded"]), reverse=True)
+
+    # Deduplicate alias User rows sharing the same full_name and omit unused seed/duplicate 0-case rows
+    seen_agent_names = set()
+    agents_out = []
+    for ag_item in raw_agents:
+        norm_nm = (ag_item.get("agent_name") or "").strip().lower()
+        if not norm_nm:
+            continue
+        if norm_nm in seen_agent_names and ag_item.get("total_cases_taken", 0) == 0:
+            continue
+        if "rajesh varma" in norm_nm and ag_item.get("total_cases_taken", 0) == 0:
+            continue
+        seen_agent_names.add(norm_nm)
+        agents_out.append(ag_item)
 
     return {
         "agents": agents_out,
