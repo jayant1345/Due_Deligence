@@ -2851,4 +2851,165 @@ async def rotate_case_document_image(
     }
 
 
+@router.get("/{case_id}/field-form-pdf")
+async def download_field_agent_submitted_form_pdf(
+    case_id: str,
+    download: int = Query(1, description="1 = attachment download, 0 = inline preview in browser tab"),
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """
+    Generate and serve an official audit-stamped PDF of the Field Agent's filled
+    PWA Due Diligence Questionnaire Form (`loan_case.field_form_data`), showing
+    exact answers entered by the Field Agent, submission timestamps, agent identity,
+    and attendance selfie as tamper-evident proof of entry.
+    """
+    from fastapi.responses import FileResponse
+    from app.services.field_form_proof_pdf import _fmt_ist, build_field_agent_submitted_form_pdf
+
+    loan_case = await resolve_loan_case(db, case_id)
+    if not loan_case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan case not found")
+
+    ff_dict: Dict[str, Any] = {}
+    if loan_case.field_form_data:
+        try:
+            parsed = (
+                json.loads(loan_case.field_form_data)
+                if isinstance(loan_case.field_form_data, str)
+                else loan_case.field_form_data
+            )
+            if isinstance(parsed, dict):
+                ff_dict = parsed
+        except Exception:
+            ff_dict = {}
+
+    # Resolve assigned field agent name
+    assigned_agent_name = None
+    if loan_case.assigned_agent_id:
+        ag_res = await db.execute(select(User).where(User.id == loan_case.assigned_agent_id))
+        ag_user = ag_res.scalar_one_or_none()
+        if ag_user:
+            assigned_agent_name = ag_user.full_name
+
+    # Fetch submission & visit audit logs for this case
+    logs_res = await db.execute(
+        select(AuditLog, User.full_name)
+        .outerjoin(User, User.id == AuditLog.user_id)
+        .where(
+            AuditLog.case_id == loan_case.id,
+            AuditLog.action.in_(
+                ("FIELD_FORM_SUBMITTED", "FIELD_FORM_PDF_INGESTED", "AGENT_CHECK_IN", "AGENT_CHECK_OUT", "CASE_ASSIGNED")
+            ),
+        )
+        .order_by(desc(AuditLog.timestamp))
+        .limit(15)
+    )
+    ACTION_READABLE = {
+        "FIELD_FORM_SUBMITTED": "Submitted PWA Due Diligence Form",
+        "FIELD_FORM_PDF_INGESTED": "Imported Backlog Field Visit Form PDF",
+        "AGENT_CHECK_IN": "Checked In On-Site (PWA)",
+        "AGENT_CHECK_OUT": "Checked Out On-Site (PWA)",
+        "CASE_ASSIGNED": "Case Allotted to Field Agent",
+    }
+    submission_logs: List[Dict[str, Any]] = []
+    for al_row, u_name in logs_res.all():
+        meta = al_row.extra_metadata if isinstance(al_row.extra_metadata, dict) else {}
+        actor = meta.get("agent_name") or u_name or assigned_agent_name or "Field Agent"
+        submission_logs.append(
+            {
+                "action": al_row.action,
+                "action_label": ACTION_READABLE.get(al_row.action, al_row.action),
+                "user_name": actor,
+                "timestamp_ist": _fmt_ist(al_row.timestamp),
+            }
+        )
+
+    # Fetch site photos count & attendance selfie path on disk
+    docs_res = await db.execute(
+        select(CaseDocument)
+        .where(
+            CaseDocument.case_id == loan_case.id,
+            CaseDocument.doc_type.in_(ALL_FIELD_VISIT_DOC_TYPES),
+        )
+        .order_by(desc(CaseDocument.captured_at))
+    )
+    selfie_info: Optional[Dict[str, Any]] = None
+    total_site_photos = 0
+    for d in docs_res.scalars().all():
+        raw_url = d.watermarked_url or d.storage_url or ""
+        if not _field_visit_photo_exists_on_disk(raw_url):
+            continue
+        if d.doc_type == DocumentType.AGENT_SELFIE:
+            if selfie_info is None:
+                local_p = _resolve_doc_image_path(raw_url)
+                gps_parts = []
+                if d.latitude is not None and d.longitude is not None:
+                    gps_parts.append(f"GPS: {d.latitude:.5f}°N, {d.longitude:.5f}°E")
+                if d.distance_from_target is not None:
+                    gps_parts.append(f"Dist: {round(d.distance_from_target)}m")
+                selfie_info = {
+                    "local_path": local_p,
+                    "captured_at_ist": _fmt_ist(d.captured_at or d.created_at),
+                    "gps_text": " • ".join(gps_parts) if gps_parts else "GPS Verified",
+                }
+        else:
+            total_site_photos += 1
+
+    status_str = loan_case.status.value if hasattr(loan_case.status, "value") else str(loan_case.status or "DRAFT")
+    case_meta = {
+        "case_id": str(loan_case.id),
+        "case_no": loan_case.case_no,
+        "status": status_str,
+        "bank_name": loan_case.bank_name,
+        "branch": loan_case.branch,
+        "loan_type": loan_case.loan_type,
+        "loan_amount": loan_case.loan_amount,
+        "applicant_name": loan_case.applicant_name,
+        "applicant_phone": loan_case.applicant_phone,
+        "co_applicant_name": loan_case.co_applicant_name,
+        "co_applicant_phone": loan_case.co_applicant_phone,
+        "target_address": loan_case.target_address,
+        "office_address": loan_case.office_address,
+        "co_applicant_office_address": loan_case.co_applicant_office_address,
+        "assigned_agent_name": assigned_agent_name,
+    }
+
+    clean_no = re.sub(r"[^a-zA-Z0-9_-]+", "_", (loan_case.case_no or "CASE").strip()).strip("_")
+    clean_app = re.sub(
+        r"^(mr|mrs|miss|ms|dr|shri|smt)\.?\s+",
+        "",
+        (loan_case.applicant_name or "Applicant").strip(),
+        flags=re.I,
+    )
+    clean_app = re.sub(r"[^a-zA-Z0-9]+", "_", clean_app).strip("_")[:40] or "Applicant"
+    dl_filename = f"Field_Agent_Form_Proof_{clean_no}_{clean_app}.pdf"
+
+    out_dir = os.path.join("storage_uploads", "field_form_proofs")
+    os.makedirs(out_dir, exist_ok=True)
+    out_pdf_path = os.path.join(out_dir, dl_filename)
+
+    await run_in_threadpool(
+        build_field_agent_submitted_form_pdf,
+        out_pdf_path,
+        case_meta,
+        ff_dict,
+        submission_logs,
+        selfie_info,
+        {"total_site_photos": total_site_photos},
+    )
+
+    disp_type = "attachment" if int(download or 0) == 1 else "inline"
+    return FileResponse(
+        path=out_pdf_path,
+        media_type="application/pdf",
+        filename=dl_filename,
+        headers={
+            "Content-Disposition": f'{disp_type}; filename="{dl_filename}"',
+            "Cache-Control": "no-store, max-age=0",
+        },
+    )
+
+
+
 

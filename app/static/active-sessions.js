@@ -1558,6 +1558,10 @@
               ${form.neighbours ? `<div class="text-[10px] font-mono text-emerald-800 truncate" title="Neighbours: ${_escHtml(form.neighbours)}"><b>Neigh:</b> ${_escHtml(form.neighbours)}</div>` : ""}
               ${workInfo ? `<div class="text-[10px] font-mono text-indigo-800 truncate" title="Work: ${_escHtml(workInfo)}"><b>Work:</b> ${_escHtml(workInfo)}</div>` : ""}
               ${form.submitted_at_ist ? `<div class="font-mono text-[9px] text-outline">${_escHtml(form.submitted_at_ist)}</div>` : ""}
+              <div class="pt-1 flex items-center gap-1">
+                <button type="button" onclick="downloadCaseFieldFormPdf('${_escHtml(c.case_id)}', 1)" class="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-mono text-[9px] font-bold cursor-pointer shadow-2xs" title="Download PDF of the PWA Questionnaire Form filled by the Field Agent (Proof of Entry)">📥 Form PDF (Proof)</button>
+                <button type="button" onclick="downloadCaseFieldFormPdf('${_escHtml(c.case_id)}', 0)" class="px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-300 font-mono text-[9px] font-bold cursor-pointer" title="View Filled Form PDF in new tab">👁️ View</button>
+              </div>
             </div>`;
         } else {
           formHtml = `
@@ -1819,9 +1823,13 @@
               : "";
           const dist = m.distance_m != null ? ` (${Math.round(Number(m.distance_m))}m)` : "";
           detailsHtml = `<span class="text-emerald-800 font-semibold">📸 Uploaded Photo:</span> <code class="bg-slate-100 px-1 rounded">${_escHtml(fname)}</code><span class="font-mono text-[10px] text-outline">${_escHtml(gps + dist)}</span>`;
-        } else if (e.action === "FIELD_FORM_SUBMITTED") {
+        } else if (e.action === "FIELD_FORM_SUBMITTED" || e.action === "FIELD_FORM_PDF_INGESTED") {
           const agName = m.agent_name || e.user_name || "Field Agent";
-          detailsHtml = `<span class="text-blue-800 font-semibold">📝 Due Diligence Form Submitted</span> by <b>${_escHtml(agName)}</b>`;
+          const targetId = e.case_id || e.case_no || "";
+          const dlBtns = targetId
+            ? ` <button type="button" onclick="downloadCaseFieldFormPdf('${_escHtml(targetId)}', 1)" class="ml-1.5 px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-mono text-[9px] font-bold cursor-pointer">📥 Form PDF (Proof)</button>`
+            : "";
+          detailsHtml = `<span class="text-blue-800 font-semibold">📝 Due Diligence Form Submitted</span> by <b>${_escHtml(agName)}</b>${dlBtns}`;
         } else {
           const rawSum =
             typeof activityLogMetaSummary === "function"
@@ -2055,6 +2063,31 @@
     window.renderAgentActivityLog = wrappedRenderAal;
   }
 
+  function downloadCaseFieldFormPdf(caseIdOrNo, downloadFlag = 1) {
+    const target = String(caseIdOrNo || "").trim();
+    if (!target) {
+      alert("Please select a case first.");
+      return;
+    }
+    const dl = Number(downloadFlag) === 0 ? 0 : 1;
+    const url = `/api/v1/cases/${encodeURIComponent(target)}/field-form-pdf?download=${dl}&t=${Date.now()}`;
+    window.open(url, "_blank", "noopener");
+  }
+
+  function downloadActiveCaseFieldFormPdf(downloadFlag = 1) {
+    const cid =
+      (typeof window.activeCaseId !== "undefined" && window.activeCaseId) ||
+      document.getElementById("caseSelectorSelect")?.value ||
+      "";
+    let resolvedId = cid;
+    if (typeof window.caseRegistry !== "undefined" && window.caseRegistry && cid && window.caseRegistry[cid]) {
+      resolvedId = window.caseRegistry[cid].db_id || cid;
+    }
+    downloadCaseFieldFormPdf(resolvedId, downloadFlag);
+  }
+
+  window.downloadCaseFieldFormPdf = downloadCaseFieldFormPdf;
+  window.downloadActiveCaseFieldFormPdf = downloadActiveCaseFieldFormPdf;
   window.switchActivityLogViewMode = switchActivityLogViewMode;
   window.selectFieldAgentInActivityLog = selectFieldAgentInActivityLog;
   window.selectFieldAgentInAalModal = selectFieldAgentInAalModal;

@@ -286,6 +286,10 @@
             <span class="material-symbols-outlined text-[15px] text-primary-container">edit_square</span>
             <span>✏️ Edit Details</span>
           </button>
+          <button onclick="downloadActiveCaseFieldFormPdf(1)" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-900 rounded font-headline font-bold flex items-center gap-1 shadow-2xs transition-all text-xs cursor-pointer" title="Download the official audit-stamped PDF of the PWA Questionnaire Form filled by the Field Agent (Proof of Field Entry)">
+            <span class="material-symbols-outlined text-[15px] text-indigo-700">assignment_turned_in</span>
+            <span>📋 Agent Form PDF (Proof)</span>
+          </button>
           <button onclick="triggerAiFolderIngest()" class="px-3 py-1 bg-primary-container hover:bg-primary text-white rounded font-headline font-bold flex items-center gap-1.5 shadow-sm transition-all text-xs" title="Select Bank Case Documents Folder or PDF to auto-ingest with Gemini AI">
             <span class="material-symbols-outlined text-[16px]">bolt</span>
             <span>⚡ AI Ingest Bank Folder / PDF</span>
@@ -767,6 +771,10 @@
                 <span>Replace Scan</span>
                 <input type="file" accept="image/*,application/pdf" class="hidden" onchange="directReplaceDocCard('utility', this.files[0])"/>
               </label>
+              <button onclick="event.stopPropagation(); downloadActiveCaseFieldFormPdf(1)" class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-900 border border-indigo-300 hover:bg-indigo-100 flex items-center gap-1 transition-all cursor-pointer" title="Download PDF of the PWA Due Diligence Form filled by the Field Agent (Proof of Field Entry)">
+                <span class="material-symbols-outlined text-[13px] text-indigo-700">download</span>
+                <span>Form PDF</span>
+              </button>
               <button onclick="event.stopPropagation(); flipDocCard('utility')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-primary-container border border-blue-200 hover:bg-blue-100 flex items-center gap-1 transition-all" title="Flip between Electricity Bill & Field Visit Form">
                 <span class="material-symbols-outlined text-[13px]">sync</span>
                 <span id="utilityFlipBtnText">Flip Document</span>
@@ -2501,7 +2509,7 @@
   </div>
 
   <script src="/static/ca-portal.js?v=42"></script>
-  <script src="/static/active-sessions.js?v=13"></script>
+  <script src="/static/active-sessions.js?v=14"></script>
 
   <!-- HIGH RESOLUTION DOCUMENT INSPECTION LIGHTBOX MODAL WITH ZOOM & 3D FLIP -->
   <div id="docZoomModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-fadeIn">

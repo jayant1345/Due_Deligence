@@ -193,6 +193,43 @@ async def find_case_report_files(loan_case: LoanCase, session: AsyncSession) -> 
         except Exception:
             pass
 
+    # Include the Field Agent Filled Form Proof PDF in the archive if field_form_data exists
+    if loan_case.field_form_data:
+        try:
+            import json as _json_arch
+            from app.services.field_form_proof_pdf import build_field_agent_submitted_form_pdf
+            ff_arch = (
+                _json_arch.loads(loan_case.field_form_data)
+                if isinstance(loan_case.field_form_data, str)
+                else loan_case.field_form_data
+            )
+            if isinstance(ff_arch, dict) and ff_arch:
+                proof_dir = os.path.join("storage_uploads", "field_form_proofs")
+                os.makedirs(proof_dir, exist_ok=True)
+                proof_target = f"{clean_applicant}_Field_Agent_Submitted_Form_Proof.pdf"
+                proof_path = os.path.join(proof_dir, f"{loan_case.id.hex}_{proof_target}")
+                case_meta_arch = {
+                    "case_id": str(loan_case.id),
+                    "case_no": loan_case.case_no,
+                    "status": loan_case.status.value if hasattr(loan_case.status, "value") else str(loan_case.status),
+                    "bank_name": loan_case.bank_name,
+                    "branch": loan_case.branch,
+                    "loan_type": loan_case.loan_type,
+                    "loan_amount": loan_case.loan_amount,
+                    "applicant_name": loan_case.applicant_name,
+                    "applicant_phone": loan_case.applicant_phone,
+                    "co_applicant_name": loan_case.co_applicant_name,
+                    "co_applicant_phone": loan_case.co_applicant_phone,
+                    "target_address": loan_case.target_address,
+                    "office_address": loan_case.office_address,
+                    "co_applicant_office_address": loan_case.co_applicant_office_address,
+                }
+                build_field_agent_submitted_form_pdf(proof_path, case_meta_arch, ff_arch, [])
+                if os.path.exists(proof_path):
+                    reports_found.append((os.path.abspath(proof_path), proof_target))
+        except Exception:
+            pass
+
     return reports_found
 
 
